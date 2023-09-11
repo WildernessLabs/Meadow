@@ -88,7 +88,7 @@
 #define ADC_ALL_POSSIBLE_ADC_INTERRUPTS (ADC_SR_OVR | ADC_SR_STRT | \
           ADC_SR_JSTRT | ADC_SR_JEOC | ADC_SR_EOC | ADC_SR_AWD)
 
-// Of these PA4 and PA5 are available for DAC
+// // Of these PA4 and PA5 are available for DACDEBUG_PIN_CCM_PA4
 #define GPIO_V2_A00_IN4_PA4         (GPIO_ANALOG|GPIO_PORTA|GPIO_PIN4)
 #define GPIO_V2_A01_IN5_PA5         (GPIO_ANALOG|GPIO_PORTA|GPIO_PIN5)
 #define GPIO_V2_A02_IN3_PA3         (GPIO_ANALOG|GPIO_PORTA|GPIO_PIN3)
@@ -125,20 +125,15 @@
 #define MEADOW_ADC_SEQ_REGISTER_1_TOTAL (4)
 
 #if ADC_TESTS_USE_DMA_TRANSFER > 0
-#define ADC_TESTS_DMA_DATA_BUFFER_SIZE (6)
 #define ADC_TESTS_USE_DOUBLE_BUFFERING (0)
 #endif
 
-
+#define MEADOW_ADC_DEBUG_GPIO_COUNT (6)
 #define MEADOW_ADC_USE_NEW_CODE (0)
-
 
 /************************************************************************************
  * Private Data
  ************************************************************************************/
-
-// uint16_t _dmaDataBufferHack[6];
-
 // From data sheet - GPIO to ADC1 channel input map
 // Entries represent the CPU
 static uint8_t _gpioAdcChanMap[] =
@@ -172,11 +167,11 @@ static uint8_t _gpioAdcChanMap[] =
 #endif
 
 #if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
-  // 2-buffers in one
-  uint16_t _dmaDataBuffer[ADC_TESTS_DMA_DATA_BUFFER_SIZE * 2];
-  uint16_t *_dmaDataBuffer2 = _dmaDataBuffer + ADC_TESTS_DMA_DATA_BUFFER_SIZE;
+  // 2-buffers in one is required by Nuttx dma code
+  uint16_t _dmaDataBuffer[MEADOW_ADC_DEBUG_GPIO_COUNT * 2];
+  uint16_t *_dmaDataBuffer2 = _dmaDataBuffer + MEADOW_ADC_DEBUG_GPIO_COUNT;
 #else
-  uint16_t *_dmaDataBuffer;
+  volatile uint16_t *_dmaDataBuffer;
 #endif
 
 /************************************************************************************
@@ -186,7 +181,7 @@ static uint8_t _gpioAdcChanMap[] =
 // static int get_in_chan_from_pinid(uint32_t pinId, uint32_t *adcInputChan);
 // static int populate_adc_seq_channel(uint32_t *regval, uint32_t seqRegCount,
 //           uint32_t initRegShift);
-static void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[], uint32_t dataBufSize);
+static void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[], uint32_t dataBufElements);
 
 /************************************************************************************
  * Private Functions
@@ -249,9 +244,9 @@ static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
             FAR void *arg)
 {
 
-  uint32_t regval;
-  uint32_t baseADCAddr = (uint32_t)arg;
-  // static int execCnt = 0;
+  // uint32_t regval;
+  // uint32_t baseADCAddr = (uint32_t)arg;
+  static int execCnt = 0;
 
   // The DMA controller hardware can be programmed to call for the following
   // Discription        Event Flag    Enable control bit
@@ -305,13 +300,51 @@ static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
   // Stream Transfer Complete flag
   if((status & DMA_STREAM_TCIF_BIT) != 0)
   {
-    DEBUG_SET_HIGH(DEBUG_PIN_V2_D03);
+    static uint16_t dbgBuffer[MEADOW_ADC_DEBUG_GPIO_COUNT];
+    // bool tempPotValue;
+    // static bool potIsHigh;
+
+    DEBUG_SET_HIGH(DEBUG_PIN_CCM_D03_PB8);
+    
+    // execCnt++;
+
+    // // Check the first few, anything change?
+    // if( (dbgBuffer[0] != _dmaDataBuffer[0]) || 
+    //     (dbgBuffer[1] != _dmaDataBuffer[1]) ||
+    //     (dbgBuffer[2] != _dmaDataBuffer[2]))
+    // {
+    //   syslog(1, "%d Change detected [%u, %u] [%u, %u] [%u, %u]  [%u, %u] [%u, %u] [%u, %u]\n",
+    //             execCnt,
+    //             dbgBuffer[0], _dmaDataBuffer[0],
+    //             dbgBuffer[1], _dmaDataBuffer[1],
+    //             dbgBuffer[2], _dmaDataBuffer[2],
+    //             dbgBuffer[3], _dmaDataBuffer[3],
+    //             dbgBuffer[4], _dmaDataBuffer[4],
+    //             dbgBuffer[5], _dmaDataBuffer[5]);
+
+    //   memcpy(dbgBuffer, _dmaDataBuffer, MEADOW_ADC_DEBUG_GPIO_COUNT * 2);   // 16-bit numbers = Count * 2
+    //   execCnt = 0;
+    // }
+
+    // // Check on the second element which is where the pot's value is
+    // uint16_t valueOfPot = _dmaDataBuffer[1];
+    // if(valueOfPot > 2048)
+    //   tempPotValue = true;
+    // else
+    //   tempPotValue = false;
+
+    // if(potIsHigh != tempPotValue)
+    // {
+    //   potIsHigh = tempPotValue;
+    //   syslog(1, "Pot Value is now %u, execCnt:%d\n", valueOfPot, execCnt);
+    //   execCnt = 0;
+    // }
 
     // Allow calling thread to return home
     // sem_post(&_waitTillDoneSem);
 
     // syslog(1, "DMA ISR:Transfer Complete\n");
-    DEBUG_SET_LOW(DEBUG_PIN_V2_D03);
+    DEBUG_SET_LOW(DEBUG_PIN_CCM_D03_PB8);
 
 // (--) Future do some work here
 // #if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
@@ -321,9 +354,9 @@ static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
   }
 
   //---------------------------------------------------
-  // Invalidate the cache
+  // Invalidate the cache (start addre and end addr)
   // up_invalidate_dcache((uintptr_t)_dmaDataBuffer,
-  //               (uintptr_t)_dmaDataBuffer + ADC_TESTS_DMA_DATA_BUFFER_SIZE);
+  //               (uintptr_t)_dmaDataBuffer + MEADOW_ADC_DEBUG_GPIO_COUNT * 2);
 
   // Do work here
 
@@ -370,7 +403,7 @@ static int adc_conversion_interrupt_handler_isr(int irq, FAR void *context,
   uint32_t pendingInterrupts;
   uint32_t baseADCAddr = (uint32_t)arg;
 
-  DEBUG_SET_HIGH(DEBUG_PIN_V2_D04);
+  DEBUG_SET_HIGH(DEBUG_PIN_CCM_D04_PB9);
 
   pendingInterrupts = getreg32(baseADCAddr + STM32_ADC_SR_OFFSET);
   if(pendingInterrupts == 0)
@@ -399,10 +432,22 @@ static int adc_conversion_interrupt_handler_isr(int irq, FAR void *context,
     // code a function to "Reinitialize the DMA".
     // See nuttx/arch/arm/src/stm32f7/stm32_dma.c @657-673 for code that would
     // do the above requirement (I think).
+
+    // Need to adjust Destination Address (which has been updated by hardware).
+    putreg32((uint32_t)_dmaDataBuffer, STM32_DMA_SM0AR_OFFSET);
+
+    // The number of transfers also needs to be updated.
+    putreg32(MEADOW_ADC_DEBUG_GPIO_COUNT, baseADCAddr + STM32_DMA_SNDTR_OFFSET);
+
+    // Clear OVR bit
+    modifyreg32(baseADCAddr + STM32_ADC_SR_OFFSET, ADC_SR_OVR, 0);
+
+    // Restart conversion
+    modifyreg32(STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET, 0, ADC_CR2_SWSTART);
 #endif
   }
 
-  // // End of conversion - got a value?
+  // End of conversion - got a value?
   if ((pendingInterrupts & ADC_SR_EOC) != 0)
   {
     syslog(1, "-- ADC ISR-End of Conversion --\n");
@@ -412,7 +457,7 @@ static int adc_conversion_interrupt_handler_isr(int irq, FAR void *context,
   pendingInterrupts &= ~ADC_ALL_POSSIBLE_ADC_INTERRUPTS;
   putreg32(pendingInterrupts, baseADCAddr + STM32_ADC_SR_OFFSET);
 
-  DEBUG_SET_LOW(DEBUG_PIN_V2_D04);
+  DEBUG_SET_LOW(DEBUG_PIN_CCM_D04_PB9);
   return OK;
   // END IF ADC ISR
 }
@@ -479,8 +524,8 @@ static void adc_initialize (void)
   // options. I put the following in the same order as the Ref Man 15.13.2
   // This is mostly interrupt configuration
   regval = getreg32(STM32_ADC1_CR1);
-  // regval &= ~ADC_CR1_OVRIE;       // 0=Disable Overrun interrupt
-  //? regval &= ~ADC_CR1_RES_MASK;    // Insure all resolution bit are clear
+  regval |= ADC_CR1_OVRIE;       // 1=Enable Overrun interrupt
+  regval &= ~ADC_CR1_RES_MASK;    // Insure all resolution bit are clear
   regval |= ADC_CR1_RES_12BIT;      // Set resolution 00=12, 01=10, 10=8 or 11=6 bits
   // regval |= ADC_CR1_AWDEN;       // Testing 0=Disable Analog watchdog on regular channels
   // regval &= ~ADC_CR1_JAWDEN;      // 0=Disable Analog watchdog on injected
@@ -515,6 +560,16 @@ static void adc_initialize (void)
 #endif
 
   // Enable continous conversion
+  regval |= ADC_CR2_CONT;         // 1=Enable continuous mode
+//   putreg32(regval, STM32_ADC1_CR2);
+// //---------------------------------------------------------
+//   // (--) WHY NOT WITH OTHER CR2 CONFIGS?
+//   // Enable DMA of ADC
+//   regval = getreg32(STM32_ADC1_CR2);
+  // DDS may only be for single ADC mode  (may be only when not using sequence???)
+  // but comments 15.8.1 ony double buffered circular mode
+  regval |= ADC_CR2_DDS;          // 1=Enable DMA, 0=Disable Selection
+  regval |= ADC_CR2_DMA;          // 1=Enable DMA
   regval |= ADC_CR2_CONT;         // 1=Enable continuous mode
   putreg32(regval, STM32_ADC1_CR2);
 
@@ -564,7 +619,7 @@ static void adc_initialize (void)
   regval = getreg32(STM32_ADC1_BASE + STM32_ADC_SQR3_OFFSET);
   regval &= ADC_SQR3_RESERVED;   // Clear all SQR Bits
  
-  // (--) TESTING MAKE HARDCODE All 6 Pins
+  // (--) TESTING MAKE HARDCODE All MEADOW_ADC_DEBUG_GPIO_COUNT Pins
   regval |= (4  << ADC_SQR3_SQ1_SHIFT);   // Channel 4  - A00 [PA4]->ADC123_IN4
   regval |= (5  << ADC_SQR3_SQ2_SHIFT);   // Channel 5  - A01 [PA5]->ADC123_IN5
   regval |= (3  << ADC_SQR3_SQ3_SHIFT);   // Channel 3  - A02 [PA3]->ADC123_IN3
@@ -572,6 +627,12 @@ static void adc_initialize (void)
   regval |= (9  << ADC_SQR3_SQ5_SHIFT);   // Channel 9  - A04 [PB1]->ADC12_IN9
   regval |= (10 << ADC_SQR3_SQ6_SHIFT);   // Channel 10 - A05 [PC0]->ADC123_IN10
   putreg32(regval, STM32_ADC1_BASE + STM32_ADC_SQR3_OFFSET);
+
+  // HARD CODED VALUE MEADOW_ADC_DEBUG_GPIO_COUNT
+  regval = getreg32(STM32_ADC1_SQR1);
+  regval |= ((MEADOW_ADC_DEBUG_GPIO_COUNT - 1) << ADC_SQR1_L_SHIFT);
+  putreg32(regval, STM32_ADC1_SQR1);
+
 
 // THE FOLLOWING HAS BEEN PARTIAL TESTED - BUT THE ABOVE IS DOING THE WORK
 // WHILE TESTING
@@ -624,25 +685,25 @@ static void adc_initialize (void)
   //   putreg32(regval, STM32_ADC1_SQR1);
   // }
 
-  // Last set the size
-  regval = getreg32(STM32_ADC1_SQR1);
-  regval |= ((_gpioCount - 1) << ADC_SQR1_L_SHIFT);
-  putreg32(regval, STM32_ADC1_SQR1);
+  // // Last set the size
+  // regval = getreg32(STM32_ADC1_SQR1);
+  // regval |= ((_gpioCount - 1) << ADC_SQR1_L_SHIFT);
+  // putreg32(regval, STM32_ADC1_SQR1);
 
-//---------------------------------------------------------
-  // (--) WHY NOT WITH OTHER CR2 CONFIGS?
-  // Enable DMA of ADC
-  regval = getreg32(STM32_ADC1_CR2);
-  // DDS may only be for single ADC mode  (may be only when not using sequence???)
-  // but comments 15.8.1 ony double buffered circular mode
-  regval |= ADC_CR2_DDS;          // 1=Enable DMA Disable Selection
-  regval |= ADC_CR2_DMA;          // 1=Enable DMA
-  regval |= ADC_CR2_CONT;         // 1=Enable continuous mode
-  putreg32(regval, STM32_ADC1_CR2);
+// //---------------------------------------------------------
+//   // (--) WHY NOT WITH OTHER CR2 CONFIGS?
+//   // Enable DMA of ADC
+//   regval = getreg32(STM32_ADC1_CR2);
+//   // DDS may only be for single ADC mode  (may be only when not using sequence???)
+//   // but comments 15.8.1 ony double buffered circular mode
+//   regval |= ADC_CR2_DDS;          // 1=Enable DMA Disable Selection
+//   regval |= ADC_CR2_DMA;          // 1=Enable DMA
+//   regval |= ADC_CR2_CONT;         // 1=Enable continuous mode
+//   putreg32(regval, STM32_ADC1_CR2);
 }
 #else
 //======================================================================
-// Assumes ADC 1
+// Assumes ADC 1 - OLD
 static void adc_initialize (void)
 {
   uint32_t regval;
@@ -653,6 +714,7 @@ static void adc_initialize (void)
   regval = getreg32(STM32_RCC_APB2ENR);
   regval |= RCC_APB2ENR_ADC1EN;
   putreg32(regval, STM32_RCC_APB2ENR);
+  modifyreg32(STM32_RCC_APB1ENR, 0, RCC_AHB1ENR_DMA2EN);
 
   // Turn-off ADC
   // regval = getreg32(STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
@@ -703,15 +765,16 @@ static void adc_initialize (void)
   // regval &= ~ADC_CCR_MULTI_NONE;     // 00000=Independent mode
   putreg32(regval, STM32_ADC_CCR);
 
-  regval = getreg32(STM32_ADC_CCR);
-  putreg32(regval, STM32_ADC_CCR);
+// Does nothing
+  // regval = getreg32(STM32_ADC_CCR);
+  // putreg32(regval, STM32_ADC_CCR);
   //---------------------------------------------------
   // Get the ADC Control Register 1 register. This register controls a lot of
   // options. I put the following in the same order as the Ref Man 15.13.2
   // This is mostly interrupt configuration
   regval = getreg32(STM32_ADC1_BASE + STM32_ADC_CR1_OFFSET);
-  // regval &= ~ADC_CR1_OVRIE;       // 0=Disable Overrun interrupt
-  //? regval &= ~ADC_CR1_RES_MASK;    // Insure all resolution bit are clear
+  regval |= ADC_CR1_OVRIE;       // 1=Enable Overrun interrupt
+  regval &= ~ADC_CR1_RES_MASK;    // Insure all resolution bit are clear
   regval |= ADC_CR1_RES_12BIT;      // Set resolution 00=12, 01=10, 10=8 or 11=6 bits
   // regval |= ADC_CR1_AWDEN;       // Testing 0=Disable Analog watchdog on regular channels
   // regval &= ~ADC_CR1_JAWDEN;      // 0=Disable Analog watchdog on injected
@@ -789,9 +852,9 @@ static void adc_initialize (void)
   // Since for ADC1 the value is '4' (it's also 4 for ADC2 and 3).
   //
   regval = getreg32(STM32_ADC1_BASE + STM32_ADC_SQR3_OFFSET);
-  //? regval &= ADC_SQR3_RESERVED;   // Clear all SQR Bits
+  regval &= ADC_SQR3_RESERVED;   // Clear all SQR Bits
  
-  // All 6 Pins available
+  // All 6 (MEADOW_ADC_DEBUG_GPIO_COUNT) Pins available
   regval |= (4  << ADC_SQR3_SQ1_SHIFT);   // Channel 4  - A00 [PA4]->ADC123_IN4
   regval |= (5  << ADC_SQR3_SQ2_SHIFT);   // Channel 5  - A01 [PA5]->ADC123_IN5
   regval |= (3  << ADC_SQR3_SQ3_SHIFT);   // Channel 3  - A02 [PA3]->ADC123_IN3
@@ -799,6 +862,11 @@ static void adc_initialize (void)
   regval |= (9  << ADC_SQR3_SQ5_SHIFT);   // Channel 9  - A04 [PB1]->ADC12_IN9
   regval |= (10 << ADC_SQR3_SQ6_SHIFT);   // Channel 10 - A05 [PC0]->ADC123_IN10
   putreg32(regval, STM32_ADC1_BASE + STM32_ADC_SQR3_OFFSET);
+
+  regval = getreg32(STM32_ADC1_BASE + STM32_ADC_SQR1_OFFSET);
+  // regval &= ADC_SQR1_RESERVED;            // Clear all SQR Bits
+  regval |= ((MEADOW_ADC_DEBUG_GPIO_COUNT - 1) << ADC_SQR1_L_SHIFT);
+  putreg32(regval, STM32_ADC1_BASE + STM32_ADC_SQR1_OFFSET);
 
   // FOR TESTING - Hookup all 16 ADC Input and try to determine what's going
   // on
@@ -831,15 +899,10 @@ static void adc_initialize (void)
   // regval |= (16 << ADC_SQR1_SQ16_SHIFT);   // Channel 16
   // regval |= (15 << ADC_SQR1_L_SHIFT);      // A 15 will convert 16 inputs
 
-  regval = getreg32(STM32_ADC1_BASE + STM32_ADC_SQR1_OFFSET);
-  //? regval &= ADC_SQR1_RESERVED;            // Clear all SQR Bits
-  regval |= (5 << ADC_SQR1_L_SHIFT);       // A 5 will convert 6
-  putreg32(regval, STM32_ADC1_BASE + STM32_ADC_SQR1_OFFSET);
-
-  // // Wake up internal temperature sensor
-  // regval = getreg32(STM32_ADC_CCR);
-  // regval |= ADC_CCR_TSVREFE;
-  // putreg32(regval, STM32_ADC_CCR);
+  // // Last set the size
+  // regval = getreg32(STM32_ADC1_SQR1);
+  // regval |= ((_gpioCount - 1) << ADC_SQR1_L_SHIFT);
+  // putreg32(regval, STM32_ADC1_SQR1);
 
   // (--) WHY NOT WITH OTHER CR2 CONFIGS?
   // Enable DMA of ADC
@@ -959,7 +1022,7 @@ static void dma_initialize(void)
   stm32_dmasetup(_dmaHandle,
                  STM32_ADC1_DR,                     // Peripheral data addr
                  (uint32_t)_dmaDataBuffer,         // Memory addr
-                 ADC_TESTS_DMA_DATA_BUFFER_SIZE,    // number of transfers
+                 MEADOW_ADC_DEBUG_GPIO_COUNT,    // number of transfers
                  regval);
 
   // Provide DMA callback
@@ -990,8 +1053,7 @@ static void dma_initialize(void)
   regval = getreg32(STM32_DMA2_S0CR);
   regval =  DMA_SCR_MSIZE_16BITS;   // Size of memory transfer
   regval |= DMA_SCR_PSIZE_16BITS;   // Size of peripheral transfer
-  // Memory increment mode. 0=mem addr is fixed, 1=mem addr increments
-  regval |= DMA_SCR_MINC;           // Mem Increment
+  regval |= DMA_SCR_MINC;           // Mem Increment  // Memory increment mode. 0=mem addr is fixed, 1=mem addr increments
   regval |= DMA_SCR_CIRC;           // Circular mode 1=enabled
   regval |= DMA_SCR_DIR_P2M;        // Direction 0=Perph->Mem
 
@@ -1009,7 +1071,7 @@ static void dma_initialize(void)
   stm32_dmasetup(_dmaHandle,
                  STM32_ADC1_BASE + STM32_ADC_DR_OFFSET, // Peripheral addr
                  (uint32_t)_dmaDataBuffer,          // Mem buffer addr
-                 ADC_TESTS_DMA_DATA_BUFFER_SIZE,    // number of transfers
+                 MEADOW_ADC_DEBUG_GPIO_COUNT,    // number of transfers
                  regval);
 
   // Provide DMA callback
@@ -1074,7 +1136,7 @@ static void dma_initialize(void)
   regval = getreg32(STM32_DMA2_S0NDTR);
   // regval &= ~0x0000ffff;      // Clear 15:0
   // // regval |= xferSize;
-  regval = ADC_TESTS_DMA_DATA_BUFFER_SIZE;
+  regval = MEADOW_ADC_DEBUG_GPIO_COUNT;
   putreg32(regval, STM32_DMA2_S0NDTR);
 
   // DMA2 Channel 0 Peripheral Register
@@ -1121,13 +1183,16 @@ int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
 {
   int ret;
   uint32_t gpioListOff;
-  uint32_t mapOff;
+  uint32_t mapOff = 0;
 
   _gpioList = gpioList;
   _gpioCount = gpioCount;
- _dmaDataBuffer = dataBuffer;
+  // (--) For testing Sat AM
+  // May need room for up to 16, 16-bit numbers or 32 bytes
+  _dmaDataBuffer = malloc(32);
+  // _dmaDataBuffer = dataBuffer;
 
-  syslog(1, "--- meadow_adc - Address of buffer is:%p\n", _dmaDataBuffer);
+  syslog(1, "--- meadow_adc - Address of buffer malloc is:%p\n", _dmaDataBuffer);
   // syslog(1, "---meadow_adc configuration. gpioCount:%lu, convBufSize:%lu\n",
   //           gpioCount, convBuffSize);
 
@@ -1168,7 +1233,7 @@ int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
                 __FILE__, __LINE__);
   }
 
-// (--) TO DO
+// (--) TO DO MUST CALCULATE AND WARN AS
   // How may cycles of conversion will fit in the provided data buffer
 
   // THIS MUST BE DONE BY THE CALLER IN NORMAL USE
@@ -1207,12 +1272,31 @@ syslog(1, "--- Attaching IRQ\n");
   // Enable ADC interrupt handler
   up_enable_irq(STM32_IRQ_ADC);
 
-  syslog(1, "ADC initialization completed\n");
+  syslog(1, "**ADC initialization completed\n");
+  return OK;
+}
+
+//=========================================================
+// Convert
+// (FUTURE) Calling this function will initiate the ADC converstion process. It will
+// run until the configured buffer is full. When the buffer is full (or error)
+// the calling thread will return to the caller, signifing that the buffer
+// is ready for inspection.
+int meadow_adc_read_conversions(void)
+{
+  // syslog(1, "Entered meadow_adc_read_conversions\n");
+  
+  // Wait for conversion to finish
+  // meadow_adc_buffer_takesem(&_waitTillDoneSem);
+
+  show_all_data_in_buffer("ADC", _dmaDataBuffer, MEADOW_ADC_DEBUG_GPIO_COUNT);
+
   return OK;
 }
 
 //==========================================================================
-static void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[], uint32_t dataBufSize)
+static void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[],
+          uint32_t dataBufElements)
 {
 #define DMA_ISR_DISP_MAX_PER_ROW (8)    // 8 elements / row
 #define DMA_ISR_DISP_VAL_LEN (5)        // Data values take 5 char
@@ -1223,8 +1307,8 @@ static void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[], uin
   int lineBuffOff;
 
   int disp_max_per_row = DMA_ISR_DISP_MAX_PER_ROW;
-  if(disp_max_per_row > dataBufSize)
-    disp_max_per_row = dataBufSize;
+  if(disp_max_per_row > dataBufElements)
+    disp_max_per_row = dataBufElements;
 
   int disp_char_per_row = (disp_max_per_row * DMA_ISR_DISP_VAL_LEN);
   int disp_total_line_len = disp_char_per_row + DMA_ISR_DISP_LEADER_LEN;
@@ -1249,23 +1333,7 @@ static void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[], uin
     syslog(1, "%s-%s\n", headerText, lineBuff);
 
     // Line by line show entire buffer
-  } while (dmaBuffOff < dataBufSize);
+  } while (dmaBuffOff < dataBufElements);
 }
-
-//=========================================================
-// Convert
-// Calling this function will initiate the ADC converstion process. It will
-// run until the configured buffer is full. When the buffer is full (or error)
-// the calling thread will return to the caller, signifing that the buffer
-// is ready for inspection.
-int meadow_adc_read_conversions(void)
-{
-  // Wait for conversion to finish
-  // meadow_adc_buffer_takesem(&_waitTillDoneSem);
-  show_all_data_in_buffer("Meadow ADC", _dmaDataBuffer, 6);
-
-  return OK;
-}
-
 
 

@@ -296,24 +296,23 @@ void *adc_test_kthread_func(int argc, char *argv[])
 
   for(int chkCnt = 0; chkCnt < 1000000; chkCnt++)
   {
-    // syslog(1, "Calling meadow_adc_read_conversions()\n");  usleep(20 * 1000);
-
     // Calling meadow_adc.c API
     // This thread will wait until buffer is full
+    // syslog(1, "Calling meadow_adc_read_conversions\n");
     ret = meadow_adc_read_conversions();
     if(ret < 0)
     {
       syslog(LOG_ERR, "%s@%d-Call to meadow_adc_read_conversions() failed\n",
                 __FILE__, __LINE__);
     }
-
-    // syslog(1, "Call to meadow_adc_read_conversions() returned\n");  usleep(20 * 1000);
+    // syslog(1, "Returned from meadow_adc_read_conversions call\n");
 
     // Show information in the buffer
     // This call requires a byte count so, ADC_TESTS_DMA_BUFFER_SIZE*2
     // hcom_nx_diag_print_buffer((uint8_t*)_dmaDataBuffer1, ADC_TESTS_DMA_BUFFER_SIZE*2, 1);
+
     // Works from 16-bit size, so it's okay as is
-    show_all_data_in_buffer("Test App  ", _dmaDataBuffer1, ADC_TESTS_DMA_BUFFER_SIZE);
+    // show_all_data_in_buffer("Test App  ", _dmaDataBuffer1, ADC_TESTS_DMA_BUFFER_SIZE);
     usleep(1000 * 1000);
   }
   return NULL;
