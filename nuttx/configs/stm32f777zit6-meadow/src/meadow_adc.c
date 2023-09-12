@@ -121,76 +121,66 @@
                                (ADC_SMPR_DEFAULT << ADC_SMPR2_SMP8_SHIFT) | \
                                (ADC_SMPR_DEFAULT << ADC_SMPR2_SMP9_SHIFT))
 
+#if ADC_TESTS_USE_DMA_TRANSFER > 0
+#define ADC_TESTS_DMA_DATA_BUFFER_SIZE (6)// (--) THIS SHOULD BE A CALCULATED VALUE!!
+#define ADC_TESTS_USE_DOUBLE_BUFFERING (0)
+  DMA_HANDLE _dmaHandle;
+#endif
 
-// [--] START - CARRIED FROM non-working meadow_adc.c
-// // Sequence Register 3 holds first 6 Analog GPIOs
-// #define MEADOW_ADC_SEQ_REGISTER_3_TOTAL (6)
-// #define MEADOW_ADC_SEQ_REGISTER_2_TOTAL (6)
-// #define MEADOW_ADC_SEQ_REGISTER_1_TOTAL (4)
-
-// #if ADC_TESTS_USE_DMA_TRANSFER > 0
-// #define ADC_TESTS_USE_DOUBLE_BUFFERING (0)
-// #endif
-
-// #define MEADOW_ADC_DEBUG_GPIO_COUNT (6)
+// Sequence Register 3 holds first 6 Analog GPIOs
+#define MEADOW_ADC_SEQ_REGISTER_3_TOTAL (6)
+#define MEADOW_ADC_SEQ_REGISTER_2_TOTAL (6)
+#define MEADOW_ADC_SEQ_REGISTER_1_TOTAL (4)
 
 // /************************************************************************************
 //  * Private Data
 //  ************************************************************************************/
-// // From data sheet - GPIO to ADC1 channel input map
-// // Entries represent the CPU
-// static uint8_t _gpioAdcChanMap[] =
-// {
-//   0x00,      // Chan 0 = PA0
-//   0x01,      // Chan 1 = PA1
-//   0x02,      // Chan 2 = PA2
-//   0x03,      // Chan 3 = PA3
-//   0x04,      // Chan 4 = PA4
-//   0x05,      // Chan 5 = PA5
-//   0x06,      // Chan 6 = PA6
-//   0x07,      // Chan 7 = PA7
-//   0x10,      // Chan 8 = PB0
-//   0x11,      // Chan 9 = PB1
-//   0x20,      // Chan 10 = PC0
-//   0x21,      // Chan 11 = PC1
-//   0x22,      // Chan 12 = PC2
-//   0x23,      // Chan 13 = PC3
-//   0x24,      // Chan 14 = PC4
-//   0x25,      // Chan 15 = PC5
-// };
-// #define MEADOW_ADC_GPIO_CHAN_MAP_LENGTH (sizeof(_gpioAdcChanMap))
+// From data sheet - GPIO to ADC1 channel input map
+// Entries represent the CPU
+static uint8_t _gpioAdcChanMap[] =
+{
+  0x00,      // Chan 0 = PA0
+  0x01,      // Chan 1 = PA1
+  0x02,      // Chan 2 = PA2
+  0x03,      // Chan 3 = PA3
+  0x04,      // Chan 4 = PA4
+  0x05,      // Chan 5 = PA5
+  0x06,      // Chan 6 = PA6
+  0x07,      // Chan 7 = PA7
+  0x10,      // Chan 8 = PB0
+  0x11,      // Chan 9 = PB1
+  0x20,      // Chan 10 = PC0
+  0x21,      // Chan 11 = PC1
+  0x22,      // Chan 12 = PC2
+  0x23,      // Chan 13 = PC3
+  0x24,      // Chan 14 = PC4
+  0x25,      // Chan 15 = PC5
+};
+#define MEADOW_ADC_GPIO_CHAN_MAP_LENGTH (sizeof(_gpioAdcChanMap))
+
+#if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
+  // 2-buffers in one is required by Nuttx dma code
+#else
+ volatile uint16_t *_dmaDataBuffer;
+#endif
 
   static uint32_t _gpioCount;
   static uint8_t *_gpioList;
-  volatile uint16_t *_dmaDataBuffer;    // Points to callers buffer
 
-//   static uint8_t _gpioChannelMap[MEADOW_ADC_GPIO_CHAN_MAP_LENGTH];
 //   // static sem_t _waitTillDoneSem;
 
-// #if ADC_TESTS_USE_DMA_TRANSFER > 0
-//   DMA_HANDLE _dmaHandle;
-// #endif
-
-// BUFFER IS IN CALLER NOW
-// #if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
-//   // 2-buffers in one is required by Nuttx dma code
-//   uint16_t _dmaDataBuffer[MEADOW_ADC_DEBUG_GPIO_COUNT * 2];
-//   uint16_t *_dmaDataBuffer2 = _dmaDataBuffer + MEADOW_ADC_DEBUG_GPIO_COUNT;
-// #else
-//  volatile uint16_t *_dmaDataBuffer;
-// #endif
 // /************************************************************************************
 //  * Private Function Prototypes
 //  ************************************************************************************/
 
-// // static int get_in_chan_from_pinid(uint32_t pinId, uint32_t *adcInputChan);
-// // static int populate_adc_seq_channel(uint32_t *regval, uint32_t seqRegCount,
-// //           uint32_t initRegShift);
-// static void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[], uint32_t dataBufElements);
+static int get_in_chan_from_pinid(uint32_t pinId, uint32_t *adcInputChan);
+static int populate_adc_seq_channel(uint32_t *regval, uint32_t seqRegCount,
+          uint32_t initRegShift);
+static void meadow_adc_initialize(void);
 
-// /************************************************************************************
-//  * Private Functions
-//  ************************************************************************************/
+/************************************************************************************
+ * Private Functions
+ ************************************************************************************/
 // static void meadow_adc_buffer_takesem(sem_t *semaphore)
 // {
 //   int ret;
@@ -201,131 +191,46 @@
 //   while (ret == -EINTR);
 // }
 
-// //==========================================================================
-// // Find ADC input channel (0-16) from the provided GPIO input port/pin
-// static int get_in_chan_from_pinid(uint32_t pinId, uint32_t *adcInputChan)
-// {
-//   int mapOff;
+//==========================================================================
+// Find ADC input channel (0-16) from the provided GPIO input port/pin
+static int get_in_chan_from_pinid(uint32_t pinId, uint32_t *adcInputChan)
+{
+  int mapOff;
 
-//   // Look for match
-//   for(mapOff = 0; mapOff < MEADOW_ADC_GPIO_CHAN_MAP_LENGTH; mapOff++)
-//   {
-//     if(pinId == _gpioAdcChanMap[mapOff])
-//     {
-//       *adcInputChan = mapOff;
-//       return OK;
-//     }
-//   }
+  // Look for match
+  for(mapOff = 0; mapOff < MEADOW_ADC_GPIO_CHAN_MAP_LENGTH; mapOff++)
+  {
+    if(pinId == _gpioAdcChanMap[mapOff])
+    {
+      *adcInputChan = mapOff;
+      return OK;
+    }
+  }
 
-//   // Return error
-//   return -EBADSLT;    // 55 - Invalid Slot
-// }
+  // Return error
+  return -EBADSLT;    // 55 - Invalid Slot
+}
 
-// //======================================================================
-// // Helps fill the sequence registers
-// static int populate_adc_seq_channel(uint32_t *regval, uint32_t seqRegCount,
-//           uint32_t initRegShift)
-// {
-//   int ret;
-//   uint32_t regCnt;
-//   uint32_t adcInputChan;
+//======================================================================
+// Helps fill the sequence registers
+static int populate_adc_seq_channel(uint32_t *regval, uint32_t seqRegCount,
+          uint32_t initRegShift)
+{
+  int ret;
+  uint32_t regCnt;
+  uint32_t adcInputChan;
 
-//   for(regCnt = 0; regCnt < seqRegCount; regCnt++)
-//   {
-//     // For entry x what 'ADC input' channel
-//     ret = get_in_chan_from_pinid(_gpioList[regCnt], &adcInputChan);
-//     if(ret < 0)
-//       return ret;    // Error
+  for(regCnt = 0; regCnt < seqRegCount; regCnt++)
+  {
+    // For entry x what 'ADC input' channel
+    ret = get_in_chan_from_pinid(_gpioList[regCnt], &adcInputChan);
+    if(ret < 0)
+      return ret;    // Error
 
-//     *regval |= (adcInputChan << (initRegShift + (regCnt * 5)));
-//   }
-//   return OK;
-// }
-// [--] END - CARRIED FROM non-working meadow_adc.c
-
-#if ADC_TESTS_USE_DMA_TRANSFER > 0
-#define ADC_TESTS_DMA_DATA_BUFFER_SIZE (6)
-#define ADC_TESTS_USE_DOUBLE_BUFFERING (0)
-
-/************************************************************************************
- * Private Data
- ************************************************************************************/
-
-  DMA_HANDLE _dmaHandle;
-
- #if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
-  // 2-buffers in one
-  uint16_t _dmaDataBuffer1[ADC_TESTS_DMA_DATA_BUFFER_SIZE * 2];
-  uint16_t *_dmaDataBuffer2 = _dmaDataBuffer1 + ADC_TESTS_DMA_DATA_BUFFER_SIZE;
- #else
-  uint16_t _dmaDataBuffer1[ADC_TESTS_DMA_DATA_BUFFER_SIZE];
- #endif
-
-#endif
-
-/************************************************************************************
- * Public Data
- ************************************************************************************/
-// For reference from data sheet
-// Chan/INx  GPIO
-//     0     PA0
-//     1     PA1
-//     2     PA2
-//     3     PA3
-//     4     PA4
-//     5     PA5
-//     6     PB0
-//     7     PB1
-//     8     PB2
-//     10    PC0
-//     11    PC1
-//     12    PC2
-//     13    PC3
-//     14    PC4
-//     15    PC5
-
-/************************************************************************************
- * Private Function Prototypes
- ************************************************************************************/
-
-// static int adc_test_config_adc(int adc_numb, uint32_t baseADCAddr);
-static void meadow_adc_initialize(void);
-
-/************************************************************************************
- * Public Functions
- ************************************************************************************/
-
-/************************************************************************************
- * Private Functions
- ************************************************************************************/
-// Only for TESTING
-// static void adc_test_display_basic_adc_regs(uint32_t baseADCAddr)
-// {
-//   syslog(1, "SR:  0x%08x CR1:  0x%08x CR2:  0x%08x\n",
-//         getreg32(baseADCAddr + STM32_ADC_SR_OFFSET),
-//         getreg32(baseADCAddr + STM32_ADC_CR1_OFFSET),
-//         getreg32(baseADCAddr + STM32_ADC_CR2_OFFSET));
-
-//   syslog(1, "SQR1: 0x%08x SQR2: 0x%08x SQR3: 0x%08x\n",
-//         getreg32(baseADCAddr + STM32_ADC_SQR1_OFFSET),
-//         getreg32(baseADCAddr + STM32_ADC_SQR2_OFFSET),
-//         getreg32(baseADCAddr + STM32_ADC_SQR3_OFFSET));
-
-//   syslog(1, "CCR:  0x%08x\n", getreg32(STM32_ADC_CCR));
-// }
-
-// //==========================================================================
-// static void adc_test_display_basic_dma_regs(void)
-// {
-//   syslog(1, "S0CR:  0x%08x  S0NDTR: 0x%08x\n",
-//         getreg32(STM32_DMA2_S0CR),
-//         getreg32(STM32_DMA2_S0NDTR));
-
-//   syslog(1, "S0PAR: 0x%08x  S0M0AR: 0x%08x S0M1AR: 0x%08x\n",
-//         getreg32(STM32_DMA2_S0PAR),
-//         getreg32(STM32_DMA2_S0M0AR),
-//         getreg32(STM32_DMA2_S0M1AR));
-// }
+    *regval |= (adcInputChan << (initRegShift + (regCnt * 5)));
+  }
+  return OK;
+}
 
 #if ADC_TESTS_USE_DMA_TRANSFER > 0
 //==========================================================================
@@ -597,10 +502,6 @@ static void adc_initialize (void)
   regval &= ~ADC_CR2_ALIGN;       // 0=Right alignment (1=left alignment)
   // EOCS - End Of Conversion Selection. When should the EOC bit be set?
   regval |= ADC_CR2_EOCS;        // 1=End of each conversion, 0=End of sequence
-
-#if ADC_TESTS_USE_DMA_TRANSFER > 0
-#endif
-
   // Enable continous conversion
   regval |= ADC_CR2_CONT;         // 1=Enable continuous mode
   putreg32(regval, STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
@@ -664,6 +565,7 @@ static void adc_initialize (void)
   // [--] BEGIN - CARRIED FROM non-working meadow_adc.c
 // THE FOLLOWING HAS BEEN PARTIAL TESTED - BUT THE ABOVE IS DOING THE WORK
 // WHILE TESTING
+
   // uint32_t adcInputChan;
   // uint32_t seqRegCount;
   // uint32_t remainingCnt = _gpioCount;
@@ -915,13 +817,6 @@ void meadow_adc_initialize(void)
 #if ADC_TESTS_USE_DMA_TRANSFER > 0
     _dmaHandle = NULL;
 #endif
-    
-    // stm32_configgpio(GPIO_V2_A00_IN4_PA4);
-    // stm32_configgpio(GPIO_V2_A01_IN5_PA5);
-    // stm32_configgpio(GPIO_V2_A02_IN3_PA3);
-    // stm32_configgpio(GPIO_V2_A03_IN8_PB0);
-    // stm32_configgpio(GPIO_V2_A04_IN9_PB1);
-    // stm32_configgpio(GPIO_V2_A05_IN10_PC0);
   }
   else
   {
@@ -930,7 +825,6 @@ void meadow_adc_initialize(void)
   }
 
   syslog(1, "--> Entered meadow_adc_initialize()\n"); usleep(20 * 1000);
-
 
   // Setup the ADC Interrupt handler
   ret = irq_attach(STM32_IRQ_ADC, adc_conversion_interrupt_handler_isr,
@@ -957,8 +851,6 @@ void meadow_adc_initialize(void)
 
 #endif  // #if defined (CONFIG_ADC_TESTS)
 
-/*==========================================================================================*/
-
 /************************************************************************************
  * Public Functions
  ************************************************************************************/
@@ -969,65 +861,68 @@ void meadow_adc_initialize(void)
 int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
           volatile uint16_t *dataBuffer, uint32_t convBuffSize)
 {
+  int ret;
+  uint32_t gpioListOff;
+  uint32_t mapOff = 0;
+
+  // Populate global values
   _gpioList = gpioList;
   _gpioCount = gpioCount;
   _dmaDataBuffer = dataBuffer;
   
   syslog(1, "---meadow_adc configuration. gpioCount:%lu, convBufSize:%lu, BufferAddr:%p\n",
             gpioCount, convBuffSize, _dmaDataBuffer);
+            
+  // START OF ORIGINAL Works until following 6 lines exposed
+  // Must have at least 1 entry per gpio
+  if(gpioCount < convBuffSize)
+  {
+    syslog(1, "%s@%d-Error:gpioCount:%lu < convBuffSize:%lu\n",
+              __FILE__, __LINE__, gpioCount, convBuffSize);
+    return -EINVAL;   // Invalid argument
+  }
 
-  // START OF ORIGINAL
-  // int ret;
-//   uint32_t gpioListOff;
-//   uint32_t mapOff = 0;
+  // Verify GPIO list is valid
+  // for(gpioListOff = 0; gpioListOff < gpioCount; gpioListOff++)
+  // {
+  //   // Look for match
+  //   for(mapOff = 0; mapOff < MEADOW_ADC_GPIO_CHAN_MAP_LENGTH; mapOff++)
+  //   {
+  //     if(gpioList[gpioListOff] == _gpioAdcChanMap[mapOff])
+  //       break;   // Found-it's connected to ADC
+  //   }
+  // }
 
+  // // Did loop check all entries with no match?
+  // if(gpioListOff == gpioCount && mapOff == MEADOW_ADC_GPIO_CHAN_MAP_LENGTH)
+  // {
+  //   syslog(1, "%s@%d-Error:GPIO not found, gpioListOff:%lu, gpioCount:%lu, mapOff:%lu, MAP_LENGTH:%lu\n",
+  //             __FILE__, __LINE__, gpioListOff, gpioCount,
+  //             mapOff, MEADOW_ADC_GPIO_CHAN_MAP_LENGTH);
+  //   return -EINVAL;   // Invalid argument
+  // }
 
-//   // Must have at least 1 entry per gpio
-//   if(gpioCount < convBuffSize)
-//   {
-//     syslog(1, "%s@%d-Error:gpioCount:%lu < convBuffSize:%lu\n",
-//               __FILE__, __LINE__, gpioCount, convBuffSize);
-//     return -EINVAL;   // Invalid argument
-//   }
+  // // Will the number of GPIOs exactly fill the provided buffer?
+  // if(gpioCount % convBuffSize != 0)
+  // {
+  //   // Warning there will be empty array elements in the buffer after
+  //   // conversion.
+  //   syslog(1, "%s@%d-Warning:buffer size and the number of GPIOs not even multiple\n",
+  //               __FILE__, __LINE__);
+  //   return -1;
+  // }
 
-//   // Verify GPIO list is valid
-//   for(gpioListOff = 0; gpioListOff < gpioCount; gpioListOff++)
-//   {
-//     // Look for match
-//     for(mapOff = 0; mapOff < MEADOW_ADC_GPIO_CHAN_MAP_LENGTH; mapOff++)
-//     {
-//       if(gpioList[gpioListOff] == _gpioAdcChanMap[mapOff])
-//         break;   // Found-it's connected to ADC
-//     }
-//   }
+// END OF ORIGINAL
 
-//   // Did loop check all entries with no match?
-//   if(gpioListOff == gpioCount && mapOff == MEADOW_ADC_GPIO_CHAN_MAP_LENGTH)
-//   {
-//     syslog(1, "%s@%d-Error:GPIO not found, gpioListOff:%lu, gpioCount:%lu, mapOff:%lu, MAP_LENGTH:%lu\n",
-//               __FILE__, __LINE__, gpioListOff, gpioCount,
-//               mapOff, MEADOW_ADC_GPIO_CHAN_MAP_LENGTH);
-//     return -EINVAL;   // Invalid argument
-//   }
+// (--) TO DO - CALCULATE AND WARN AS THERE WILL BE UNFILLED ELEMENTS//
+// How may cycles of conversion will fit in the provided data buffer
 
-//   // Will the number of GPIOs exactly fill the provided buffer?
-//   if(gpioCount % convBuffSize != 0)
-//   {
-//     // Warning there will be empty array elements in the buffer after
-//     // conversion.
-//     syslog(1, "%s@%d-WARNING:buffer won't be completely filled\n",
-//                 __FILE__, __LINE__);
-//   }
-
-// // (--) TO DO MUST CALCULATE AND WARN AS
-//   // How may cycles of conversion will fit in the provided data buffer
 
 //   // Only after conversion has finished
 //   // sem_init(&_waitTillDoneSem, 0, 1);
 
   meadow_adc_initialize();
 
-// END OF ORIGINAL
   return OK;
 }
 

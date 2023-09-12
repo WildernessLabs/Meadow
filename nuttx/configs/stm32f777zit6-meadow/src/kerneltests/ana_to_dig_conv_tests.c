@@ -229,7 +229,7 @@ void adc_test_initialize()
   stm32_configgpio(GPIO_V2_A04_IN9_PB1);
   stm32_configgpio(GPIO_V2_A05_IN10_PC0);
   
-  // Populate gpioList for maximum size
+  // Populate gpioList for maximum size of 16
   // The Nuttx GPIO Config - Port (bits 7:4) and Pin (bits 3:0)
   gpioList[0]  = GPIO_V2_A00_IN4_PA4  & 0x000000ff;
   gpioList[1]  = GPIO_V2_A01_IN5_PA5  & 0x000000ff;
@@ -258,7 +258,7 @@ void adc_test_initialize()
   //         uint16_t dataBuffer[], uint32_t bufferConvSlots)
   // Only needs to execute once
 
-  // It doesn't seem to work to call malloc
+  // Using malloc causes trouble for ADC/DMA
   _dmaDataBufferTest = kmm_malloc(ADC_TESTS_DMA_BUFFER_SIZE * 2);
   
   syslog(1, "--- Test - Address of buffer:%p\n", _dmaDataBufferTest);
@@ -317,7 +317,7 @@ void *adc_test_kthread_func(int argc, char *argv[])
 
     // Show information in the buffer
     // Works from 16-bit size, so it's okay as is
-    show_all_data_in_buffer("Test App  ", _dmaDataBufferTest, ADC_TESTS_DMA_BUFFER_SIZE);
+    show_all_data_in_buffer("Test App", _dmaDataBufferTest, ADC_TESTS_DMA_BUFFER_SIZE);
 
     usleep(1000 * 1000);
   }
@@ -325,7 +325,8 @@ void *adc_test_kthread_func(int argc, char *argv[])
 }
 
 //==========================================================================
-void show_all_data_in_buffer(char *headerText, volatile uint16_t dataBuffer[], uint32_t dataBufSize)
+void show_all_data_in_buffer(char *headerText, volatile uint16_t dataBuffer[],
+                            uint32_t dataBufSize)
 {
 #define DMA_ISR_DISP_MAX_PER_ROW (8)    // 8 elements / row
 #define DMA_ISR_DISP_VAL_LEN (5)        // Data values take 5 char
@@ -359,7 +360,7 @@ void show_all_data_in_buffer(char *headerText, volatile uint16_t dataBuffer[], u
     }
 
     lineBuff[(lineBuffOff) + 1] = '\0';
-    syslog(1, "%s-%s\n", headerText, lineBuff);
+    syslog(1, "%s:%s\n", headerText, lineBuff);
 
     // Line by line show entire buffer
   } while (dmaBuffOff < dataBufSize);
