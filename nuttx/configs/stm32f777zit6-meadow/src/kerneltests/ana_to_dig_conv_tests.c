@@ -43,6 +43,7 @@
 #include <string.h>
 
 #include <nuttx/arch.h>   // up_enable_irq
+#include <nuttx/kmalloc.h>
 #include "up_arch.h"      // getreg32 & putreg32
 #include <arch/stm32f7/chip.h>
 #include "stm32_gpio.h"
@@ -111,7 +112,9 @@
   uint16_t _dmaDataBufferTest[ADC_TESTS_DMA_BUFFER_SIZE * 2];
   uint16_t *_dmaDataBuffer2 = _dmaDataBufferTest + ADC_TESTS_DMA_BUFFER_SIZE;
 #else
-  uint16_t _dmaDataBufferTest[ADC_TESTS_DMA_BUFFER_SIZE];
+  // volatile uint16_t _dmaDataBufferTest[ADC_TESTS_DMA_BUFFER_SIZE];
+
+  volatile  uint16_t *_dmaDataBufferTest;
 #endif
 
 #endif
@@ -123,7 +126,7 @@
 static void adc_test_initialize(void);
 static int adc_test_create_testing_thread(void);
 static void *adc_test_kthread_func(int argc, char *argv[]);
-static void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[], uint32_t dataBufSize);
+static void show_all_data_in_buffer(char *headerText, volatile uint16_t dataBuffer[], uint32_t dataBufSize);
 
 /************************************************************************************
  * Private Functions
@@ -254,7 +257,11 @@ void adc_test_initialize()
   // ret = meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
   //         uint16_t dataBuffer[], uint32_t bufferConvSlots)
   // Only needs to execute once
-  syslog(1, "--- Test - Address of buffer is:%p\n", _dmaDataBufferTest);
+
+  // It doesn't seem to work to call malloc
+  _dmaDataBufferTest = kmm_malloc(ADC_TESTS_DMA_BUFFER_SIZE * 2);
+  
+  syslog(1, "--- Test - Address of buffer:%p\n", _dmaDataBufferTest);
 
   // Calling configuration API to set things up
   ret = meadow_adc_configure(gpioList,
@@ -318,7 +325,7 @@ void *adc_test_kthread_func(int argc, char *argv[])
 }
 
 //==========================================================================
-void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[], uint32_t dataBufSize)
+void show_all_data_in_buffer(char *headerText, volatile uint16_t dataBuffer[], uint32_t dataBufSize)
 {
 #define DMA_ISR_DISP_MAX_PER_ROW (8)    // 8 elements / row
 #define DMA_ISR_DISP_VAL_LEN (5)        // Data values take 5 char
@@ -327,8 +334,8 @@ void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[], uint32_t d
   uint32_t dmaBuffOff = 0;
   int columnCnt;
   int lineBuffOff;
-
   int disp_max_per_row = DMA_ISR_DISP_MAX_PER_ROW;
+
   if(disp_max_per_row > dataBufSize)
     disp_max_per_row = dataBufSize;
 

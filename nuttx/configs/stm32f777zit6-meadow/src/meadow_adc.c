@@ -967,7 +967,7 @@ void meadow_adc_initialize(void)
 // As few as 1 GPIO with 1 buffer element and as many as 16 GPIO with a buffer
 // limit not specified.
 int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
-          uint16_t *dataBuffer, uint32_t convBuffSize)
+          volatile uint16_t *dataBuffer, uint32_t convBuffSize)
 {
   _gpioList = gpioList;
   _gpioCount = gpioCount;
