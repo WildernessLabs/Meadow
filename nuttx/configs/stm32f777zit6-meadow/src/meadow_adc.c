@@ -65,6 +65,7 @@
 
 // Using DMA? This may be temporary
 #define ADC_TESTS_USE_DMA_TRANSFER (1)
+#define ADC_TESTS_DO_ONE_CONVERSION_AT_A_TIME (1)
 
 #if ADC_TESTS_USE_DMA_TRANSFER > 0
 #include "chip/stm32f76xx77xx_dma.h"
@@ -194,11 +195,10 @@ static uint8_t _gpioAdcChanMap[] =
 
   static uint32_t _gpioCount;
   static uint8_t *_gpioList;
-  // static uint32_t _convBuffSize;
 
-  // static uint16_t _localBuf[16];
-
-//   // static sem_t _waitTillDoneSem;
+#if ADC_TESTS_DO_ONE_CONVERSION_AT_A_TIME > 0
+  static sem_t _waitTillDoneSem;
+#endif
 
 // /************************************************************************************
 //  * Private Function Prototypes
@@ -212,15 +212,17 @@ static void meadow_adc_initialize(void);
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
-// static void meadow_adc_buffer_takesem(sem_t *semaphore)
-// {
-//   int ret;
-//   do
-//   {
-//     ret = sem_wait(semaphore);
-//   }
-//   while (ret == -EINTR);
-// }
+#if ADC_TESTS_DO_ONE_CONVERSION_AT_A_TIME > 0
+static void meadow_adc_buffer_takesem(sem_t *semaphore)
+{
+  int ret;
+  do
+  {
+    ret = sem_wait(semaphore);
+  }
+  while (ret == -EINTR);
+}
+#endif
 
 //==========================================================================
 // Find ADC input channel (0-16) from the provided GPIO input port/pin
@@ -325,19 +327,19 @@ static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
   // Stream Transfer Complete flag
   if((status & DMA_STREAM_TCIF_BIT) != 0)
   {
-    DEBUG_SET_HIGH(DEBUG_PIN_V2_D03);
+    // DEBUG_SET_HIGH(DEBUG_PIN_V2_D03);
 
-    // Copy data to user's buffer
-    // memcpy(_dmaDataBuffer, _localBuf, _convBuffSize * 2);
+#if ADC_TESTS_DO_ONE_CONVERSION_AT_A_TIME > 0
+    sem_post(&_waitTillDoneSem);
+#endif
 
-    // syslog(1, "DMA ISR:Transfer Complete\n");
+  // syslog(1, "DMA ISR:Transfer Complete\n");
 
-// (--) Future do some work here
 // #if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
 // #else
 // #endif
 
-    DEBUG_SET_LOW(DEBUG_PIN_V2_D03);
+    // DEBUG_SET_LOW(DEBUG_PIN_V2_D03);
   }
 
   //---------------------------------------------------
@@ -539,7 +541,7 @@ static void adc_initialize (void)
   // Note:fields not defined in header file have been ignored
   // Missing fields: SWSTART, EXTSEL, JSWSTART, JEXTEN, JEXTSEL, DDS & EOCS
   regval = getreg32(STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
-  //? regval &= ~ADC_CR2_EXTEN_MASK;  // Clear bits
+  // regval &= ~ADC_CR2_EXTEN_MASK;  // Clear bits
   // regval |= ADC_CR2_EXTEN_NONE;   // No trigger from external sources
   regval &= ~ADC_CR2_ALIGN;       // 0=Right alignment (1=left alignment)
   regval &= ~ADC_CR2_EOCS;        // 1=End of each conversion, 0=End of sequence
@@ -549,8 +551,11 @@ static void adc_initialize (void)
   // DDS=1 DMA requests are issued as long as data are converted and DMA=1
   regval |= ADC_CR2_DDS;          // 1=Enable DMA Selection
   regval |= ADC_CR2_DMA;          // 1=Enable DMA
+
+#if ADC_TESTS_DO_ONE_CONVERSION_AT_A_TIME == 0
   // Enable continous conversion
   regval |= ADC_CR2_CONT;         // 1=Enable continuous conversion
+#endif
   putreg32(regval, STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
 
   //------------------------------------------------------------
@@ -667,9 +672,6 @@ static void adc_initialize (void)
   // regval |= ((_gpioCount - 1) << ADC_SQR1_L_SHIFT);
   // putreg32(regval, STM32_ADC1_SQR1);
   // END - CARRIED FROM non-working meadow_adc.c
-
-  // (--) WHY NOT WITH OTHER CR2 CONFIGS?
-  // Enable DMA of ADC
 }
 
 //================================================================
@@ -722,7 +724,7 @@ static void dma_initialize(void)
 
   // Configure the DMA SCR (Stream Control Register) values
   regval = getreg32(STM32_DMA2_S0CR);
-  regval =  DMA_SCR_MSIZE_16BITS;   // Size of memory transfer
+  regval |=  DMA_SCR_MSIZE_16BITS;  // Size of memory transfer
   regval |= DMA_SCR_PSIZE_16BITS;   // Size of peripheral transfer
   // Memory increment mode. 0=mem addr is fixed, 1=mem addr increments
   regval |= DMA_SCR_MINC;           // Mem Increment
@@ -882,7 +884,7 @@ void meadow_adc_initialize(void)
 
   dma_initialize();
 
-  adc_start();
+  // adc_start();
 
   // Enable ADC interrupt handler
   up_enable_irq(STM32_IRQ_ADC);
@@ -911,7 +913,6 @@ int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
   _gpioList = gpioList;
   _gpioCount = gpioCount;
   _dmaDataBuffer = dataBuffer;
-  // _convBuffSize = convBuffSize;
 
   syslog(1, "---meadow_adc configuration. gpioCount:%lu, convBufSize:%lu, BufferAddr:%p\n",
             gpioCount, convBuffSize, _dmaDataBuffer);
@@ -926,63 +927,62 @@ int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
   }
 
   // Verify GPIO list is valid
-  // for(gpioListOff = 0; gpioListOff < gpioCount; gpioListOff++)
-  // {
-  //   // Look for match
-  //   for(mapOff = 0; mapOff < MEADOW_ADC_GPIO_CHAN_MAP_LENGTH; mapOff++)
-  //   {
-  //     if(gpioList[gpioListOff] == _gpioAdcChanMap[mapOff])
-  //       break;   // Found-it's connected to ADC
-  //   }
-  // }
+  for(gpioListOff = 0; gpioListOff < gpioCount; gpioListOff++)
+  {
+    // Look for match
+    for(mapOff = 0; mapOff < MEADOW_ADC_GPIO_CHAN_MAP_LENGTH; mapOff++)
+    {
+      if(gpioList[gpioListOff] == _gpioAdcChanMap[mapOff])
+        break;   // Found-it's connected to ADC
+    }
+  }
 
-  // // Did loop check all entries with no match?
-  // if(gpioListOff == gpioCount && mapOff == MEADOW_ADC_GPIO_CHAN_MAP_LENGTH)
-  // {
-  //   syslog(1, "%s@%d-Error:GPIO not found, gpioListOff:%lu, gpioCount:%lu, mapOff:%lu, MAP_LENGTH:%lu\n",
-  //             __FILE__, __LINE__, gpioListOff, gpioCount,
-  //             mapOff, MEADOW_ADC_GPIO_CHAN_MAP_LENGTH);
-  //   return -EINVAL;   // Invalid argument
-  // }
+  // Did loop check all entries with no match?
+  if(gpioListOff == gpioCount && mapOff == MEADOW_ADC_GPIO_CHAN_MAP_LENGTH)
+  {
+    syslog(1, "%s@%d-Error:GPIO not found, gpioListOff:%lu, gpioCount:%lu, mapOff:%lu, MAP_LENGTH:%lu\n",
+              __FILE__, __LINE__, gpioListOff, gpioCount,
+              mapOff, MEADOW_ADC_GPIO_CHAN_MAP_LENGTH);
+    return -EINVAL;   // Invalid argument
+  }
 
-  // // Will the number of GPIOs exactly fill the provided buffer?
-  // if(gpioCount % convBuffSize != 0)
-  // {
-  //   // Warning there will be empty array elements in the buffer after
-  //   // conversion.
-  //   syslog(1, "%s@%d-Warning:buffer size and the number of GPIOs not even multiple\n",
-  //               __FILE__, __LINE__);
-  //   return -1;
-  // }
-
-// END OF ORIGINAL
+  // Will the number of GPIOs exactly fill the provided buffer?
+  if(gpioCount % convBuffSize != 0)
+  {
+    // Warning there will be empty array elements in the buffer after
+    // conversion.
+    syslog(1, "%s@%d-Warning:buffer size and the number of GPIOs not even multiple\n",
+                __FILE__, __LINE__);
+    return -1;
+  }
 
 // (--) TO DO - CALCULATE AND WARN AS THERE WILL BE UNFILLED ELEMENTS//
 // How may cycles of conversion will fit in the provided data buffer
 
 
-//   // Only after conversion has finished
-//   // sem_init(&_waitTillDoneSem, 0, 1);
-
+  // Only after conversion has finished
+#if ADC_TESTS_DO_ONE_CONVERSION_AT_A_TIME > 0
+  sem_init(&_waitTillDoneSem, 0, 1);
+#endif
   meadow_adc_initialize();
 
   return OK;
 }
 
 //=========================================================
-// NEW ENTRY POINT
 // Calling this function will initiate the ADC converstion process. It will
 // run until the configured buffer is full. When the buffer is full (or error)
 // the calling thread will return to the caller, signifing that the buffer
 // is ready for inspection.
 int meadow_adc_read_conversions(void)
 {
-  // START OF ORIGINAL
-  // syslog(1, "Entered meadow_adc_read_conversions\n");
-  
+  // Start a single conversion cycle
+  adc_start();
+
   // Wait for conversion to finish
-  // meadow_adc_buffer_takesem(&_waitTillDoneSem);
-  // END OF ORIGINAL
+  DEBUG_SET_HIGH(DEBUG_PIN_V2_D03);
+  meadow_adc_buffer_takesem(&_waitTillDoneSem);
+  DEBUG_SET_LOW(DEBUG_PIN_V2_D03);
 
   return OK;
 }

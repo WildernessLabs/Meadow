@@ -258,9 +258,10 @@ void adc_test_initialize()
   //         uint16_t dataBuffer[], uint32_t bufferConvSlots)
   // Only needs to execute once
 
-  // Using malloc causes trouble for ADC/DMA
+  // Does using malloc causes trouble for ADC/DMA
   _dmaDataBufferTest = kmm_malloc(ADC_TESTS_DMA_BUFFER_SIZE * 2);
-  
+  // _dmaDataBufferTest = malloc(ADC_TESTS_DMA_BUFFER_SIZE * 2);
+
   syslog(1, "--- Test - Address of buffer:%p\n", _dmaDataBufferTest);
 
   // Calling configuration API to set things up
@@ -319,7 +320,7 @@ void *adc_test_kthread_func(int argc, char *argv[])
     // Works from 16-bit size, so it's okay as is
     show_all_data_in_buffer("Test App", _dmaDataBufferTest, ADC_TESTS_DMA_BUFFER_SIZE);
 
-    usleep(1000 * 1000);
+    usleep(100 * 1000);
   }
   return NULL;
 }
