@@ -245,7 +245,9 @@ uint32_t meadow_parse_iso8601_time_period(const char *isoTimePeriod,
 
 // Meadow ADC
 int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
-          volatile uint16_t *dataBuffer, uint32_t bufferConvCnt);
+          uint16_t *userDataBuf, uint32_t adcBufSzBytes);
+int meadow_adc_reconfigure(uint8_t gpioList[], uint32_t gpioCount,
+          uint16_t *userDataBuf, uint32_t adcBufSzBytes);
 int meadow_adc_read_conversions(void);
 
 // Diagnostic related 

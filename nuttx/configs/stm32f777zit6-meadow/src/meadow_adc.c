@@ -190,11 +190,14 @@ static uint8_t _gpioAdcChanMap[] =
 #if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
   // 2-buffers in one is required by Nuttx dma code
 #else
- volatile uint16_t *_dmaDataBuffer;
+ uint16_t *_dmaDataBuf;
+ uint16_t *_userDataBuf;
 #endif
-
   static uint32_t _gpioCount;
   static uint8_t *_gpioList;
+  static uint32_t _adcBufSzBytes;
+  static uint32_t _conversionCycles;
+  static bool _meadowAdcInit = false;
 
 #if ADC_TESTS_DO_ONE_CONVERSION_AT_A_TIME > 0
   static sem_t _waitTillDoneSem;
@@ -327,19 +330,10 @@ static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
   // Stream Transfer Complete flag
   if((status & DMA_STREAM_TCIF_BIT) != 0)
   {
-    // DEBUG_SET_HIGH(DEBUG_PIN_V2_D03);
-
 #if ADC_TESTS_DO_ONE_CONVERSION_AT_A_TIME > 0
+    // Wakeup callers thread
     sem_post(&_waitTillDoneSem);
 #endif
-
-  // syslog(1, "DMA ISR:Transfer Complete\n");
-
-// #if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
-// #else
-// #endif
-
-    // DEBUG_SET_LOW(DEBUG_PIN_V2_D03);
   }
 
   //---------------------------------------------------
@@ -742,7 +736,7 @@ static void dma_initialize(void)
   // SxNDTR is set by Nuttx
   stm32_dmasetup(_dmaHandle,
                  STM32_ADC1_BASE + STM32_ADC_DR_OFFSET, // Peripheral addr
-                 (uint32_t) _dmaDataBuffer,         //  NEW BUFFER
+                 (uint32_t) _dmaDataBuf,         //  NEW BUFFER
                  ADC_TESTS_DMA_DATA_BUFFER_SIZE,    // number of transfers
                  regval);
 
@@ -845,16 +839,33 @@ static void dma_initialize(void)
 }
 
 //================================================================
-// ORIGINAL ana_to_dig_conv_tests.c Entry point
-  // (--) This part of the code could be called > 1 time when it supports more
-  // than ADC1 for debugging. However the ADC reset done via RCC will only
-  // need to be done once.
-  // nuttx/arch/arm/src/stm32f7/chip/stm32f74xx77xx_adc.h
+// This function is probably redundant to meadow_adc_reinitialize TBD
+static int meadow_adc_unconfigure(void)
+{
+  return OK;
+}
+
+//================================================================
+// Unconfigure the existing setup
+void meadow_adc_reinitialize(void)
+{
+  _meadowAdcInit = false;
+
+  // (--) NEAR FUTURE
+  meadow_adc_unconfigure();
+
+  // Now reconfigure
+  meadow_adc_initialize();
+}
+
+//================================================================
+// Call all the sub-initialization functions
 void meadow_adc_initialize(void)
 {
   int ret;
   static bool firstTime = true;
-  
+  syslog(1, "--> Entered meadow_adc_initialize()\n"); usleep(20 * 1000);
+
   if(firstTime)
   {
     firstTime = false;
@@ -867,8 +878,6 @@ void meadow_adc_initialize(void)
     syslog(1, "Please, only once\n");
     return;
   }
-
-  syslog(1, "--> Entered meadow_adc_initialize()\n"); usleep(20 * 1000);
 
   // Setup the ADC Interrupt handler
   ret = irq_attach(STM32_IRQ_ADC, adc_conversion_interrupt_handler_isr,
@@ -884,10 +893,14 @@ void meadow_adc_initialize(void)
 
   dma_initialize();
 
-  // adc_start();
+#if ADC_TESTS_DO_ONE_CONVERSION_AT_A_TIME == 0
+  adc_start();
+#endif
 
   // Enable ADC interrupt handler
   up_enable_irq(STM32_IRQ_ADC);
+  
+  _meadowAdcInit = true;
 
   // ADC with DMA should be running at this point
   syslog(1, "--> Exiting ADC config\n"); usleep(20 * 1000);
@@ -898,75 +911,97 @@ void meadow_adc_initialize(void)
 /************************************************************************************
  * Public Functions
  ************************************************************************************/
-// NEW ENTRY POINT
-// OPTION gpioList could require an 0xff terminator instead of gpioCount
-// As few as 1 GPIO with 1 buffer element and as many as 16 GPIO with a buffer
-// limit not specified.
+// As few as 1 GPIO with 1 buffer element and as many as 16 GPIOs with a buffer
+// limit not specified. However. the number of GPIOs must be an even multiple
+// of the buffer.
 int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
-          volatile uint16_t *dataBuffer, uint32_t convBuffSize)
+          uint16_t *userDataBuf, uint32_t adcBufSzBytes)
 {
-  int ret;
   uint32_t gpioListOff;
   uint32_t mapOff = 0;
+  uint32_t userBufElements;
 
-  // Populate global values
-  _gpioList = gpioList;
-  _gpioCount = gpioCount;
-  _dmaDataBuffer = dataBuffer;
+  syslog(1, "meadow_adc configuration. gpioCount:%lu, adcBufSzBytes:%lu, userDataBuf:%p\n",
+            gpioCount, adcBufSzBytes, userDataBuf);
 
-  syslog(1, "---meadow_adc configuration. gpioCount:%lu, convBufSize:%lu, BufferAddr:%p\n",
-            gpioCount, convBuffSize, _dmaDataBuffer);
-            
-  // START OF ORIGINAL Works until following 6 lines exposed
-  // Must have at least 1 entry per gpio
-  if(gpioCount < convBuffSize)
+  // Data elements are 2 bytes, therefore, size must be even number
+  if(adcBufSzBytes % 2)
   {
-    syslog(1, "%s@%d-Error:gpioCount:%lu < convBuffSize:%lu\n",
-              __FILE__, __LINE__, gpioCount, convBuffSize);
+    syslog(1, "%s@%d-Error:ADC values are always 16-bits and adcBufSzBytes is not even (%lu)\n",
+              __FILE__, __LINE__, adcBufSzBytes);
+    return -EINVAL;   // Invalid argument
+  }
+
+  // Each element is 2 bytes
+  userBufElements = adcBufSzBytes/2;
+
+  // Must have at least 1 entry per gpio
+  if(gpioCount < userBufElements)
+  {
+    syslog(1, "%s@%d-Error:gpioCount:%lu < userBufElements:%lu\n",
+              __FILE__, __LINE__, gpioCount, userBufElements);
     return -EINVAL;   // Invalid argument
   }
 
   // Verify GPIO list is valid
   for(gpioListOff = 0; gpioListOff < gpioCount; gpioListOff++)
   {
-    // Look for match
+    // Look for matching port/pin in the list
     for(mapOff = 0; mapOff < MEADOW_ADC_GPIO_CHAN_MAP_LENGTH; mapOff++)
     {
       if(gpioList[gpioListOff] == _gpioAdcChanMap[mapOff])
-        break;   // Found-it's connected to ADC
+        break;   // Found-it's connected to the ADC
+    }
+
+    // Did we go through the entire list and not find a match?
+    if(mapOff == MEADOW_ADC_GPIO_CHAN_MAP_LENGTH)
+    {
+      syslog(LOG_INFO, "GPIO:0x%02x (P%c%d) not connected to ADC\n", gpioList[gpioListOff],
+                  (gpioList[gpioListOff] >> 4) + 'A', gpioList[gpioListOff] & 0x0f);
+      return -EINVAL;   // Invalid argument
     }
   }
 
-  // Did loop check all entries with no match?
-  if(gpioListOff == gpioCount && mapOff == MEADOW_ADC_GPIO_CHAN_MAP_LENGTH)
+  // Will the number of GPIOs exactly fill the provided buffer?
+  if(gpioCount % userBufElements != 0)
   {
-    syslog(1, "%s@%d-Error:GPIO not found, gpioListOff:%lu, gpioCount:%lu, mapOff:%lu, MAP_LENGTH:%lu\n",
-              __FILE__, __LINE__, gpioListOff, gpioCount,
-              mapOff, MEADOW_ADC_GPIO_CHAN_MAP_LENGTH);
+    // Don't allow empty buffer slots as it's likely the user made an unintended error.
+    syslog(1, "%s@%d-Error:buffer size and the number of GPIOs not multiple.\n",
+                __FILE__, __LINE__);
     return -EINVAL;   // Invalid argument
   }
 
-  // Will the number of GPIOs exactly fill the provided buffer?
-  if(gpioCount % convBuffSize != 0)
-  {
-    // Warning there will be empty array elements in the buffer after
-    // conversion.
-    syslog(1, "%s@%d-Warning:buffer size and the number of GPIOs not even multiple\n",
-                __FILE__, __LINE__);
-    return -1;
-  }
+  // How many full cycles of conversion will fit in the provided data buffer
+  // (--) NEAR FUTURE
+  _conversionCycles = gpioCount/userBufElements;
 
-// (--) TO DO - CALCULATE AND WARN AS THERE WILL BE UNFILLED ELEMENTS//
-// How may cycles of conversion will fit in the provided data buffer
+  // Populate global values
+  _gpioList = gpioList;
+  _gpioCount = gpioCount;
+  _userDataBuf = userDataBuf;
+  _adcBufSzBytes = adcBufSzBytes;
 
-
-  // Only after conversion has finished
 #if ADC_TESTS_DO_ONE_CONVERSION_AT_A_TIME > 0
-  sem_init(&_waitTillDoneSem, 0, 1);
+  // Signaling semaphore
+  sem_init(&_waitTillDoneSem, 0, 0);
+  sem_setprotocol(&_waitTillDoneSem, SEM_PRIO_NONE);  
 #endif
+
   meadow_adc_initialize();
 
   return OK;
+}
+
+//=========================================================
+// Support reconfiguration with different parameters
+int meadow_adc_reconfigure(uint8_t gpioList[], uint32_t gpioCount,
+          uint16_t *userDataBuf, uint32_t adcBufSzBytes)
+{
+  // First unconfigure
+  _meadowAdcInit = false;
+
+  // Now new configuration
+  return meadow_adc_configure(gpioList, gpioCount, userDataBuf, adcBufSzBytes);
 }
 
 //=========================================================
@@ -976,13 +1011,32 @@ int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
 // is ready for inspection.
 int meadow_adc_read_conversions(void)
 {
-  // Start a single conversion cycle
+  if(! _meadowAdcInit)
+  {
+    syslog(1, "%s@%d-Error:Meadow ADC not initialized.\n",
+                __FILE__, __LINE__);
+    return -EPERM;    // Operation not permitted
+  }
+
+  // Allocate a kernel side buffer the same size as the callers buffer.
+  _dmaDataBuf = kmm_malloc(_adcBufSzBytes);
+  if(_dmaDataBuf == NULL)
+  {
+    syslog(1, "%s@%d-Error:Buffer space not available\n",
+                __FILE__, __LINE__);
+    return -ENOMEM;   // Out of memory
+  }
+
+  // Start the conversion
   adc_start();
 
-  // Wait for conversion to finish
-  DEBUG_SET_HIGH(DEBUG_PIN_V2_D03);
+  // Continue only after conversion has finished
   meadow_adc_buffer_takesem(&_waitTillDoneSem);
-  DEBUG_SET_LOW(DEBUG_PIN_V2_D03);
+
+  // Conversion is complete so, copy collected data to user buffer and return.
+  memcpy(_userDataBuf, _dmaDataBuf, _adcBufSzBytes);
+
+  free(_dmaDataBuf);
 
   return OK;
 }
