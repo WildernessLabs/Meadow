@@ -69,7 +69,24 @@ static char *thisFile = __FILE__;
 static bool cell_connected = false;
 static char *cell_at_cmds_output;
 static struct cell_handler_t hcom_cell_handler;
-static const char cell_at_cmd_gps [] = "\"\" AT+QGPSLOC PAUSE 3 OK \\c";
+// TODO: Allocate memory for these strings on the heap 
+// TODO: Add GPS timeout to cell config yaml
+// TODO: Add a parameter to specify the desired NMEA sentences
+static const char cell_at_cmd_gps[] =
+  "TIMEOUT 300 \"\" "
+  "AT+QGPS=1,2,180,1 PAUSE 3 OK " 
+  "AT+QCFG=\\\"gpio\\\",1,64,1,0,0,1 PAUSE 3 OK "
+  "AT+QCFG=\\\"gpio\\\",3,64,1,1 PAUSE 3 OK "
+  "AT+QGPSCFG=\\\"nmeasrc\\\",1 PAUSE 120 OK "
+  "AT+QGPSGNMEA=\\\"GSV\\\" PAUSE 3 OK "
+  "AT+QGPSGNMEA=\\\"GGA\\\" PAUSE 3 OK "
+  "AT+QGPSGNMEA=\\\"RMC\\\" PAUSE 3 OK "
+  "AT+QGPSGNMEA=\\\"GSA\\\" PAUSE 3 OK "
+  "AT+QGPSGNMEA=\\\"VTG\\\" PAUSE 3 OK "
+  "AT+QGPSEND PAUSE 3 OK "
+  "AT+QCFG=\\\"gpio\\\",1,64,1,0,0,1 PAUSE 3 OK "
+  "AT+QCFG=\\\"gpio\\\",3,64,0,1 PAUSE 3 OK " 
+  "\\c";
 static const char cell_at_cmd_scan[] = "\"\" AT+COPS=? PAUSE 3 OK \\c";
 static const char cell_at_cmd_signal[] = "\"\" AT+CSQ PAUSE 3 OK \\c";
 
@@ -123,26 +140,26 @@ void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_s
   {
     case CELL_BG770A_MODULE:
         snprintf_chk(connect_script, CONNECT_SCRIPT_MAX_SIZE, 
-        "ECHO ON " 
-        "TIMEOUT %s "
-        "\"\" AT+CMEE=2 "
-        "PAUSE 3 "
-        "OK AT+GSN "
-        "PAUSE 3 "
-        "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
-        "PAUSE 3 "
-        "OK %s"
-        "AT+QCSQ "
-        "PAUSE 3 "
-        "OK AT+CSQ "
-        "PAUSE 3 "
-        "OK %s"
-        "ATD*99# "
-        "CONNECT \\c",
-        cell_settings->timeout, 
-        cell_settings->apn,
-        authentication_cmd,
-        operator_selection_cmd
+          "ECHO ON " 
+          "TIMEOUT %s "
+          "\"\" AT+CMEE=2 "
+          "PAUSE 3 "
+          "OK AT+GSN "
+          "PAUSE 3 "
+          "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
+          "PAUSE 3 "
+          "OK %s"
+          "AT+QCSQ "
+          "PAUSE 3 "
+          "OK AT+CSQ "
+          "PAUSE 3 "
+          "OK %s"
+          "ATD*99# "
+          "CONNECT \\c",
+          cell_settings->timeout, 
+          cell_settings->apn,
+          authentication_cmd,
+          operator_selection_cmd
       );
     break;
   
@@ -195,8 +212,8 @@ void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_s
   }
 
   snprintf_chk(disconnect_script, DISCONNECT_SCRIPT_MAX_SIZE,
-      "\"\" ATZ "
-      "OK \\c"
+    "\"\" ATZ "
+    "OK \\c"
   );
 }
 
