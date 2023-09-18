@@ -2143,7 +2143,7 @@ void hcom_nx_config_process_wifi_credentials_file(void)
     cyaml_err_t err = cyaml_load_file(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME, &cyaml_config, &wifi_credentials_schema, (void **) &credentials, NULL);
     if ((err == CYAML_OK) && (credentials != NULL))
     {
-        if ((credentials->credentials->ssid != NULL) && (strlen(credentials->credentials->ssid) <= MAXIMUM_SSID_LENGTH) & (strlen(credentials->credentials->ssid) > 0))
+        if ((credentials->credentials != NULL) && (credentials->credentials->ssid != NULL) && (strlen(credentials->credentials->ssid) <= MAXIMUM_SSID_LENGTH) & (strlen(credentials->credentials->ssid) > 0))
         {
             char password[MAXIMUM_PASSWORD_LENGTH + 1];
             memset(password, 0, MAXIMUM_PASSWORD_LENGTH + 1);
@@ -2166,7 +2166,15 @@ void hcom_nx_config_process_wifi_credentials_file(void)
                 kmm_free(buffer);
             }
         }
+        else
+        {
+            meadow_logging_write(mfl_error, "Invalid WiFi credentials file\n");
+        }
         cyaml_free(&cyaml_config, &wifi_credentials_schema, credentials, 0);
+    }
+    else
+    {
+        meadow_logging_write(mfl_info, "WiFi credentials file not found\n");
     }
     //
     //  Now we can delete the file.
