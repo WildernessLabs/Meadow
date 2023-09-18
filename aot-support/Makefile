@@ -73,6 +73,6 @@ libbuiltin.a: 	$(OBJS)
 		arm-none-eabi-ar -r $@ $^ 
 
 $(OBJS):	$(ASM_SRC) $(COM_SRC)
-		clang --target=thumb2-none-eabi -mfloat-abi=hard -mfpu=fpv5-d16 -mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-d16 -fpic -meabi gnu -c $?
+		clang --target=thumb2-none-eabi -mfloat-abi=hard -mfpu=fpv5-d16 -mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-d16 -fpic -fshort-enums -meabi gnu -c $?
 		# clang --target=armv7-nono-eabi -mhard-float -fpic -mthumb -c $?
 

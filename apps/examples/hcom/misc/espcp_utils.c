@@ -105,7 +105,7 @@ void espcp_encode_event_data(espcp_event_data_t *event_data, uint8_t *buffer)
  * Public Functions
  ****************************************************************************/
 
-int espcp_queue_event_messages(const espcp_event_data_t *message) 
+int espcp_queue_event_messages(uint8_t *message) 
 {
     mqd_t event_queue_id;
     struct mq_attr queue_attributes;

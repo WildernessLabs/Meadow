@@ -115,16 +115,6 @@ if [[ -z "$MEADOW_ADDITIONAL_MAKE_OPTIONS" ]]; then
 fi
 
 #
-#   The ESP unit tests require a secrets file to be present so check if there is one
-#   available and copy it to the right place if it is available.  This file does not
-#   want to find its way its way into source control so its existence will be checked
-#   later and it will be removed (assuming success).
-#
-if test -f "$scriptdir/../secrets.h"; then
-    cp $scriptdir/../secrets.h $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/kerneltests
-fi
-
-#
 # The following is a work around for a git hub update that prevents any
 # git commands from being run from within the /project directory.
 # This issue has been caused by a git security update.  We do not need
@@ -133,12 +123,8 @@ fi
 if [[ "$scriptdir" == "/project" ]]; then
   run_command "git config --global --add safe.directory /project"
   check_command_status
+  MEADOW_ADDITIONAL_MAKE_OPTIONS="-j1"
 fi
-
-#
-#   Generate build info
-#
-generate_build_info
 
 #
 # Setup toolchain
@@ -282,6 +268,11 @@ if [ ! -z "$UNIT_TESTS" ]; then
             kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SD_CARD_TESTS
             BUILD_TESTS=true
             ;;
+            tensorflow)
+            echo "Tensorflow tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable TENSORFLOW_TESTS
+            BUILD_TESTS=true
+            ;;
             misc)
             echo "Miscellaneous tests requested."
             kconfig-tweak --file $NUTTX_CONFIG_FILE --enable QUICK_MISC_TESTS
@@ -357,6 +348,22 @@ $scriptdir/build-bootloader.sh $BOOTLOADER_OPTIONS
 if [ $? -ne 0 ]; then
     exit 1
 fi
+
+#
+#   The ESP unit tests require a secrets file to be present so check if there is one
+#   available and copy it to the right place if it is available.  This file does not
+#   want to find its way its way into source control so its existence will be checked
+#   later and it will be removed (assuming success).
+#
+if test -f "$scriptdir/../secrets.h"; then
+    cp $scriptdir/../secrets.h $scriptdir/nuttx/configs/stm32f777zit6-meadow/src/kerneltests
+fi
+
+#
+#   Generate build info
+#
+cd $scriptdir
+generate_build_info
 
 printf "Building NuttX (kernel pass)...\n"
 # Build mksyscall first due to issues with concurrency and makefile dependencies
