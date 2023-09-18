@@ -2166,11 +2166,15 @@ void hcom_nx_config_process_wifi_credentials_file(void)
                 kmm_free(buffer);
             }
         }
+        else
+        {
+            meadow_logging_write(mfl_error, "Invalid WiFi credentials file\n");
+        }
         cyaml_free(&cyaml_config, &wifi_credentials_schema, credentials, 0);
     }
     else
     {
-        
+        meadow_logging_write(mfl_info, "WiFi credentials file not found\n");
     }
     //
     //  Now we can delete the file.
