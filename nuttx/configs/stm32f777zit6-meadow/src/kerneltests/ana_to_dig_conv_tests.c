@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs\stm32f777zit6-meadow\src\kerneltests\ana_to_dig_conv_tests.c
+ * configs\stm32f777zit6-meadow\src\kerneltests\ana_to_dig_conv_tests.c - 15Sep23
  * 
  *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -94,11 +94,16 @@
 #define GPIO_V2_A04_IN9_PB1         (GPIO_ANALOG|GPIO_PORTB|GPIO_PIN1)
 #define GPIO_V2_A05_IN10_PC0        (GPIO_ANALOG|GPIO_PORTC|GPIO_PIN0)
 
+// This is not a valid analog input pin. It's used for testing
+#define GPIO_V2_A0x_INx_PA9         (GPIO_ANALOG|GPIO_PORTA|GPIO_PIN9)
+#define ADC_TESTS_DMA_BYTES_PER_CONV (2)
+
 // ADJUST THESE FOR DIFFERENT TESTS
 #define ADC_TESTS_DMA_GPIO_COUNT (6)
-#define ADC_TESTS_DMA_SAMPLE_COUNT (1)
+#define ADC_TESTS_DMA_SAMPLES_COUNT (1)
 
-#define ADC_TESTS_DMA_BUFFER_SIZE (ADC_TESTS_DMA_GPIO_COUNT * ADC_TESTS_DMA_SAMPLE_COUNT)
+// 2 bytes per 
+#define ADC_TESTS_DMA_BUFFER_SIZE ((ADC_TESTS_DMA_GPIO_COUNT * ADC_TESTS_DMA_BYTES_PER_CONV) * ADC_TESTS_DMA_SAMPLES_COUNT)
 
 // Maybe someday???
 #define ADC_TESTS_USE_DOUBLE_BUFFERING (0)
@@ -109,12 +114,10 @@
 
 #if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
   // 2-buffers in one. This is a Nuttx DMA requirement, not the STM32F7
-  uint16_t _dmaDataBufferTest[ADC_TESTS_DMA_BUFFER_SIZE * 2];
+  uint16_t _dmaDataBufferTest[ADC_TESTS_DMA_BUFFER_SIZE];
   uint16_t *_dmaDataBuffer2 = _dmaDataBufferTest + ADC_TESTS_DMA_BUFFER_SIZE;
 #else
-  // volatile uint16_t _dmaDataBufferTest[ADC_TESTS_DMA_BUFFER_SIZE];
-
-  volatile  uint16_t *_dmaDataBufferTest;
+  uint16_t *_dmaDataBufferTest;
 #endif
 
 #endif
@@ -124,40 +127,16 @@
  ************************************************************************************/
 
 static void adc_test_initialize(void);
+// static void adc_test_bad_initialization_parameters(void);
+
 static int adc_test_create_testing_thread(void);
 static void *adc_test_kthread_func(int argc, char *argv[]);
-static void show_all_data_in_buffer(char *headerText, volatile uint16_t dataBuffer[], uint32_t dataBufSize);
+static void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[],
+              uint32_t dataBufElements);
 
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
-// Only for TESTING
-// static void adc_test_display_basic_adc_regs(uint32_t baseADCAddr)
-// {
-//   syslog(1, "SR:  0x%08x CR1:  0x%08x CR2:  0x%08x\n",
-//         getreg32(baseADCAddr + STM32_ADC_SR_OFFSET),
-//         getreg32(baseADCAddr + STM32_ADC_CR1_OFFSET),
-//         getreg32(baseADCAddr + STM32_ADC_CR2_OFFSET));
-
-//   syslog(1, "SQR1: 0x%08x SQR2: 0x%08x SQR3: 0x%08x\n",
-//         getreg32(baseADCAddr + STM32_ADC_SQR1_OFFSET),
-//         getreg32(baseADCAddr + STM32_ADC_SQR2_OFFSET),
-//         getreg32(baseADCAddr + STM32_ADC_SQR3_OFFSET));
-
-//   syslog(1, "CCR:  0x%08x\n", getreg32(STM32_ADC_CCR));
-// }
-// //-----------------------------------------------------------------------
-// static void adc_test_display_basic_dma_regs(void)
-// {
-//   syslog(1, "S0CR:  0x%08x  S0NDTR: 0x%08x\n",
-//         getreg32(STM32_DMA2_S0CR),
-//         getreg32(STM32_DMA2_S0NDTR));
-
-//   syslog(1, "S0PAR: 0x%08x  S0M0AR: 0x%08x S0M1AR: 0x%08x\n",
-//         getreg32(STM32_DMA2_S0PAR),
-//         getreg32(STM32_DMA2_S0M0AR),
-//         getreg32(STM32_DMA2_S0M1AR));
-// }
 
 //==========================================================================
 // ADC tests Enter here
@@ -201,15 +180,51 @@ void meadow_kt_adc_tests(uint32_t userData)
     default:
       syslog(1, "Undefined test for meadow_kt_adc_tests, userData:%lu\n", userData);
       break;
+    
+    // Test the input parameters testing code. The above should be successful,
+    // all of these should fail.
+    // case 3:
+    // adc_test_bad_initialization_parameters();
   }
 }
 
+// //================================================================
+// // The following is incomplete since I stopped shortly after beginning because
+// // the API may change and if it does much of this would be wasted time.
+// // NOT USEABLE YET!
+// void adc_test_bad_initialization_parameters()
+// {
+//   int ret;
+//   uint16_t *_dmaDataBufferTestX1;
+
+//   // Test #1 - Buffer is not NULL
+//   _dmaDataBufferTestX1 = NULL;
+
+//   syslog(1, "--> Entered adc_test_bad_initialization_parameters()\n"); usleep(20 * 1000);
+
+//   uint8_t gpioListX1[2];
+//   gpioListX1[0]  = GPIO_V2_A00_IN4_PA4  & 0x000000ff;
+//   // Test #4 - GPIO that is not attached to ADC
+//   gpioListX1[1]  = GPIO_V2_A0x_INx_PA9  & 0x000000ff;
+
+//   ret = meadow_adc_configure(gpioListX1,
+//                             2,   // Determines how many GPIOs
+//                             _dmaDataBufferTestX1,
+//                             // Test#3-Data buffer size must be multiple of 2 (bytes)
+//                             (2*ADC_TESTS_DMA_BYTES_PER_CONV) + 1);   // Odd number for test failure
+//   if(ret < 0)
+//   {
+//     syslog(1, "%s@%d-Error by design! returned:%d, errno:%d\n",
+//               __FILE__, __LINE__, ret, errno);
+//     usleep(20 * 1000);
+//   }
+// }
+
 //================================================================
-// Entry point
-  // (--) This part of the code could be called > 1 time when it supports more
-  // than ADC1 for debugging. However the ADC reset done via RCC will only
-  // need to be done once.
-  // nuttx/arch/arm/src/stm32f7/chip/stm32f74xx77xx_adc.h
+// (--) This part of the code could be called > 1 time when it supports more
+// than ADC1 for debugging. However the ADC reset done via RCC will only
+// need to be done once.
+// nuttx/arch/arm/src/stm32f7/chip/stm32f74xx77xx_adc.h
 void adc_test_initialize()
 {
   int ret;
@@ -250,8 +265,8 @@ void adc_test_initialize()
   gpioList[14] = GPIO_V2_A02_IN3_PA3  & 0x000000ff;
   gpioList[15] = GPIO_V2_A03_IN8_PB0  & 0x000000ff;
 
-  syslog(1, "----- gpioList contains -----\n");
-  hcom_nx_diag_print_buffer(gpioList, 16, 1);
+  // syslog(1, "----- gpioList contains -----\n");
+  // hcom_nx_diag_print_buffer(gpioList, 16, 1);
   
   // Calling API
   // ret = meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
@@ -259,10 +274,11 @@ void adc_test_initialize()
   // Only needs to execute once
 
   // Does using malloc causes trouble for ADC/DMA
-  _dmaDataBufferTest = kmm_malloc(ADC_TESTS_DMA_BUFFER_SIZE * 2);
-  // _dmaDataBufferTest = malloc(ADC_TESTS_DMA_BUFFER_SIZE * 2);
+  _dmaDataBufferTest = kmm_malloc(ADC_TESTS_DMA_BUFFER_SIZE);
+  // _dmaDataBufferTest = malloc(ADC_TESTS_DMA_BUFFER_SIZE);
 
-  syslog(1, "--- Test - Address of buffer:%p\n", _dmaDataBufferTest);
+  syslog(1, "--- Test - Address of user buffer:%p\n", _dmaDataBufferTest);
+  usleep(20 * 1000);
 
   // Calling configuration API to set things up
   ret = meadow_adc_configure(gpioList,
@@ -307,27 +323,24 @@ void *adc_test_kthread_func(int argc, char *argv[])
   {
     // Calling meadow_adc.c API to indicate conversion needed
     // This thread will wait until buffer is full
-    // syslog(1, "Calling meadow_adc_read_conversions\n");
     ret = meadow_adc_read_conversions();
+    
     if(ret < 0)
     {
       syslog(LOG_ERR, "%s@%d-Call to meadow_adc_read_conversions() failed\n",
                 __FILE__, __LINE__);
     }
-    // syslog(1, "Returned from meadow_adc_read_conversions call\n");
 
-    // Show information in the buffer
-    // Works from 16-bit size, so it's okay as is
-    show_all_data_in_buffer("Test App", _dmaDataBufferTest, ADC_TESTS_DMA_BUFFER_SIZE);
-
-    usleep(100 * 1000);
+    // Show information in the buffer, works from 16-bit size, so it's okay as is
+    show_all_data_in_buffer("Test App", _dmaDataBufferTest, ADC_TESTS_DMA_BUFFER_SIZE/2);
+    usleep(1000 * 1000);
   }
   return NULL;
 }
 
 //==========================================================================
-void show_all_data_in_buffer(char *headerText, volatile uint16_t dataBuffer[],
-                            uint32_t dataBufSize)
+void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[],
+                            uint32_t dataBufElements)
 {
 #define DMA_ISR_DISP_MAX_PER_ROW (8)    // 8 elements / row
 #define DMA_ISR_DISP_VAL_LEN (5)        // Data values take 5 char
@@ -338,8 +351,8 @@ void show_all_data_in_buffer(char *headerText, volatile uint16_t dataBuffer[],
   int lineBuffOff;
   int disp_max_per_row = DMA_ISR_DISP_MAX_PER_ROW;
 
-  if(disp_max_per_row > dataBufSize)
-    disp_max_per_row = dataBufSize;
+  if(disp_max_per_row > dataBufElements)
+    disp_max_per_row = dataBufElements;
 
   int disp_char_per_row = (disp_max_per_row * DMA_ISR_DISP_VAL_LEN);
   int disp_total_line_len = disp_char_per_row + DMA_ISR_DISP_LEADER_LEN;
@@ -364,5 +377,5 @@ void show_all_data_in_buffer(char *headerText, volatile uint16_t dataBuffer[],
     syslog(1, "%s:%s\n", headerText, lineBuff);
 
     // Line by line show entire buffer
-  } while (dmaBuffOff < dataBufSize);
+  } while (dmaBuffOff < dataBufElements);
 }
