@@ -1150,6 +1150,74 @@ static void hcom_nx_config_setup_default_dns_servers(void)
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_add_nameserver_dns_file
+ *
+ * Description:
+ *  Add an address into DNS resover file.
+ *
+ * Input Parameters:
+ *  server - pointer to a server.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  The configuration structure has been locked by the caller.
+ *
+ ****************************************************************************/
+static void hcom_nx_config_add_nameserver_dns_file (char *server)
+{
+    FILE *dns_file = fopen(CONFIG_NETDB_RESOLVCONF_PATH, "wb");
+    if (dns_file != NULL)
+    {
+        fputs("nameserver ", dns_file);
+        fputs(server, dns_file);
+        fputs("\n", dns_file);
+    }
+    fclose(dns_file);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_add_default_gateway_dns_file
+ *
+ * Description:
+ *  Add the default gateway into DNS resolver file.
+ *
+ * Input Parameters:
+ *  config - config - pointer to the configuration object.
+ *  gateway - default gateway address.
+ * 
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+void hcom_nx_config_add_default_gateway_dns_file(meadow_configuration_t *config, uint32_t gateway)
+{
+    if (config != NULL)
+    {
+        if (config->default_interface->gateway_changed == false &&
+            config->dns_servers_count <= 4)
+        {
+            if (gateway != 0)
+            {
+                struct sockaddr_in addr = { };
+                addr.sin_family = AF_INET;
+                addr.sin_port = 0;
+
+                memcpy(&addr.sin_addr, &gateway, sizeof(struct in_addr));
+
+                char *gateway_addr = inet_ntoa(addr.sin_addr);
+                hcom_nx_config_add_nameserver_dns_file (gateway_addr);
+                config->default_interface->gateway_changed = true;
+            }
+        }
+    }
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_find_interface_by_name
  *
  * Description:
@@ -1294,6 +1362,7 @@ static void hcom_nx_config_process_network_section(yaml_network_t *network_confi
         {
             config->default_interface = hcom_nx_config_find_interface_by_name(MEADOW_IFT_ESP32_NAME);
         }
+        config->default_interface->gateway_changed = false;
     }
     else
     {

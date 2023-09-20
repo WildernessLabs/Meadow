@@ -541,6 +541,12 @@ static void espcp_network_connected_event_handler(espcp_message_t *message)
         {
             ntpc_start();
         }
+
+        if (message->payload != NULL)
+        {
+            espcp_connect_event_data_t *connect_data = espcp_extract_connect_event_data(message->payload);
+            hcom_nx_config_add_default_gateway_dns_file(config, connect_data->gateway);
+        }
     }
     espcp_pass_to_managed_event_handler(message);
 
