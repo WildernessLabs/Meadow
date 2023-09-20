@@ -475,8 +475,7 @@ bool hcom_mono_ctrl_are_needed_files_here()
           "mscorlib.dll",
           "System.Core.dll",
           "System.dll",
-          "Meadow.dll",
-          "App.exe",
+          "Meadow.dll"
           NULL};
 
   memset(missingFiles, 0, 128);
