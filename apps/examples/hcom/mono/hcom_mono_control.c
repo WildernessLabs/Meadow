@@ -476,7 +476,6 @@ bool hcom_mono_ctrl_are_needed_files_here()
           "System.Core.dll",
           "System.dll",
           "Meadow.dll",
-          "App.exe",
           NULL};
 
   memset(missingFiles, 0, 128);
