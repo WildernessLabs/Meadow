@@ -103,7 +103,8 @@
 #define ADC_TESTS_DMA_SAMPLES_COUNT (1)
 
 // 2 bytes per 
-#define ADC_TESTS_DMA_BUFFER_SIZE ((ADC_TESTS_DMA_GPIO_COUNT * ADC_TESTS_DMA_BYTES_PER_CONV) * ADC_TESTS_DMA_SAMPLES_COUNT)
+#define ADC_TESTS_DMA_BUFFER_SIZE ((ADC_TESTS_DMA_GPIO_COUNT * \
+          ADC_TESTS_DMA_BYTES_PER_CONV) * ADC_TESTS_DMA_SAMPLES_COUNT)
 
 // Maybe someday???
 #define ADC_TESTS_USE_DOUBLE_BUFFERING (0)
@@ -319,12 +320,13 @@ void *adc_test_kthread_func(int argc, char *argv[])
   uint32_t regval;
 #endif
 
+  // Run the test
   for(int chkCnt = 0; chkCnt < 1000000; chkCnt++)
   {
     // Calling meadow_adc.c API to indicate conversion needed
     // This thread will wait until buffer is full
     ret = meadow_adc_read_conversions();
-    
+
     if(ret < 0)
     {
       syslog(LOG_ERR, "%s@%d-Call to meadow_adc_read_conversions() failed\n",
@@ -332,7 +334,7 @@ void *adc_test_kthread_func(int argc, char *argv[])
     }
 
     // Show information in the buffer, works from 16-bit size, so it's okay as is
-    show_all_data_in_buffer("Test App", _dmaDataBufferTest, ADC_TESTS_DMA_BUFFER_SIZE/2);
+    // show_all_data_in_buffer("Test App", _dmaDataBufferTest, ADC_TESTS_DMA_GPIO_COUNT);
     usleep(1000 * 1000);
   }
   return NULL;
