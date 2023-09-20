@@ -3337,12 +3337,6 @@ int mono_mbedtls_init ()
     int ret;
     mbedtls_ssl_config_init( &conf );
 
-    pkey = g_malloc (sizeof(mbedtls_pk_context));
-    mbedtls_pk_init( pkey );
-
-    clicert = g_malloc (sizeof(mbedtls_x509_crt));
-    mbedtls_x509_crt_init( clicert );
-
     mbedtls_debug_set_threshold(0);
     
     if( ( ret = mbedtls_ssl_config_defaults( &conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT ) ) != 0 )
@@ -3392,6 +3386,9 @@ int mono_mbedtls_init ()
     // Load client private key
     if ( private_key_retrieved_len > 1 ) {
 
+        pkey = g_malloc (sizeof(mbedtls_pk_context));
+        mbedtls_pk_init( pkey );
+
         // Handle empty private key passphrase file case
         if ( private_key_pass_retrieved_len == 1 ) {
             private_key_pass_retrieved = NULL;
@@ -3400,13 +3397,19 @@ int mono_mbedtls_init ()
 
         if ( ( ret = mbedtls_pk_parse_key( pkey, private_key_retrieved, private_key_retrieved_len, private_key_pass_retrieved, private_key_pass_retrieved_len, mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 ) {
             printf( " failed to parse private key %d\n\n", ret );
+            goto error;
         }
     }
 
     // Load client certificate
     if ( client_cert_retrieved_len > 1 ) {
+
+        clicert = g_malloc (sizeof(mbedtls_x509_crt));
+        mbedtls_x509_crt_init( clicert );
+
         if ( ( ret = mbedtls_x509_crt_parse( clicert, client_cert_retrieved, client_cert_retrieved_len ) ) != 0 ) {
             printf( " failed to parse client certificate %d\n\n", ret);
+            goto error;
         }
     }
 

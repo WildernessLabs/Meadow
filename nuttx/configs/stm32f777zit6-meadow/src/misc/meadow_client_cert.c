@@ -248,26 +248,26 @@ int meadow_client_cert_retrieve_private_key_pass(FAR const char **private_key_pa
 
 int meadow_client_cert_release_credentials(FAR const char **client_cert_buf_ptr, FAR const char **private_key_buf_ptr, FAR const char **private_key_pass_buf_ptr)
 {
-    if (client_cert_buf_size == 0)
-        up_assert(__FILE__, __LINE__); // release without retrieve
+    if (*client_cert_buf_ptr != NULL)
+    {
+        memset(*client_cert_buf_ptr, client_cert_buf_size, 0);
+        free(*client_cert_buf_ptr);
+        *client_cert_buf_ptr = NULL;
+    }
 
-    memset(*client_cert_buf_ptr, client_cert_buf_size, 0);
-    free(*client_cert_buf_ptr);
-    *client_cert_buf_ptr = NULL;
+    if (*private_key_buf_ptr != NULL)
+    {
+        memset(*private_key_buf_ptr, private_key_buf_size, 0);
+        free(*private_key_buf_ptr);
+        *private_key_buf_ptr = NULL;
+    }
 
-    if (private_key_buf_size == 0)
-        up_assert(__FILE__, __LINE__); // release without retrieve
-
-    memset(*private_key_buf_ptr, private_key_buf_size, 0);
-    free(*private_key_buf_ptr);
-    *private_key_buf_ptr = NULL;
-
-    if (private_key_pass_buf_size == 0)
-        up_assert(__FILE__, __LINE__); // release without retrieve
-
-    memset(*private_key_pass_buf_ptr, private_key_pass_buf_size, 0);
-    free(*private_key_pass_buf_ptr);
-    *private_key_pass_buf_ptr = NULL;
+    if (*private_key_pass_buf_ptr != NULL)
+    {
+        memset(*private_key_pass_buf_ptr, private_key_pass_buf_size, 0);
+        free(*private_key_pass_buf_ptr);
+        *private_key_pass_buf_ptr = NULL;
+    }
 
     return 0;
 }
