@@ -3445,6 +3445,7 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
     if (private_key_path != NULL) {
         if ( ( ret = mbedtls_pk_parse_keyfile( pkey, private_key_path, NULL, mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 ) {
             printf( " failed to parse private key %d\n\n", ret );
+            goto error;
         }
     }
 
@@ -3452,10 +3453,11 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
     if (client_cert_path != NULL) {
         if ( ( ret = mbedtls_x509_crt_parse_file( clicert, client_cert_path ) ) != 0 ) {
             printf( " failed to parse client certificate %d\n\n", ret);
+            goto error;
         }
     }
 
-    if ( clicert != NULL && pkey != NULL ) {
+    if ( client_cert_path != NULL && private_key_path != NULL ) {
         // Configure SSL context with client certificate and private key
         if ( ( ret = mbedtls_ssl_conf_own_cert( &conf, clicert, pkey ) ) != 0 ) {
             printf( " failed to configure client certificate and private key %d\n\n", ret );
