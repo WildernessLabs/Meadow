@@ -3392,10 +3392,9 @@ int mono_mbedtls_init ()
         // Handle empty private key passphrase file case
         if ( private_key_pass_retrieved_len == 1 ) {
             private_key_pass_retrieved = NULL;
-            private_key_pass_retrieved_len = 0; // Remove the null-terminated character 
         } 
 
-        if ( ( ret = mbedtls_pk_parse_key( pkey, private_key_retrieved, private_key_retrieved_len, private_key_pass_retrieved, private_key_pass_retrieved_len, mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 ) {
+        if ( ( ret = mbedtls_pk_parse_key( pkey, private_key_retrieved, private_key_retrieved_len, private_key_pass_retrieved, private_key_pass_retrieved_len - 1, mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 ) {
             printf( " failed to parse private key %d\n\n", ret );
             goto error;
         }
