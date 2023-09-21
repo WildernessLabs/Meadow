@@ -147,6 +147,7 @@
 
 //   syslog(1, "CCR:  0x%08x\n", getreg32(STM32_ADC_CCR));
 // }
+
 // //-----------------------------------------------------------------------
 // static void adc_test_display_basic_dma_regs(void)
 // {
@@ -189,12 +190,12 @@ static uint8_t _gpioAdcChanMap[] =
 #if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
   // 2-buffers in one is required by Nuttx dma code
 #else
- uint16_t *_dmaDataBuf;
+ volatile uint16_t *_dmaDataBuf;
  uint16_t *_userDataBuf;
+  static uint32_t _adcBufSzBytes;
 #endif
   static uint32_t _gpioTransferCount;
   static uint8_t *_gpioList;
-  static uint32_t _adcBufSzBytes;
   static bool _meadowAdcInit = false;
 
 #if ADC_TESTS_DO_ONE_CONVERSION_AT_A_TIME > 0
@@ -285,6 +286,10 @@ static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
   uint32_t regval;
   // uint32_t baseADCAddr = (uint32_t)arg;
   // static int execCnt = 0;
+
+  // Without this the buffer's data is often not updated
+  up_invalidate_dcache((uintptr_t)_dmaDataBuf,
+                       (uintptr_t)_dmaDataBuf + _adcBufSzBytes);
 
   // The DMA controller hardware can be programmed to call for the following
   // Discription        Event Flag    Enable control bit
@@ -380,9 +385,22 @@ static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
     }
 
 #if ADC_TESTS_DO_ONE_CONVERSION_AT_A_TIME > 0
+// (--) Needed?
+    // Restore the transfer count
+    regval = getreg32(STM32_DMA2_S0NDTR);
+    if(regval == 0)
+    {
+      regval &= ~0x0000ffff;      // Clear 15:0
+      regval = _gpioTransferCount;
+      putreg32(regval, STM32_DMA2_S0NDTR);
+      // regval = getreg32(STM32_DMA2_S0NDTR);
+      // syslog(1, "DMA:Transfer complete. SxNDTR was 0 now:%lu\n", regval);
+    }
+
     // Now DMA2's SxCR register's will need to be re-enabled after each
     // conversion. This is because it's cleared whenever an a DMA transfer
     // has been completed.
+// (--) Needed?
     regval  = getreg32(STM32_DMA2_S0CR);
     regval |= DMA_SCR_EN;
     putreg32(regval, STM32_DMA2_S0CR);
@@ -396,8 +414,8 @@ static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
     // to 0, then to 1 to start a new transfer.
     // • Requests can continue to be generated if the DDS bit is set to 1. This
     // allows configuring the DMA in double-buffer circular mode.
-
-    regval = getreg32(STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
+    // (--) Needed?
+regval = getreg32(STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
     regval &= ~ADC_CR2_DMA;
     putreg32(regval, STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
 
@@ -408,15 +426,6 @@ static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
     sem_post(&_waitTillDoneSem);
 #endif
   }
-
-  //---------------------------------------------------
-  // Invalidate the cache
-  // up_invalidate_dcache((uintptr_t)_dmaDataBuffer1,
-  //               (uintptr_t)_dmaDataBuffer1 + (_gpioTransferCount * 2));
-
-  // Do work here
-
-  // Restart conversion
 }
 #endif
 
@@ -469,7 +478,7 @@ static int adc_conversion_interrupt_handler_isr(int irq, FAR void *context,
   if ((pendingInterrupts & ADC_SR_EOC) != 0)
   {
     syslog(1, "-- ADC ISR-End of Conversion --\n");
-
+    // (--) What to do with the following comments and code?
     // // With a 2k2 resistor connected to DEBUG_PIN_CCM_D04_PB9 and from this
     // // junction a 4k7 connected to ground and another 4k7 to 3v3, then each
     // // time DEBUG_PIN_CCM_D04_PB9 changes, the voltage at GPIO_V2_A00_IN4_PA4
@@ -558,6 +567,17 @@ static int adc_initialize (void)
   regval |= RCC_AHB1ENR_DMA2EN;
   putreg32(regval, STM32_RCC_AHB1ENR);
 
+  // Reset all the ADCs via Reset and Clock Control (RCC). For the STM32F7
+  // there is a single bit for all ADCs. Other MCUs have a bit for each ADC.
+  regval = getreg32(STM32_RCC_APB2RSTR);
+  regval |= RCC_APB2RSTR_ADCRST;
+  putreg32(regval, STM32_RCC_APB2RSTR);
+
+  // Restore ADC from reset state
+  regval = getreg32(STM32_RCC_APB2RSTR);
+  regval &= ~RCC_APB2RSTR_ADCRST;
+  putreg32(regval, STM32_RCC_APB2RSTR);
+
   // Turn-off ADC
   // regval = getreg32(STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
   // regval &= ~ADC_CR2_ADON;      // 0=A/D Converter off (turned on later)
@@ -567,45 +587,31 @@ static int adc_initialize (void)
   putreg32(0x00000fff, STM32_ADC1_BASE + STM32_ADC_HTR_OFFSET);
   putreg32(0x00000000, STM32_ADC1_BASE + STM32_ADC_LTR_OFFSET);
 
-  // Reset all the ADCs via Reset and Clock Control (RCC). For the STM32F7
-  // there is a single bit for all ADCs. Other MCUs have a bit for each ADC.
-  regval = getreg32(STM32_RCC_APB2RSTR);
-  regval |= RCC_APB2RSTR_ADCRST;
-  putreg32(regval, STM32_RCC_APB2RSTR);
-
-  // // Restore ADC from reset state
-  regval = getreg32(STM32_RCC_APB2RSTR);
-  regval &= ~RCC_APB2RSTR_ADCRST;
-  putreg32(regval, STM32_RCC_APB2RSTR);
-
-  // Now for some ADC work
   //------------------------------------------------------------
-  // ADC Common Control Register (CCR)
-  regval = getreg32(STM32_ADC_CCR);
-  // regval &= ~ADC_CCR_TSVREFE;       // 0=disable temperature sensor channel
-  // regval &= ~ADC_CCR_VBATE;         // 0=disable vbat channel
+  // ADC Sample Time Register - Determine how many clock cycles should each
+  // conversion wait before beginning? See Ref Man sec 15.5.
+  // With ADCCLK = 24MHz (see ADC_CCR_ADCPRE)
+  // 000: 3 cycles Tconv = 3 + 12 = 15 cycles, 15/24,000,000 = 0.625 us
+  // 001: 15 cycles
+  // 010: 28 cycles
+  // 011: 56 cycles
+  // 100: 84 cycles
+  // 101: 112 cycles Tconv = 112 + 12 = 124 cycles 124/24,000,000 = 4.667 us
+  // 110: 144 cycles
+  // 111: 480 cycles Tconv = 480 + 12 = 492 cycles 492/24,000,000 = 20.5 us
+  // TESTING-Set all channels to the same default ADC_SMPR_DEFAULT
+  regval = getreg32(STM32_ADC1_BASE + STM32_ADC_SMPR1_OFFSET);
+  // This #define will set all sample times to the same value. Here
+  // ADC_SMPR_DEFAULTs are used to set ADC conversion the same.
+  regval &= 0xf8000000;      // Clear Sample Time fields 10-18
+  regval |= ADC_SMPR1_DEFAULT;
+  putreg32(regval, STM32_ADC1_BASE + STM32_ADC_SMPR1_OFFSET);
 
-  // ADCPRE - Calculation based on PCLK2=96MHz (with 192MHz clock). Per Data
-  // Sheet 5.3.24 pp 165, max ADC clock is 36MHz. Therefore, divide by 4
-  // (96/4=24MHz) is the highest freq. For clock details see Meadow's board.h
-  regval &= ~ADC_CCR_ADCPRE_MASK;   // Clear any bits in ADC prescaler
-  regval |= ADC_CCR_ADCPRE_DIV4;    // 01=ADC prescaler PCLK2 divided by 4
-
-  // DMA access mode for multi ADC mode
-  // 00: DMA mode disabled
-  // 01: DMA mode 1 enabled (2 / 3 half-words one by one - 1 then 2 then 3)
-  // 10: DMA mode 2 enabled (2 / 3 half-words by pairs - 2&1 then 1&3 then 3&2)
-  // 11: DMA mode 3 enabled (2 / 3 bytes by pairs - 2&1 then 1&3 then 3&2)
-  // regval &= ~ADC_CCR_DMA_MASK;       // Clear any bits in DMA mode (multi-ADC mode only) 
-  // regval |= ADC_CCR_DMA_DISABLED;    // 00 = DMA Modes (multi-ADC mode only)
-  // regval |= (1 << ADC_CCR_DMA_SHIFT) // 01: DMA mode 1 enabled
-  // regval |= (2 << ADC_CCR_DMA_SHIFT) // 10: DMA mode 2 enabled
-  // regval |= (3 << ADC_CCR_DMA_SHIFT) // 11: DMA mode 3 enabled
-
-  // regval &= ~ADC_CCR_DELAY_MASK;    // 0000=5*Tadcclk (only used for dual/triple)
-  // regval &= ~ADC_CCR_MULTI_MASK;    // Clear any bits
-  // regval &= ~ADC_CCR_MULTI_NONE;    // 00000=Independent mode
-  putreg32(regval, STM32_ADC_CCR);
+  // Set sample time for channels 0-9
+  regval = getreg32(STM32_ADC1_BASE + STM32_ADC_SMPR2_OFFSET);
+  regval &= 0xc0000000;      // Clear sample time fields 0-9
+  regval |= ADC_SMPR2_DEFAULT;
+  putreg32(regval, STM32_ADC1_BASE + STM32_ADC_SMPR2_OFFSET);
 
   //---------------------------------------------------
   // ADC Control Register 1 (CR1)
@@ -656,35 +662,9 @@ static int adc_initialize (void)
 
 #if ADC_TESTS_DO_ONE_CONVERSION_AT_A_TIME == 0
   // Enable continous conversion
-  regval |= ADC_CR2_CONT;         // 1=Enable continuous conversion
+  regval &= ~ADC_CR2_CONT;         // 1=Enable continuous conversion
 #endif
   putreg32(regval, STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
-
-  //------------------------------------------------------------
-  // ADC Sample Time Register - Determine how many clock cycles should each
-  // conversion wait before beginning? See Ref Man sec 15.5.
-  // With ADCCLK = 24MHz (see ADC_CCR_ADCPRE)
-  // 000: 3 cycles Tconv = 3 + 12 = 15 cycles, 15/24,000,000 = 0.625 us
-  // 001: 15 cycles
-  // 010: 28 cycles
-  // 011: 56 cycles
-  // 100: 84 cycles
-  // 101: 112 cycles Tconv = 112 + 12 = 124 cycles 124/24,000,000 = 4.667 us
-  // 110: 144 cycles
-  // 111: 480 cycles Tconv = 480 + 12 = 492 cycles 492/24,000,000 = 20.5 us
-  // TESTING-Set all channels to the same default ADC_SMPR_DEFAULT
-  regval = getreg32(STM32_ADC1_BASE + STM32_ADC_SMPR1_OFFSET);
-  // This #define will set all sample times to the same value. Here
-  // ADC_SMPR_DEFAULTs are used to set ADC conversion the same.
-  regval &= 0xf8000000;      // Clear Sample Time fields 10-18
-  regval |= ADC_SMPR1_DEFAULT;
-  putreg32(regval, STM32_ADC1_BASE + STM32_ADC_SMPR1_OFFSET);
-
-  // Set sample time for channels 0-9
-  regval = getreg32(STM32_ADC1_BASE + STM32_ADC_SMPR2_OFFSET);
-  regval &= 0xc0000000;      // Clear sample time fields 0-9
-  regval |= ADC_SMPR2_DEFAULT;
-  putreg32(regval, STM32_ADC1_BASE + STM32_ADC_SMPR2_OFFSET);
 
   //------------------------------------------------------------
   // ADC_SQR1, ADC_SQR2 and ADC_SQR3 are used to configure the sequence of the
@@ -701,7 +681,7 @@ static int adc_initialize (void)
   //
 #if(1)
   regval = getreg32(STM32_ADC1_BASE + STM32_ADC_SQR3_OFFSET);
-  //? regval &= ADC_SQR3_RESERVED;   // Clear all SQR Bits
+  regval &= ADC_SQR3_RESERVED;   // Clear all SQR Bits
  
   // All Pins available
   if(_gpioTransferCount == 6)
@@ -784,6 +764,35 @@ static int adc_initialize (void)
   // END - CARRIED FROM non-working meadow_adc.c
 #endif
 
+  //------------------------------------------------------------
+  // ADC Common Control Register (CCR) [Common == for all ADCs]
+  regval = getreg32(STM32_ADC_CCR);
+  // regval &= ~ADC_CCR_TSVREFE;       // 0=disable temperature sensor channel
+  // regval &= ~ADC_CCR_VBATE;         // 0=disable vbat channel
+
+  // ADCPRE - Calculation based on PCLK2=96MHz (with 192MHz clock). Per Data
+  // Sheet 5.3.24 pp 165, max ADC clock is 36MHz. Therefore, divide by 4
+  // (96/4=24MHz) is the highest freq. For clock details see Meadow's board.h
+  regval &= ~ADC_CCR_ADCPRE_MASK;   // Clear any bits in ADC prescaler
+  regval |= ADC_CCR_ADCPRE_DIV4;    // 01=ADC prescaler PCLK2 divided by 4
+
+  // DMA access mode for multi ADC mode
+  // 00: DMA mode disabled
+  // 01: DMA mode 1 enabled (2 / 3 half-words one by one - 1 then 2 then 3)
+  // 10: DMA mode 2 enabled (2 / 3 half-words by pairs - 2&1 then 1&3 then 3&2)
+  // 11: DMA mode 3 enabled (2 / 3 bytes by pairs - 2&1 then 1&3 then 3&2)
+  regval &= ~ADC_CCR_DMA_MASK;       // Clear any bits in DMA mode (multi-ADC mode only) 
+  regval |= ADC_CCR_DMA_DISABLED;    // 00 = DMA Modes (multi-ADC mode only)
+  // regval |= (1 << ADC_CCR_DMA_SHIFT) // 01: DMA mode 1 enabled
+  // regval |= (2 << ADC_CCR_DMA_SHIFT) // 10: DMA mode 2 enabled
+  // regval |= (3 << ADC_CCR_DMA_SHIFT) // 11: DMA mode 3 enabled
+
+  regval &= ~ADC_CCR_DDS;         // 0=No new DMA request is issued after the last transfer
+  regval &= ~ADC_CCR_DELAY_MASK;    // 0000=5*Tadcclk (only used for dual/triple)
+  regval &= ~ADC_CCR_MULTI_MASK;    // Clear any bits
+  regval |= ADC_CCR_MULTI_NONE;    // 00000=Independent mode
+  putreg32(regval, STM32_ADC_CCR);
+
   return OK;
 }
 
@@ -808,12 +817,12 @@ static void adc_start(void)
 {
   uint32_t regval;
 
-    // Now DMA2's SxCR register's will need to be re-enabled after each
-    // conversion. This is because it's cleared whenever an a DMA transfer
-    // has been completed.
-    regval  = getreg32(STM32_DMA2_S0CR);
-    regval |= DMA_SCR_EN;
-    putreg32(regval, STM32_DMA2_S0CR);
+  // // Now DMA2's SxCR register's will need to be re-enabled after each
+  // // conversion. This is because it's cleared whenever an a DMA transfer
+  // // has been completed.
+  // regval  = getreg32(STM32_DMA2_S0CR);
+  // regval |= DMA_SCR_EN;
+  // putreg32(regval, STM32_DMA2_S0CR);
 
   // Start ADC conversion
   regval  = getreg32(STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
@@ -902,6 +911,7 @@ static void dma_initialize(void)
   // CT = 1 -> Memory 1  
   // regval |= DMA_SCR_DBM;
   // (--) Trying Double-Buffer mode
+
   // Set the memory size (MSIZE) is 16-bits 01
   // regval &= ~DMA_SCR_MSIZE_MASK;    // Clear both bits
   regval |= DMA_SCR_MSIZE_16BITS;   // Set size
@@ -911,12 +921,14 @@ static void dma_initialize(void)
   // Enable Memory Address Increment (MINC)
   // PINC is left 0 to not increment
   regval |= DMA_SCR_MINC;   // For 16-bit values incrementes by 2
+
   // Set Circular mode
   // regval |= DMA_SCR_CIRC;
   // Set direction as Peripheral to Memory
   regval &= ~DMA_SCR_DIR_MASK;    // Clear both bits
   regval |= DMA_SCR_DIR_P2M;
   putreg32(regval, STM32_DMA2_S0CR);
+
   // Per Ref Man 8.3.18 must wait
   // while ((getreg32(STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET) & ADC_CR2_ADON) != 0);
 
@@ -944,9 +956,9 @@ static void dma_initialize(void)
   putreg32(regval, STM32_DMA2_S0M1AR);
 #endif
 
-  // (--) CALLING DMA ISR NEED WORK-THE CODE TO ASSIGN THE ISR ISN'T WRITTEN
-  // //       1/2 full         full          transfer err  Direct Mode err
   // regval = getreg32(STM32_DMA2_S0CR);
+  // (--) CALLING DMA ISR NEED WORK-THE CODE NEEDED TO ASSIGN THE ISR ISN'T WRITTEN
+  // //       1/2 full         full          transfer err  Direct Mode err
   // regval |= DMA_SCR_HTIE | DMA_SCR_TCIE | DMA_SCR_TEIE | DMA_SCR_DMEIE;
   // putreg32(regval, STM32_DMA2_S0CR);
 
@@ -993,6 +1005,8 @@ int meadow_adc_initialize(void)
   if(firstTime)
   {
     firstTime = false;
+    memset(_dmaDataBuf, 0, _adcBufSzBytes);
+
 #if ADC_TESTS_USE_DMA_TRANSFER > 0
     _dmaHandle = NULL;
 #endif
@@ -1023,9 +1037,9 @@ int meadow_adc_initialize(void)
     return ret;
   }
 
-  adc_enable();
-
   dma_initialize();
+
+  adc_enable();
 
 #if ADC_TESTS_DO_ONE_CONVERSION_AT_A_TIME == 0
   adc_start();
