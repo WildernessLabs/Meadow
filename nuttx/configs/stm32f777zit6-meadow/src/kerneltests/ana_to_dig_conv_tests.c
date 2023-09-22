@@ -269,11 +269,6 @@ void adc_test_initialize()
   // syslog(1, "----- gpioList contains -----\n");
   // hcom_nx_diag_print_buffer(gpioList, 16, 1);
   
-  // Calling API
-  // ret = meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
-  //         uint16_t dataBuffer[], uint32_t bufferConvSlots)
-  // Only needs to execute once
-
   // Does using malloc causes trouble for ADC/DMA
   _dmaDataBufferTest = kmm_malloc(ADC_TESTS_DMA_BUFFER_SIZE);
   // _dmaDataBufferTest = malloc(ADC_TESTS_DMA_BUFFER_SIZE);
@@ -333,7 +328,7 @@ void *adc_test_kthread_func(int argc, char *argv[])
                 __FILE__, __LINE__);
     }
 
-    // Show information in the buffer, works from 16-bit size, so it's okay as is
+    // Show information in the buffer
     // show_all_data_in_buffer("Test App", _dmaDataBufferTest, ADC_TESTS_DMA_GPIO_COUNT);
     usleep(1000 * 1000);
   }
@@ -341,6 +336,7 @@ void *adc_test_kthread_func(int argc, char *argv[])
 }
 
 //==========================================================================
+// Output the information from the data buffer
 void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[],
                             uint32_t dataBufElements)
 {
