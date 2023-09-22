@@ -60,6 +60,9 @@
 #define DISCONNECT_SCRIPT_MAX_SIZE 64
 #define AUTHENTICATION_CMD_MAX_SIZE 128
 #define OPERATOR_SELECTION_CMD_MAX_SIZE 128
+#define GPS_AT_CMD_TIMEOUT 300
+#define NETWORK_SCAN_AT_CMD_TIMEOUT 300
+#define GET_CSQ_AT_CMD_TIMEOUT 120
 
 /****************************************************************************
  * Private Data
@@ -69,26 +72,6 @@ static char *thisFile = __FILE__;
 static bool cell_connected = false;
 static char *cell_at_cmds_output;
 static struct cell_handler_t hcom_cell_handler;
-// TODO: Allocate memory for these strings on the heap 
-// TODO: Add GPS timeout to cell config yaml
-// TODO: Add a parameter to specify the desired NMEA sentences
-static const char cell_at_cmd_gps[] =
-  "TIMEOUT 300 \"\" "
-  "AT+QGPS=1,2,180,1 PAUSE 3 OK " 
-  "AT+QCFG=\\\"gpio\\\",1,64,1,0,0,1 PAUSE 3 OK "
-  "AT+QCFG=\\\"gpio\\\",3,64,1,1 PAUSE 3 OK "
-  "AT+QGPSCFG=\\\"nmeasrc\\\",1 PAUSE 120 OK "
-  "AT+QGPSGNMEA=\\\"GSV\\\" PAUSE 3 OK "
-  "AT+QGPSGNMEA=\\\"GGA\\\" PAUSE 3 OK "
-  "AT+QGPSGNMEA=\\\"RMC\\\" PAUSE 3 OK "
-  "AT+QGPSGNMEA=\\\"GSA\\\" PAUSE 3 OK "
-  "AT+QGPSGNMEA=\\\"VTG\\\" PAUSE 3 OK "
-  "AT+QGPSEND PAUSE 3 OK "
-  "AT+QCFG=\\\"gpio\\\",1,64,1,0,0,1 PAUSE 3 OK "
-  "AT+QCFG=\\\"gpio\\\",3,64,0,1 PAUSE 3 OK " 
-  "\\c";
-static const char cell_at_cmd_scan[] = "\"\" AT+COPS=? PAUSE 3 OK \\c";
-static const char cell_at_cmd_signal[] = "\"\" AT+CSQ PAUSE 3 OK \\c";
 
 /****************************************************************************
  * Private Functions
@@ -113,7 +96,7 @@ static int pppd_chardev(int fd)
   return 0;
 }
 
-void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_script, char *disconnect_script)
+static void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_script, char *disconnect_script)
 {
   char *authentication_cmd = (char *)malloc(AUTHENTICATION_CMD_MAX_SIZE * sizeof(char));
   char *operator_selection_cmd = (char *)malloc(OPERATOR_SELECTION_CMD_MAX_SIZE * sizeof(char));
@@ -222,31 +205,56 @@ bool meadow_cell_is_connected(void)
     return cell_connected;
 }
 
+static void hcom_pppd_get_script(int state, char *script)
+{
+  // TODO: Add GPS timeout to cell config yaml
+  // TODO: Add a parameter to specify the desired NMEA sentences
+  switch (state)
+  {
+    case CELL_AT_CMD_GPS:
+      hcom_logging_syslog(LOG_INFO, "%s-%d-Cell GPS/GNSS\n", thisFile, __LINE__);
+      snprintf_chk(hcom_cell_handler.script, CONNECT_SCRIPT_MAX_SIZE,
+        "TIMEOUT %d \"\" "
+        "AT+QGPS=1,2,180,1 PAUSE 3 OK " 
+        "AT+QCFG=\\\"gpio\\\",1,64,1,0,0,1 PAUSE 3 OK "
+        "AT+QCFG=\\\"gpio\\\",3,64,1,1 PAUSE 3 OK "
+        "AT+QGPSCFG=\\\"nmeasrc\\\",1 PAUSE 120 OK "
+        "AT+QGPSGNMEA=\\\"GSV\\\" PAUSE 3 OK "
+        "AT+QGPSGNMEA=\\\"GGA\\\" PAUSE 3 OK "
+        "AT+QGPSGNMEA=\\\"RMC\\\" PAUSE 3 OK "
+        "AT+QGPSGNMEA=\\\"GSA\\\" PAUSE 3 OK "
+        "AT+QGPSGNMEA=\\\"VTG\\\" PAUSE 3 OK "
+        "AT+QGPSEND PAUSE 3 OK "
+        "AT+QCFG=\\\"gpio\\\",1,64,1,0,0,1 PAUSE 3 OK "
+        "AT+QCFG=\\\"gpio\\\",3,64,0,1 PAUSE 3 OK "
+        "\\c", GPS_AT_CMD_TIMEOUT);
+      break;
+
+    case CELL_AT_CMD_SIGNAL_QUALITY:
+      hcom_logging_syslog(LOG_INFO, "%s-%d-Cell Signal Quality\n", thisFile, __LINE__);
+      snprintf_chk(hcom_cell_handler.script, CONNECT_SCRIPT_MAX_SIZE,
+        "TIMEOUT %d \"\" AT+CSQ PAUSE 3 OK \\c",
+        GET_CSQ_AT_CMD_TIMEOUT);
+      break;
+
+    case CELL_AT_CMD_SCAN:
+      hcom_logging_syslog(LOG_INFO, "%s-%d-Cell Scan Network\n", thisFile, __LINE__);
+      snprintf_chk(hcom_cell_handler.script, CONNECT_SCRIPT_MAX_SIZE,
+        "TIMEOUT %d \"\" AT+CSQ PAUSE 3 OK \\c",
+        NETWORK_SCAN_AT_CMD_TIMEOUT);
+      break;
+
+    default:
+      break;
+  }
+}
+
 void meadow_cell_change_state(int state)
 {
   if (hcom_cell_handler.script != NULL)
     {
-      memset (hcom_cell_handler.script, 0x00, sizeof(hcom_cell_handler.script));
-      switch (state)
-        {
-          case CELL_AT_CMD_GPS:
-            hcom_logging_syslog(LOG_INFO, "%s-%d-Cell GPS/GNSS\n", thisFile, __LINE__);
-            memcpy(hcom_cell_handler.script, cell_at_cmd_gps, sizeof(cell_at_cmd_gps));
-            break;
-
-          case CELL_AT_CMD_SIGNAL_QUALITY:
-            hcom_logging_syslog(LOG_INFO, "%s-%d-Cell Signal Quality\n", thisFile, __LINE__);
-            memcpy(hcom_cell_handler.script, cell_at_cmd_signal, sizeof(cell_at_cmd_signal));
-            break;
-
-          case CELL_AT_CMD_SCAN:
-            hcom_logging_syslog(LOG_INFO, "%s-%d-Cell Scan Network\n", thisFile, __LINE__);
-            memcpy(hcom_cell_handler.script, cell_at_cmd_scan, sizeof(cell_at_cmd_scan));
-            break;
-
-          default:
-            break;
-        }
+      memset(hcom_cell_handler.script, 0x00, sizeof(hcom_cell_handler.script));
+      hcom_pppd_get_script(state, hcom_cell_handler.script);
 
       if (state != 0)
         {
@@ -259,8 +267,8 @@ void meadow_cell_change_state(int state)
         }
       else
         {
-          //Waiting until script performed.
-          //Do this, we protect the early changed state.
+          // Waiting until script performed.
+          // Do this, we protect the early changed state.
           while (hcom_cell_handler.state == (CELL_AT_CMD | CELL_PAUSED))
             {
               usleep(100);
@@ -271,12 +279,12 @@ void meadow_cell_change_state(int state)
   hcom_logging_syslog(LOG_INFO, "%s-%d-Cell current state: %d\n", thisFile, __LINE__, hcom_cell_handler.state);
 }
 
-void pppd_set_state (struct cell_handler_t *handler, int state)
+void pppd_set_state(struct cell_handler_t *handler, int state)
 {
   handler->state = handler->state | state;
 }
 
-void pppd_clear_state (struct cell_handler_t *handler, int state)
+void pppd_clear_state(struct cell_handler_t *handler, int state)
 {
   handler->state = handler->state ^ state;
 }
@@ -361,7 +369,7 @@ void meadow_cell_at_cmd_event(int ret)
   }
 }
 
-void pppd_create_handler(void)
+static void pppd_create_handler(void)
 {
   hcom_cell_handler.state = CELL_RESUMED;
   hcom_cell_handler.callback = (void *)meadow_cell_at_cmd_event;
