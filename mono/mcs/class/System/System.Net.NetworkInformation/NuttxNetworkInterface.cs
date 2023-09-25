@@ -41,6 +41,9 @@ namespace System.Net.NetworkInformation
 		const int AF_INET = 2;
 		protected readonly int AF_INET6;
 
+		private const string PppInterfacePrefix = "ppp";
+		private const string LoopbackInterfacePrefix = "lo";
+
 		public NuttxNetworkInterfaceAPI ()
 		{
 			AF_INET6 = 10;
@@ -125,8 +128,17 @@ namespace System.Net.NetworkInformation
 						iface.AddAddress(address);
 					}
 
-					// set link layer info, if iface has macaddress or is loopback device
-					if ((macAddress != null) || (type == NetworkInterfaceType.Loopback))
+					if (name.Contains(PppInterfacePrefix))
+					{
+						type = NetworkInterfaceType.Ppp;
+					}
+					else if (name.Contains(LoopbackInterfacePrefix))
+					{
+						type = NetworkInterfaceType.Loopback;
+					}
+
+					// set link layer info, if iface has macaddress, is loopback device or it represents a PPP connection
+					if ((macAddress != null) || (type == NetworkInterfaceType.Loopback) || (type == NetworkInterfaceType.Ppp))
 					{
 						iface.SetLinkLayerInfo(index, macAddress, type);
 					}
