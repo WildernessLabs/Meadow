@@ -311,22 +311,9 @@ static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
    }
 #endif
 
-// (--) Needed?
-    // Restore the transfer count
-    regval = getreg32(STM32_DMA2_S0NDTR);
-    if(regval == 0)
-    {
-      regval &= ~0x0000ffff;      // Clear 15:0
-      regval = _gpioTransferCount;
-      putreg32(regval, STM32_DMA2_S0NDTR);
-      // regval = getreg32(STM32_DMA2_S0NDTR);
-      // syslog(1, "DMA:Transfer complete. SxNDTR was 0 now:%lu\n", regval);
-    }
-
-    // Now DMA2's SxCR register's will need to be re-enabled after each
+    // DMA2's SxCR register's will need to be re-enabled after each
     // conversion. This is because it's cleared whenever an a DMA transfer
     // has been completed.
-// (--) Needed?
     regval  = getreg32(STM32_DMA2_S0CR);
     regval |= DMA_SCR_EN;
     putreg32(regval, STM32_DMA2_S0CR);
@@ -340,7 +327,6 @@ static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
     // to 0, then to 1 to start a new transfer.
     // • Requests can continue to be generated if the DDS bit is set to 1. This
     // allows configuring the DMA in double-buffer circular mode.
-// (--) Needed?
     regval = getreg32(STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
     regval &= ~ADC_CR2_DMA;
     putreg32(regval, STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
@@ -385,25 +371,29 @@ static int adc_conversion_interrupt_handler_isr(int irq, FAR void *context,
   {
     syslog(1, "-- ADC ISR-Over Run --\n");
 
-  // Note: ignoring data Overruns
+  // Note: Meadow_ADC is ignoring data Overruns
+  //
   // From Ref Man 15.8.1 & 15.8.2
   // To recover the ADC from OVR when the DMA is used, follow the steps below:
-  // 1. Reinitialize the DMA (adjust destination address and NDTR counter). This is DMA
-  // 2. Clear the ADC OVR bit in ADC_SR register (below)  This is ADC
-  // 3. Trigger the ADC to start the conversion (below)   This is ADC
+  // 1. Reinitialize the DMA (adjust destination address and NDTR counter).
+  //    This is DMA
+  // 2. Clear the ADC OVR bit in ADC_SR register (below)
+  //    This is ADC
+  // 3. Trigger the ADC to start the conversion (below)
+  //    This is ADC
   //
-  // (--) #1 above - there doesn't appear to be in the stm32f7/stm32_dma.c
+  // Note: #1 above - there doesn't appear to be in NuttX stm32f7/stm32_dma.c
   // code a function to "Reinitialize the DMA".
   // See nuttx/arch/arm/src/stm32f7/stm32_dma.c @657-673 for code that would
   // do the above requirement (I think).
   }
-#endif
 
   // End of conversion - got a value?
   if ((pendingInterrupts & ADC_SR_EOC) != 0)
   {
     syslog(1, "-- ADC ISR-End of Conversion --\n");
   }
+#endif
 
   // Clear any interrupts
   pendingInterrupts &= ~ADC_ALL_POSSIBLE_ADC_INTERRUPTS;
@@ -483,7 +473,6 @@ static int adc_initialize (void)
 
   // Insure the correct ADC clock is on. If not enabled it was impossible
   // to successfully write values into some ADC configuration registers.
-  // (--) NEEDED ?
   regval = getreg32(STM32_RCC_APB2ENR);
   regval |= RCC_APB2ENR_ADC1EN;
   putreg32(regval, STM32_RCC_APB2ENR);
@@ -502,11 +491,6 @@ static int adc_initialize (void)
   regval = getreg32(STM32_RCC_APB2RSTR);
   regval &= ~RCC_APB2RSTR_ADCRST;
   putreg32(regval, STM32_RCC_APB2RSTR);
-
-  // Turn-off ADC
-  // regval = getreg32(STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
-  // regval &= ~ADC_CR2_ADON;      // 0=A/D Converter off (turned on later)
-  // putreg32(regval, STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
 
   // Set the ADC watchdog high and low threshold to max and min
   putreg32(0x00000fff, STM32_ADC1_BASE + STM32_ADC_HTR_OFFSET);
@@ -544,29 +528,23 @@ static int adc_initialize (void)
   // options. I put the following in the same order as the Ref Man 15.13.2
   // This is mostly interrupt configuration
   regval = getreg32(STM32_ADC1_BASE + STM32_ADC_CR1_OFFSET);
-
-  // [--] THIS MAY BE WRONG Buffer overrun has special instructions to resume
-  // conversion. See section 15.8.1 for details
-  regval |= ADC_CR1_OVRIE;       // 1=Enable Overrun interrupt
-  //? regval &= ~ADC_CR1_RES_MASK;    // Insure all resolution bit are clear
+  regval &= ~ADC_CR1_OVRIE;          // 0=Disable Overrun interrupt
+  regval &= ~ADC_CR1_RES_MASK;      // Insure all resolution bit are clear
   regval |= ADC_CR1_RES_12BIT;      // Set resolution 00=12, 01=10, 10=8 or 11=6 bits
-  // regval |= ADC_CR1_AWDEN;       // 0=Disable Analog watchdog on regular channels
-  // regval &= ~ADC_CR1_JAWDEN;      // 0=Disable Analog watchdog on injected
-  // regval &= ~ADC_CR1_JDISCEN;     // 0=Disable discontinuous mode on injected channels
-  // regval &= ~ADC_CR1_DISCNUM_MASK;  // Set number of discontinuous channels to 1
-  // regval &= ~ADC_CR1_DISCEN;      // 0=Disable discontinuous mode on regular channels
-  // regval &= ~ADC_CR1_JAUTO;       // 0=Automatic Injected Group conversion
-  // regval &= ~ADC_CR1_AWDSGL;      // 0=Disable watchdog on single channel in scan mode
+  regval &= ~ADC_CR1_AWDEN;         // 0=Disable Analog watchdog on regular channels
+  regval &= ~ADC_CR1_JAWDEN;        // 0=Disable Analog watchdog on injected
+  regval &= ~ADC_CR1_JDISCEN;       // 0=Disable discontinuous mode on injected channels
+  regval &= ~ADC_CR1_DISCNUM_MASK;  // Set number of discontinuous channels to 1
+  regval &= ~ADC_CR1_DISCEN;        // 0=Disable discontinuous mode on regular channels
+  regval &= ~ADC_CR1_JAUTO;         // 0=Automatic Injected Group conversion
+  regval &= ~ADC_CR1_AWDSGL;        // 0=Disable watchdog on single channel in scan mode
   // In Scan mode, the inputs selected through the ADC_SQRx
-  regval |= ADC_CR1_SCAN;             // 1=Scan mode (Scans channels in ADC_SQRx registers)
-  // regval |= ADC_CR1_JEOCIE;        // 0=Disable interrupt for injected channels
-  // regval |= ADC_CR1_AWDIE;         // 0=Analog Watchdog interrupt enable
+  regval |= ADC_CR1_SCAN;           // 1=Scan mode (Scans channels in ADC_SQRx registers)
+  regval &= ~ADC_CR1_JEOCIE;        // 0=Disable interrupt for injected channels
+  regval &= ~ADC_CR1_AWDIE;         // 0=Analog Watchdog interrupt enable
   // EOCIE seems to have no effect when using DMA
-  regval |= ADC_CR1_EOCIE;        // 1=Enable ADC interrupt for EOC (not with DMA)
-  // regval &= ~ADC_CR1_AWDCH_MASK;   // Clear the watchdog channel to 00000=Chan 0
-
-  // Set for IN4 (PA4) while testing
-  // (--) NOT NEEDED ??? regval |= (4 << ADC_CR1_AWDCH_SHIFT);  // 00100=Channel 4 analog watchdog select bits
+  regval |= ADC_CR1_EOCIE;          // 1=Enable ADC interrupt for EOC (not with DMA)
+  regval &= ~ADC_CR1_AWDCH_MASK;    // Clear the watchdog channel to 00000=Chan 0
   putreg32(regval, STM32_ADC1_BASE + STM32_ADC_CR1_OFFSET);
 
   //---------------------------------------------------
@@ -578,14 +556,13 @@ static int adc_initialize (void)
   regval |= ADC_CR2_EXTEN_NONE;   // No trigger from external sources
   regval &= ~ADC_CR2_ALIGN;       // 0=Right alignment (1=left alignment)
   regval &= ~ADC_CR2_EOCS;        // 1=End of each conversion, 0=End of sequence
-  // NOTE: 'DDS' and 'DMA' fields exist in 2 ADC registers, CR2 and CCR
+  // NOTE: the field names 'DDS' and 'DMA' exist in 2 ADC registers, CR2 and CCR
   // DDS=0 No new DMA request is issued after the last transfer
   // DDS=1 DMA requests are issued as long as data are converted and DMA=1
-  // regval |= ADC_CR2_DDS;        // DDS = DMA Disable Selection
   regval &= ~ADC_CR2_DDS;
   regval |= ADC_CR2_DMA;          // 1=Enable DMA
   // Disable continous conversion
-  regval &= ~ADC_CR2_CONT;         // 1=Enable continuous conversion
+  regval &= ~ADC_CR2_CONT;         // 0=Disable continuous conversion
   putreg32(regval, STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
 
   //------------------------------------------------------------
@@ -600,7 +577,6 @@ static int adc_initialize (void)
   // 'Additional functions' column for the possible analog inputs for the ADC
   // being used. In this case there are 2 possible ADC1_IN4, and ADC2_IN4.
   // Since for ADC1 the value is '4' (it's also 4 for ADC2 and 3).
-  //
   int ret;
   uint32_t seqRegMaxGpios;
   uint32_t remainingCnt = _gpioTransferCount;
@@ -657,9 +633,8 @@ static int adc_initialize (void)
   //------------------------------------------------------------
   // ADC Common Control Register (CCR) [Common == for all ADCs]
   regval = getreg32(STM32_ADC_CCR);
-  // regval &= ~ADC_CCR_TSVREFE;       // 0=disable temperature sensor channel
-  // regval &= ~ADC_CCR_VBATE;         // 0=disable vbat channel
-
+  regval &= ~ADC_CCR_TSVREFE;       // 0=disable temperature sensor channel
+  regval &= ~ADC_CCR_VBATE;         // 0=disable vbat channel
   // ADCPRE - Calculation based on PCLK2=96MHz (with 192MHz clock). Per Data
   // Sheet 5.3.24 pp 165, max ADC clock is 36MHz. Therefore, divide by 4
   // (96/4=24MHz) is the highest freq. For clock details see Meadow's board.h
@@ -671,16 +646,12 @@ static int adc_initialize (void)
   // 01: DMA mode 1 enabled (2 / 3 half-words one by one - 1 then 2 then 3)
   // 10: DMA mode 2 enabled (2 / 3 half-words by pairs - 2&1 then 1&3 then 3&2)
   // 11: DMA mode 3 enabled (2 / 3 bytes by pairs - 2&1 then 1&3 then 3&2)
-  regval &= ~ADC_CCR_DMA_MASK;       // Clear any bits in DMA mode (multi-ADC mode only) 
-  regval |= ADC_CCR_DMA_DISABLED;    // 00 = DMA Modes (multi-ADC mode only)
-  // regval |= (1 << ADC_CCR_DMA_SHIFT) // 01: DMA mode 1 enabled
-  // regval |= (2 << ADC_CCR_DMA_SHIFT) // 10: DMA mode 2 enabled
-  // regval |= (3 << ADC_CCR_DMA_SHIFT) // 11: DMA mode 3 enabled
-
-  regval &= ~ADC_CCR_DDS;         // 0=No new DMA request is issued after the last transfer
+  regval &= ~ADC_CCR_DMA_MASK;      // Clear any bits in DMA mode (multi-ADC mode only) 
+  regval |= ADC_CCR_DMA_DISABLED;   // 00 = DMA Modes (multi-ADC mode only)
+  regval &= ~ADC_CCR_DDS;           // 0=No new DMA request is issued after the last transfer
   regval &= ~ADC_CCR_DELAY_MASK;    // 0000=5*Tadcclk (only used for dual/triple)
   regval &= ~ADC_CCR_MULTI_MASK;    // Clear any bits
-  regval |= ADC_CCR_MULTI_NONE;    // 00000=Independent mode
+  regval |= ADC_CCR_MULTI_NONE;     // 00000=Independent mode
   putreg32(regval, STM32_ADC_CCR);
 
   return OK;
@@ -707,12 +678,9 @@ static void adc_start(void)
 {
   uint32_t regval;
 
-  // // Now DMA2's SxCR register's will need to be re-enabled after each
-  // // conversion. This is because it's cleared whenever an a DMA transfer
-  // // has been completed.
-  // regval  = getreg32(STM32_DMA2_S0CR);
-  // regval |= DMA_SCR_EN;
-  // putreg32(regval, STM32_DMA2_S0CR);
+  regval  = getreg32(STM32_DMA2_S0CR);
+  regval |= DMA_SCR_EN;
+  putreg32(regval, STM32_DMA2_S0CR);
 
   // Start ADC conversion
   regval  = getreg32(STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
