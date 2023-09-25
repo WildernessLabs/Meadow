@@ -96,6 +96,9 @@ static int pppd_chardev(int fd)
   return 0;
 }
 
+//====================================================================
+// This function is used to generate the connection and disconnection script
+// based on cell settings and is later passed to the pppd() function
 static void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_script, char *disconnect_script)
 {
   char *authentication_cmd = (char *)malloc(AUTHENTICATION_CMD_MAX_SIZE * sizeof(char));
@@ -223,6 +226,9 @@ bool meadow_cell_is_connected(void)
     return cell_connected;
 }
 
+//====================================================================
+// This function is to get the script according to the state (GPS, Signal Quality
+// or Scan). After the selected script will be performed in PPPD thread.
 static void hcom_pppd_get_script(int state, char *script)
 {
   // TODO: Add GPS timeout to cell config yaml
