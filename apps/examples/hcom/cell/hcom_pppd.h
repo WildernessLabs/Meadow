@@ -57,19 +57,20 @@
  * Public Data
  ****************************************************************************/
 
-struct cell_handler_t
+struct hcom_pppd_handler_s
 {
     int state;
     char *script;
     void (* callback)(int ret);
 };
+typedef struct hcom_pppd_handler_s hcom_pppd_handler_t;
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-void pppd_set_state(struct cell_handler_t *handler, int state);
-void pppd_clear_state(struct cell_handler_t *handler, int state);
+void pppd_set_state(hcom_pppd_handler_t *handler, int state);
+void pppd_clear_state(hcom_pppd_handler_t *handler, int state);
 int meadow_cell_scanner(char *response);
 int hcom_pppd_start(void);
 

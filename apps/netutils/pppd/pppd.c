@@ -39,7 +39,6 @@
 
 #include <nuttx/config.h>
 #include "../../examples/hcom/hcom_common.h"
-#include "../../examples/hcom/cell/hcom_pppd.h"
 
 #include <sys/socket.h>
 #include <sys/ioctl.h>

@@ -42,6 +42,7 @@
 
 #include <nuttx/config.h>
 #include <time.h>
+#include "../../examples/hcom/cell/hcom_pppd.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -90,7 +91,7 @@ struct pppd_settings_s
     
   /* Cell Handler*/
 
-  struct cell_handler_t *cell_handler;
+  hcom_pppd_handler_t *cell_handler;
 };
 
   /****************************************************************************

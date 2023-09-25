@@ -71,7 +71,7 @@
 static char *thisFile = __FILE__;
 static bool cell_connected = false;
 static char *cell_at_cmds_output;
-static struct cell_handler_t hcom_cell_handler;
+static hcom_pppd_handler_t hcom_cell_handler;
 
 /****************************************************************************
  * Private Functions
@@ -100,6 +100,21 @@ static void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *co
 {
   char *authentication_cmd = (char *)malloc(AUTHENTICATION_CMD_MAX_SIZE * sizeof(char));
   char *operator_selection_cmd = (char *)malloc(OPERATOR_SELECTION_CMD_MAX_SIZE * sizeof(char));
+
+  if (authentication_cmd == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate authentication\n", thisFile, __LINE__);
+    connect_script = NULL;
+    return;
+  }
+
+  if (operator_selection_cmd == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate operator\n", thisFile, __LINE__);
+    connect_script = NULL;
+    free(authentication_cmd);
+    return;
+  }
 
   snprintf_chk(authentication_cmd, AUTHENTICATION_CMD_MAX_SIZE,
       cell_settings->pap_user[0] != '\0' && cell_settings->pap_password[0] != '\0'
@@ -198,6 +213,9 @@ static void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *co
     "\"\" ATZ "
     "OK \\c"
   );
+
+  free(authentication_cmd);
+  free(operator_selection_cmd);
 }
 
 bool meadow_cell_is_connected(void)
@@ -279,12 +297,12 @@ void meadow_cell_change_state(int state)
   hcom_logging_syslog(LOG_INFO, "%s-%d-Cell current state: %d\n", thisFile, __LINE__, hcom_cell_handler.state);
 }
 
-void pppd_set_state(struct cell_handler_t *handler, int state)
+void pppd_set_state(hcom_pppd_handler_t *handler, int state)
 {
   handler->state = handler->state | state;
 }
 
-void pppd_clear_state(struct cell_handler_t *handler, int state)
+void pppd_clear_state(hcom_pppd_handler_t *handler, int state)
 {
   handler->state = handler->state ^ state;
 }
