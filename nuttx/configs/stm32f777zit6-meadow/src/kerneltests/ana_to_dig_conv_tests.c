@@ -33,6 +33,10 @@
  *
  ****************************************************************************/
 
+#if defined CONFIG_ADC_TESTS
+#warning "(--) Hacking ana_to_dig_conv_tests.c"
+#endif
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -54,22 +58,9 @@
 #include "chip/stm32f76xx77xx_memorymap.h"
 #include <meadow/hcom_shared_common.h>
 #include "hcom_nx/hcom_nx_common.h"
-// nuttx/arch/arm/src/common/up_arch.h
-// #include "chip.h"
-// #include "stm32_rcc.h"
-// #include "stm32_tim.h"
-// #include "stm32_adc.h"
-// #include "chip/stm32_rtcc.h"   // FOR TESTING BBR
-
-// Using DMA? This may be temporary
-#define ADC_TESTS_USE_DMA_TRANSFER (1)
-
-#if ADC_TESTS_USE_DMA_TRANSFER > 0
 #include "chip/stm32f76xx77xx_dma.h"
-#endif
 
-#if defined (CONFIG_ADC_TESTS)
-#warning "(--) Hacking ana_to_dig_conv_tests.c"
+// #if defined (CONFIG_ADC_TESTS)
 
 #ifndef CONFIG_STM32F7_DMA2
 #error "Meadow ADC with DMA requires CONFIG_STM32F7_DMA2"
@@ -94,40 +85,30 @@
 #define GPIO_V2_A04_IN9_PB1         (GPIO_ANALOG|GPIO_PORTB|GPIO_PIN1)
 #define GPIO_V2_A05_IN10_PC0        (GPIO_ANALOG|GPIO_PORTC|GPIO_PIN0)
 
-// This is not a valid analog input pin. It's used for testing
+// This is NOT a valid analog input pin. It can be used for testing
 #define GPIO_V2_A0x_INx_PA9         (GPIO_ANALOG|GPIO_PORTA|GPIO_PIN9)
-#define ADC_TESTS_DMA_BYTES_PER_CONV (2)
 
-// ADJUST THESE FOR DIFFERENT TESTS
-#define ADC_TESTS_DMA_GPIO_COUNT (6)
-#define ADC_TESTS_DMA_SAMPLES_COUNT (1)
+// Adjust for different tests. Value from 1 to 16 work
+#define ADC_TESTS_DMA_GPIO_COUNT (1)
 
-// 2 bytes per 
-#define ADC_TESTS_DMA_BUFFER_SIZE ((ADC_TESTS_DMA_GPIO_COUNT * \
-          ADC_TESTS_DMA_BYTES_PER_CONV) * ADC_TESTS_DMA_SAMPLES_COUNT)
+// This is fixed for 2 bytes for the ADC results
+#define ADC_TESTS_DMA_BYTES_PER_CONVERSION (2)
 
-// Maybe someday???
-#define ADC_TESTS_USE_DOUBLE_BUFFERING (0)
+#define ADC_TESTS_DMA_BUFFER_SIZE (ADC_TESTS_DMA_GPIO_COUNT * \
+                        ADC_TESTS_DMA_BYTES_PER_CONVERSION)
 
 /************************************************************************************
  * Private Data
  ************************************************************************************/
 
-#if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
-  // 2-buffers in one. This is a Nuttx DMA requirement, not the STM32F7
-  uint16_t _dmaDataBufferTest[ADC_TESTS_DMA_BUFFER_SIZE];
-  uint16_t *_dmaDataBuffer2 = _dmaDataBufferTest + ADC_TESTS_DMA_BUFFER_SIZE;
-#else
-  uint16_t *_dmaDataBufferTest;
-#endif
-
-#endif
+uint16_t *_dmaDataBufferTest;
 
 /************************************************************************************
  * Private Function Prototypes
  ************************************************************************************/
 
 static void adc_test_initialize(void);
+
 // static void adc_test_bad_initialization_parameters(void);
 
 static int adc_test_create_testing_thread(void);
@@ -153,16 +134,9 @@ void meadow_kt_adc_tests(uint32_t userData)
       if(firstTime)
       {
         firstTime = false;
-        
-        DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D01);
-        DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D02);
-        DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D03);
-        DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D04);
 
+        DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D01);
         DEBUG_SET_LOW(DEBUG_PIN_V2_D01);
-        DEBUG_SET_LOW(DEBUG_PIN_V2_D02);
-        DEBUG_SET_LOW(DEBUG_PIN_V2_D03);
-        DEBUG_SET_LOW(DEBUG_PIN_V2_D04);
 
         // Initialize test code
         adc_test_initialize();
@@ -222,7 +196,7 @@ void meadow_kt_adc_tests(uint32_t userData)
 // }
 
 //================================================================
-// (--) This part of the code could be called > 1 time when it supports more
+// This part of the code could be called > 1 time when it supports more
 // than ADC1 for debugging. However the ADC reset done via RCC will only
 // need to be done once.
 // nuttx/arch/arm/src/stm32f7/chip/stm32f74xx77xx_adc.h
@@ -236,7 +210,7 @@ void adc_test_initialize()
   // To test need to prepare a few things
   // A list of input points. Note points can be used more than once
 
-  // These need to be configured for here testing, but not for actual use as
+  // These need to be configured here for testing, but not for non-testing
   // they'll be configured by Meadow.Core
   stm32_configgpio(GPIO_V2_A00_IN4_PA4);
   stm32_configgpio(GPIO_V2_A01_IN5_PA5);
@@ -245,8 +219,12 @@ void adc_test_initialize()
   stm32_configgpio(GPIO_V2_A04_IN9_PB1);
   stm32_configgpio(GPIO_V2_A05_IN10_PC0);
   
-  // Populate gpioList for maximum size of 16
-  // The Nuttx GPIO Config - Port (bits 7:4) and Pin (bits 3:0)
+  // We'll use the first of these based on the ADC_TESTS_DMA_GPIO_COUNT
+  // value. If it is 1 then only used the first entry. It it is 6, we'll use
+  // the first 6 entries. For more than 6 we reuse the previous analog GPIOs
+  //
+  // The Nuttx GPIO Config holds the Port in bits 7:4 and the Pin in bits 3:0
+  // this is all we need to setup the ADC
   gpioList[0]  = GPIO_V2_A00_IN4_PA4  & 0x000000ff;
   gpioList[1]  = GPIO_V2_A01_IN5_PA5  & 0x000000ff;
   gpioList[2]  = GPIO_V2_A02_IN3_PA3  & 0x000000ff;
@@ -269,7 +247,7 @@ void adc_test_initialize()
   // syslog(1, "----- gpioList contains -----\n");
   // hcom_nx_diag_print_buffer(gpioList, 16, 1);
   
-  // Does using malloc causes trouble for ADC/DMA
+  // (--) Does using malloc causes trouble for ADC/DMA
   _dmaDataBufferTest = kmm_malloc(ADC_TESTS_DMA_BUFFER_SIZE);
   // _dmaDataBufferTest = malloc(ADC_TESTS_DMA_BUFFER_SIZE);
 
@@ -311,17 +289,15 @@ static int adc_test_create_testing_thread(void)
 void *adc_test_kthread_func(int argc, char *argv[])
 {
   int ret;
-#if ADC_TESTS_USE_DOUBLE_BUFFERING > 0
-  uint32_t regval;
-#endif
 
   // Run the test
   for(int chkCnt = 0; chkCnt < 1000000; chkCnt++)
   {
     // Calling meadow_adc.c API to indicate conversion needed
     // This thread will wait until buffer is full
+    DEBUG_SET_HIGH(DEBUG_PIN_V2_D01);
     ret = meadow_adc_read_conversions();
-
+    DEBUG_SET_LOW(DEBUG_PIN_V2_D01);
     if(ret < 0)
     {
       syslog(LOG_ERR, "%s@%d-Call to meadow_adc_read_conversions() failed\n",
@@ -329,7 +305,9 @@ void *adc_test_kthread_func(int argc, char *argv[])
     }
 
     // Show information in the buffer
-    // show_all_data_in_buffer("Test App", _dmaDataBufferTest, ADC_TESTS_DMA_GPIO_COUNT);
+    char tempBuf[64];
+    snprintf_chk(tempBuf, 64, "%04d-%s", chkCnt + 1, "Test App");
+    show_all_data_in_buffer(tempBuf, _dmaDataBufferTest, ADC_TESTS_DMA_GPIO_COUNT);
     usleep(1000 * 1000);
   }
   return NULL;
@@ -377,3 +355,4 @@ void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[],
     // Line by line show entire buffer
   } while (dmaBuffOff < dataBufElements);
 }
+// #endif    // #if defined (CONFIG_ADC_TESTS)
