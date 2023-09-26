@@ -381,7 +381,7 @@ void meadow_cell_at_cmd_event(int ret)
     hcom_logging_syslog(LOG_INFO, "%s-%d-Cell: %s \n", thisFile, __LINE__, cell_at_cmds_output);
     message.interface = ESPCP_CELL_INTERFACE;
     message.function = ESPCP_CELL_AT_CMD_EVENT;
-    message.status_code = ESPCP_CELL_AT_CMD_EVENT;
+    message.status_code = ESPCP_COMPLETED_OK_STATUS_CODE;
     message.message_id = ESPCP_SIMPLE_EVENT_MESSAGE_ID;
 
     uint32_t encodedEventDataSize = ESPCP_EVENT_DATA_SIZE;
