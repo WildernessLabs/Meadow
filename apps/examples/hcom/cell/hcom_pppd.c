@@ -99,24 +99,21 @@ static int pppd_chardev(int fd)
 //====================================================================
 // This function is used to generate the connection and disconnection script
 // based on cell settings and is later passed to the pppd() function
-static void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *connect_script, char *disconnect_script)
+static int pppd_create_connect_scripts(cell_settings_t *cell_settings, char **connect_script, char **disconnect_script)
 {
   char *authentication_cmd = (char *)malloc(AUTHENTICATION_CMD_MAX_SIZE * sizeof(char));
-  char *operator_selection_cmd = (char *)malloc(OPERATOR_SELECTION_CMD_MAX_SIZE * sizeof(char));
-
   if (authentication_cmd == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate authentication\n", thisFile, __LINE__);
-    connect_script = NULL;
-    return;
+    return -ENOMEM;
   }
 
+  char *operator_selection_cmd = (char *)malloc(OPERATOR_SELECTION_CMD_MAX_SIZE * sizeof(char));
   if (operator_selection_cmd == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate operator\n", thisFile, __LINE__);
-    connect_script = NULL;
     free(authentication_cmd);
-    return;
+    return -ENOMEM;
   }
 
   snprintf_chk(authentication_cmd, AUTHENTICATION_CMD_MAX_SIZE,
@@ -140,7 +137,7 @@ static void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *co
   switch (cell_settings->module_id)
   {
     case CELL_BG770A_MODULE:
-        snprintf_chk(connect_script, CONNECT_SCRIPT_MAX_SIZE, 
+        snprintf_chk(*connect_script, CONNECT_SCRIPT_MAX_SIZE, 
           "ECHO ON " 
           "TIMEOUT %s "
           "\"\" AT+CMEE=2 "
@@ -165,7 +162,7 @@ static void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *co
     break;
   
     case CELL_M95_MODULE:
-      snprintf_chk(connect_script, CONNECT_SCRIPT_MAX_SIZE, 
+      snprintf_chk(*connect_script, CONNECT_SCRIPT_MAX_SIZE, 
         "ECHO ON " 
         "TIMEOUT %s "
         "\"\" AT+QACCM=0,0 "
@@ -184,7 +181,7 @@ static void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *co
     break;
     
     case CELL_BG95M3_MODULE:
-      snprintf_chk(connect_script, CONNECT_SCRIPT_MAX_SIZE, 
+      snprintf_chk(*connect_script, CONNECT_SCRIPT_MAX_SIZE, 
         "ECHO ON " 
         "TIMEOUT %s "
         "\"\" AT+CMEE=2 "
@@ -208,17 +205,21 @@ static void pppd_create_connect_scripts(cell_settings_t *cell_settings, char *co
 
     default:
       hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting connect script\n", thisFile, __LINE__);
-      connect_script = NULL;
+      free(authentication_cmd);
+      free(operator_selection_cmd);
+      return -EINVAL;
     break;
   }
 
-  snprintf_chk(disconnect_script, DISCONNECT_SCRIPT_MAX_SIZE,
+  snprintf_chk(*disconnect_script, DISCONNECT_SCRIPT_MAX_SIZE,
     "\"\" ATZ "
     "OK \\c"
   );
 
   free(authentication_cmd);
   free(operator_selection_cmd);
+
+  return OK;
 }
 
 bool meadow_cell_is_connected(void)
@@ -393,11 +394,19 @@ void meadow_cell_at_cmd_event(int ret)
   }
 }
 
-static void pppd_create_handler(void)
+static int pppd_create_handler(void)
 {
   hcom_cell_handler.state = CELL_RESUMED;
   hcom_cell_handler.callback = (void *)meadow_cell_at_cmd_event;
   hcom_cell_handler.script = (char *)malloc(CONNECT_SCRIPT_MAX_SIZE);
+
+  if (hcom_cell_handler.script == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate cell handler script\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
+
+  return OK;
 }
 
 //====================================================================
@@ -414,41 +423,73 @@ static void *pppd_thread(void *cell_settings_ptr)
         return NULL;
     }
 
-    char *connect_script = (char*)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
-    char *disconnect_script = (char *)malloc(DISCONNECT_SCRIPT_MAX_SIZE * sizeof(char));
-    cell_at_cmds_output = (char *)malloc(CONNECT_SCRIPT_OUTPUT_MAX_SIZE * sizeof(char));
-
-    pppd_create_connect_scripts(cell_settings, connect_script, disconnect_script);
-    pppd_create_handler();
-
-    if ((connect_script != NULL) && (disconnect_script != NULL) && (cell_at_cmds_output != NULL))
+    char *connect_script = (char *)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
+    if (connect_script == NULL)
     {
-        hcom_logging_syslog(LOG_INFO, "%s-%d-chat scripts created: %s\n %s\n",
-                            thisFile, __LINE__, connect_script, disconnect_script);
+        hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate memory for connect script\n", thisFile, __LINE__);
+        return NULL;
+    }
 
-        const struct pppd_settings_s pppd_settings =
-        {
-            .disconnect_script = disconnect_script,
-            .connect_script = connect_script,
-            .ttyname = cell_settings->ttyname,
-            .connect_callback = (void*)meadow_cell_connected_event,
-            .disconnect_callback = (void*)meadow_cell_disconnected_event,
-            .cell_at_cmds_output = cell_at_cmds_output,
-            .cell_handler = &hcom_cell_handler,
+    char *disconnect_script = (char *)malloc(DISCONNECT_SCRIPT_MAX_SIZE * sizeof(char));
+    if (disconnect_script == NULL)
+    {
+        free(connect_script);
+        hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate memory for disconnect script\n", thisFile, __LINE__);
+        return NULL;
+    }
+
+    cell_at_cmds_output = (char *)malloc(CONNECT_SCRIPT_OUTPUT_MAX_SIZE * sizeof(char));
+    if (cell_at_cmds_output == NULL)
+    {
+        free(connect_script);
+        free(disconnect_script);
+        hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate memory for cell AT commands output\n", thisFile, __LINE__);
+        return NULL;
+    }
+
+    int ret;
+    ret = pppd_create_connect_scripts(cell_settings, &connect_script, &disconnect_script);
+    if (ret < 0)
+    {
+    hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to generate connect scripts, ret=%d\n", thisFile, __LINE__, ret);
+      free(connect_script);
+      free(disconnect_script);
+      free(cell_at_cmds_output);
+      return NULL;
+    }
+
+    ret = pppd_create_handler();
+    if (ret < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to create pppd handler, ret=%d\n", thisFile, __LINE__, ret);
+      free(connect_script);
+      free(disconnect_script);
+      free(cell_at_cmds_output);
+      return NULL;
+    }
+
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Chat scripts created: %s\n %s\n",
+                        thisFile, __LINE__, connect_script, disconnect_script);
+
+    const struct pppd_settings_s pppd_settings =
+    {
+        .disconnect_script = disconnect_script,
+        .connect_script = connect_script,
+        .ttyname = cell_settings->ttyname,
+        .connect_callback = (void*)meadow_cell_connected_event,
+        .disconnect_callback = (void*)meadow_cell_disconnected_event,
+        .cell_at_cmds_output = cell_at_cmds_output,
+        .cell_handler = &hcom_cell_handler,
 #ifdef CONFIG_NETUTILS_PPPD_PAP
             .pap_username = cell_settings->pap_user,
             .pap_password = cell_settings->pap_password,
 #endif
-        };
+    };
 
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Starting PPPD\n", thisFile, __LINE__);
+    pppd(&pppd_settings);
 
-        hcom_logging_syslog(LOG_INFO, "%s-%d-Starting PPPD\n", thisFile, __LINE__);
-        pppd(&pppd_settings);
-    }
-
-    hcom_logging_syslog(LOG_INFO, "%s-%d-Failed starting PPPD\n", thisFile, __LINE__);
-  return NULL;
-
+    return NULL;
 }
 
 /****************************************************************************
