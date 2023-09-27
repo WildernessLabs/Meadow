@@ -33,10 +33,6 @@
  *
  ****************************************************************************/
 
-#if defined CONFIG_ADC_TESTS
-#warning "(--) Hacking ana_to_dig_conv_tests.c"
-#endif
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -60,7 +56,9 @@
 #include "hcom_nx/hcom_nx_common.h"
 #include "chip/stm32f76xx77xx_dma.h"
 
-// #if defined (CONFIG_ADC_TESTS)
+#if defined (CONFIG_ADC_TESTS)
+
+#warning "(--) Hacking ana_to_dig_conv_tests.c"
 
 #ifndef CONFIG_STM32F7_DMA2
 #error "Meadow ADC with DMA requires CONFIG_STM32F7_DMA2"
@@ -88,11 +86,11 @@
 // This is NOT a valid analog input pin. It can be used for testing
 #define GPIO_V2_A0x_INx_PA9         (GPIO_ANALOG|GPIO_PORTA|GPIO_PIN9)
 
-// Adjust for different tests. Value from 1 to 16 work
-#define ADC_TESTS_DMA_GPIO_COUNT (1)
-
 // This is fixed for 2 bytes for the ADC results
 #define ADC_TESTS_DMA_BYTES_PER_CONVERSION (2)
+
+// Adjust for different tests. Values from 1 to 16 are valid
+#define ADC_TESTS_DMA_GPIO_COUNT (6)
 
 #define ADC_TESTS_DMA_BUFFER_SIZE (ADC_TESTS_DMA_GPIO_COUNT * \
                         ADC_TESTS_DMA_BYTES_PER_CONVERSION)
@@ -101,7 +99,7 @@
  * Private Data
  ************************************************************************************/
 
-uint16_t *_dmaDataBufferTest;
+uint16_t _dmaDataBufferTest[ADC_TESTS_DMA_BUFFER_SIZE];
 
 /************************************************************************************
  * Private Function Prototypes
@@ -119,12 +117,13 @@ static void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[],
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
-
-//==========================================================================
-// ADC tests Enter here
+// ADC tests enter here
 void meadow_kt_adc_tests(uint32_t userData)
 {
+  int ret;
   static int firstTime = true;
+  uint16_t batteryVoltage;
+  uint16_t temperatureValue;
 
   syslog(1, "%s@%d-Entered meadow_kt_adc_tests, userData:%lu\n", __FILE__, __LINE__, userData);
 
@@ -152,14 +151,19 @@ void meadow_kt_adc_tests(uint32_t userData)
       adc_test_create_testing_thread();
       break;
 
+    case 3:
+      // Read the internal values of battery and temperature
+      ret =  meadow_adc_read_temp_vbat(&batteryVoltage, &temperatureValue);
+      if(ret < 0)
+      {
+        syslog(LOG_ERR, "Error:Internal vbat and temp conversion, ret:%d\n", ret);
+      }
+      syslog(1, "Internal Vbat:%u, Temp:%u\n", batteryVoltage, temperatureValue);
+      break;
+
     default:
       syslog(1, "Undefined test for meadow_kt_adc_tests, userData:%lu\n", userData);
       break;
-    
-    // Test the input parameters testing code. The above should be successful,
-    // all of these should fail.
-    // case 3:
-    // adc_test_bad_initialization_parameters();
   }
 }
 
@@ -247,10 +251,6 @@ void adc_test_initialize()
   // syslog(1, "----- gpioList contains -----\n");
   // hcom_nx_diag_print_buffer(gpioList, 16, 1);
   
-  // (--) Does using malloc causes trouble for ADC/DMA
-  _dmaDataBufferTest = kmm_malloc(ADC_TESTS_DMA_BUFFER_SIZE);
-  // _dmaDataBufferTest = malloc(ADC_TESTS_DMA_BUFFER_SIZE);
-
   syslog(1, "--- Test - Address of user buffer:%p\n", _dmaDataBufferTest);
   usleep(20 * 1000);
 
@@ -305,9 +305,9 @@ void *adc_test_kthread_func(int argc, char *argv[])
     }
 
     // Show information in the buffer
-    char tempBuf[64];
-    snprintf_chk(tempBuf, 64, "%04d-%s", chkCnt + 1, "Test App");
-    show_all_data_in_buffer(tempBuf, _dmaDataBufferTest, ADC_TESTS_DMA_GPIO_COUNT);
+    char textBuf[64];
+    snprintf_chk(textBuf, 64, "%04d-%s", chkCnt + 1, "Test App");
+    show_all_data_in_buffer(textBuf, _dmaDataBufferTest, ADC_TESTS_DMA_GPIO_COUNT);
     usleep(1000 * 1000);
   }
   return NULL;
@@ -355,4 +355,4 @@ void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[],
     // Line by line show entire buffer
   } while (dmaBuffOff < dataBufElements);
 }
-// #endif    // #if defined (CONFIG_ADC_TESTS)
+#endif    // #if defined (CONFIG_ADC_TESTS)
