@@ -195,6 +195,11 @@ static uint8_t ppp_check_errors(FAR struct ppp_context_s *ctx)
     {
       ret = 3;
     }
+  
+  if (ctx->settings->cell_handler->state & CELL_PAUSED)
+    {
+      ret = 4;    
+    }
 
   return ret;
 }
@@ -230,7 +235,19 @@ void ppp_reconnect(FAR struct ppp_context_s *ctx)
           debug_printf("ppp: disconnect script failed\n");
         }
     }
-
+  
+    while (ctx->settings->cell_handler->state)
+      { 
+        if ((ctx->settings->cell_handler->state & CELL_AT_CMD))
+          {
+              memset(pppd_settings->cell_at_cmds_output, 0x00, sizeof(pppd_settings->cell_at_cmds_output));
+              ret = chat(&ctx->ctl, ctx->settings->cell_handler->script, pppd_settings->cell_at_cmds_output);
+              ctx->settings->cell_handler->callback(ret);
+              pppd_clear_state(ctx->settings->cell_handler, CELL_AT_CMD);
+          }
+        usleep(1000); 
+      }
+      
   if (pppd_settings->connect_script)
     {
       do

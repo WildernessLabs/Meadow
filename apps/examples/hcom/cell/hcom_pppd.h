@@ -44,10 +44,33 @@
 
 #define CONNECT_SCRIPT_OUTPUT_MAX_SIZE 1024
 
+#define CELL_RESUMED                0x00
+#define CELL_PAUSED                 (1 << 0)
+#define CELL_AT_CMD_GPS             (1 << 1)
+#define CELL_AT_CMD_SIGNAL_QUALITY  (1 << 2)
+#define CELL_AT_CMD_SCAN            (1 << 3)
+#define CELL_AT_CMD                 (1 << 4)
+#define CELL_CHAT_DONE              (1 << 5)
+#define CELL_CHAT_FAILED            (1 << 6)
+
+/****************************************************************************
+ * Public Data
+ ****************************************************************************/
+
+struct hcom_pppd_handler_s
+{
+    int state;
+    char *script;
+    void (* callback)(int ret);
+};
+typedef struct hcom_pppd_handler_s hcom_pppd_handler_t;
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
+void pppd_set_state(hcom_pppd_handler_t *handler, int state);
+void pppd_clear_state(hcom_pppd_handler_t *handler, int state);
 int meadow_cell_scanner(char *response);
 int hcom_pppd_start(void);
 
