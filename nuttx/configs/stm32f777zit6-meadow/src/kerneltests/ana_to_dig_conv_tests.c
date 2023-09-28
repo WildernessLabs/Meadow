@@ -75,7 +75,7 @@
  * Pre-processor Definitions
  ************************************************************************************/
 
-// Of these PA4 and PA5 are available for DAC
+// Of these PA4 and PA5 are the only ones that can be used for DAC
 #define GPIO_V2_A00_IN4_PA4         (GPIO_ANALOG|GPIO_PORTA|GPIO_PIN4)
 #define GPIO_V2_A01_IN5_PA5         (GPIO_ANALOG|GPIO_PORTA|GPIO_PIN5)
 #define GPIO_V2_A02_IN3_PA3         (GPIO_ANALOG|GPIO_PORTA|GPIO_PIN3)
@@ -90,7 +90,11 @@
 #define ADC_TESTS_DMA_BYTES_PER_CONVERSION (2)
 
 // Adjust for different tests. Values from 1 to 16 are valid
+#if defined CONFIG_ADC_TESTS
+#define ADC_TESTS_DMA_GPIO_COUNT (9)
+#else
 #define ADC_TESTS_DMA_GPIO_COUNT (6)
+#endif
 
 #define ADC_TESTS_DMA_BUFFER_SIZE (ADC_TESTS_DMA_GPIO_COUNT * \
                         ADC_TESTS_DMA_BYTES_PER_CONVERSION)
@@ -99,7 +103,8 @@
  * Private Data
  ************************************************************************************/
 
-uint16_t _dmaDataBufferTest[ADC_TESTS_DMA_BUFFER_SIZE];
+static uint16_t _dmaDataBufferTest[ADC_TESTS_DMA_BUFFER_SIZE];
+static bool _userData;
 
 /************************************************************************************
  * Private Function Prototypes
@@ -121,9 +126,11 @@ static void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[],
 void meadow_kt_adc_tests(uint32_t userData)
 {
   int ret;
-  static int firstTime = true;
   uint16_t batteryVoltage;
   uint16_t temperatureValue;
+  static int firstTime = true;
+
+  _userData = userData;
 
   syslog(1, "%s@%d-Entered meadow_kt_adc_tests, userData:%lu\n", __FILE__, __LINE__, userData);
 
@@ -159,6 +166,10 @@ void meadow_kt_adc_tests(uint32_t userData)
         syslog(LOG_ERR, "Error:Internal vbat and temp conversion, ret:%d\n", ret);
       }
       syslog(1, "Internal Vbat:%u, Temp:%u\n", batteryVoltage, temperatureValue);
+    
+    case 4:
+      // Create a thread to test getting temperature operation
+      adc_test_create_testing_thread();
       break;
 
     default:
@@ -222,7 +233,7 @@ void adc_test_initialize()
   stm32_configgpio(GPIO_V2_A03_IN8_PB0);
   stm32_configgpio(GPIO_V2_A04_IN9_PB1);
   stm32_configgpio(GPIO_V2_A05_IN10_PC0);
-  
+
   // We'll use the first of these based on the ADC_TESTS_DMA_GPIO_COUNT
   // value. If it is 1 then only used the first entry. It it is 6, we'll use
   // the first 6 entries. For more than 6 we reuse the previous analog GPIOs
@@ -235,18 +246,23 @@ void adc_test_initialize()
   gpioList[3]  = GPIO_V2_A03_IN8_PB0  & 0x000000ff;
   gpioList[4]  = GPIO_V2_A04_IN9_PB1  & 0x000000ff;
   gpioList[5]  = GPIO_V2_A05_IN10_PC0 & 0x000000ff;
+#if defined CONFIG_ADC_TESTS
+  gpioList[6]  = 0xf0;
+  gpioList[7]  = 0xf1;
+  gpioList[8]  = 0xf2;
+#endif
 
-  gpioList[6]  = GPIO_V2_A00_IN4_PA4  & 0x000000ff;
-  gpioList[7]  = GPIO_V2_A01_IN5_PA5  & 0x000000ff;
-  gpioList[8]  = GPIO_V2_A02_IN3_PA3  & 0x000000ff;
-  gpioList[9]  = GPIO_V2_A03_IN8_PB0  & 0x000000ff;
-  gpioList[10] = GPIO_V2_A04_IN9_PB1  & 0x000000ff;
-  gpioList[11] = GPIO_V2_A05_IN10_PC0 & 0x000000ff;
+  // gpioList[6]  = GPIO_V2_A00_IN4_PA4  & 0x000000ff;
+  // gpioList[7]  = GPIO_V2_A01_IN5_PA5  & 0x000000ff;
+  // gpioList[8]  = GPIO_V2_A02_IN3_PA3  & 0x000000ff;
+  // gpioList[9]  = GPIO_V2_A03_IN8_PB0  & 0x000000ff;
+  // gpioList[10] = GPIO_V2_A04_IN9_PB1  & 0x000000ff;
+  // gpioList[11] = GPIO_V2_A05_IN10_PC0 & 0x000000ff;
 
-  gpioList[12] = GPIO_V2_A00_IN4_PA4  & 0x000000ff;
-  gpioList[13] = GPIO_V2_A01_IN5_PA5  & 0x000000ff;
-  gpioList[14] = GPIO_V2_A02_IN3_PA3  & 0x000000ff;
-  gpioList[15] = GPIO_V2_A03_IN8_PB0  & 0x000000ff;
+  // gpioList[12] = GPIO_V2_A00_IN4_PA4  & 0x000000ff;
+  // gpioList[13] = GPIO_V2_A01_IN5_PA5  & 0x000000ff;
+  // gpioList[14] = GPIO_V2_A02_IN3_PA3  & 0x000000ff;
+  // gpioList[15] = GPIO_V2_A03_IN8_PB0  & 0x000000ff;
 
   // syslog(1, "----- gpioList contains -----\n");
   // hcom_nx_diag_print_buffer(gpioList, 16, 1);
@@ -289,26 +305,44 @@ static int adc_test_create_testing_thread(void)
 void *adc_test_kthread_func(int argc, char *argv[])
 {
   int ret;
+  uint16_t batteryVoltage;
+  uint16_t temperatureValue;
 
   // Run the test
   for(int chkCnt = 0; chkCnt < 1000000; chkCnt++)
   {
-    // Calling meadow_adc.c API to indicate conversion needed
-    // This thread will wait until buffer is full
-    DEBUG_SET_HIGH(DEBUG_PIN_V2_D01);
-    ret = meadow_adc_read_conversions();
-    DEBUG_SET_LOW(DEBUG_PIN_V2_D01);
-    if(ret < 0)
+    if(_userData == 2)
     {
-      syslog(LOG_ERR, "%s@%d-Call to meadow_adc_read_conversions() failed\n",
-                __FILE__, __LINE__);
+      // Calling meadow_adc.c API to indicate conversion needed
+      // This thread will wait until buffer is full
+      DEBUG_SET_HIGH(DEBUG_PIN_V2_D01);
+      ret = meadow_adc_read_conversions();
+      DEBUG_SET_LOW(DEBUG_PIN_V2_D01);
+      if(ret < 0)
+      {
+        syslog(LOG_ERR, "%s@%d-Call to meadow_adc_read_conversions() failed\n",
+                  __FILE__, __LINE__);
+      }
+
+      // Show information in the buffer
+      char textBuf[64];
+      snprintf_chk(textBuf, 64, "%04d-%s", chkCnt + 1, "Test App");
+      show_all_data_in_buffer(textBuf, _dmaDataBufferTest, ADC_TESTS_DMA_GPIO_COUNT);
+      usleep(1000 * 1000);
     }
 
-    // Show information in the buffer
-    char textBuf[64];
-    snprintf_chk(textBuf, 64, "%04d-%s", chkCnt + 1, "Test App");
-    show_all_data_in_buffer(textBuf, _dmaDataBufferTest, ADC_TESTS_DMA_GPIO_COUNT);
-    usleep(1000 * 1000);
+    else if(_userData == 4)
+    {
+      // Read the internal values of battery and temperature
+      ret =  meadow_adc_read_temp_vbat(&batteryVoltage, &temperatureValue);
+      if(ret < 0)
+      {
+        syslog(LOG_ERR, "Error:Internal vbat and temp conversion, ret:%d\n", ret);
+      }
+      // syslog(1, "Internal Vbat:%u, Temp:%u\n", batteryVoltage, temperatureValue);
+      
+      usleep(3000 * 1000);
+    }
   }
   return NULL;
 }
