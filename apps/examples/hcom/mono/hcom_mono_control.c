@@ -391,7 +391,7 @@ int hcom_mono_ctrl_start_mono_main()
   // switch to the round-robin scheduler
 
   struct sched_param param;
-  param.sched_priority = HCOM_MONO_RUNTIME_TASK_PRIORITY;
+  param.sched_priority = MONO_TASK_PRIORITY;
   pthread_setschedparam ((pthread_t) mono_pid, SCHED_RR, &param);
 
 
