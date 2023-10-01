@@ -187,7 +187,7 @@ void Logging::Setup()
         .stop_bits = UART_STOP_BITS_1,
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
         .rx_flow_ctrl_thresh = 0,
-        .use_ref_tick = false
+        .source_clk = UART_SCLK_DEFAULT
     };
     uart_param_config(LOGGING_UART_PORT_NUMBER, &loggingUARTConfig);
     uart_set_pin(LOGGING_UART_PORT_NUMBER, Gpio::LOGGING_TX_PIN, Gpio::LOGGING_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
@@ -372,13 +372,13 @@ void Logging::DumpMessage(const char *componentName, const Message *message)
     {
         TRACE_MESSAGE_SPECIFY_COMPONENT(componentName, "Message type: 0x%02x (%s)", message->MessageType, MessageTypeName(message->MessageType));
         TRACE_MESSAGE_SPECIFY_COMPONENT(componentName, "ESP32 Interface: 0x%02x (%s)", message->Interface, InterfaceName(message->Interface));
-        TRACE_MESSAGE_SPECIFY_COMPONENT(componentName, "Message ID: 0x%08x", message->MessageID);
-        TRACE_MESSAGE_SPECIFY_COMPONENT(componentName, "Packet offset (length): %d (%d) bytes", message->PacketOffset, message->PacketLength);
-        TRACE_MESSAGE_SPECIFY_COMPONENT(componentName, "Function to be executed: 0x%08x (%s)", message->Function, FunctionName(message->Interface, message->Function));
-        TRACE_MESSAGE_SPECIFY_COMPONENT(componentName, "Status code: 0x%08x (%s)", message->StatusCode, StatusCodeName(message->StatusCode));
+        TRACE_MESSAGE_SPECIFY_COMPONENT(componentName, "Message ID: 0x%08x", (unsigned int) message->MessageID);
+        TRACE_MESSAGE_SPECIFY_COMPONENT(componentName, "Packet offset (length): %hu (%hu) bytes", (unsigned short) message->PacketOffset, (unsigned short) message->PacketLength);
+        TRACE_MESSAGE_SPECIFY_COMPONENT(componentName, "Function to be executed: 0x%08x (%s)", (unsigned int) message->Function, FunctionName(message->Interface, message->Function));
+        TRACE_MESSAGE_SPECIFY_COMPONENT(componentName, "Status code: 0x%08x (%s)", (unsigned short) message->StatusCode, StatusCodeName(message->StatusCode));
         if (message->PayloadLength > 0)
         {
-            TRACE_MESSAGE_SPECIFY_COMPONENT(componentName, "Payload length: %d", message->PayloadLength);
+            TRACE_MESSAGE_SPECIFY_COMPONENT(componentName, "Payload length: %u", (unsigned int) message->PayloadLength);
             if (message->Payload)
             {
                 TRACE_HEX_BUFFER_SPECIFY_COMPONENT(componentName, message->Payload, message->PayloadLength);
@@ -408,7 +408,7 @@ char *Logging::MessageSummary(const Message *message)
 {
     char buffer[200];
 
-    snprintf(buffer, 200, "ID: 0x%08x Interface: %s Function: %s", message->MessageID, InterfaceName(message->Interface), FunctionName(message->Interface, message->Function));
+    snprintf(buffer, 200, "ID: 0x%08x Interface: %s Function: %s", (unsigned int) message->MessageID, InterfaceName(message->Interface), FunctionName(message->Interface, message->Function));
     return(strdup(buffer));
 }
 

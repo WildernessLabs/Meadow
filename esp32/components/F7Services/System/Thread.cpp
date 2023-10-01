@@ -27,7 +27,7 @@ const char *Thread::COMPONENT_NAME = "Thread";
  *
  *  Ths is not intended to be called by the user.
  */
-Thread::Thread() : _mutex(xSemaphoreCreateMutex()), _executeMethod(xSemaphoreCreateMutex())
+Thread::Thread() : _mutex(xSemaphoreCreateBinary()), _executeMethod(xSemaphoreCreateBinary())
 {
     _method = nullptr;
     _parameter = nullptr;
@@ -39,6 +39,15 @@ Thread::Thread() : _mutex(xSemaphoreCreateMutex()), _executeMethod(xSemaphoreCre
     {
         throw new ThreadPoolException("Cannot create execute mutex.");
     }
+    //
+    //  Note from the FreeRTOS documentation:
+    //
+    //  The semaphore is created in the 'empty' state, meaning the semaphore must first be given using 
+    //  the xSemaphoreGive() API function before it can subsequently be taken (obtained) using the 
+    //  xSemaphoreTake() function.
+    //
+    xSemaphoreGive(_mutex);
+    xSemaphoreGive(_executeMethod);
     //
     //  We take the execution semaphore before starting the task as the first thing the
     //  task will do is to try and take the semaphore.  Once it has taken the semaphore

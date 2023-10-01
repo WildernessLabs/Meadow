@@ -16,6 +16,7 @@ struct Uuid128
     Uuid128(const char *);
     Uuid128();
     Uuid128(uint8_t *other);
+    Uuid128(const Uuid128&) = default;
     
     std::string ToString() const;
 
@@ -52,6 +53,7 @@ struct Uuid16
     Uuid16();
     Uuid16(uint16_t value);
     Uuid16(uint8_t *other);
+    Uuid16(const Uuid16&) = default;
 
     bool operator==(const Uuid16  &other) const
     {
