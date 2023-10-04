@@ -60,6 +60,7 @@
 // Note: these definitions are in the esp32 codebase
 #define ESPCP_CELL_CONNECTED_EVENT        0x00
 #define ESPCP_CELL_DISCONNECTED_EVENT     0x01
+#define ESPCP_CELL_AT_CMD_EVENT           0x04
 #define ESPCP_CELL_INTERFACE              0x07
 #define ESPCP_SIMPLE_EVENT_MESSAGE_ID     0x00
 #define ESPCP_COMPLETED_OK_STATUS_CODE    0x00

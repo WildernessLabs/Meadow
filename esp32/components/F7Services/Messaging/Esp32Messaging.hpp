@@ -135,6 +135,11 @@ struct Message
     Message(const Message &);
 
     /**
+     * @brief Provide a default implementation for the assignment operator.
+     */
+    Message& operator=(const Message&) = default;
+
+    /**
      *  @brief Make a copy of the message.
      */
     Message *CreateCopyOnHeap(bool);

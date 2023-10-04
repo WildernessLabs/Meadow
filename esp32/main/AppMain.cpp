@@ -96,7 +96,7 @@ void heap_caps_alloc_failed_hook(size_t requestedSize, uint32_t caps, const char
 {
     if (requestedSize != 0)
     {
-        printf("%s was called but failed to allocate %lu bytes with 0x%X capabilities. \n", functionName, (unsigned long) requestedSize, caps);
+        printf("%s was called but failed to allocate %lu bytes with 0x%X capabilities.\n", functionName, (unsigned long) requestedSize, (unsigned int) caps);
         vTaskDelay(1000 / portTICK_PERIOD_MS);
         char *ptr = NULL;
         *ptr = 0;
@@ -115,6 +115,7 @@ extern "C" void app_main()
 #endif
 
     Logging::Setup();
+    esp_log_level_set(COMPONENT_NAME, ESP_LOG_INFO);
 
     struct tm t;
     memset(&t, 0, sizeof(struct tm));
@@ -122,11 +123,13 @@ extern "C" void app_main()
     char month_text[4];
     strftime(month_text, 4, "%b", &t);
 
-    ESP_LOGI(COMPONENT_NAME, "Version: %d.%d.%d.%d, built %02d %s 20%02d %02d:%02d:%02d UTC (%08x:%s)", \
-                g_application_version.major, g_application_version.minor, g_application_version.revision, g_application_version.build, \
-                g_application_version.day, month_text, g_application_version.year, g_application_version.hour, \
-                g_application_version.minute, g_application_version.second, g_application_version.hash, g_application_version.branch_name);
-
+    ESP_LOGI(COMPONENT_NAME, "Version: %u.%u.%u.%u, built %02u %s 20%02u %02u:%02u:%02u UTC (%08x:%s)", \
+                (unsigned int) g_application_version.major, (unsigned int) g_application_version.minor,
+                (unsigned int) g_application_version.revision, (unsigned int) g_application_version.build, \
+                (unsigned int) g_application_version.day, month_text, (unsigned int) g_application_version.year, 
+                (unsigned int) g_application_version.hour, (unsigned int) g_application_version.minute, \
+                (unsigned int) g_application_version.second, (unsigned int) g_application_version.hash, \
+                g_application_version.branch_name);
     NvsManager::Setup();
     /*
      *  Set up the messaging system to use SPI hardware communications.
@@ -139,9 +142,23 @@ extern "C" void app_main()
 //    TestBluetoothMessage(messageDispatcher);
 
     // Message *message = static_cast<Message *>(pvPortMalloc(sizeof(Message)));
+    // *message = { };
     // message->MessageType = MessageTypes::Header;
     // message->Interface = Esp32Interfaces::WiFi;
-    // message->Function = WiFiFunction::StartAccessPoint;
+    // message->Function = WiFiFunction::Socket;
+    // message->MessageID = 0x8000000c;
+
+    // Esp32Messaging::SocketRequest *request = static_cast<Esp32Messaging::SocketRequest *>(pvPortMalloc(sizeof(Esp32Messaging::SocketRequest)));
+    // bzero(request, sizeof(Esp32Messaging::SocketRequest));
+    // request->AddressInformation = NULL;
+    // request->Domain = 2;
+    // request->Type = 2;
+
+    // message->PayloadLength = Encoders::EncodedSocketRequestBufferSize(request);
+    // message->Payload = static_cast<uint8_t *>(pvPortMalloc(message->PayloadLength));
+    // Encoders::EncodeSocketRequest(request, message->Payload);
+
+    // messageDispatcher->QueueMessageForEsp32(message);
 
     // Esp32Messaging::AccessPointInformation info = { };
     // info.NetworkName = "TestNetwork";
