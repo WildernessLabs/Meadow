@@ -1279,7 +1279,7 @@ static void hcom_nx_config_process_network_section(yaml_network_t *network_confi
         //
         //  Now work out the network interface / adapter details.
         //
-        if (network_config->interfaces != NULL)
+        if ((network_config->interfaces != NULL) && (network_config->interfaces_count > 0))
         {
             for (int index = 0; index < network_config->interfaces_count; index++)
             {
