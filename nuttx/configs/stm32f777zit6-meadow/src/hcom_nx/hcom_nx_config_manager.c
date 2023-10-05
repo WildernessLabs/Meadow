@@ -1211,7 +1211,7 @@ static char *hcom_nx_config_get_file_content(char *path)
             fseek(file, 0L, SEEK_END);
             file_size = ftell(file);
 
-            buffer = (char *)malloc(file_size + 1);
+            buffer = (char *) zalloc(file_size + 1);
             if (buffer != NULL)
             {
                 fseek(file, 0, SEEK_SET);
@@ -1282,12 +1282,11 @@ static int hcom_nx_config_update_dns_file(char *path, char* server)
     {
         if (server != NULL)
         {
-            result = snprintf(NULL, 0, "nameserver %s\n", server) + strlen(buffer);
-            char *new_content = (char *)malloc(result + 1);
+            result = strlen(buffer) + strlen(server) + 13;
+            char *new_content = (char *) zalloc(result + 1);
             if (new_content != NULL)
             {
-                memset(new_content, 0, sizeof(new_content));
-                sprintf(new_content, "nameserver %s\n%s", server, buffer);
+                snprintf(new_content, result, "nameserver %s\n%s", server, buffer);
                 ret = hcom_nx_config_set_file(path, new_content);
                 free(new_content);
             }
