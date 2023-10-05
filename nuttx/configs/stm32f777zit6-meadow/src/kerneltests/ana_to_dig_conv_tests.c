@@ -91,7 +91,7 @@
 
 // Adjust for different tests. Values from 1 to 16 are valid
 #if defined CONFIG_ADC_TESTS
-#define ADC_TESTS_DMA_GPIO_COUNT (9)
+#define ADC_TESTS_DMA_GPIO_COUNT (2)
 #else
 #define ADC_TESTS_DMA_GPIO_COUNT (6)
 #endif
@@ -126,8 +126,8 @@ static void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[],
 void meadow_kt_adc_tests(uint32_t userData)
 {
   int ret;
-  uint16_t batteryVoltage;
-  uint16_t temperatureValue;
+  uint32_t batteryVoltage;
+  uint32_t temperatureValue;
   static int firstTime = true;
 
   _userData = userData;
@@ -159,7 +159,7 @@ void meadow_kt_adc_tests(uint32_t userData)
       break;
 
     case 3:
-      // Read the internal values of battery and temperature
+      // Read the internal values of battery and temperature once
       ret =  meadow_adc_read_temp_vbat(&batteryVoltage, &temperatureValue);
       if(ret < 0)
       {
@@ -168,7 +168,7 @@ void meadow_kt_adc_tests(uint32_t userData)
       syslog(1, "Internal Vbat:%u, Temp:%u\n", batteryVoltage, temperatureValue);
     
     case 4:
-      // Create a thread to test getting temperature operation
+      // Create a thread to test getting temperature operation often
       adc_test_create_testing_thread();
       break;
 
@@ -246,23 +246,20 @@ void adc_test_initialize()
   gpioList[3]  = GPIO_V2_A03_IN8_PB0  & 0x000000ff;
   gpioList[4]  = GPIO_V2_A04_IN9_PB1  & 0x000000ff;
   gpioList[5]  = GPIO_V2_A05_IN10_PC0 & 0x000000ff;
-#if defined CONFIG_ADC_TESTS
-  gpioList[6]  = 0xf0;
-  gpioList[7]  = 0xf1;
-  gpioList[8]  = 0xf2;
-#endif
+  // Note: because the ADC sequence registers 3 and 2 both hold 6 GPIOs and
+  // the Meadow has 6 GPIOs for ADC the pattern will repeat itself in these
+  // registers.
+  gpioList[6]  = GPIO_V2_A00_IN4_PA4  & 0x000000ff;
+  gpioList[7]  = GPIO_V2_A01_IN5_PA5  & 0x000000ff;
+  gpioList[8]  = GPIO_V2_A02_IN3_PA3  & 0x000000ff;
+  gpioList[9]  = GPIO_V2_A03_IN8_PB0  & 0x000000ff;
+  gpioList[10] = GPIO_V2_A04_IN9_PB1  & 0x000000ff;
+  gpioList[11] = GPIO_V2_A05_IN10_PC0 & 0x000000ff;
 
-  // gpioList[6]  = GPIO_V2_A00_IN4_PA4  & 0x000000ff;
-  // gpioList[7]  = GPIO_V2_A01_IN5_PA5  & 0x000000ff;
-  // gpioList[8]  = GPIO_V2_A02_IN3_PA3  & 0x000000ff;
-  // gpioList[9]  = GPIO_V2_A03_IN8_PB0  & 0x000000ff;
-  // gpioList[10] = GPIO_V2_A04_IN9_PB1  & 0x000000ff;
-  // gpioList[11] = GPIO_V2_A05_IN10_PC0 & 0x000000ff;
-
-  // gpioList[12] = GPIO_V2_A00_IN4_PA4  & 0x000000ff;
-  // gpioList[13] = GPIO_V2_A01_IN5_PA5  & 0x000000ff;
-  // gpioList[14] = GPIO_V2_A02_IN3_PA3  & 0x000000ff;
-  // gpioList[15] = GPIO_V2_A03_IN8_PB0  & 0x000000ff;
+  gpioList[12] = GPIO_V2_A00_IN4_PA4  & 0x000000ff;
+  gpioList[13] = GPIO_V2_A01_IN5_PA5  & 0x000000ff;
+  gpioList[14] = GPIO_V2_A02_IN3_PA3  & 0x000000ff;
+  gpioList[15] = GPIO_V2_A03_IN8_PB0  & 0x000000ff;
 
   // syslog(1, "----- gpioList contains -----\n");
   // hcom_nx_diag_print_buffer(gpioList, 16, 1);
@@ -305,8 +302,8 @@ static int adc_test_create_testing_thread(void)
 void *adc_test_kthread_func(int argc, char *argv[])
 {
   int ret;
-  uint16_t batteryVoltage;
-  uint16_t temperatureValue;
+  uint32_t batteryVoltage;
+  uint32_t temperatureValue;
 
   // Run the test
   for(int chkCnt = 0; chkCnt < 1000000; chkCnt++)
@@ -339,7 +336,8 @@ void *adc_test_kthread_func(int argc, char *argv[])
       {
         syslog(LOG_ERR, "Error:Internal vbat and temp conversion, ret:%d\n", ret);
       }
-      // syslog(1, "Internal Vbat:%u, Temp:%u\n", batteryVoltage, temperatureValue);
+      
+      syslog(1, "Internal Vbat:%u, Temp:%u\n", batteryVoltage, temperatureValue);
       
       usleep(3000 * 1000);
     }
