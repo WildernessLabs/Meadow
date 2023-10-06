@@ -103,7 +103,7 @@
  * Private Data
  ************************************************************************************/
 
-static uint16_t _dmaDataBufferTest[ADC_TESTS_DMA_BUFFER_SIZE];
+static double _voltageResultBuf[ADC_TESTS_DMA_BUFFER_SIZE];
 static bool _userData;
 
 /************************************************************************************
@@ -116,7 +116,7 @@ static void adc_test_initialize(void);
 
 static int adc_test_create_testing_thread(void);
 static void *adc_test_kthread_func(int argc, char *argv[]);
-static void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[],
+static void show_all_data_in_buffer(char *headerText, double dataBuffer[],
               uint32_t dataBufElements);
 
 /************************************************************************************
@@ -126,8 +126,8 @@ static void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[],
 void meadow_kt_adc_tests(uint32_t userData)
 {
   int ret;
-  uint32_t batteryVoltage;
-  uint32_t temperatureValue;
+  double batteryVoltage;
+  double temperatureValue;
   static int firstTime = true;
 
   _userData = userData;
@@ -165,7 +165,7 @@ void meadow_kt_adc_tests(uint32_t userData)
       {
         syslog(LOG_ERR, "Error:Internal vbat and temp conversion, ret:%d\n", ret);
       }
-      syslog(1, "Internal Vbat:%u, Temp:%u\n", batteryVoltage, temperatureValue);
+      syslog(1, "Internal Vbat:%03f, Temp:%03f\n", batteryVoltage, temperatureValue);
     
     case 4:
       // Create a thread to test getting temperature operation often
@@ -185,7 +185,7 @@ void meadow_kt_adc_tests(uint32_t userData)
 // void adc_test_bad_initialization_parameters()
 // {
 //   int ret;
-//   uint16_t *_dmaDataBufferTestX1;
+//   double *_dmaDataBufferTestX1;
 
 //   // Test #1 - Buffer is not NULL
 //   _dmaDataBufferTestX1 = NULL;
@@ -264,13 +264,13 @@ void adc_test_initialize()
   // syslog(1, "----- gpioList contains -----\n");
   // hcom_nx_diag_print_buffer(gpioList, 16, 1);
   
-  syslog(1, "--- Test - Address of user buffer:%p\n", _dmaDataBufferTest);
+  syslog(1, "--- Test - Address of user buffer:%p\n", _voltageResultBuf);
   usleep(20 * 1000);
 
   // Calling configuration API to set things up
   ret = meadow_adc_configure(gpioList,
                             ADC_TESTS_DMA_GPIO_COUNT,   // Determines how many GPIOs
-                            _dmaDataBufferTest,
+                            _voltageResultBuf,
                             ADC_TESTS_DMA_BUFFER_SIZE);
   if(ret < 0)
   {
@@ -302,8 +302,8 @@ static int adc_test_create_testing_thread(void)
 void *adc_test_kthread_func(int argc, char *argv[])
 {
   int ret;
-  uint32_t batteryVoltage;
-  uint32_t temperatureValue;
+  double batteryVoltage;
+  double temperatureValue;
 
   // Run the test
   for(int chkCnt = 0; chkCnt < 1000000; chkCnt++)
@@ -324,7 +324,7 @@ void *adc_test_kthread_func(int argc, char *argv[])
       // Show information in the buffer
       char textBuf[64];
       snprintf_chk(textBuf, 64, "%04d-%s", chkCnt + 1, "Test App");
-      show_all_data_in_buffer(textBuf, _dmaDataBufferTest, ADC_TESTS_DMA_GPIO_COUNT);
+      show_all_data_in_buffer(textBuf, _voltageResultBuf, ADC_TESTS_DMA_GPIO_COUNT);
       usleep(1000 * 1000);
     }
 
@@ -337,7 +337,7 @@ void *adc_test_kthread_func(int argc, char *argv[])
         syslog(LOG_ERR, "Error:Internal vbat and temp conversion, ret:%d\n", ret);
       }
       
-      syslog(1, "Internal Vbat:%u, Temp:%u\n", batteryVoltage, temperatureValue);
+      syslog(1, "Internal Vbat:%f, Temp:%f\n", batteryVoltage, temperatureValue);
       
       usleep(3000 * 1000);
     }
@@ -347,7 +347,7 @@ void *adc_test_kthread_func(int argc, char *argv[])
 
 //==========================================================================
 // Output the information from the data buffer
-void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[],
+void show_all_data_in_buffer(char *headerText, double dataBuffer[],
                             uint32_t dataBufElements)
 {
 #define DMA_ISR_DISP_MAX_PER_ROW (8)    // 8 elements / row
@@ -377,7 +377,7 @@ void show_all_data_in_buffer(char *headerText, uint16_t dataBuffer[],
     {
       snprintf(&lineBuff[lineBuffOff],
                 disp_char_per_row - (columnCnt * DMA_ISR_DISP_VAL_LEN),
-                "%04u ", dataBuffer[dmaBuffOff++]);
+                "%04f ", dataBuffer[dmaBuffOff++]);
       lineBuffOff += DMA_ISR_DISP_VAL_LEN;
     }
 
