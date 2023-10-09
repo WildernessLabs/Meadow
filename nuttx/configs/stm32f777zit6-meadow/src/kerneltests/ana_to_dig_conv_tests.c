@@ -91,9 +91,7 @@
 
 // Adjust for different tests. Values from 1 to 16 are valid
 #if defined CONFIG_ADC_TESTS
-#define ADC_TESTS_DMA_GPIO_COUNT (2)
-#else
-#define ADC_TESTS_DMA_GPIO_COUNT (6)
+#define ADC_TESTS_DMA_GPIO_COUNT (16)
 #endif
 
 #define ADC_TESTS_DMA_BUFFER_SIZE (ADC_TESTS_DMA_GPIO_COUNT * \
@@ -105,6 +103,17 @@
 
 static double _voltageResultBuf[ADC_TESTS_DMA_BUFFER_SIZE];
 static bool _userData;
+
+static enum
+{
+  unknown           = 0,
+  configureGpio     = 1,
+  unconfigureGpio   = 2,
+  readGpioAnaOnce   = 3,
+  readTempBatOnce   = 4,
+  readGpioAnaOften  = 5,
+  readTempBatOften  = 6,
+};
 
 /************************************************************************************
  * Private Function Prototypes
@@ -128,7 +137,7 @@ void meadow_kt_adc_tests(uint32_t userData)
   int ret;
   double batteryVoltage;
   double temperatureValue;
-  static int firstTime = true;
+  static int allowConfig = true;
 
   _userData = userData;
 
@@ -136,15 +145,16 @@ void meadow_kt_adc_tests(uint32_t userData)
 
   switch(userData)
   {
-    case 1:
-      if(firstTime)
+    case configureGpio:
+      if(allowConfig)
       {
-        firstTime = false;
+        allowConfig = false;
 
         DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D01);
         DEBUG_SET_LOW(DEBUG_PIN_V2_D01);
 
         // Initialize test code
+        syslog(1, "-configureGpio\n");
         adc_test_initialize();
       }
       else
@@ -153,23 +163,45 @@ void meadow_kt_adc_tests(uint32_t userData)
       }
       break;
 
-    case 2:
-      // Create a thread to test operation
-      adc_test_create_testing_thread();
+    case unconfigureGpio:
+      // Cleanup any configuration do earlier
+      syslog(1, "-unconfigureGpio\n");
+      meadow_adc_unconfigure_active_config();
+      allowConfig = true;
       break;
 
-    case 3:
+    case readGpioAnaOnce:
+      syslog(1, "-readGpioAnaOnce\n");
+      ret = meadow_adc_read_conversions();
+      if(ret < 0)
+      {
+        syslog(LOG_ERR, "Error:Internal vbat and temp conversion, ret:%d\n", ret);
+      }
+      // Show information in the buffer
+      show_all_data_in_buffer("TestApp", _voltageResultBuf, ADC_TESTS_DMA_GPIO_COUNT);
+      break;
+
+    case readTempBatOnce:
+      syslog(1, "-readTempBatOnce\n");
       // Read the internal values of battery and temperature once
-      ret =  meadow_adc_read_temp_vbat(&batteryVoltage, &temperatureValue);
+      ret = meadow_adc_read_temp_vbat(&batteryVoltage, &temperatureValue);
       if(ret < 0)
       {
         syslog(LOG_ERR, "Error:Internal vbat and temp conversion, ret:%d\n", ret);
       }
       syslog(1, "Internal Vbat:%03f, Temp:%03f\n", batteryVoltage, temperatureValue);
+      break;
     
-    case 4:
-      // Create a thread to test getting temperature operation often
+    case readGpioAnaOften:
+      syslog(1, "-readGpioAnaOften\n");
+      // Create a thread to test standard GPIO ADC operation often
       adc_test_create_testing_thread();
+      break;
+
+    case readTempBatOften:
+      syslog(1, "-readTempBatOften\n");
+      // Create a thread to test getting temperature & Vbat often
+     adc_test_create_testing_thread();
       break;
 
     default:
@@ -177,38 +209,6 @@ void meadow_kt_adc_tests(uint32_t userData)
       break;
   }
 }
-
-// //================================================================
-// // The following is incomplete since I stopped shortly after beginning because
-// // the API may change and if it does much of this would be wasted time.
-// // NOT USEABLE YET!
-// void adc_test_bad_initialization_parameters()
-// {
-//   int ret;
-//   double *_dmaDataBufferTestX1;
-
-//   // Test #1 - Buffer is not NULL
-//   _dmaDataBufferTestX1 = NULL;
-
-//   syslog(1, "--> Entered adc_test_bad_initialization_parameters()\n"); usleep(20 * 1000);
-
-//   uint8_t gpioListX1[2];
-//   gpioListX1[0]  = GPIO_V2_A00_IN4_PA4  & 0x000000ff;
-//   // Test #4 - GPIO that is not attached to ADC
-//   gpioListX1[1]  = GPIO_V2_A0x_INx_PA9  & 0x000000ff;
-
-//   ret = meadow_adc_configure(gpioListX1,
-//                             2,   // Determines how many GPIOs
-//                             _dmaDataBufferTestX1,
-//                             // Test#3-Data buffer size must be multiple of 2 (bytes)
-//                             (2*ADC_TESTS_DMA_BYTES_PER_CONV) + 1);   // Odd number for test failure
-//   if(ret < 0)
-//   {
-//     syslog(1, "%s@%d-Error by design! returned:%d, errno:%d\n",
-//               __FILE__, __LINE__, ret, errno);
-//     usleep(20 * 1000);
-//   }
-// }
 
 //================================================================
 // This part of the code could be called > 1 time when it supports more
@@ -264,9 +264,6 @@ void adc_test_initialize()
   // syslog(1, "----- gpioList contains -----\n");
   // hcom_nx_diag_print_buffer(gpioList, 16, 1);
   
-  syslog(1, "--- Test - Address of user buffer:%p\n", _voltageResultBuf);
-  usleep(20 * 1000);
-
   // Calling configuration API to set things up
   ret = meadow_adc_configure(gpioList,
                             ADC_TESTS_DMA_GPIO_COUNT,   // Determines how many GPIOs
@@ -308,7 +305,7 @@ void *adc_test_kthread_func(int argc, char *argv[])
   // Run the test
   for(int chkCnt = 0; chkCnt < 1000000; chkCnt++)
   {
-    if(_userData == 2)
+    if(_userData == readGpioAnaOften)
     {
       // Calling meadow_adc.c API to indicate conversion needed
       // This thread will wait until buffer is full
@@ -324,23 +321,25 @@ void *adc_test_kthread_func(int argc, char *argv[])
       // Show information in the buffer
       char textBuf[64];
       snprintf_chk(textBuf, 64, "%04d-%s", chkCnt + 1, "Test App");
-      show_all_data_in_buffer(textBuf, _voltageResultBuf, ADC_TESTS_DMA_GPIO_COUNT);
-      usleep(1000 * 1000);
-    }
 
-    else if(_userData == 4)
+      show_all_data_in_buffer(textBuf, _voltageResultBuf, ADC_TESTS_DMA_GPIO_COUNT);
+    }
+    else if(_userData == readTempBatOften)
     {
       // Read the internal values of battery and temperature
+      DEBUG_SET_HIGH(DEBUG_PIN_V2_D01);
       ret =  meadow_adc_read_temp_vbat(&batteryVoltage, &temperatureValue);
+      DEBUG_SET_LOW(DEBUG_PIN_V2_D01);
       if(ret < 0)
       {
         syslog(LOG_ERR, "Error:Internal vbat and temp conversion, ret:%d\n", ret);
       }
       
       syslog(1, "Internal Vbat:%f, Temp:%f\n", batteryVoltage, temperatureValue);
-      
-      usleep(3000 * 1000);
     }
+
+    // Just keep looping
+    usleep(3000 * 1000);
   }
   return NULL;
 }
@@ -350,11 +349,12 @@ void *adc_test_kthread_func(int argc, char *argv[])
 void show_all_data_in_buffer(char *headerText, double dataBuffer[],
                             uint32_t dataBufElements)
 {
-#define DMA_ISR_DISP_MAX_PER_ROW (8)    // 8 elements / row
-#define DMA_ISR_DISP_VAL_LEN (5)        // Data values take 5 char
+#define DMA_ISR_DISP_MAX_PER_ROW (4)    // elements / row
+#define DMA_ISR_DISP_VALUE_LEN (10)     // Doubles values take 5-9 char
 #define DMA_ISR_DISP_LEADER_LEN (9)     // Addr takes 9 chars
 
   uint32_t dmaBuffOff = 0;
+  int remainingElements = dataBufElements;
   int columnCnt;
   int lineBuffOff;
   int disp_max_per_row = DMA_ISR_DISP_MAX_PER_ROW;
@@ -362,29 +362,42 @@ void show_all_data_in_buffer(char *headerText, double dataBuffer[],
   if(disp_max_per_row > dataBufElements)
     disp_max_per_row = dataBufElements;
 
-  int disp_char_per_row = (disp_max_per_row * DMA_ISR_DISP_VAL_LEN);
+  int disp_char_per_row = (disp_max_per_row * DMA_ISR_DISP_VALUE_LEN);
   int disp_total_line_len = disp_char_per_row + DMA_ISR_DISP_LEADER_LEN;
-  char lineBuff[disp_total_line_len + 1];    // Room for NULL
+
+  char *lineBuff = malloc(disp_total_line_len);    // Room for NULL
+
+  // Fill unused spaces with space
+  memset(lineBuff, 0x20, disp_total_line_len);
 
   do
   {
-    lineBuffOff = 0;
-    snprintf(&lineBuff[lineBuffOff], disp_total_line_len, "%08x ", dmaBuffOff);
-    lineBuffOff = DMA_ISR_DISP_LEADER_LEN;
+    // Add address of offset to beginning of line
+    lineBuffOff = snprintf(lineBuff, disp_total_line_len, "%08x ", dmaBuffOff);
 
     // Build a full row of data then print it
     for(columnCnt = 0; columnCnt < disp_max_per_row; columnCnt++)
     {
-      snprintf(&lineBuff[lineBuffOff],
-                disp_char_per_row - (columnCnt * DMA_ISR_DISP_VAL_LEN),
-                "%04f ", dataBuffer[dmaBuffOff++]);
-      lineBuffOff += DMA_ISR_DISP_VAL_LEN;
+      // This will add a terminating NULL in the buffer
+      int lineLen = snprintf(&lineBuff[lineBuffOff],
+                disp_char_per_row - (columnCnt * DMA_ISR_DISP_VALUE_LEN),   // Buffer size
+                "%.3f ", dataBuffer[dmaBuffOff++]);
+
+// NEXT TIME, IS THIS LINE RIGHT OR NOT? IF NOT FIX IT!!!!
+      // On the last entry don't override the NULL, it's terminating the line
+      if((columnCnt+ 1) != disp_max_per_row)
+        lineBuff[lineBuffOff + lineLen] = 0x20;    // Overwrite unwanted NULL
+
+      lineBuffOff += DMA_ISR_DISP_VALUE_LEN;    // Fixed spacing
+      remainingElements--;
     }
 
-    lineBuff[(lineBuffOff) + 1] = '\0';
+    // Display this line of text
     syslog(1, "%s:%s\n", headerText, lineBuff);
 
     // Line by line show entire buffer
-  } while (dmaBuffOff < dataBufElements);
+  } while (remainingElements > 0);
+  
+  free(lineBuff);
 }
 #endif    // #if defined (CONFIG_ADC_TESTS)
