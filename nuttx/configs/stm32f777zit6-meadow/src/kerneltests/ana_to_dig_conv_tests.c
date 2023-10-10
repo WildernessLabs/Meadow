@@ -94,17 +94,17 @@
 #define ADC_TESTS_DMA_GPIO_COUNT (16)
 #endif
 
-#define ADC_TESTS_DMA_BUFFER_SIZE (ADC_TESTS_DMA_GPIO_COUNT * \
+#define ADC_TESTS_RESULT_BUFFER_SIZE (ADC_TESTS_DMA_GPIO_COUNT * \
                         ADC_TESTS_DMA_BYTES_PER_CONVERSION)
 
 /************************************************************************************
  * Private Data
  ************************************************************************************/
 
-static double _voltageResultBuf[ADC_TESTS_DMA_BUFFER_SIZE];
+static double _voltageResultBuf[ADC_TESTS_RESULT_BUFFER_SIZE];
 static bool _userData;
 
-static enum
+enum
 {
   unknown           = 0,
   configureGpio     = 1,
@@ -120,9 +120,6 @@ static enum
  ************************************************************************************/
 
 static void adc_test_initialize(void);
-
-// static void adc_test_bad_initialization_parameters(void);
-
 static int adc_test_create_testing_thread(void);
 static void *adc_test_kthread_func(int argc, char *argv[]);
 static void show_all_data_in_buffer(char *headerText, double dataBuffer[],
@@ -189,7 +186,7 @@ void meadow_kt_adc_tests(uint32_t userData)
       {
         syslog(LOG_ERR, "Error:Internal vbat and temp conversion, ret:%d\n", ret);
       }
-      syslog(1, "Internal Vbat:%03f, Temp:%03f\n", batteryVoltage, temperatureValue);
+      syslog(1, "Internal Vbat:%.3f, Temp:%.3f\n", batteryVoltage, temperatureValue);
       break;
     
     case readGpioAnaOften:
@@ -267,8 +264,7 @@ void adc_test_initialize()
   // Calling configuration API to set things up
   ret = meadow_adc_configure(gpioList,
                             ADC_TESTS_DMA_GPIO_COUNT,   // Determines how many GPIOs
-                            _voltageResultBuf,
-                            ADC_TESTS_DMA_BUFFER_SIZE);
+                            _voltageResultBuf);
   if(ret < 0)
   {
     syslog(1, "%s@%d-Error:meadow_adc_configure() returned:%d, errno:%d\n",
@@ -335,7 +331,7 @@ void *adc_test_kthread_func(int argc, char *argv[])
         syslog(LOG_ERR, "Error:Internal vbat and temp conversion, ret:%d\n", ret);
       }
       
-      syslog(1, "Internal Vbat:%f, Temp:%f\n", batteryVoltage, temperatureValue);
+      syslog(1, "TestApp: Vbat:%f, Temp:%f\n", batteryVoltage, temperatureValue);
     }
 
     // Just keep looping
@@ -383,7 +379,6 @@ void show_all_data_in_buffer(char *headerText, double dataBuffer[],
                 disp_char_per_row - (columnCnt * DMA_ISR_DISP_VALUE_LEN),   // Buffer size
                 "%.3f ", dataBuffer[dmaBuffOff++]);
 
-// NEXT TIME, IS THIS LINE RIGHT OR NOT? IF NOT FIX IT!!!!
       // On the last entry don't override the NULL, it's terminating the line
       if((columnCnt+ 1) != disp_max_per_row)
         lineBuff[lineBuffOff + lineLen] = 0x20;    // Overwrite unwanted NULL

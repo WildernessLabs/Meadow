@@ -45,11 +45,13 @@
 // X3. All calculations should use double e.g. meadow_adc_read_temp_vbat() and
 //     meadow_adc_configure()
 // X4. Need to add code to unconfigure ADC.
-// 5. How to use MCU temperature and Vbat without configuring entire ADC?
-// 6. Re-test all Analog inputs, Battery voltage, Internal MCU temperature etc.
-// 7. Also test disable code by re-configuring and testing again
-// 8. Look for "syslog(1," and (--) in code and do general cleanup
-// 9. Add syscall for interacting with Meadow.Core
+// X6. Re-test all Analog inputs, Battery voltage, Internal MCU temperature etc.
+// X7. Need to use Bat/Temp without normal configuration.
+// 8. Test disable code by re-configuring and testing again.
+// X9. How to use MCU temperature and Vbat without configuring entire ADC?
+// 10. Refactor STM32_ADC1_BASE into a variable throughout?
+// 11. Look for "syslog(1," and (--) in code and do general cleanup
+// 12. Add syscall for interacting with Meadow.Core
 
 /****************************************************************************
  * Included Files
@@ -135,6 +137,12 @@
 #define MEADOW_ADC_SEQ_2_REGISTER_TOTAL (6)
 #define MEADOW_ADC_SEQ_1_REGISTER_TOTAL (4)
 
+// All 3 ADCs have a max of 16 analog GPIOs that can be digitized
+#define MEADOW_ADC_MAX_NUMBER_OF_GPIOS (16)
+
+// Each analog GPIO is digitized to a 12-bit number
+#define MEADOW_ADC_MAX_DMA_BUFFER_SIZE (MEADOW_ADC_MAX_NUMBER_OF_GPIOS * sizeof(uint16_t))
+
 // From Data Sheet-Internal reference addresses of parameter TS_CAL1, TS_CAL2
 // (Table 79) and VREFINT_CAL (Table 81).
 #define MEADOW_ADC_TEMPSENSOR_CAL30_ADDR ((const uint16_t*) 0x1FF0F44C)
@@ -151,38 +159,6 @@
 #if defined CONFIG_ADC_TESTS
 #define MEADOW_ADC_TEST_TOGGLE_ADC_INPUT (0)
 #endif 
-
-//-----------------------------------------------------------------------
-#if defined CONFIG_ADC_TESTS
-// Only for TESTING
-static void adc_test_display_basic_adc_regs(uint32_t baseADCAddr)
-{
-  syslog(1, "SR:  0x%08x CR1:  0x%08x CR2:  0x%08x\n",
-        getreg32(baseADCAddr + STM32_ADC_SR_OFFSET),
-        getreg32(baseADCAddr + STM32_ADC_CR1_OFFSET),
-        getreg32(baseADCAddr + STM32_ADC_CR2_OFFSET));
-
-  syslog(1, "SQR1: 0x%08x SQR2: 0x%08x SQR3: 0x%08x\n",
-        getreg32(baseADCAddr + STM32_ADC_SQR1_OFFSET),
-        getreg32(baseADCAddr + STM32_ADC_SQR2_OFFSET),
-        getreg32(baseADCAddr + STM32_ADC_SQR3_OFFSET));
-
-  syslog(1, "CCR:  0x%08x\n", getreg32(STM32_ADC_CCR));
-}
-
-//-----------------------------------------------------------------------
-static void adc_test_display_basic_dma_regs(void)
-{
-  syslog(1, "S0CR:  0x%08x  S0NDTR: 0x%08x\n",
-        getreg32(STM32_DMA2_S0CR),
-        getreg32(STM32_DMA2_S0NDTR));
-
-  syslog(1, "S0PAR: 0x%08x  S0M0AR: 0x%08x S0M1AR: 0x%08x\n",
-        getreg32(STM32_DMA2_S0PAR),
-        getreg32(STM32_DMA2_S0M0AR),
-        getreg32(STM32_DMA2_S0M1AR));
-}
-#endif
 
 // /************************************************************************************
 //  * Private Data
@@ -214,16 +190,18 @@ static uint8_t _gpioAdcChanMap[] =
 };
 #define MEADOW_ADC_GPIO_CHAN_MAP_LENGTH (sizeof(_gpioAdcChanMap))
 
-uint16_t *_dmaAdcBuf;     // This will contain ADC values (0-4095)
-double *_voltageResultBuf;     // This is the resulting voltage
-
 DMA_HANDLE _dmaHandle;
-static uint32_t _voltBufSzBytes;
-static uint32_t _gpioTransferCount;
-static uint8_t *_gpioList;
-static bool _meadowAdcInit = false;
-static sem_t _waitTillDoneSem;
+uint16_t *_dmaAdcBuf;     // This will contain ADC values (0-4095)
+
+// These are user provided values that must be persisted.
+double *_userVoltageResultBuf;
+static uint32_t _userGpioXferCount;
+
+static bool _stageOneConfigDone;
+static bool _meadowAdcUserInit;
+static bool _meadowAdcRegInit;
 static double _doubVrefInCal;
+static sem_t _waitTillDoneSem;
 
 #if defined CONFIG_ADC_TESTS
 static int _noChangeCnt;
@@ -233,21 +211,23 @@ static int _noChangeCnt;
 //  * Private Function Prototypes
 //  ************************************************************************************/
 
-static int get_in_chan_from_pinid(uint32_t pinId, uint32_t *adcInputChan);
-static int populate_adc_seq_channel(uint32_t *regval, uint32_t seqRegMaxGpios,
-          uint32_t initRegShift);
-static int meadow_adc_initialize_dma(void);
-
-static int meadow_adc_read_injection_temp_vref(uint16_t *adcTempReading, uint16_t *adcVrefInCal);
-static int meadow_adc_read_internal_vbat(uint16_t *adcBatteryReading);
+static int meadow_adc_hardware_initialize(void);
+static void meadow_adc_turn_on(void);
+static int meadow_adc_chan_from_pinid(uint32_t pinId, uint32_t *adcInputChan);
+static int meadow_adc_fill_seq_chan(uint32_t *regval, uint32_t seqRegMaxGpios,
+          uint32_t initRegShift, uint8_t *userGpioList);
+static int meadow_adc_read_injected_temp_vref(uint16_t *adcTempReading, uint16_t *adcVrefInCal);
+static int meadow_adc_read_injected_vbat(uint16_t *adcBatteryReading);
 static int meadow_adc_injected_adc_cleanup(void);
 static int meadow_adc_convert_adc_to_voltage(uint16_t adcValue, double *convertedVoltage);
+static void meadow_adc_check_first_func_call(void);
+static int meadow_adc_config_sequence_regs(uint32_t userGpioXferCount, uint8_t *userGpioList);
 
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
 // DMA ISR
-static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
+static void meadow_adc_dma_isr(DMA_HANDLE handle, uint8_t status,
             FAR void *arg)
 {
   uint32_t regval;
@@ -256,7 +236,7 @@ static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
 
   // Without this call the buffer's data is usually not correct
   up_invalidate_dcache((uintptr_t)_dmaAdcBuf,
-                       (uintptr_t)_dmaAdcBuf + _voltBufSzBytes);
+                       (uintptr_t)_dmaAdcBuf + MEADOW_ADC_MAX_DMA_BUFFER_SIZE);
 
   // The DMA controller hardware can be programmed to call for the following
   // Discription        Event Flag    Enable control bit
@@ -386,7 +366,7 @@ static void adc_dma_interrupt_handler_isr(DMA_HANDLE handle, uint8_t status,
 
 //==========================================================================
 // ADC conversion ISR
-static int adc_conversion_interrupt_handler_isr(int irq, FAR void *context,
+static int meadow_adc_conversion_isr(int irq, FAR void *context,
             FAR void *arg)
 {
   // The interrupt conversion can be programmed to be called for the following
@@ -460,7 +440,7 @@ static void meadow_adc_buffer_takesem(sem_t *semaphore)
 
 //==========================================================================
 // Find ADC input channel (0-16) from the provided GPIO input port/pin
-static int get_in_chan_from_pinid(uint32_t pinId, uint32_t *adcInputChan)
+static int meadow_adc_chan_from_pinid(uint32_t pinId, uint32_t *adcInputChan)
 {
   int mapOff;
 
@@ -480,8 +460,8 @@ static int get_in_chan_from_pinid(uint32_t pinId, uint32_t *adcInputChan)
 
 //======================================================================
 // Helps fill the sequence registers
-static int populate_adc_seq_channel(uint32_t *regval, uint32_t seqRegGpios,
-          uint32_t initRegShift)
+static int meadow_adc_fill_seq_chan(uint32_t *regval, uint32_t seqRegGpios,
+          uint32_t initRegShift, uint8_t *userGpioList)
 {
   int ret;
   uint32_t regCnt;
@@ -491,33 +471,154 @@ static int populate_adc_seq_channel(uint32_t *regval, uint32_t seqRegGpios,
   for(regCnt = 0; regCnt < seqRegGpios; regCnt++)
   {
     // For entry Pin/Port what 'ADC input' channel
-    ret = get_in_chan_from_pinid(_gpioList[regCnt], &adcInputChan);
+    ret = meadow_adc_chan_from_pinid(userGpioList[regCnt], &adcInputChan);
     if(ret < 0)
       return ret;    // Error
 
-    // Each entry takes 5 bits
+    // Each entry takes 5 bits of register value
     *regval |= (adcInputChan << (initRegShift + (regCnt * 5)));
   }
   return OK;
 }
 
 //======================================================================
+// This function (--)
+int meadow_adc_config_sequence_regs(uint32_t userGpioXferCount, uint8_t *userGpioList)
+{
+  uint32_t regval;
+  
+  // ADC_SQR1, ADC_SQR2 and ADC_SQR3 are used to configure the sequence of the
+  // conversions when ADC_CR1_SCAN is used. If there are no entries then
+  // nothing will be converted. Basically, which input in which order.
+  //
+  // The values put in this field are found by looking at the target hardware.
+  // For the FeatherV2, A00 is PA4. Next look at the data sheet
+  // 'Table 11. STM32F777xx, STM32F778Ax and STM32F779xx pin and ball
+  // definitions.' In the 'Pin name' column find PA4. Then look in the
+  // 'Additional functions' column for the possible analog inputs for the ADC
+  // being used. In this case there are 2 possible ADC1_IN4, and ADC2_IN4.
+  // Since for ADC1 the value is '4' (it's also 4 for ADC2 and 3).
+  int ret;
+  uint32_t regCount = 0;
+  uint32_t remainingCnt = userGpioXferCount;
+
+  syslog(1, "SEQ_3-initial transfer count:%lu\n", remainingCnt);
+  // Sequence Register 3 - ADC channels 1-6
+  regval = getreg32(STM32_ADC1_SQR3);
+  regval &= ADC_SQR3_RESERVED;   // Clear all SQR Bits
+  if(remainingCnt > 0)
+  {
+    if(remainingCnt >= MEADOW_ADC_SEQ_3_REGISTER_TOTAL)
+    {
+      regCount = MEADOW_ADC_SEQ_3_REGISTER_TOTAL;
+      remainingCnt -= MEADOW_ADC_SEQ_3_REGISTER_TOTAL;
+    }
+    else
+    {
+      regCount = remainingCnt;
+      remainingCnt = 0;
+    }
+
+    ret = meadow_adc_fill_seq_chan(&regval, regCount, ADC_SQR3_SQ1_SHIFT, userGpioList);
+    if(ret < 0)
+      return ret;    // Error
+  }
+  putreg32(regval, STM32_ADC1_SQR3);
+
+  syslog(1, "SEQ_2-initial transfer count:%lu\n", regCount);
+  // Sequence Register 2 - ADC channels 7-12
+  regval = getreg32(STM32_ADC1_SQR2);
+  regval &= ADC_SQR2_RESERVED;   // Clear all SQR Bits
+  if(remainingCnt > 0)
+  {
+    if(remainingCnt >= MEADOW_ADC_SEQ_3_REGISTER_TOTAL)
+    {
+      regCount = MEADOW_ADC_SEQ_3_REGISTER_TOTAL;
+      remainingCnt -= MEADOW_ADC_SEQ_3_REGISTER_TOTAL;
+    }
+    else
+    {
+      regCount = remainingCnt;
+      remainingCnt = 0;
+    }
+
+    ret = meadow_adc_fill_seq_chan(&regval, regCount, ADC_SQR3_SQ1_SHIFT, userGpioList);
+    if(ret < 0)
+      return ret;    // Error
+  }
+
+  putreg32(regval, STM32_ADC1_SQR2);
+ 
+  syslog(1, "SEQ_1-initial transfer count:%lu\n", remainingCnt);
+  // Sequence Register 1 - ADC channels 13-16
+  regval = getreg32(STM32_ADC1_SQR1);
+  regval &= ADC_SQR1_RESERVED;   // Clear all SQR Bits
+  if(remainingCnt > 0)
+  {
+    if(remainingCnt >= MEADOW_ADC_SEQ_3_REGISTER_TOTAL)
+    {
+      regCount = MEADOW_ADC_SEQ_3_REGISTER_TOTAL;
+      remainingCnt -= MEADOW_ADC_SEQ_3_REGISTER_TOTAL;
+    }
+    else
+    {
+      regCount = remainingCnt;
+      remainingCnt = 0;
+    }
+
+    ret = meadow_adc_fill_seq_chan(&regval, regCount, ADC_SQR3_SQ1_SHIFT, userGpioList);
+    if(ret < 0)
+      return ret;    // Error
+  }
+
+  // Last set the total number of transfers, also in TM32_ADC1_SQR1
+  regval |= ((userGpioXferCount - 1) << ADC_SQR1_L_SHIFT);
+  putreg32(regval, STM32_ADC1_SQR1);
+
+  return OK;
+}
+
+//-----------------------------------------------------------------------
+#if defined CONFIG_ADC_TESTS
+// Only for TESTING
+static void adc_test_display_basic_adc_regs(uint32_t baseADCAddr)
+{
+  syslog(1, "SR:  0x%08x CR1:  0x%08x CR2:  0x%08x\n",
+        getreg32(baseADCAddr + STM32_ADC_SR_OFFSET),
+        getreg32(baseADCAddr + STM32_ADC_CR1_OFFSET),
+        getreg32(baseADCAddr + STM32_ADC_CR2_OFFSET));
+
+  syslog(1, "SQR1: 0x%08x SQR2: 0x%08x SQR3: 0x%08x\n",
+        getreg32(baseADCAddr + STM32_ADC_SQR1_OFFSET),
+        getreg32(baseADCAddr + STM32_ADC_SQR2_OFFSET),
+        getreg32(baseADCAddr + STM32_ADC_SQR3_OFFSET));
+
+  syslog(1, "CCR:  0x%08x\n", getreg32(STM32_ADC_CCR));
+}
+
+static void adc_test_display_basic_dma_regs(void)
+{
+  syslog(1, "S0CR:  0x%08x  S0NDTR: 0x%08x\n",
+        getreg32(STM32_DMA2_S0CR),
+        getreg32(STM32_DMA2_S0NDTR));
+
+  syslog(1, "S0PAR: 0x%08x  S0M0AR: 0x%08x S0M1AR: 0x%08x\n",
+        getreg32(STM32_DMA2_S0PAR),
+        getreg32(STM32_DMA2_S0M0AR),
+        getreg32(STM32_DMA2_S0M1AR));
+}
+#endif
+
+//======================================================================
 // Using injection get the adc value (0-4095) for temp and vbat
-int meadow_adc_read_injection_temp_vref(uint16_t *adcTempReading, uint16_t *adcVrefInCal)
+int meadow_adc_read_injected_temp_vref(uint16_t *adcTempReading, uint16_t *adcVrefInCal)
 {
   uint32_t regval;
 
+  // (--) Why not only set one, why require both?
   if(adcTempReading == NULL || adcVrefInCal == NULL)
   {
     return -EINVAL;   // Invalid argument
-  }
-
-  // We need adc_initialize to have been called.
-  if(! _meadowAdcInit)
-  {
-    syslog(LOG_ERR, "%s@%d-Error:Meadow ADC not initialized.\n",
-              __FILE__, __LINE__);
-    return -EPERM;    // Operation not permitted
   }
 
   // CCR setup to read Temperature & Vref
@@ -525,13 +626,14 @@ int meadow_adc_read_injection_temp_vref(uint16_t *adcTempReading, uint16_t *adcV
   regval |= ADC_CCR_TSVREFE;        // 1=enable temperature sensor and reference
   regval &= ~ADC_CCR_VBATE;         // 0=disable vbat channel
   putreg32(regval, STM32_ADC_CCR);
-  
+
   // Injection Sequence Register - set ADC input at 18 since ADC_IN18 is used
   // by temperature and vbat depending on eht value of TSVREFE
   // Note: for 2 injected conversions the first is from JSQ3 and the second
   // from JSQ4 (see Ref Man 15.13.12)
   regval = getreg32(STM32_ADC1_BASE + STM32_ADC_JSQR_OFFSET);
   regval &= 0x003fffff;   // Clear all JSQR Bits
+  // Note: These may look wrong but are correct.
   regval |= (18 << ADC_JSQR_JSQ4_SHIFT);    // ADC_IN18 - Vsense (temp or vbat)
   regval |= (17 << ADC_JSQR_JSQ3_SHIFT);    // ADC_IN17 - Vrefint
   // And set the length to 1 to indicate 2 analog inputs
@@ -540,15 +642,21 @@ int meadow_adc_read_injection_temp_vref(uint16_t *adcTempReading, uint16_t *adcV
 
   // Start ADC via Control Register 2 (CR2) - Start the ADC
   regval = getreg32(STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
+  // regval |= ADC_CR2_ADON;           // Must be set 
+  // putreg32(regval, STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
+  // usleep(10 * 1000);
+  // JSWSTART cannot be set if ADON is not set
   regval |= ADC_CR2_JSWSTART;       // Start injection ADC
   putreg32(regval, STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
 
-  // (--) CAN THIS TIME BE SHORTENED???
+  // (--) CAN THIS TIME BE SHORTENED???  // COULD USE INTERRUPT
   usleep(5 * 1000);    // Wait till next tick
 
-  // Get the Vsense (temperature) and Vrefint
+  // Read the Vsense (temperature) and Vrefint
   *adcTempReading = getreg16(STM32_ADC1_BASE + STM32_ADC_JDR2_OFFSET);
   *adcVrefInCal   = getreg16(STM32_ADC1_BASE + STM32_ADC_JDR1_OFFSET);
+
+syslog(1, "-->> Found rawTemp:%u, rawVref:%u\n", *adcTempReading, *adcVrefInCal);
 
   // Remove configuration 
   int ret = meadow_adc_injected_adc_cleanup();
@@ -563,17 +671,9 @@ int meadow_adc_read_injection_temp_vref(uint16_t *adcTempReading, uint16_t *adcV
 
 //======================================================================
 // This will read the raw ADC value for Vbat
-int meadow_adc_read_internal_vbat(uint16_t *adcBatteryReading)
+int meadow_adc_read_injected_vbat(uint16_t *adcBatteryReading)
 {
   uint32_t regval;
-
-  // We need adc_initialize to have been called.
-  if(! _meadowAdcInit)
-  {
-    syslog(LOG_ERR, "%s@%d-Error:Meadow ADC not initialized.\n",
-              __FILE__, __LINE__);
-    return -EPERM;    // Operation not permitted
-  }
 
   // Injection Sequence Register - set ADC input at 18 since ADC_IN18 is used
   // by vbat
@@ -600,7 +700,10 @@ int meadow_adc_read_internal_vbat(uint16_t *adcBatteryReading)
   // (--) CAN THIS TIME BE SHORTENED???
   usleep(5 * 1000);    // Wait till next tick
 
+  // Read the battery adc value
   *adcBatteryReading = getreg16(STM32_ADC1_BASE + STM32_ADC_JDR1_OFFSET);
+
+syslog(1, "-->> Found rawBattery:%u\n", *adcBatteryReading);
 
   // Remove configuration 
   int ret = meadow_adc_injected_adc_cleanup();
@@ -615,6 +718,7 @@ int meadow_adc_read_internal_vbat(uint16_t *adcBatteryReading)
 
 //======================================================================
 // Undoes the above injected configuration
+// (--) is this needed?
 int meadow_adc_injected_adc_cleanup(void)
 {
   uint32_t regval;
@@ -634,19 +738,19 @@ int meadow_adc_injected_adc_cleanup(void)
 }
 
 //======================================================================
-// Assumes ADC 1
-static int adc_initialize (void)
+// This function will do all the register configuration needed for ADC,
+// excluding the DMA configuration. Some of these settings are needed for both
+// regular ADC and injected ADC.
+static int meadow_adc_stage_one_init (void)
 {
   uint32_t regval;
 
 #if defined CONFIG_ADC_TESTS
   // This is used in testing it toggled high and low to switch the ADC input
   // voltage from high to low.
-  syslog(1, "Configuring GPIO ADC_TEST_PIN_CCM_D03_PB8\n");
-
+  syslog(1, "Warning: ADC Tests Active\n");
   stm32_configgpio(ADC_TEST_PIN_CCM_D03_PB8);
   stm32_gpiowrite(ADC_TEST_PIN_CCM_D03_PB8, false);
-  // adc_test_display_basic_adc_regs(STM32_ADC1_BASE);
 #endif
 
   // Insure the correct ADC clock is on. If not enabled it was impossible
@@ -735,7 +839,7 @@ static int adc_initialize (void)
   regval |= ADC_CR2_EXTEN_NONE;   // No trigger from external sources
   regval &= ~ADC_CR2_ALIGN;       // 0=Right alignment (1=left alignment)
   regval &= ~ADC_CR2_EOCS;        // 1=End of each conversion, 0=End of sequence
-  // NOTE: the field names 'DDS' and 'DMA' exist in 2 ADC registers, CR2 and CCR
+  // Warning: the field names 'DDS' and 'DMA' exist in 2 ADC registers, CR2 and CCR.
   // DDS=0 No new DMA request is issued after the last transfer
   // DDS=1 DMA requests are issued as long as data are converted and DMA=1
   regval &= ~ADC_CR2_DDS;
@@ -745,95 +849,6 @@ static int adc_initialize (void)
   putreg32(regval, STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
 
   //------------------------------------------------------------
-  // ADC_SQR1, ADC_SQR2 and ADC_SQR3 are used to configure the sequence of the
-  // conversions when ADC_CR1_SCAN is used. If there are no entries then
-  // nothing will be converted. Basically, which input in which order.
-  //
-  // The values put in this field are found by looking at the target hardware.
-  // For the FeatherV2, A00 is PA4. Next look at the data sheet
-  // 'Table 11. STM32F777xx, STM32F778Ax and STM32F779xx pin and ball
-  // definitions.' In the 'Pin name' column find PA4. Then look in the
-  // 'Additional functions' column for the possible analog inputs for the ADC
-  // being used. In this case there are 2 possible ADC1_IN4, and ADC2_IN4.
-  // Since for ADC1 the value is '4' (it's also 4 for ADC2 and 3).
-  int ret;
-  uint32_t regCount = 0;
-  uint32_t remainingCnt = _gpioTransferCount;
-
-  syslog(1, "SEQ_3-initial transfer count:%lu\n", remainingCnt);
-  // Sequence Register 3 - ADC channels 1-6
-  regval = getreg32(STM32_ADC1_SQR3);
-  regval &= ADC_SQR3_RESERVED;   // Clear all SQR Bits
-  if(remainingCnt > 0)
-  {
-    if(remainingCnt >= MEADOW_ADC_SEQ_3_REGISTER_TOTAL)
-    {
-      regCount = MEADOW_ADC_SEQ_3_REGISTER_TOTAL;
-      remainingCnt -= MEADOW_ADC_SEQ_3_REGISTER_TOTAL;
-    }
-    else
-    {
-      regCount = remainingCnt;
-      remainingCnt = 0;
-    }
-
-    ret = populate_adc_seq_channel(&regval, regCount, ADC_SQR3_SQ1_SHIFT);
-    if(ret < 0)
-      return ret;    // Error
-  }
-  putreg32(regval, STM32_ADC1_SQR3);
-
-  syslog(1, "SEQ_2-initial transfer count:%lu\n", regCount);
-  // Sequence Register 2 - ADC channels 7-12
-  regval = getreg32(STM32_ADC1_SQR2);
-  regval &= ADC_SQR2_RESERVED;   // Clear all SQR Bits
-  if(remainingCnt > 0)
-  {
-    if(remainingCnt >= MEADOW_ADC_SEQ_3_REGISTER_TOTAL)
-    {
-      regCount = MEADOW_ADC_SEQ_3_REGISTER_TOTAL;
-      remainingCnt -= MEADOW_ADC_SEQ_3_REGISTER_TOTAL;
-    }
-    else
-    {
-      regCount = remainingCnt;
-      remainingCnt = 0;
-    }
-
-    ret = populate_adc_seq_channel(&regval, regCount, ADC_SQR3_SQ1_SHIFT);
-    if(ret < 0)
-      return ret;    // Error
-  }
-
-  putreg32(regval, STM32_ADC1_SQR2);
- 
-  syslog(1, "SEQ_1-initial transfer count:%lu\n", remainingCnt);
-  // Sequence Register 1 - ADC channels 13-16
-  regval = getreg32(STM32_ADC1_SQR1);
-  regval &= ADC_SQR1_RESERVED;   // Clear all SQR Bits
-  if(remainingCnt > 0)
-  {
-    if(remainingCnt >= MEADOW_ADC_SEQ_3_REGISTER_TOTAL)
-    {
-      regCount = MEADOW_ADC_SEQ_3_REGISTER_TOTAL;
-      remainingCnt -= MEADOW_ADC_SEQ_3_REGISTER_TOTAL;
-    }
-    else
-    {
-      regCount = remainingCnt;
-      remainingCnt = 0;
-    }
-
-    ret = populate_adc_seq_channel(&regval, regCount, ADC_SQR3_SQ1_SHIFT);
-    if(ret < 0)
-      return ret;    // Error
-  }
-
-  // Last set the total number of transfers, also in TM32_ADC1_SQR1
-  regval |= ((_gpioTransferCount - 1) << ADC_SQR1_L_SHIFT);
-  putreg32(regval, STM32_ADC1_SQR1);
-
-  //----------------ADC_CCR_TSVREFE--------------------------------------------
   // ADC Common Control Register (CCR) [Common == for all ADCs]
   regval = getreg32(STM32_ADC_CCR);
   regval &= ~ADC_CCR_TSVREFE;       // 0=disable temperature sensor channel
@@ -862,7 +877,7 @@ static int adc_initialize (void)
 
 //================================================================
 // Enable ADC
-static void adc_enable(void)
+static void meadow_adc_turn_on(void)
 {
   uint32_t regval;
 
@@ -877,7 +892,7 @@ static void adc_enable(void)
 
 //================================================================
 // Start ADC
-static void adc_start(void)
+static void meadow_adc_start_single_cycle(void)
 {
   uint32_t regval;
 
@@ -894,7 +909,7 @@ static void adc_start(void)
 
 //================================================================
 // Initialize DMA
-static void dma_initialize(void)
+static void meadow_adc_dma_initialize(void)
 {
   uint32_t regval;
 
@@ -913,36 +928,35 @@ static void dma_initialize(void)
   stm32_dmasetup(_dmaHandle,
                  STM32_ADC1_BASE + STM32_ADC_DR_OFFSET, // Peripheral addr
                  (uint32_t) _dmaAdcBuf,     // Destination buffer
-                 _gpioTransferCount,        // number to transfers
+                 _userGpioXferCount,        // number to transfers
                  regval);
 
   // Provides DMA callback information
   // void *arg will be returned via callback to ISR
   // true/false for half buffer callback as well as full buffer.
   // But doesn't seem to honor 'false' 1/2 callbacks are still made
-  stm32_dmastart(_dmaHandle, adc_dma_interrupt_handler_isr,
+  stm32_dmastart(_dmaHandle, meadow_adc_dma_isr,
             (void *)STM32_ADC1_BASE, false);
 }
 
 //================================================================
 // Call all the sub-initialization functions. This function prepares the ADC
 // to do analog conversion.
-int meadow_adc_initialize_dma(void)
+// This only needs to be called once
+int meadow_adc_hardware_initialize(void)
 {
   int ret;
   uint16_t adcTempReading;    // Value not used
   uint16_t adcVrefInCal;
-  static bool firstTime = true;
+  static bool adcInitFirstTime = true;
 
 #if defined CONFIG_ADC_TESTS
-  syslog(1, "Entered meadow_adc_initialize_dma()\n"); usleep(20 * 1000);
+  syslog(1, "Entered meadow_adc_hardware_initialize()\n"); usleep(20 * 1000);
 #endif
 
-  if(firstTime)
+  if(adcInitFirstTime)
   {
-    firstTime = false;
-    _dmaHandle = NULL;
-    memset(_dmaAdcBuf, 0, _voltBufSzBytes);
+    adcInitFirstTime = false;
 
 #if defined CONFIG_ADC_TESTS
     _noChangeCnt = 0;
@@ -955,7 +969,7 @@ int meadow_adc_initialize_dma(void)
   }
 
   // Setup the ADC Interrupt handler
-  ret = irq_attach(STM32_IRQ_ADC, adc_conversion_interrupt_handler_isr,
+  ret = irq_attach(STM32_IRQ_ADC, meadow_adc_conversion_isr,
             (void *)STM32_ADC1_BASE);
   if(ret < 0)
   {
@@ -963,89 +977,111 @@ int meadow_adc_initialize_dma(void)
     return ret;
   }
 
-  ret = adc_initialize();
+  ret = meadow_adc_stage_one_init();
   if(ret < 0)
   {
-    syslog(1, "Error calling adc_initialize\n"); usleep(20 * 1000);
+    syslog(1, "Error calling meadow_adc_stage_one_init\n"); usleep(20 * 1000);
     return ret;
   }
 
-  dma_initialize();
-
-  adc_enable();
+  meadow_adc_turn_on();
 
   // Enable ADC interrupt handler
   up_enable_irq(STM32_IRQ_ADC);
 
-  // ADC WITH DMA won't start until adc_start() is called
-  _meadowAdcInit = true;
+  // Note: ADC + DMA won't start until meadow_adc_start_single_cycle() is called
 
-  // We need to read the following before we can calculate any results.
-  // Note: this doesn't use DMA, instead it uses the injected mode.
-  ret = meadow_adc_read_injection_temp_vref(&adcTempReading, &adcVrefInCal);
+  // We need to do the following before we can calculate any results.
+  // Note: this doesn't use DMA, instead it uses the ADC's injected mode.
+  ret = meadow_adc_read_injected_temp_vref(&adcTempReading, &adcVrefInCal);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "Temperature/Cal Ref Conversion Error. ret:%d\n");
+    syslog(LOG_ERR, "Initial Temp/Cal Ref Conversion Error. ret:%d\n");
     return ret;
   }
 
   // Set the global calibration value as this will be used later
   _doubVrefInCal = (double)adcVrefInCal;
 
+  // Set the flag indicating that this initialzation has been done
+  _stageOneConfigDone = true;
+
   return OK;
+}
+
+//=========================================================
+// To get the most best result we'll use the following calculation taken
+// from http://efton.sk/STM32/STM32_VREF.pdf.
+int meadow_adc_convert_adc_to_voltage(uint16_t adcValue, double *convertedVoltage)
+{
+  double calRefVal_CAL  = (double) getreg16(MEADOW_ADC_VREFINT_CAL_ADDR);
+  double voltage = (MEADOW_ADC_VOLTAGE_ADC_CAL_TAKEN * (double)adcValue * calRefVal_CAL + \
+      (_doubVrefInCal * MEADOW_ADC_MAX_ADC_COUNT_DOUBLE / 2.0)) / \
+      (_doubVrefInCal * MEADOW_ADC_MAX_ADC_COUNT_DOUBLE);
+
+  // Don't know the cause but, the voltage returned is exactly 0.50 volts
+  // too high, from 0 - 3.3.
+  *convertedVoltage = voltage - 0.50;
+
+  syslog(1, "--++>> value (adc):%04u, voltage:%.3f\n", adcValue, *convertedVoltage);
+  return OK;
+}
+
+//=========================================================
+// Most public functions call this first.
+void meadow_adc_check_first_func_call()
+{
+  static bool firstCallFirstTime = false;
+
+  if(! firstCallFirstTime)
+  {
+    firstCallFirstTime = true;
+    
+    // Global initiation
+    _stageOneConfigDone = false;
+    _meadowAdcUserInit = false;
+    _doubVrefInCal = 0.0;
+    return;
+  }
 }
 
 /************************************************************************************
  * Public Functions
  ************************************************************************************/
-// This function can handle as few as 1 GPIO with 1 buffer element and as many
-// as 16 GPIOs with a buffer with space for all 16.
+// This function can handle as few as 1 GPIO and as many as 16 GPIOs with a
+// buffer with space for all 16.
 int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
-          double *voltageResultBuf, uint32_t voltBufSzBytes)
+          double *resultBuffer)
 {
+  int ret;
+  uint32_t gpioListOff;
+  uint32_t mapOff = 0;
+
+  // This is probably not a needed function after all. Since it only
+  // makes sense for 2 public function to be called this one and the
+  // one to read the vbat and temp
+  meadow_adc_check_first_func_call();
+
 #if defined CONFIG_ADC_TESTS
-  syslog(1, "meadow_adc_configure() gpioCount:%lu, voltBufSzBytes:%lu, voltageResultBuf:%p\n",
-            gpioCount, voltBufSzBytes, voltageResultBuf);
+  syslog(1, "meadow_adc_configure() gpioCount:%lu, resultBuffer:%p\n",
+            gpioCount, resultBuffer);
 #endif
 
   // Check for valid and reasonable input parameters
-  uint32_t gpioListOff;
-  uint32_t mapOff = 0;
-  uint32_t userBufElements;
-
-  if(_meadowAdcInit)
+  if(_meadowAdcUserInit)
   {
-    syslog(LOG_ERR, "%s@%d-Error:There is already an active ADC configuration.\n",
+    syslog(LOG_ERR, "%s@%d-Error:There is already an active configuration.\n",
               __FILE__, __LINE__);
     return -EPERM;    // Operation not permitted
   }
 
-  if(voltageResultBuf == NULL)
+  if(resultBuffer == NULL)
   {
-    syslog(1, "%s@%d-Error:voltageResultBuf is NULL\n",
-              __FILE__, __LINE__, voltBufSzBytes);
+    syslog(1, "%s@%d-Error:resultBuffer is NULL\n",
+              __FILE__, __LINE__);
     return -EINVAL;   // Invalid argument
   }
   
-  // Data elements are 2 bytes, therefore, size must be even number
-  if(voltBufSzBytes % 2)
-  {
-    syslog(1, "%s@%d-Error:ADC values are always 16-bits and voltBufSzBytes is not even (%lu)\n",
-              __FILE__, __LINE__, voltBufSzBytes);
-    return -EINVAL;   // Invalid argument
-  }
-
-  // Each element is 2 bytes
-  userBufElements = voltBufSzBytes/2;
-
-  // Must have at least 1 entry per gpio
-  if(gpioCount < userBufElements)
-  {
-    syslog(1, "%s@%d-Error:gpioCount:%lu < userBufElements:%lu\n",
-              __FILE__, __LINE__, gpioCount, userBufElements);
-    return -EINVAL;   // Invalid argument
-  }
-
   // Verify GPIO list is valid
   for(gpioListOff = 0; gpioListOff < gpioCount; gpioListOff++)
   {
@@ -1065,28 +1101,17 @@ int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
     }
   }
 
-  // Will the number of GPIOs exactly fill the provided buffer?
-  if(gpioCount % userBufElements != 0)
-  {
-    // Don't allow empty buffer slots as it's likely the user made an unintended error.
-    syslog(1, "%s@%d-Error:buffer size and the number of GPIOs not multiple.\n",
-                __FILE__, __LINE__);
-    return -EINVAL;   // Invalid argument
-  }
-
-  // Populate global values
-  _gpioList = gpioList;
-  _gpioTransferCount = gpioCount;
-  _voltageResultBuf = voltageResultBuf;
-  _voltBufSzBytes = voltBufSzBytes;
+  // Save needed user parameters
+  _userGpioXferCount = gpioCount;
+  _userVoltageResultBuf = resultBuffer;
+  _meadowAdcUserInit = true;
 
   // Signaling semaphore
   sem_init(&_waitTillDoneSem, 0, 0);
   sem_setprotocol(&_waitTillDoneSem, SEM_PRIO_NONE);  
 
   // Do before configuration
-  // DON'T FREE the buffer's address as it's part of the DMA configuration
-  _dmaAdcBuf = kmm_malloc(_voltBufSzBytes);
+  _dmaAdcBuf = kmm_malloc(MEADOW_ADC_MAX_DMA_BUFFER_SIZE);
   if(_dmaAdcBuf == NULL)
   {
     syslog(LOG_ERR, "%s@%d-Error:Buffer space not available\n",
@@ -1094,32 +1119,131 @@ int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
     return -ENOMEM;   // Out of memory
   }
 
-  meadow_adc_initialize_dma();
+  memset(_dmaAdcBuf, 0, MEADOW_ADC_MAX_DMA_BUFFER_SIZE);
+  _dmaHandle = NULL;
 
-  #if defined CONFIG_ADC_TESTS
+  // There are 3 initialization steps to fully initialize the ADC for analog
+  // GPIO data conversion. The first of these can be done at an earlier time
+  // as it's needed for reading the internal MCU temperature and battery
+  // voltage.
+  if(!_stageOneConfigDone)
+  {
+    ret = meadow_adc_hardware_initialize();
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "Initialization failed. ret:%d\n", ret);
+      return ret;
+    }
+  }
+
+  ret = meadow_adc_config_sequence_regs(gpioCount, gpioList);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "Initialization failed. ret:%d\n", ret);
+    return ret;
+  }
+
+  meadow_adc_dma_initialize();
+
+#if defined CONFIG_ADC_TESTS
+  syslog(1, "Post configuration register values:\n");
   adc_test_display_basic_adc_regs(STM32_ADC1_BASE);
   adc_test_display_basic_dma_regs();
-  #endif
+#endif
 
   return OK;
 }
 
 //=========================================================
+// This public function will return the values for Vbat and Vtemp from the
+// internal STM32F7 chip. The internal sersors have calibration values written
+// into the chip at the time of manufacturing. This function will use these
+// values to provide the most accurate possible information to the caller.
+//
+// Quote from Ref Man 15.10
+// "The temperature sensor output voltage changes linearly with temperature.
+// The offset of this linear function depends on each chip due to process
+// variation (up to 45°C from one chip to another).
+// The internal temperature sensor is more suited for applications that detect
+// temperature variations instead of absolute temperatures. If accurate
+// temperature reading is required, an external temperature sensor should be
+// used"
+int meadow_adc_read_temp_vbat(double *batteryVoltage, double *tempValue)
+{
+  int ret;
+  uint16_t adcTempReading;
+  uint16_t adcBatteryReading;
+  uint16_t adcVrefInCal;
+
+  meadow_adc_check_first_func_call();
+
+  // Any need to do stage 1 configuration here?
+  // Has the initial configuration been done already?
+  if(!_stageOneConfigDone)
+  {
+    ret = meadow_adc_hardware_initialize();
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "Initialization failed. ret:%d\n", ret);
+      return ret;
+    }
+  }
+
+  ret = meadow_adc_read_injected_temp_vref(&adcTempReading, &adcVrefInCal);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "Temperature Conversion Error. ret:%d\n", ret);
+    return ret;
+  }
+
+  // Set or refresh the Calibration reference
+  if(_doubVrefInCal != (double)adcVrefInCal)
+    _doubVrefInCal = (double)adcVrefInCal;
+
+  // From Data Sheet (not Ref Man), temperatures calibration values have been
+  // read at 30 and 110 degrees celsius. 
+  double calAtDegC30_t1  = 30.0;     // Calibration temperature 1 in DegC
+  double calAtDegC110_t2 = 110.0;    // Calibration temperature 2 in DegC
+  // Get the STM factory calibration values stored in these registers.
+  double calRefVal_CAL  = (double) getreg16(MEADOW_ADC_VREFINT_CAL_ADDR);
+  double tempCal1_TEMP1 = (double) getreg16(MEADOW_ADC_TEMPSENSOR_CAL30_ADDR);
+  double tempCal2_TEMP2 = (double) getreg16(MEADOW_ADC_TEMPSENSOR_CAL110_ADDR);
+
+  // The adc temperature measurement value (0-4095) needs to be converted to
+  // a temperature value. To do the best conversion the information in the
+  // Data Sheet needs to be incorporated in the math.
+  // The following equation came from http://efton.sk/STM32/STM32_VREF.pdf.
+  *tempValue = calAtDegC30_t1 + (calAtDegC110_t2 - calAtDegC30_t1) * \
+            ((double)adcTempReading * calRefVal_CAL - \
+            tempCal1_TEMP1 * (double)adcVrefInCal) / \
+            ((double)adcVrefInCal * (tempCal2_TEMP2 - tempCal1_TEMP1));
+
+  // Now do the same for the battery voltage and internal CAL reference
+  ret = meadow_adc_read_injected_vbat(&adcBatteryReading);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%04d-Vbat Conversion Error. ret:%d\n", ret);
+    return ret;
+  }
+
+  // Convert the reading into a voltage value
+  ret = meadow_adc_convert_adc_to_voltage(adcBatteryReading, batteryVoltage);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%04d-Conversion Cleanup Error. ret:%d\n", ret);
+    return ret;
+  }
+
+  return OK;
+}
+
+//================================================================
 // Calling this function will free all the allocations and configurations
 // that the current active configuration has changed.
 int meadow_adc_unconfigure_active_config()
 {
   uint32_t regval;
   
-  if(! _meadowAdcInit)
-  {
-    syslog(LOG_ERR, "%s@%d-Error:There is no active ADC configuration.\n",
-              __FILE__, __LINE__);
-    return -EPERM;    // Operation not permitted
-  }
-
-  // Reverse previous configuration
-
   // Turn off ADC
   regval = getreg32(STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
   regval &= ~ADC_CR2_ADON;
@@ -1175,104 +1299,7 @@ int meadow_adc_unconfigure_active_config()
     free(_dmaAdcBuf);
   }
 
-  _meadowAdcInit = false;
-  return OK;
-}
-
-//=========================================================
-// This public function will return the values for Vbat and Vtemp from the
-// internal STM32F7 chip. The internal sersors have calibration values written
-// into the chip at the time of manufacturing. This function will use these
-// values to provide the most accurate possible information to the caller.
-//
-// Quote from Ref Man 15.10
-// "The temperature sensor output voltage changes linearly with temperature.
-// The offset of this linear function depends on each chip due to process
-// variation (up to 45°C from one chip to another).
-// The internal temperature sensor is more suited for applications that detect
-// temperature variations instead of absolute temperatures. If accurate
-// temperature reading is required, an external temperature sensor should be
-// used"
-int meadow_adc_read_temp_vbat(double *batteryVoltage,
-          double *temperatureValue)
-{
-  int ret;
-  uint16_t adcTempReading;
-  uint16_t adcBatteryReading;
-  uint16_t adcVrefInCal;
-
-  if(! _meadowAdcInit)
-  {
-    syslog(LOG_ERR, "%s@%d-Error:There is no active ADC configuration.\n",
-              __FILE__, __LINE__);
-    return -EPERM;    // Operation not permitted
-  }
-
-  // This call must be first because it reads the internal reference value
-  // too, which is needed to derived the most accurate values
-  ret = meadow_adc_read_injection_temp_vref(&adcTempReading, &adcVrefInCal);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "Temperature Conversion Error. ret:%d\n", ret);
-    return ret;
-  }
-
-  // From data sheet, temperatures calibration values were read at 30 and
-  // 110 degrees celsius. 
-  double calAtDegC30_t1  = 30.0;     // Calibration temperature 1 in DegC
-  double calAtDegC110_t2 = 110.0;    // Calibration temperature 2 in DegC
-  // Get the STM factory calibration values
-  double calRefVal_CAL  = (double) getreg16(MEADOW_ADC_VREFINT_CAL_ADDR);
-  double tempCal1_TEMP1 = (double) getreg16(MEADOW_ADC_TEMPSENSOR_CAL30_ADDR);
-  double tempCal2_TEMP2 = (double) getreg16(MEADOW_ADC_TEMPSENSOR_CAL110_ADDR);
-
-  // The adc temperature measurement value (0-4095) needs to be processed.
-  // The following equation came from http://efton.sk/STM32/STM32_VREF.pdf.
-  *temperatureValue = calAtDegC30_t1 + (calAtDegC110_t2 - calAtDegC30_t1) * \
-            ((double)adcTempReading * calRefVal_CAL - \
-            tempCal1_TEMP1 * (double)adcVrefInCal) / \
-            ((double)adcVrefInCal * (tempCal2_TEMP2 - tempCal1_TEMP1));
-
-  syslog(1, "Temperature:%03f, ADC output:%u\n", *temperatureValue, adcTempReading);
-
-  // Now do the same for the battery voltage and internal CAL reference
-  ret = meadow_adc_read_internal_vbat(&adcBatteryReading);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "%04d-Vbat Conversion Error. ret:%d\n", ret);
-    return ret;
-  }
-
-  // Re-establish the Calibration reference if its drifted
-  if(_doubVrefInCal != (double)adcVrefInCal)
-    _doubVrefInCal = (double)adcVrefInCal;
-
-  // Convert the reading into a voltage value
-  ret = meadow_adc_convert_adc_to_voltage(adcBatteryReading, batteryVoltage);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "%04d-Conversion Cleanup Error. ret:%d\n", ret);
-    return ret;
-  }
-
-  return OK;
-}
-
-//=========================================================
-// To get the most best result we'll use the following calculation taken
-// from http://efton.sk/STM32/STM32_VREF.pdf.
-int meadow_adc_convert_adc_to_voltage(uint16_t adcValue, double *convertedVoltage)
-{
-  double calRefVal_CAL  = (double) getreg16(MEADOW_ADC_VREFINT_CAL_ADDR);
-  double voltage = (MEADOW_ADC_VOLTAGE_ADC_CAL_TAKEN * (double)adcValue * calRefVal_CAL + \
-      (_doubVrefInCal * MEADOW_ADC_MAX_ADC_COUNT_DOUBLE / 2.0)) / \
-      (_doubVrefInCal * MEADOW_ADC_MAX_ADC_COUNT_DOUBLE);
-
-  // Don't know the cause but, the voltage returned is exactly 0.50 volts
-  // too high, from 0 - 3.3.
-  *convertedVoltage = voltage - 0.50;
-
-  // syslog(1, "--++>> value (adc):%04u, voltage:%.3f\n", adcValue, *convertedVoltage);
+  _meadowAdcRegInit = false;
   return OK;
 }
 
@@ -1283,15 +1310,15 @@ int meadow_adc_convert_adc_to_voltage(uint16_t adcValue, double *convertedVoltag
 // is ready for inspection.
 int meadow_adc_read_conversions(void)
 {
-  if(! _meadowAdcInit)
+  if(! _meadowAdcUserInit)
   {
-    syslog(LOG_ERR, "%s@%d-Error:Meadow ADC not initialized.\n",
+    syslog(LOG_ERR, "%s@%d-Error:Meadow ADC not configured.\n",
               __FILE__, __LINE__);
     return -EPERM;    // Operation not permitted
   }
 
   // Since not doing continous conversion we need to start ADC each time
-  adc_start();
+  meadow_adc_start_single_cycle();
 
   // Wait for conversion to finish for valid data
   meadow_adc_buffer_takesem(&_waitTillDoneSem);
@@ -1313,20 +1340,20 @@ int meadow_adc_read_conversions(void)
 
   // ADC conversion must have completed. Now convert the collected data
   // to voltage and copy to the user's buffer.
-  for(int val = 0; val < _gpioTransferCount; val++)
+  for(int voltOff = 0; voltOff < _userGpioXferCount; voltOff++)
   {
     int ret;
     double convVoltage;
 
     // _dmaAdcBuf contain the adc output (0-4095) placed there by DMA.
     //  the analog input via DMA
-    ret = meadow_adc_convert_adc_to_voltage(_dmaAdcBuf[val], &convVoltage);
+    ret = meadow_adc_convert_adc_to_voltage(_dmaAdcBuf[voltOff], &convVoltage);
     if(ret < 0)
     {
       syslog(LOG_ERR, "%04d-Conversion Cleanup Error. ret:%d\n", ret);
       return ret;
     }
-    _voltageResultBuf[val] = convVoltage;
+    _userVoltageResultBuf[voltOff] = convVoltage;
   }
 
   return OK;
