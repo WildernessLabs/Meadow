@@ -47,6 +47,7 @@
 
 #include "stm32f777zit6-meadow.h"
 #include "hcom_nx_config_manager.h"
+#include <meadow/meadow_os.h>
 
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 #include <meadow/meadow_hw_version.h>
@@ -74,6 +75,10 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 {
   int ret;
   meadow_configuration_t *config;
+
+#if defined(CONFIG_MEADOW_ITM_ENABLED)
+  meadow_os_itm_enable();
+#endif
 
   // One GPIO (PB4) is used D05 for F7FeatherV2 and CCM. But, at reset it
   // isn't initialized all the other GPIOs. It's one of the debugging 5 pins.
