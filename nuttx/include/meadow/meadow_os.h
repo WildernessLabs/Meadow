@@ -1,6 +1,6 @@
 /****************************************************************************
  * meadow_os.h
- * 
+ *
  *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
@@ -33,7 +33,48 @@
  *
  ****************************************************************************/
 
+#include <nuttx/config.h>
+
 #include <meadow/hcom_shared_common.h>
+
+#if defined(CONFIG_MEADOW_ITM_ENABLED)
+
+//
+//  The ITM ports are 4 bytes wide and start with the "printf" channel (0)
+//  below.
+//
+//  There are 32 channels (0 - 32).
+//
+#define MEADOW_ITM_PRINTF_CHANNEL       ((volatile uint32_t *) 0xE0000000u)
+#define MEADOW_ITM_MALLOC_CHANNEL       ((volatile uint32_t *) 0xE0000004u)
+
+#define MEADOW_ITM_MALLOC_SIGNATURE     0xa5a5a500
+
+//
+//  Bit 0 in the malloc header.
+//
+#define MEADOW_ITM_MALLOC_KERNEL_HEAP   0x00000000
+#define MEADOW_ITM_MALLOC_USER_HEAP     0x00000001
+
+//
+//  Bit 1 in the malloc header.
+//
+#define MEADOW_ITM_MALLOC               0x00000000
+#define MEADOW_ITM_FREE                 0x00000002
+
+//
+//  Extract the return address for the caller.  This maybe the line after the
+//  call to the method.
+//
+#define MEADOW_GET_RETURN_ADDRESS(r) __asm volatile ("mov %0, lr\n" : "=r" (r));
+
+void meadow_os_itm_send_string(char *);
+void meadow_os_itm_send_word(volatile uint32_t *, uint32_t);
+void meadow_os_itm_send_words(volatile uint32_t *, uint32_t *, uint32_t);
+void meadow_os_itm_enable(void);
+void meadow_os_itm_disable(void);
+
+#endif
 
 void meadow_os_config_free_resources(meadow_configuration_t *);
 meadow_configuration_t *meadow_os_deep_copy_config(void);
