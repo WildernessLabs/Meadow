@@ -35,7 +35,7 @@
 
 #include <nuttx/config.h>
 
-// #if defined(CONFIG_MEADOW_ITM_ENABLED)
+#if defined(CONFIG_MEADOW_ITM_ENABLED)
 
 #include <stdlib.h>
 #include "itm.h"
@@ -166,4 +166,4 @@ void meadow_os_itm_enable(void)
      *((uint32_t *) (NVIC_DEMCR)) |= ( 1 << 24);
 }
 
-// #endif /* CONFIG_MEADOW_ITM_ENABLED */
+#endif /* CONFIG_MEADOW_ITM_ENABLED */
