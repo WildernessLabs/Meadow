@@ -43,6 +43,7 @@
 #include <debug.h>
 
 #include <nuttx/mm/mm.h>
+#include <meadow/meadow_os.h>
 
 #ifdef CONFIG_MM_KERNEL_HEAP
 
@@ -68,7 +69,19 @@
 void kmm_free(FAR void *mem)
 {
   DEBUGASSERT(kmm_heapmember(mem));
+
   mm_free(&g_kmmheap, mem);
+
+#if defined(CONFIG_MEADOW_ITM_MALLOC_ENABLED)
+  uint32_t words[4];
+
+  words[0] = MEADOW_ITM_MALLOC_SIGNATURE | MEADOW_ITM_MALLOC_KERNEL_HEAP |
+             MEADOW_ITM_FREE;
+  MEADOW_GET_RETURN_ADDRESS(words[1]);
+  words[2] = 0;
+  words[3] = mem;
+  meadow_os_itm_send_words(MEADOW_ITM_MALLOC_CHANNEL, words, 4);
+#endif
 }
 
 #endif /* CONFIG_MM_KERNEL_HEAP */
