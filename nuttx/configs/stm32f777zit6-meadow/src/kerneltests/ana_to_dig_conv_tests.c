@@ -90,11 +90,9 @@
 #define ADC_TESTS_DMA_BYTES_PER_CONVERSION (2)
 
 // Adjust for different tests. Values from 1 to 16 are valid
-#if defined CONFIG_ADC_TESTS
-#define ADC_TESTS_DMA_GPIO_COUNT (16)
-#endif
+#define ADC_TESTS_MAX_GPIO_COUNT (16)
 
-#define ADC_TESTS_RESULT_BUFFER_SIZE (ADC_TESTS_DMA_GPIO_COUNT * \
+#define ADC_TESTS_RESULT_BUFFER_SIZE (ADC_TESTS_MAX_GPIO_COUNT * \
                         ADC_TESTS_DMA_BYTES_PER_CONVERSION)
 
 /************************************************************************************
@@ -103,23 +101,26 @@
 
 static double _voltageResultBuf[ADC_TESTS_RESULT_BUFFER_SIZE];
 static bool _userData;
+static uint32_t _numbGpioActive;
 
 enum
 {
   unknown           = 0,
-  configureGpio     = 1,
+  configureMaxGpio  = 1,    // Config 16
   unconfigureGpio   = 2,
   readGpioAnaOnce   = 3,
   readTempBatOnce   = 4,
   readGpioAnaOften  = 5,
   readTempBatOften  = 6,
+  configure1Gpio    = 7,    // Config 1
+  configure8Gpio    = 8,    // Config 8
 };
 
 /************************************************************************************
  * Private Function Prototypes
  ************************************************************************************/
 
-static void adc_test_initialize(void);
+static void adc_test_initialize(uint32_t numberGpio);
 static int adc_test_create_testing_thread(void);
 static void *adc_test_kthread_func(int argc, char *argv[]);
 static void show_all_data_in_buffer(char *headerText, double dataBuffer[],
@@ -142,61 +143,65 @@ void meadow_kt_adc_tests(uint32_t userData)
 
   switch(userData)
   {
-    case configureGpio:
-      if(allowConfig)
-      {
-        allowConfig = false;
+    case configureMaxGpio:
+      // Initialize test code
+      syslog(1, "--------------- configure-16-Gpio ---------------\n");
+      adc_test_initialize(ADC_TESTS_MAX_GPIO_COUNT);
+      _numbGpioActive = ADC_TESTS_MAX_GPIO_COUNT;
+      break;
 
-        DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D01);
-        DEBUG_SET_LOW(DEBUG_PIN_V2_D01);
+    case configure1Gpio:
+      // Initialize test code
+      syslog(1, "--------------- configure-1-Gpio ---------------\n");
+      adc_test_initialize(1);
+      _numbGpioActive = 1;
+      break;
 
-        // Initialize test code
-        syslog(1, "-configureGpio\n");
-        adc_test_initialize();
-      }
-      else
-      {
-        syslog(1, "Only first time\n");
-      }
+    case configure8Gpio:
+      // Initialize test code
+      syslog(1, "--------------- configure-8-Gpio ---------------\n");
+      adc_test_initialize(8);
+      _numbGpioActive = 8;
       break;
 
     case unconfigureGpio:
       // Cleanup any configuration do earlier
-      syslog(1, "-unconfigureGpio\n");
+      syslog(1, "--------------- unconfigureGpio ---------------\n");
       meadow_adc_unconfigure_active_config();
       allowConfig = true;
       break;
 
+      // Read the data here after configuring
     case readGpioAnaOnce:
-      syslog(1, "-readGpioAnaOnce\n");
+      syslog(1, "--------------- readGpioAnaOnce ---------------\n");
       ret = meadow_adc_read_conversions();
       if(ret < 0)
       {
         syslog(LOG_ERR, "Error:Internal vbat and temp conversion, ret:%d\n", ret);
       }
       // Show information in the buffer
-      show_all_data_in_buffer("TestApp", _voltageResultBuf, ADC_TESTS_DMA_GPIO_COUNT);
+      show_all_data_in_buffer("TestApp", _voltageResultBuf, _numbGpioActive);
       break;
 
     case readTempBatOnce:
-      syslog(1, "-readTempBatOnce\n");
+      syslog(1, "--------------- readTempBatOnce ---------------\n");
       // Read the internal values of battery and temperature once
       ret = meadow_adc_read_temp_vbat(&batteryVoltage, &temperatureValue);
       if(ret < 0)
       {
         syslog(LOG_ERR, "Error:Internal vbat and temp conversion, ret:%d\n", ret);
       }
-      syslog(1, "Internal Vbat:%.3f, Temp:%.3f\n", batteryVoltage, temperatureValue);
+      syslog(1, "TestApp:Vbat:%.3f, Temp:%.3f\n", batteryVoltage, temperatureValue);
       break;
     
     case readGpioAnaOften:
-      syslog(1, "-readGpioAnaOften\n");
+      syslog(1, "--------------- readGpioAnaOften ---------------\n");
       // Create a thread to test standard GPIO ADC operation often
       adc_test_create_testing_thread();
       break;
 
     case readTempBatOften:
-      syslog(1, "-readTempBatOften\n");
+      syslog(1, "--------------- readTempBatOften ---------------\n");
       // Create a thread to test getting temperature & Vbat often
      adc_test_create_testing_thread();
       break;
@@ -212,7 +217,7 @@ void meadow_kt_adc_tests(uint32_t userData)
 // than ADC1 for debugging. However the ADC reset done via RCC will only
 // need to be done once.
 // nuttx/arch/arm/src/stm32f7/chip/stm32f74xx77xx_adc.h
-void adc_test_initialize()
+void adc_test_initialize(uint32_t numberGpio)
 {
   int ret;
   uint8_t gpioList[16];   // Might as well prepare for max
@@ -231,7 +236,7 @@ void adc_test_initialize()
   stm32_configgpio(GPIO_V2_A04_IN9_PB1);
   stm32_configgpio(GPIO_V2_A05_IN10_PC0);
 
-  // We'll use the first of these based on the ADC_TESTS_DMA_GPIO_COUNT
+  // We'll use the first of these based on the ADC_TESTS_MAX_GPIO_COUNT
   // value. If it is 1 then only used the first entry. It it is 6, we'll use
   // the first 6 entries. For more than 6 we reuse the previous analog GPIOs
   //
@@ -263,7 +268,7 @@ void adc_test_initialize()
   
   // Calling configuration API to set things up
   ret = meadow_adc_configure(gpioList,
-                            ADC_TESTS_DMA_GPIO_COUNT,   // Determines how many GPIOs
+                            numberGpio,   // Determines how many GPIOs
                             _voltageResultBuf);
   if(ret < 0)
   {
@@ -318,7 +323,7 @@ void *adc_test_kthread_func(int argc, char *argv[])
       char textBuf[64];
       snprintf_chk(textBuf, 64, "%04d-%s", chkCnt + 1, "Test App");
 
-      show_all_data_in_buffer(textBuf, _voltageResultBuf, ADC_TESTS_DMA_GPIO_COUNT);
+      show_all_data_in_buffer(textBuf, _voltageResultBuf, _numbGpioActive);
     }
     else if(_userData == readTempBatOften)
     {
