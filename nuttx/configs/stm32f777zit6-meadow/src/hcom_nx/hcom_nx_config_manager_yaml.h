@@ -359,6 +359,11 @@ struct yaml_credentials_s
      *  Password for the network access point.
      */
     char *password;
+
+    /**
+     * Clear default credentials.
+    */
+    char *clear;
 };
 typedef struct yaml_credentials_s yaml_credentials_t;
 
@@ -371,6 +376,7 @@ static const cyaml_schema_field_t wifi_credentials_section_schema[] =
 {
     CYAML_FIELD_STRING_PTR("Ssid", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_credentials_t, ssid, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("Password", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_credentials_t, password, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("Clear", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_credentials_t, clear, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
 

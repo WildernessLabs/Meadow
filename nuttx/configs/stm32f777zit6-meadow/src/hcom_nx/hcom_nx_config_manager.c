@@ -675,6 +675,40 @@ static void hcom_nx_config_set_month_text(meadow_version_number_t *version)
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_clear_default_ap_and_password
+ *
+ * Description:
+ *   Clear the SSID and password on the ESP32.
+ *
+ *  This method will block until the ESP32 confirms that the value has been
+ *  set correctly.
+ *
+ * Returned Value:
+ *  OK if successful, ERROR otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+int hcom_nx_config_clear_default_ap_and_password(void)
+{
+    int result  = ERROR;
+    espcp_message_t * message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
+                                                             espcp_wi_fi_function_clear_default_access_point, espcp_status_codes_completed_ok,
+                                                             espcp_get_next_message_id(), NULL, 0);
+    if (message != NULL)
+    {
+        if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+        {
+            result = OK;
+        }
+        espcp_delete_message_and_payload(message);
+    }
+
+    return result;
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_set_esp_value
  *
  * Description:
@@ -2299,36 +2333,48 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
 void hcom_nx_config_process_wifi_credentials_file(void)
 {
     yaml_wifi_credentials_t *credentials;
+    bool clear_credentials = false;
 
     cyaml_err_t err = cyaml_load_file(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME, &cyaml_config, &wifi_credentials_schema, (void **) &credentials, NULL);
     if ((err == CYAML_OK) && (credentials != NULL))
     {
-        if ((credentials->credentials != NULL) && (credentials->credentials->ssid != NULL) && (strlen(credentials->credentials->ssid) <= MAXIMUM_SSID_LENGTH) & (strlen(credentials->credentials->ssid) > 0))
+        clear_credentials = hcom_nx_config_parse_boolean(credentials->credentials->clear, false);
+        if (!clear_credentials)
         {
-            char password[MAXIMUM_PASSWORD_LENGTH + 1];
-            memset(password, 0, MAXIMUM_PASSWORD_LENGTH + 1);
-            if ((credentials->credentials->password != NULL) && (strlen(credentials->credentials->password) <= MAXIMUM_PASSWORD_LENGTH))
+            if ((credentials->credentials != NULL) && (credentials->credentials->ssid != NULL) && (strlen(credentials->credentials->ssid) <= MAXIMUM_SSID_LENGTH) & (strlen(credentials->credentials->ssid) > 0))
             {
-                strcpy(password, credentials->credentials->password);
+                char password[MAXIMUM_PASSWORD_LENGTH + 1];
+                memset(password, 0, MAXIMUM_PASSWORD_LENGTH + 1);
+                if ((credentials->credentials->password != NULL) && (strlen(credentials->credentials->password) <= MAXIMUM_PASSWORD_LENGTH))
+                {
+                    strcpy(password, credentials->credentials->password);
+                }
+                uint32_t size = strlen(credentials->credentials->ssid) + strlen(password) + 2;
+                uint8_t *buffer = kmm_zalloc(size);
+                if (buffer != NULL)
+                {
+                    hcom_nx_config_lock();
+                    meadow_configuration_t *config = hcom_nx_config_get_pointer();
+                    kmm_free(config->default_access_point);
+                    config->default_access_point = kmm_strdup(credentials->credentials->ssid);
+                    hcom_nx_config_unlock();
+                    strcpy((char *) buffer, credentials->credentials->ssid);
+                    strcpy((char *) (buffer + strlen(credentials->credentials->ssid) + 1), password);
+                    hcom_nx_config_set_esp_value(espcp_configuration_items_default_ap_and_password, buffer, size);
+                    kmm_free(buffer);
+                }
             }
-            uint32_t size = strlen(credentials->credentials->ssid) + strlen(password) + 2;
-            uint8_t *buffer = kmm_zalloc(size);
-            if (buffer != NULL)
+            else
             {
-                hcom_nx_config_lock();
-                meadow_configuration_t *config = hcom_nx_config_get_pointer();
-                kmm_free(config->default_access_point);
-                config->default_access_point = kmm_strdup(credentials->credentials->ssid);
-                hcom_nx_config_unlock();
-                strcpy((char *) buffer, credentials->credentials->ssid);
-                strcpy((char *) (buffer + strlen(credentials->credentials->ssid) + 1), password);
-                hcom_nx_config_set_esp_value(espcp_configuration_items_default_ap_and_password, buffer, size);
-                kmm_free(buffer);
+                meadow_logging_write(mfl_error, "Invalid WiFi credentials file\n");
             }
         }
         else
         {
-            meadow_logging_write(mfl_error, "Invalid WiFi credentials file\n");
+            if (hcom_nx_config_clear_default_ap_and_password() == OK)
+            {
+                meadow_logging_write(mfl_info, "Default SSID and password removed\n");
+            }
         }
         cyaml_free(&cyaml_config, &wifi_credentials_schema, credentials, 0);
     }
