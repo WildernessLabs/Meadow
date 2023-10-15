@@ -114,6 +114,7 @@ enum
   readTempBatOften  = 6,
   configure1Gpio    = 7,    // Config 1
   configure8Gpio    = 8,    // Config 8
+  runTempCodeOnce   = 9,
 };
 
 /************************************************************************************
@@ -206,6 +207,10 @@ void meadow_kt_adc_tests(uint32_t userData)
      adc_test_create_testing_thread();
       break;
 
+    case runTempCodeOnce:
+      meadow_adc_start_temp_code();
+      break;
+      
     default:
       syslog(1, "Undefined test for meadow_kt_adc_tests, userData:%lu\n", userData);
       break;

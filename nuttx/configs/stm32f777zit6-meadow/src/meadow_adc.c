@@ -204,7 +204,8 @@ static double _doubVrefInCal;
 static bool _hardwareConfigDone;
 static bool _meadowAdcUserInit;
 static bool _meadowAdcRegInit;
-static sem_t _waitTillDoneSem;
+static sem_t _gpioDoneSem;
+static sem_t _injectionDoneSem;
 
 #if defined CONFIG_ADC_TESTS
 static int _noChangeCnt;
@@ -227,7 +228,7 @@ static int meadow_adc_convert_adc_to_voltage(uint16_t adcValue, double *converte
 static int meadow_adc_check_first_func_call(void);
 static int meadow_adc_config_sequence_regs(uint32_t userGpioXferCount, uint8_t *userGpioList);
 static void meadow_adc_dma_initialize(uint16_t *dmaAdcBuf, uint32_t userGpioXferCount);
-static int meadow_adc_read_injected_setup(uint16_t *analogIn18, uint16_t *analogIn17);
+static int meadow_adc_read_injected_common(uint16_t *analogIn18, uint16_t *analogIn17);
 
 /************************************************************************************
  * Private Functions
@@ -366,7 +367,7 @@ static void meadow_adc_dma_isr(DMA_HANDLE handle, uint8_t status,
     putreg32(regval, STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
 
     // Wakeup caller's thread
-    sem_post(&_waitTillDoneSem);
+    sem_post(&_gpioDoneSem);
   }
 }
 
@@ -426,6 +427,13 @@ static int meadow_adc_conversion_isr(int irq, FAR void *context,
   }
 #endif
 
+  // End of injection conversion?
+  if ((pendingInterrupts & ADC_SR_JEOC) != 0)
+  {
+    // Wakeup caller's thread, data is ready
+    sem_post(&_injectionDoneSem);
+  }
+
   // Clear any interrupts
   pendingInterrupts &= ~ADC_ALL_POSSIBLE_ADC_INTERRUPTS;
   putreg32(pendingInterrupts, baseADCAddr + STM32_ADC_SR_OFFSET);
@@ -443,6 +451,37 @@ static void meadow_adc_buffer_takesem(sem_t *semaphore)
   }
   while (ret == -EINTR);
 }
+
+//==========================================================================
+#if defined CONFIG_ADC_TESTS
+// Only for TESTING
+static void adc_test_display_basic_adc_regs(uint32_t baseADCAddr)
+{
+  syslog(1, "SR:  0x%08x CR1:  0x%08x CR2:  0x%08x\n",
+        getreg32(baseADCAddr + STM32_ADC_SR_OFFSET),
+        getreg32(baseADCAddr + STM32_ADC_CR1_OFFSET),
+        getreg32(baseADCAddr + STM32_ADC_CR2_OFFSET));
+
+  syslog(1, "SQR1: 0x%08x SQR2: 0x%08x SQR3: 0x%08x\n",
+        getreg32(baseADCAddr + STM32_ADC_SQR1_OFFSET),
+        getreg32(baseADCAddr + STM32_ADC_SQR2_OFFSET),
+        getreg32(baseADCAddr + STM32_ADC_SQR3_OFFSET));
+
+  syslog(1, "CCR:  0x%08x\n", getreg32(STM32_ADC_CCR));
+}
+
+static void adc_test_display_basic_dma_regs(void)
+{
+  syslog(1, "S0CR:  0x%08x  S0NDTR: 0x%08x\n",
+        getreg32(STM32_DMA2_S0CR),
+        getreg32(STM32_DMA2_S0NDTR));
+
+  syslog(1, "S0PAR: 0x%08x  S0M0AR: 0x%08x S0M1AR: 0x%08x\n",
+        getreg32(STM32_DMA2_S0PAR),
+        getreg32(STM32_DMA2_S0M0AR),
+        getreg32(STM32_DMA2_S0M1AR));
+}
+#endif
 
 //==========================================================================
 // Find ADC input channel (0-16) from the provided GPIO input port/pin
@@ -511,7 +550,7 @@ int meadow_adc_config_sequence_regs(uint32_t userGpioXferCount, uint8_t *userGpi
   uint32_t remainingCnt = userGpioXferCount;
 
   // Sequence Register 3 - ADC channels 1-6
-  regval = getreg32(STM32_ADC1_SQR3);
+  regval = getreg32(STM32_ADC1_BASE + STM32_ADC_SQR3_OFFSET);
   regval &= ADC_SQR3_RESERVED;   // Clear all SQR Bits
   if(remainingCnt > 0)
   {
@@ -532,10 +571,10 @@ int meadow_adc_config_sequence_regs(uint32_t userGpioXferCount, uint8_t *userGpi
     if(ret < 0)
       return ret;    // Error
   }
-  putreg32(regval, STM32_ADC1_SQR3);
+  putreg32(regval, STM32_ADC1_BASE + STM32_ADC_SQR3_OFFSET);
 
   // Sequence Register 2 - ADC channels 7-12
-  regval = getreg32(STM32_ADC1_SQR2);
+  regval = getreg32(STM32_ADC1_BASE + STM32_ADC_SQR2_OFFSET);
   regval &= ADC_SQR2_RESERVED;   // Clear all SQR Bits
   if(remainingCnt > 0)
   {
@@ -556,10 +595,10 @@ int meadow_adc_config_sequence_regs(uint32_t userGpioXferCount, uint8_t *userGpi
     if(ret < 0)
       return ret;    // Error
   }
-  putreg32(regval, STM32_ADC1_SQR2);
+  putreg32(regval, STM32_ADC1_BASE + STM32_ADC_SQR2_OFFSET);
  
   // Sequence Register 1 - ADC channels 13-16
-  regval = getreg32(STM32_ADC1_SQR1);
+  regval = getreg32(STM32_ADC1_BASE+STM32_ADC_SQR1_OFFSET);
   regval &= ADC_SQR1_RESERVED;   // Clear all SQR Bits
   if(remainingCnt > 0)
   {
@@ -583,53 +622,27 @@ int meadow_adc_config_sequence_regs(uint32_t userGpioXferCount, uint8_t *userGpi
 
   // Last set the total number of transfers, also in TM32_ADC1_SQR1
   regval |= ((userGpioXferCount - 1) << ADC_SQR1_L_SHIFT);
-  putreg32(regval, STM32_ADC1_SQR1);
+  putreg32(regval, STM32_ADC1_BASE+STM32_ADC_SQR1_OFFSET);
 
   return OK;
 }
 
-//-----------------------------------------------------------------------
-#if defined CONFIG_ADC_TESTS
-// Only for TESTING
-static void adc_test_display_basic_adc_regs(uint32_t baseADCAddr)
-{
-  syslog(1, "SR:  0x%08x CR1:  0x%08x CR2:  0x%08x\n",
-        getreg32(baseADCAddr + STM32_ADC_SR_OFFSET),
-        getreg32(baseADCAddr + STM32_ADC_CR1_OFFSET),
-        getreg32(baseADCAddr + STM32_ADC_CR2_OFFSET));
-
-  syslog(1, "SQR1: 0x%08x SQR2: 0x%08x SQR3: 0x%08x\n",
-        getreg32(baseADCAddr + STM32_ADC_SQR1_OFFSET),
-        getreg32(baseADCAddr + STM32_ADC_SQR2_OFFSET),
-        getreg32(baseADCAddr + STM32_ADC_SQR3_OFFSET));
-
-  syslog(1, "CCR:  0x%08x\n", getreg32(STM32_ADC_CCR));
-}
-
-static void adc_test_display_basic_dma_regs(void)
-{
-  syslog(1, "S0CR:  0x%08x  S0NDTR: 0x%08x\n",
-        getreg32(STM32_DMA2_S0CR),
-        getreg32(STM32_DMA2_S0NDTR));
-
-  syslog(1, "S0PAR: 0x%08x  S0M0AR: 0x%08x S0M1AR: 0x%08x\n",
-        getreg32(STM32_DMA2_S0PAR),
-        getreg32(STM32_DMA2_S0M0AR),
-        getreg32(STM32_DMA2_S0M1AR));
-}
-#endif
-
-
 //======================================================================
-// Common code for reading Analog In 18 and Analog In 17 using injected mode
-int meadow_adc_read_injected_setup(uint16_t *analogIn18, uint16_t *analogIn17)
+// Common code for reading Analog In 18 and Analog In 17 using injected mode.
+// Note this code always obtains 2 adc values. Even if only one is needed
+int meadow_adc_read_injected_common(uint16_t *analogIn18, uint16_t *analogIn17)
 {
   uint32_t regval;
 
+  // // THIS SEEMS TO DO NOTHING
+  // regval = getreg32(STM32_ADC1_BASE + STM32_ADC_CR1_OFFSET);
+  // regval |= ADC_CR1_JAUTO;         // 1=Automatic Injected Group conversion
+  // putreg32(regval, STM32_ADC1_BASE + STM32_ADC_CR1_OFFSET);
+
   // Injection Sequence Register - set ADC input at 18 since ADC_IN18 is used
   // by temperature and vbat depending on eht value of TSVREFE
-  // Note: for 2 injected conversions the first is from JSQ3 and the second
-  // from JSQ4 (see Ref Man 15.13.12)
+  // Note: for the injected conversions the first is from JSQ3 and the second
+  // from JSQ4 (see Ref Man 15.13.12). Why not 1 & 2, don't know.
   regval = getreg32(STM32_ADC1_BASE + STM32_ADC_JSQR_OFFSET);
   regval &= ~0x003fffff;   // Clear all JSQR Bits
   // Note: These may look wrong but are correct.
@@ -638,25 +651,71 @@ int meadow_adc_read_injected_setup(uint16_t *analogIn18, uint16_t *analogIn17)
   regval |= (1 << ADC_JSQR_JL_SHIFT);       // Set to 1 indicates 2 inputs
   putreg32(regval, STM32_ADC1_BASE + STM32_ADC_JSQR_OFFSET);
 
+// (--) TESTING
+  // syslog(1, "==>> Before conversion JDR1 (Ain17):%u, JDR2 (Ain18):%u\n",
+  //           getreg16(STM32_ADC1_BASE + STM32_ADC_JDR1_OFFSET),
+  //           getreg16(STM32_ADC1_BASE + STM32_ADC_JDR2_OFFSET));
+
   // Start ADC via Control Register 2 (CR2) - Start the ADC
-  regval = getreg32(STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
   // JSWSTART cannot be set if ADON is not set
+  regval = getreg32(STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
   regval |= ADC_CR2_JSWSTART;       // Start injection ADC
   putreg32(regval, STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
 
-  // (--) CAN THIS TIME BE SHORTENED???  // COULD USE INTERRUPT
-  usleep(50 * 1000);    // Wait till next tick
+  // (*) USING THIS INSTEAD OF INTERRUPT Wait till done
+  while((getreg32(STM32_ADC1_BASE + STM32_ADC_SR_OFFSET) & ADC_SR_JEOC) == 0);
+
+  // Wait for injected conversion to complete
+  // (*) NOT USING THIS INSTEAD OF INTERRUPT Wait till done
+  // meadow_adc_buffer_takesem(&_injectionDoneSem);
+
+  // Clear end of injected conversion bit
+  regval = getreg32(STM32_ADC1_BASE + STM32_ADC_SR_OFFSET);
+  regval &= ~ADC_SR_JEOC;
+  putreg32(regval, STM32_ADC1_BASE + STM32_ADC_SR_OFFSET);
+
 
   *analogIn18 = getreg16(STM32_ADC1_BASE + STM32_ADC_JDR2_OFFSET);
   *analogIn17 = getreg16(STM32_ADC1_BASE + STM32_ADC_JDR1_OFFSET);
 
-  // Remove configuration 
-  int ret = meadow_adc_injected_adc_cleanup();
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "%04d-Vbat Conversion Error. ret:%d\n", ret);
-    return ret;
-  }
+  // Clear End Of Conversion bit
+  regval = getreg32(STM32_ADC1_BASE + STM32_ADC_SR_OFFSET);
+  regval &= ~ADC_SR_JEOC;
+  putreg32(regval, STM32_ADC1_BASE + STM32_ADC_SR_OFFSET);
+
+  // (--) Remove configuration 
+  // int ret = meadow_adc_injected_adc_cleanup();
+  // if(ret < 0)
+  // {
+  //   syslog(LOG_ERR, "%04d-Vbat Conversion Error. ret:%d\n", ret);
+  //   return ret;
+  // }
+
+  return OK;
+}
+
+//======================================================================
+// (--) is this needed?
+// Undoes the above injected configuration
+int meadow_adc_injected_adc_cleanup(void)
+{
+  uint32_t regval;
+
+  // Clear End Of Conversion bit
+  regval = getreg32(STM32_ADC1_BASE + STM32_ADC_SR_OFFSET);
+  regval &= ~ADC_SR_JEOC;
+  putreg32(regval, STM32_ADC1_BASE + STM32_ADC_SR_OFFSET);
+
+  // Restore register values to neutral
+  // Disable both Temperature and Vbat
+  regval = getreg32(STM32_ADC_CCR);
+  regval &= ~ADC_CCR_TSVREFE;     // 0=disable temperature sensor channel
+  regval &= ~ADC_CCR_VBATE;        // 0=disable vbat channel
+  putreg32(regval, STM32_ADC_CCR);
+
+  regval = getreg32(STM32_ADC1_BASE + STM32_ADC_JSQR_OFFSET);
+  regval &= ~0x003fffff;   // Clear all JSQR Bits
+  putreg32(regval, STM32_ADC1_BASE + STM32_ADC_JSQR_OFFSET);
 
   return OK;
 }
@@ -676,10 +735,13 @@ int meadow_adc_read_injected_temp_vref(uint16_t *adcTempReading, uint16_t *adcVr
   regval &= ~ADC_CCR_VBATE;         // 0=disable vbat channel
   putreg32(regval, STM32_ADC_CCR);
 
-  ret = meadow_adc_read_injected_setup(&tempAnaIn18, &vrefAnaIn17);
+  // Per Data Sheet 5.3.25 startup time maximum is 10us tSTART
+  usleep(10);
+
+  ret = meadow_adc_read_injected_common(&tempAnaIn18, &vrefAnaIn17);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "Setup Error. ret:%d\n", ret);
+    syslog(LOG_ERR, "Injected common, ret:%d\n", ret);
     return ret;
   }
 
@@ -692,7 +754,11 @@ int meadow_adc_read_injected_temp_vref(uint16_t *adcTempReading, uint16_t *adcVr
   // Set or refresh the calibration reference
   _doubVrefInCal = (double)vrefAnaIn17;
 
-  syslog(1, "-->> ADC values (0-4095), Temp:%u, adc VrefCal:%u\n", tempAnaIn18, vrefAnaIn17);
+  regval = getreg32(STM32_ADC_CCR);
+  regval &= ~ADC_CCR_TSVREFE;     // 0=disable temperature sensor channel
+  putreg32(regval, STM32_ADC_CCR);
+
+  // syslog(1, "-->> ADC values (0-4095), Temp:%u, adc VrefCal:%u\n", tempAnaIn18, vrefAnaIn17);
   return ret;
 }
 
@@ -705,44 +771,33 @@ int meadow_adc_read_injected_vbat(uint16_t *adcBatteryReading)
   uint16_t analogIn17;
   uint16_t battAnaIn18;
 
+  if(adcBatteryReading == NULL)
+  {
+    syslog(LOG_ERR, "adcBatteryReading cannot be NULL\n");
+    return -EINVAL;     // Invalid argument
+  }
+
   // Setup to read Vbat
   regval = getreg32(STM32_ADC_CCR);
   regval &= ~ADC_CCR_TSVREFE;     // 0=disable temperature sensor and ref
   regval |= ADC_CCR_VBATE;        // 1=enable vbat channel
   putreg32(regval, STM32_ADC_CCR);
 
-  // In this case we'll ignore Vref
-  ret = meadow_adc_read_injected_setup(&battAnaIn18, &analogIn17);
+  // In this case we ignore the analogIn17 return value
+  ret = meadow_adc_read_injected_common(&battAnaIn18, &analogIn17);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "Injected battery setup. ret:%d\n", ret);
+    syslog(LOG_ERR, "Injected common, ret:%d\n", ret);
     return ret;
   }
 
   *adcBatteryReading = battAnaIn18;
 
-  return ret;
-}
-
-//======================================================================
-// Undoes the above injected configuration
-// (--) is this needed?
-int meadow_adc_injected_adc_cleanup(void)
-{
-  uint32_t regval;
-
-  // Restore register values to neutral
-  // Disable both Temperature and Vbat
   regval = getreg32(STM32_ADC_CCR);
-  regval &= ~ADC_CCR_TSVREFE;     // 0=disable temperature sensor channel
   regval &= ~ADC_CCR_VBATE;        // 0=disable vbat channel
   putreg32(regval, STM32_ADC_CCR);
 
-  regval = getreg32(STM32_ADC1_BASE + STM32_ADC_JSQR_OFFSET);
-  regval &= ~0x003fffff;   // Clear all JSQR Bits
-  putreg32(regval, STM32_ADC1_BASE + STM32_ADC_JSQR_OFFSET);
-
-  return OK;
+  return ret;
 }
 
 //======================================================================
@@ -763,6 +818,7 @@ static int meadow_adc_hardware_reg_init (void)
 
   // Insure the correct ADC clock is on. If not enabled it was impossible
   // to successfully write values into some ADC configuration registers.
+  // If ADC2 or ADC3 are needed add RCC_APB2ENR_ADC2EN and RCC_APB2ENR_ADC3EN.
   regval = getreg32(STM32_RCC_APB2ENR);
   regval |= RCC_APB2ENR_ADC1EN;
   putreg32(regval, STM32_RCC_APB2ENR);
@@ -805,6 +861,22 @@ static int meadow_adc_hardware_reg_init (void)
   // ADC_SMPR_DEFAULTs are used to set ADC conversion the same.
   regval &= 0xf8000000;      // Clear Sample Time fields 10-18
   regval |= ADC_SMPR1_DEFAULT;
+
+// (--) Injected ADC results with different sample times. This looks backward
+// from what the Ref Man describes
+//                ADC    Voltage      Temp
+// ADC_SMPR_480 - 134     0.930       32.908
+// ADC_SMPR_144 - 137     0.942       38.630
+// ADC_SMPR_84  - 160     1.010       40.942 Changed boards-v
+// ADC_SMPR_28  - 375     1.722       37.104
+// ADC_SMPR_3   - 862     3.214       40.999
+
+  // For Vbat and internal temperature overwrite with the longest sample time
+  regval &= ~ADC_SMPR1_SMP17_MASK;
+  regval |= (ADC_SMPR_480 << ADC_SMPR1_SMP17_SHIFT);
+  regval &= ~ADC_SMPR1_SMP18_MASK;
+  regval |= (ADC_SMPR_480 << ADC_SMPR1_SMP18_SHIFT);
+  // syslog(1, "After ->SMPR1:0x%08x\n", regval);
   putreg32(regval, STM32_ADC1_BASE + STM32_ADC_SMPR1_OFFSET);
 
   // Set sample time for channels 0-9
@@ -824,14 +896,18 @@ static int meadow_adc_hardware_reg_init (void)
   regval |= ADC_CR1_RES_12BIT;      // Set resolution 00=12, 01=10, 10=8 or 11=6 bits
   regval &= ~ADC_CR1_AWDEN;         // 0=Disable Analog watchdog on regular channels
   regval &= ~ADC_CR1_JAWDEN;        // 0=Disable Analog watchdog on injected
-  regval &= ~ADC_CR1_JDISCEN;       // 0=Disable discontinuous mode on injected channels
   regval &= ~ADC_CR1_DISCNUM_MASK;  // Set number of discontinuous channels to 1
+  regval &= ~ADC_CR1_JDISCEN;       // 0=Disable discontinuous mode on injected channels
   regval &= ~ADC_CR1_DISCEN;        // 0=Disable discontinuous mode on regular channels
   regval &= ~ADC_CR1_JAUTO;         // 0=Automatic Injected Group conversion
   regval &= ~ADC_CR1_AWDSGL;        // 0=Disable watchdog on single channel in scan mode
   // In Scan mode, the inputs selected through the ADC_SQRx
   regval |= ADC_CR1_SCAN;           // 1=Scan mode (Scans channels in ADC_SQRx registers)
-  regval &= ~ADC_CR1_JEOCIE;        // 0=Disable interrupt for injected channels
+
+  // (*) REMOVED INJECTED ISR CALL FOR TESTING?
+  // regval |= ADC_CR1_JEOCIE;         // 1=Enable interrupt for injected channels
+  regval &= ~ADC_CR1_JEOCIE;         // 0=Disable interrupt for injected channels
+
   regval &= ~ADC_CR1_AWDIE;         // 0=Analog Watchdog interrupt enable
   // EOCIE seems to have no effect when using DMA
   regval |= ADC_CR1_EOCIE;          // 1=Enable ADC interrupt for EOC (not with DMA)
@@ -1022,6 +1098,8 @@ int meadow_adc_hardware_initialize(void)
 //=========================================================
 // To get the most best result we'll use the following calculation taken
 // from http://efton.sk/STM32/STM32_VREF.pdf.
+// Per Data Sheet section 5.3.27. This reference voltage is considered in
+// this calculation as _doubVrefInCal.
 int meadow_adc_convert_adc_to_voltage(uint16_t adcValue, double *convertedVoltage)
 {
   double calRefVal_CAL  = (double) getreg16(MEADOW_ADC_VREFINT_CAL_ADDR);
@@ -1052,9 +1130,13 @@ int meadow_adc_check_first_func_call()
     _meadowAdcUserInit = false;
     _doubVrefInCal = 0.0;
 
-    // Signaling semaphore
-    sem_init(&_waitTillDoneSem, 0, 0);
-    sem_setprotocol(&_waitTillDoneSem, SEM_PRIO_NONE);  
+    // Signaling semaphore for GPIO conversion
+    sem_init(&_gpioDoneSem, 0, 0);
+    sem_setprotocol(&_gpioDoneSem, SEM_PRIO_NONE);
+
+    // Signaling semaphore for Vbat and Temperature conversion
+    sem_init(&_injectionDoneSem, 0, 0);
+    sem_setprotocol(&_injectionDoneSem, SEM_PRIO_NONE);
 
     // Do before configuration
     _dmaAdcBuf = kmm_malloc(MEADOW_ADC_MAX_DMA_BUFFER_SIZE);
@@ -1179,7 +1261,6 @@ int meadow_adc_read_temp_vbat(double *batteryVoltage, double *tempValue)
 {
   int ret;
   uint16_t adcTempReading;
-  uint16_t adcBatteryReading;
   uint16_t adcVrefInCal;
 
   ret = meadow_adc_check_first_func_call();
@@ -1192,8 +1273,9 @@ int meadow_adc_read_temp_vbat(double *batteryVoltage, double *tempValue)
   // Has the hardware configuration been done already?
   if(!_hardwareConfigDone)
   {
-    // (--) FWIW-This will call meadow_adc_read_injected_temp_vref, so the following
-    // call is a duplicate but only once.
+    // FWIW - meadow_adc_hardware_initialize() sets up the hardware but also
+    // calls meadow_adc_read_injected_temp_vref(), internally, so the
+    // following call is a duplicate, but only once.
     ret = meadow_adc_hardware_initialize();
     if(ret < 0)
     {
@@ -1229,7 +1311,7 @@ int meadow_adc_read_temp_vbat(double *batteryVoltage, double *tempValue)
             tempCal1_TEMP1 * _doubVrefInCal) / \
             (_doubVrefInCal * (tempCal2_TEMP2 - tempCal1_TEMP1));
 
-// Peter - HERE (*)
+// Peter - HERE (--) This is for TESTING ONLY
   double voltageBefore;
   double voltageAfter;
   uint16_t adcBattery;
@@ -1243,29 +1325,30 @@ int meadow_adc_read_temp_vbat(double *batteryVoltage, double *tempValue)
   meadow_adc_convert_adc_to_voltage(adcBattery, &voltageAfter);
   syslog(1, "-->> adc:%u, voltageBefore:%.3f, voltageAfter:%.3f\n", adcBattery, voltageBefore, voltageAfter * 4);
   *batteryVoltage = voltageAfter;
+// Peter - HERE (--)
   
-  // (*) THIS IS THE REAL CODE
-  // // Now do the same for the battery voltage and internal CAL reference
-  // ret = meadow_adc_read_injected_vbat(&adcBatteryReading);
-  // if(ret < 0)
-  // {
-  //   syslog(LOG_ERR, "%04d-Vbat Conversion Error. ret:%d\n", ret);
-  //   return ret;
-  // }
+  // Now do the same for the battery voltage and internal CAL reference
+  uint16_t adcBatteryReading;
+  ret = meadow_adc_read_injected_vbat(&adcBatteryReading);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%04d-Vbat Conversion Error. ret:%d\n", ret);
+    return ret;
+  }
+  syslog(1, "-->> adc BatteryReading:%u, x4:%u\n", adcBatteryReading, adcBatteryReading * 4);
 
-  // // Convert the Vbat reading into a voltage value
-  // double voltageAsRead;
-  // ret = meadow_adc_convert_adc_to_voltage(adcBatteryReading, &voltageAsRead);
-  // if(ret < 0)
-  // {
-  //   syslog(LOG_ERR, "%04d-Conversion Cleanup Error. ret:%d\n", ret);
-  //   return ret;
-  // }
+  double voltageAsRead;
+  // Convert the Vbat reading into a voltage value
+  // Note:Per Ref Man section 15.11 the Battery voltage read is VBAT/4
+  // If we multiple before the conversion to voltage the result is smaller.
+  ret = meadow_adc_convert_adc_to_voltage(adcBatteryReading * 4, &voltageAsRead);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%04d-Conversion Cleanup Error. ret:%d\n", ret);
+    return ret;
+  }
 
-  // // Note:Per Ref Man section 15.11 the Battery voltage read is VBAT/4
-  // // If we multiple before the conversion to voltage the result is much
-  // // smaller.
-  // *batteryVoltage = (voltageAsRead * 4);
+  *batteryVoltage = voltageAsRead;
 
   return OK;
 }
@@ -1354,7 +1437,7 @@ int meadow_adc_read_conversions(void)
   meadow_adc_restart();
 
   // Wait for conversion to finish for valid data
-  meadow_adc_buffer_takesem(&_waitTillDoneSem);
+  meadow_adc_buffer_takesem(&_gpioDoneSem);
 
   // The following is used to determine if the output truely follows the analog
   // input as it switches above and below mid-point of Vdd.
