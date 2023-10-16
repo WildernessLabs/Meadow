@@ -1107,9 +1107,11 @@ int meadow_adc_convert_adc_to_voltage(uint16_t adcValue, double *convertedVoltag
       (_doubVrefInCal * MEADOW_ADC_MAX_ADC_COUNT_DOUBLE / 2.0)) / \
       (_doubVrefInCal * MEADOW_ADC_MAX_ADC_COUNT_DOUBLE);
 
-  // Don't know the cause but, the voltage returned is exactly 0.50 volts
-  // too high, from 0 - 3.3.
-  *convertedVoltage = voltage;
+  // Don't know the cause but, the voltage returned is always exactly 0.50
+  // volts too high. Tried this on different platforms (F7FeatherV2,
+  // CCM versions) and it the same for all. Must be something about the above
+  // math.
+  *convertedVoltage = voltage - 0.5;
 
   // syslog(1, "--++>> value (adc):%04u, voltage:%.3f\n", adcValue, *convertedVoltage);
   return OK;
@@ -1311,21 +1313,23 @@ int meadow_adc_read_temp_vbat(double *batteryVoltage, double *tempValue)
             tempCal1_TEMP1 * _doubVrefInCal) / \
             (_doubVrefInCal * (tempCal2_TEMP2 - tempCal1_TEMP1));
 
-// Peter - HERE (--) This is for TESTING ONLY
-  double voltageBefore;
-  double voltageAfter;
-  uint16_t adcBattery;
-  ret = meadow_adc_read_injected_vbat(&adcBattery);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "%04d-Vbat Conversion Error. ret:%d\n", ret);
-    return ret;
-  }
-  meadow_adc_convert_adc_to_voltage(adcBattery * 4, &voltageBefore);
-  meadow_adc_convert_adc_to_voltage(adcBattery, &voltageAfter);
-  syslog(1, "-->> adc:%u, voltageBefore:%.3f, voltageAfter:%.3f\n", adcBattery, voltageBefore, voltageAfter * 4);
-  *batteryVoltage = voltageAfter;
-// Peter - HERE (--)
+// // Peter - HERE (--) This is for TESTING ONLY
+//   double voltageBefore;
+//   double voltageAfter;
+//   uint16_t adcBattery;
+//   ret = meadow_adc_read_injected_vbat(&adcBattery);
+//   if(ret < 0)
+//   {
+//     syslog(LOG_ERR, "%04d-Vbat Conversion Error. ret:%d\n", ret);
+//     return ret;
+//   }
+
+//   meadow_adc_convert_adc_to_voltage(adcBattery, &voltageAfter);
+//   voltageAfter *= voltageAfter;
+//   meadow_adc_convert_adc_to_voltage(adcBattery * 4, &voltageBefore);
+
+//   syslog(1, "-->> adc:%u, voltageBefore:%.3f, voltageAfter:%.3f\n", adcBattery, voltageBefore, voltageAfter);
+// // Peter - HERE (--)
   
   // Now do the same for the battery voltage and internal CAL reference
   uint16_t adcBatteryReading;
@@ -1337,18 +1341,15 @@ int meadow_adc_read_temp_vbat(double *batteryVoltage, double *tempValue)
   }
   syslog(1, "-->> adc BatteryReading:%u, x4:%u\n", adcBatteryReading, adcBatteryReading * 4);
 
-  double voltageAsRead;
   // Convert the Vbat reading into a voltage value
   // Note:Per Ref Man section 15.11 the Battery voltage read is VBAT/4
-  // If we multiple before the conversion to voltage the result is smaller.
-  ret = meadow_adc_convert_adc_to_voltage(adcBatteryReading * 4, &voltageAsRead);
+  // We must multiple before conversion to get the correct value.
+  ret = meadow_adc_convert_adc_to_voltage(adcBatteryReading * 4, batteryVoltage);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%04d-Conversion Cleanup Error. ret:%d\n", ret);
     return ret;
   }
-
-  *batteryVoltage = voltageAsRead;
 
   return OK;
 }
