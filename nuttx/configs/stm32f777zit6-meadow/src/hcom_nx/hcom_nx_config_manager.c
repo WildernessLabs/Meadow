@@ -2333,48 +2333,50 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
 void hcom_nx_config_process_wifi_credentials_file(void)
 {
     yaml_wifi_credentials_t *credentials;
-    bool clear_credentials = false;
 
     cyaml_err_t err = cyaml_load_file(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME, &cyaml_config, &wifi_credentials_schema, (void **) &credentials, NULL);
     if ((err == CYAML_OK) && (credentials != NULL))
     {
-        clear_credentials = hcom_nx_config_parse_boolean(credentials->credentials->clear, false);
-        if (!clear_credentials)
+        if (credentials->credentials != NULL)
         {
-            if ((credentials->credentials != NULL) && (credentials->credentials->ssid != NULL) && (strlen(credentials->credentials->ssid) <= MAXIMUM_SSID_LENGTH) & (strlen(credentials->credentials->ssid) > 0))
+            bool clear_credentials = hcom_nx_config_parse_boolean(credentials->credentials->clear_default_credentials, false);
+            if (!clear_credentials)
             {
-                char password[MAXIMUM_PASSWORD_LENGTH + 1];
-                memset(password, 0, MAXIMUM_PASSWORD_LENGTH + 1);
-                if ((credentials->credentials->password != NULL) && (strlen(credentials->credentials->password) <= MAXIMUM_PASSWORD_LENGTH))
+                if ((credentials->credentials->ssid != NULL) && (strlen(credentials->credentials->ssid) <= MAXIMUM_SSID_LENGTH) & (strlen(credentials->credentials->ssid) > 0))
                 {
-                    strcpy(password, credentials->credentials->password);
-                }
-                uint32_t size = strlen(credentials->credentials->ssid) + strlen(password) + 2;
-                uint8_t *buffer = kmm_zalloc(size);
-                if (buffer != NULL)
-                {
-                    hcom_nx_config_lock();
-                    meadow_configuration_t *config = hcom_nx_config_get_pointer();
-                    kmm_free(config->default_access_point);
-                    config->default_access_point = kmm_strdup(credentials->credentials->ssid);
-                    hcom_nx_config_unlock();
-                    strcpy((char *) buffer, credentials->credentials->ssid);
-                    strcpy((char *) (buffer + strlen(credentials->credentials->ssid) + 1), password);
-                    hcom_nx_config_set_esp_value(espcp_configuration_items_default_ap_and_password, buffer, size);
-                    kmm_free(buffer);
+                    char password[MAXIMUM_PASSWORD_LENGTH + 1];
+                    memset(password, 0, MAXIMUM_PASSWORD_LENGTH + 1);
+                    if ((credentials->credentials->password != NULL) && (strlen(credentials->credentials->password) <= MAXIMUM_PASSWORD_LENGTH))
+                    {
+                        strcpy(password, credentials->credentials->password);
+                    }
+                    uint32_t size = strlen(credentials->credentials->ssid) + strlen(password) + 2;
+                    uint8_t *buffer = kmm_zalloc(size);
+                    if (buffer != NULL)
+                    {
+                        hcom_nx_config_lock();
+                        meadow_configuration_t *config = hcom_nx_config_get_pointer();
+                        kmm_free(config->default_access_point);
+                        config->default_access_point = kmm_strdup(credentials->credentials->ssid);
+                        hcom_nx_config_unlock();
+                        strcpy((char *) buffer, credentials->credentials->ssid);
+                        strcpy((char *) (buffer + strlen(credentials->credentials->ssid) + 1), password);
+                        hcom_nx_config_set_esp_value(espcp_configuration_items_default_ap_and_password, buffer, size);
+                        kmm_free(buffer);
+                    }
                 }
             }
             else
             {
-                meadow_logging_write(mfl_error, "Invalid WiFi credentials file\n");
+                if (hcom_nx_config_clear_default_ap_and_password() == OK)
+                {
+                    meadow_logging_write(mfl_info, "Default SSID and password removed\n");
+                }
             }
         }
         else
         {
-            if (hcom_nx_config_clear_default_ap_and_password() == OK)
-            {
-                meadow_logging_write(mfl_info, "Default SSID and password removed\n");
-            }
+            meadow_logging_write(mfl_error, "Invalid WiFi credentials file\n");
         }
         cyaml_free(&cyaml_config, &wifi_credentials_schema, credentials, 0);
     }

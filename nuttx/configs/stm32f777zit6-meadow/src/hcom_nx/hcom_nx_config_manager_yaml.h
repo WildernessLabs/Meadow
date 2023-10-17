@@ -363,7 +363,7 @@ struct yaml_credentials_s
     /**
      * Clear default credentials.
     */
-    char *clear;
+    char *clear_default_credentials;
 };
 typedef struct yaml_credentials_s yaml_credentials_t;
 
@@ -376,7 +376,7 @@ static const cyaml_schema_field_t wifi_credentials_section_schema[] =
 {
     CYAML_FIELD_STRING_PTR("Ssid", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_credentials_t, ssid, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("Password", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_credentials_t, password, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("Clear", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_credentials_t, clear, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("ClearDefaultCredentials", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_credentials_t, clear_default_credentials, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
 
