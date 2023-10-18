@@ -537,6 +537,13 @@ static void espcp_network_connected_event_handler(espcp_message_t *message)
         meadow_configuration_t *config = hcom_nx_config_get_pointer();
         get_time = config->get_network_time_at_startup;
         hcom_nx_config_unlock();
+
+        if (message->payload != NULL)
+        {
+            espcp_connect_event_data_t *connect_data = espcp_extract_connect_event_data(message->payload);
+            hcom_nx_config_add_default_gateway_dns_file(config, connect_data->gateway);
+        }
+
         if (get_time)
         {
             ntpc_start();

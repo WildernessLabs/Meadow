@@ -313,6 +313,11 @@ struct meadow_network_interface_s
   uint32_t gateway;
 
   /**
+   *  @brief Changing default gateway?
+   */
+  bool gateway_changed;
+
+  /**
    * @brief Pointer to the psock methods
    */
   const struct sock_intf_s *psock_methods;

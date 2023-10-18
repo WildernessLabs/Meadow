@@ -1150,6 +1150,198 @@ static void hcom_nx_config_setup_default_dns_servers(void)
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_add_nameserver_dns_file
+ *
+ * Description:
+ *  Add an address into DNS resover file.
+ *
+ * Input Parameters:
+ *  server - pointer to a server.
+ *
+ * Returned Value:
+ *  OK if successful, ERROR otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static int hcom_nx_config_add_nameserver_dns_file(char *server)
+{
+    if (server != NULL)
+    {
+        FILE *dns_file = fopen(CONFIG_NETDB_RESOLVCONF_PATH, "a");
+        if (dns_file != NULL)
+        {
+            fputs("nameserver ", dns_file);
+            fputs(server, dns_file);
+            fputs("\n", dns_file);
+            fclose(dns_file);
+            return OK;
+        }
+    }
+    return ERROR;
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_get_file_content
+ *
+ * Description:
+ * Extract the data inside the current file.
+ *
+ * Input Parameters:
+ *  path - pointer to file pathname.
+ *
+ * Returned Value:
+ *  Pointer containing the file data, otherwise NULL.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static char *hcom_nx_config_get_file_content(char *path)
+{
+    long int file_size = 0;
+    char *buffer = NULL;
+
+    if (path != NULL)
+    {
+        FILE * file = fopen(path, "r");
+        if (file != NULL)
+        {
+            fseek(file, 0L, SEEK_END);
+            file_size = ftell(file);
+
+            buffer = (char *) zalloc(file_size + 1);
+            if (buffer != NULL)
+            {
+                fseek(file, 0, SEEK_SET);
+                fread(buffer, 1, file_size, file);
+            }
+            fclose(file);
+        }
+    }
+    return buffer;
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_set_file
+ *
+ * Description:
+ *  Overwrite the content to new one.
+ *
+ * Input Parameters:
+ *  path   - pointer to file pathname.
+ *  buffer - Buffer holding the new content
+ *
+ * Returned Value:
+ *  OK if successful, ERROR otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static int hcom_nx_config_set_file(char *path, char *buffer)
+{
+    if (path != NULL && buffer != NULL)
+    {
+        FILE *file = fopen(path, "w");
+        if (file != NULL)
+        {
+            fputs(buffer, file);
+            fclose(file);
+            return OK;
+        }
+    }
+    return ERROR;
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_update_dns_file
+ *
+ * Description:
+ * Update the DNS file with the new nameserver, moving to the top of the file.
+ *
+ * Input Parameters:
+ *  path - pointer to file pathname.
+ *  server - pointer to a server.
+ *
+ * Returned Value:
+ *  OK if successful, ERROR otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static int hcom_nx_config_update_dns_file(char *path, char* server)
+{
+    char *buffer = hcom_nx_config_get_file_content(path);
+    int result = 0;
+    int ret = ERROR;
+
+    if (buffer != NULL)
+    {
+        if (server != NULL)
+        {
+            result = strlen(buffer) + strlen(server) + 13;
+            char *new_content = (char *) zalloc(result + 1);
+            if (new_content != NULL)
+            {
+                snprintf(new_content, result, "nameserver %s\n%s", server, buffer);
+                ret = hcom_nx_config_set_file(path, new_content);
+                free(new_content);
+            }
+        }
+        free(buffer);
+    }
+    return ret;
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_add_default_gateway_dns_file
+ *
+ * Description:
+ *  Add the default gateway into DNS resolver file.
+ *
+ * Input Parameters:
+ *  config - config - pointer to the configuration object.
+ *  gateway - default gateway address.
+ * 
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+void hcom_nx_config_add_default_gateway_dns_file(meadow_configuration_t *config, uint32_t gateway)
+{
+    if (config != NULL)
+    {
+        if (config->default_interface->gateway_changed == false)
+        {
+            if (gateway != 0)
+            {
+                struct sockaddr_in addr = { };
+                addr.sin_family = AF_INET;
+                addr.sin_port = 0;
+
+                memcpy(&addr.sin_addr, &gateway, sizeof(struct in_addr));
+
+                char *gateway_addr = inet_ntoa(addr.sin_addr);
+
+                if (hcom_nx_config_update_dns_file(CONFIG_NETDB_RESOLVCONF_PATH, gateway_addr) < 0)
+                {
+                    syslog(LOG_ERR, "Failed to add default gateway\n");
+                    return; 
+                }
+                syslog(LOG_INFO, "Successful to add default gateway\n");
+                config->default_interface->gateway_changed = true;
+            }
+        }
+    }
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_find_interface_by_name
  *
  * Description:
@@ -1294,6 +1486,7 @@ static void hcom_nx_config_process_network_section(yaml_network_t *network_confi
         {
             config->default_interface = hcom_nx_config_find_interface_by_name(MEADOW_IFT_ESP32_NAME);
         }
+        config->default_interface->gateway_changed = false;
     }
     else
     {
