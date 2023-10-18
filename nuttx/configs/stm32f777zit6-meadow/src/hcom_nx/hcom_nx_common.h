@@ -245,7 +245,7 @@ uint32_t meadow_parse_iso8601_time_period(const char *isoTimePeriod,
 
 // Meadow ADC
 int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount, double *userDataBuf);
-int meadow_adc_read_conversions(void);
+int meadow_adc_read_values(void);
 int meadow_adc_read_temp_vbat(double *batteryVoltage, double *temperatureValue);
 int meadow_adc_start_temp_code(void);
 

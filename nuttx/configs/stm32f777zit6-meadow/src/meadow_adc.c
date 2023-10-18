@@ -1159,7 +1159,7 @@ int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
 // conversion process will run until the configured buffer is full (up to 16
 // entries). When the buffer is full (or error) the calling thread is released
 // (via semaphore) to calculate the GPIO's voltage and return to the caller.
-int meadow_adc_read_conversions(void)
+int meadow_adc_read_values(void)
 {
   int ret;
 

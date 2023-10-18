@@ -166,7 +166,7 @@ void meadow_kt_adc_tests(uint32_t userData)
       // Read the data here after configuring
     case readGpioAnaOnce:
       syslog(1, "--------------- readGpioAnaOnce ---------------\n");usleep(20 * 1000);
-      ret = meadow_adc_read_conversions();
+      ret = meadow_adc_read_values();
       if(ret < 0)
       {
         syslog(LOG_ERR, "Error:Internal vbat and temp conversion, ret:%d\n", ret);
@@ -302,10 +302,10 @@ void *adc_test_kthread_func(int argc, char *argv[])
     {
       // Calling meadow_adc.c API to indicate conversion needed
       // This thread will wait until buffer is full
-      ret = meadow_adc_read_conversions();
+      ret = meadow_adc_read_values();
       if(ret < 0)
       {
-        syslog(LOG_ERR, "%s@%d-Call to meadow_adc_read_conversions() failed\n",
+        syslog(LOG_ERR, "%s@%d-Call to meadow_adc_read_values() failed\n",
                   __FILE__, __LINE__);
       }
 
