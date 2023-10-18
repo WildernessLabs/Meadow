@@ -106,14 +106,13 @@ static uint32_t _numbGpioActive;
 enum
 {
   unknown           = 0,
-  configure16Gpio   = 1,    // Config 16 GPIOs
-  unconfigureGpio   = 2,
-  readGpioAnaOnce   = 3,
-  readTempBatOnce   = 4,
-  readGpioAnaOften  = 5,
-  readTempBatOften  = 6,
-  configure1Gpio    = 7,    // Config 1 GPIOs
-  configure8Gpio    = 8,    // Config 8 GPIOs
+  configure1Gpio    = 1,    // Config 1 GPIO
+  configure8Gpio    = 2,    // Config 8 GPIOs
+  configure16Gpio   = 3,    // Config 16 GPIOs
+  readGpioAnaOnce   = 4,
+  readTempBatOnce   = 5,
+  readGpioAnaOften  = 6,
+  readTempBatOften  = 7,
 };
 
 /************************************************************************************
@@ -135,45 +134,38 @@ void meadow_kt_adc_tests(uint32_t userData)
   int ret;
   double batteryVoltage;
   double temperatureValue;
-  static int allowConfig = true;
 
   _userData = userData;
 
   syslog(1, "%s@%d-Entered meadow_kt_adc_tests, userData:%lu\n", __FILE__, __LINE__, userData);
-
+  usleep(20 * 1000);
+  
   switch(userData)
   {
-    case configure16Gpio:
-      // Initialize test code
-      syslog(1, "--------------- configure-16-Gpio ---------------\n");
-      adc_test_initialize(ADC_TESTS_MAX_GPIO_COUNT);
-      _numbGpioActive = ADC_TESTS_MAX_GPIO_COUNT;
-      break;
-
     case configure1Gpio:
       // Initialize test code
-      syslog(1, "--------------- configure-1-Gpio ---------------\n");
+      syslog(1, "--------------- configure-1-Gpio ---------------\n");usleep(20 * 1000);
       adc_test_initialize(1);
       _numbGpioActive = 1;
       break;
 
     case configure8Gpio:
       // Initialize test code
-      syslog(1, "--------------- configure-8-Gpio ---------------\n");
+      syslog(1, "--------------- configure-8-Gpio ---------------\n");usleep(20 * 1000);
       adc_test_initialize(8);
       _numbGpioActive = 8;
       break;
 
-    case unconfigureGpio:
-      // Cleanup any configuration do earlier
-      syslog(1, "--------------- unconfigureGpio ---------------\n");
-      meadow_adc_unconfigure_active_config();
-      allowConfig = true;
+    case configure16Gpio:
+      // Initialize test code
+      syslog(1, "--------------- configure-16-Gpio ---------------\n");usleep(20 * 1000);
+      adc_test_initialize(ADC_TESTS_MAX_GPIO_COUNT);
+      _numbGpioActive = ADC_TESTS_MAX_GPIO_COUNT;
       break;
 
       // Read the data here after configuring
     case readGpioAnaOnce:
-      syslog(1, "--------------- readGpioAnaOnce ---------------\n");
+      syslog(1, "--------------- readGpioAnaOnce ---------------\n");usleep(20 * 1000);
       ret = meadow_adc_read_conversions();
       if(ret < 0)
       {
@@ -195,13 +187,13 @@ void meadow_kt_adc_tests(uint32_t userData)
       break;
     
     case readGpioAnaOften:
-      syslog(1, "--------------- readGpioAnaOften ---------------\n");
+      syslog(1, "--------------- readGpioAnaOften ---------------\n");usleep(20 * 1000);
       // Create a thread to test standard GPIO ADC operation often
       adc_test_create_testing_thread();
       break;
 
     case readTempBatOften:
-      syslog(1, "--------------- readTempBatOften ---------------\n");
+      syslog(1, "--------------- readTempBatOften ---------------\n");usleep(20 * 1000);
       // Create a thread to test getting temperature & Vbat often
      adc_test_create_testing_thread();
       break;
