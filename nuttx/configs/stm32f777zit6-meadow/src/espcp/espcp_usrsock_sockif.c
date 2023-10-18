@@ -522,6 +522,7 @@ int espcp_usrsock_accept(struct socket *psock, struct sockaddr *addr, socklen_t 
                     result = response->result;
                     if (result > 0)
                     {
+                        net_lock();
                         newsock->s_esp32_sockfd = result;
                         newsock->s_domain = psock->s_domain;
                         newsock->s_type = psock->s_type;
@@ -556,6 +557,7 @@ int espcp_usrsock_accept(struct socket *psock, struct sockaddr *addr, socklen_t 
         }
     }
 
+    net_unlock();
     espcp_delete_message_and_payload(message);
 
     MEADOW_TRACE_INFORMATION("accept - socket %d, result %d\n", psock->s_esp32_sockfd, result);

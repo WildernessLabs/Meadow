@@ -155,7 +155,9 @@ int psock_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
 
   DEBUGASSERT(psock->s_sockif != NULL && psock->s_sockif->si_accept != NULL);
 
-  net_lock();
+  // TODO: Add a conditional to check the interface type, since the following
+  // net_lock() should not be here on WiFi
+  // net_lock(); 
   ret = psock->s_sockif->si_accept(psock, addr, addrlen, newsock);
   if (ret < 0)
     {
@@ -164,6 +166,7 @@ int psock_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
     }
 
   /* Mark the new socket as connected. */
+  net_lock(); // It should not be here when Ethernet/Cellular networks are used
 
   newsock->s_flags |= _SF_CONNECTED;
   newsock->s_flags &= ~_SF_CLOSED;
