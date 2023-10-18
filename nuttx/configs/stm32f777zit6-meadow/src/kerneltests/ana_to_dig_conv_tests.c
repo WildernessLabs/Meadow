@@ -302,9 +302,7 @@ void *adc_test_kthread_func(int argc, char *argv[])
     {
       // Calling meadow_adc.c API to indicate conversion needed
       // This thread will wait until buffer is full
-      DEBUG_SET_HIGH(DEBUG_PIN_V2_D01);
       ret = meadow_adc_read_conversions();
-      DEBUG_SET_LOW(DEBUG_PIN_V2_D01);
       if(ret < 0)
       {
         syslog(LOG_ERR, "%s@%d-Call to meadow_adc_read_conversions() failed\n",
@@ -320,9 +318,7 @@ void *adc_test_kthread_func(int argc, char *argv[])
     else if(_userData == readTempBatOften)
     {
       // Read the internal values of battery and temperature
-      DEBUG_SET_HIGH(DEBUG_PIN_V2_D01);
       ret =  meadow_adc_read_temp_vbat(&batteryVoltage, &temperatureValue);
-      DEBUG_SET_LOW(DEBUG_PIN_V2_D01);
       if(ret < 0)
       {
         syslog(LOG_ERR, "Error:Internal vbat and temp conversion, ret:%d\n", ret);
