@@ -114,7 +114,7 @@ uint32_t espcp_queue_message(espcp_message_t *message, bool block)
             //
             while (waiting)
             {
-                if (sem_wait(message->semaphore) == 0)
+                if (net_lockedwait(message->semaphore) == 0)
                 {
                     waiting = false;
                 }
