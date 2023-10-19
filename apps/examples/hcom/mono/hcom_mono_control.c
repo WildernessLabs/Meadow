@@ -379,11 +379,6 @@ int hcom_mono_ctrl_start_mono_main()
 
   if (mono_pid > 0)
   {
-    // switch to the round-robin scheduler
-    struct sched_param param;
-    param.sched_priority = MONO_TASK_PRIORITY;
-    pthread_setschedparam ((pthread_t) mono_pid, SCHED_RR, &param);
-
     hcom_logging_syslog(LOG_INFO, "%s@%d-MONO launched [pid:%d, pri:%d, stack size:%d]\n",
                         thisFile, __LINE__, mono_pid, MONO_TASK_PRIORITY,
                         MONO_TASK_STACKSIZE);
@@ -392,6 +387,13 @@ int hcom_mono_ctrl_start_mono_main()
                                      "Meadow successfully started MONO", thisFile, __LINE__);
     return OK;
   }
+
+  // switch to the round-robin scheduler
+
+  struct sched_param param;
+  param.sched_priority = MONO_TASK_PRIORITY;
+  pthread_setschedparam ((pthread_t) mono_pid, SCHED_RR, &param);
+
 
   hcom_logging_syslog(LOG_ERR, "%s@%d-The task to run mono failed in create\n",
                       thisFile, __LINE__);
