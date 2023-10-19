@@ -35,7 +35,8 @@
 
 // Note: this code uses DMA to transfer data from the ADC's data store to a
 // preallocated buffer. This code primarly uses STM32_ADC1_BASE throughout.
- 
+// This will make it easy if ADC1 needs to switched to ADC2 or switch
+// STM32_ADC1_BASE to baseADCAddr and support multiple ADCs.
 
 /****************************************************************************
  * Included Files
@@ -51,12 +52,11 @@
 #include <arch/stm32f7/chip.h>
 #include "stm32_gpio.h"
 #include "stm32_dma.h"
-#include <nuttx/kthread.h>
 #include "chip/stm32f74xx77xx_adc.h"
 #include "chip/stm32f76xx77xx_rcc.h"
 #include "chip/stm32f76xx77xx_memorymap.h"
 #include <meadow/hcom_shared_common.h>
-#include "hcom_nx/hcom_nx_common.h"
+#include <meadow/meadow_syscall_support.h>
 #include "chip/stm32f76xx77xx_dma.h"
 
 #ifndef CONFIG_STM32F7_DMA2
@@ -64,15 +64,14 @@
 #endif
 
 // Diagnostic always as this is test code
-#define USE_MEADOW_DEBUG_HELPERS
-// #undef USE_MEADOW_DEBUG_HELPERS
+// #define USE_MEADOW_DEBUG_HELPERS
+#undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
+// #pragma GCC optimize "Og"
 
 #if defined CONFIG_ADC_TESTS
-#warning "(--) Hacking meadow_adc.c"
+#pragma message "(--) meadow_adc.c includes CONFIG_ADC_TESTS"
 #endif
-
-// #pragma GCC optimize "Og"
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -141,6 +140,8 @@
 
 #if defined CONFIG_ADC_TESTS
 // This define is only used for specific testing
+#define MEADOW_ADC_TEST_TOGGLE_ADC_INPUT (0)
+#else
 #define MEADOW_ADC_TEST_TOGGLE_ADC_INPUT (0)
 #endif 
 
@@ -1070,8 +1071,10 @@ int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
   uint32_t mapOff = 0;
 
 #if defined CONFIG_ADC_TESTS
-  syslog(1, "meadow_adc_configure() gpioCount:%lu, resultBuffer:%p\n",
+  syslog(1, "Entry meadow_adc_configure() gpioCount:%lu, resultBuffer:%p\n",
             gpioCount, resultBuffer);
+  adc_test_display_basic_adc_regs(STM32_ADC1_BASE);
+  adc_test_display_basic_dma_regs();
 #endif
 
   if(resultBuffer == NULL)
@@ -1151,6 +1154,13 @@ int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
   meadow_adc_initialize(_dmaAdcBuf, _userGpioXferCount);
 
   _isMeadowAdcInitialized = true;
+
+#if defined CONFIG_ADC_TESTS
+  syslog(1, "Exit meadow_adc_configure()\n");
+  adc_test_display_basic_adc_regs(STM32_ADC1_BASE);
+  adc_test_display_basic_dma_regs();
+#endif
+
   return OK;
 }
 
@@ -1161,7 +1171,7 @@ int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
 // (via semaphore) to calculate the GPIO's voltage and return to the caller.
 int meadow_adc_read_values(void)
 {
-  int ret;
+  int ret = OK;
 
   if(! _isMeadowAdcInitialized)
   {

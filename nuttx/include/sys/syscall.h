@@ -585,15 +585,23 @@
 #endif
 
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)
-#  define SYS_meadow_idle_monitor_get_value                (SYS_meadow_os_config_free_resources + 1)
+#  define SYS_meadow_idle_monitor_get_value         (SYS_meadow_os_config_free_resources + 1)
 #else
 #  define SYS_meadow_idle_monitor_get_value                SYS_meadow_os_config_free_resources
 #endif
 
+#if defined (CONFIG_STM32F7_DMA2)
+#  define SYS_meadow_adc_configure                  (SYS_meadow_idle_monitor_get_value + 1)
+#  define SYS_meadow_adc_read_values                (SYS_meadow_idle_monitor_get_value + 2)
+#  define SYS_meadow_adc_read_temp_vbat             (SYS_meadow_idle_monitor_get_value + 3)
+#else
+#  define SYS_meadow_adc_read_temp_vbat              SYS_meadow_idle_monitor_get_value
+#endif
+
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-#  define SYS_meadow_kt_espcp_load_test_large_file_download     (SYS_meadow_idle_monitor_get_value + 1)
-#  define SYS_meadow_kt_espcp_load_test_web_page                (SYS_meadow_idle_monitor_get_value + 2)
-#  define SYS_meadow_kt_espcp_tests                             (SYS_meadow_idle_monitor_get_value + 3)
+#  define SYS_meadow_kt_espcp_load_test_large_file_download     (SYS_meadow_adc_read_temp_vbat + 1)
+#  define SYS_meadow_kt_espcp_load_test_web_page                (SYS_meadow_adc_read_temp_vbat + 2)
+#  define SYS_meadow_kt_espcp_tests                             (SYS_meadow_adc_read_temp_vbat + 3)
 #else
 #  define SYS_meadow_kt_espcp_tests    SYS_meadow_idle_monitor_get_value
 #endif

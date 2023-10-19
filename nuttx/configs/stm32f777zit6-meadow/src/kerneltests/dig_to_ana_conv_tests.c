@@ -39,20 +39,12 @@
 
 #include <nuttx/config.h>
 #include <sys/types.h>
-// nuttx/arch/arm/src/common/up_arch.h
 #include <nuttx/arch.h>   // up_enable_irq
 #include "up_arch.h"      // getreg32 & putreg32
 #include <arch/stm32f7/chip.h>
 #include "stm32_gpio.h"
 #include <meadow/hcom_shared_common.h>
-
-// #include "chip.h"
-// #include "stm32_rcc.h"
-// #include "stm32_tim.h"
-// #include "stm32_dma.h"
-
-// FOR TESTING BBR
-#include "chip/stm32_rtcc.h"
+#include <meadow/meadow_syscall_support.h>
 
 #if defined (CONFIG_DAC_TESTS)
 #warning "(--) Hacking dig_to_ana_conv_tests.c"

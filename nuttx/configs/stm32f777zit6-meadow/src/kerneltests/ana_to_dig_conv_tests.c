@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs\stm32f777zit6-meadow\src\kerneltests\ana_to_dig_conv_tests.c - 15Sep23
+ * configs\stm32f777zit6-meadow\src\kerneltests\ana_to_dig_conv_tests.c
  * 
  *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -43,22 +43,21 @@
 #include <string.h>
 
 #include <nuttx/arch.h>   // up_enable_irq
-#include <nuttx/kmalloc.h>
 #include "up_arch.h"      // getreg32 & putreg32
 #include <arch/stm32f7/chip.h>
 #include "stm32_gpio.h"
-#include "stm32_dma.h"
 #include <nuttx/kthread.h>
 #include "chip/stm32f74xx77xx_adc.h"
 #include "chip/stm32f76xx77xx_rcc.h"
+#include "chip/stm32f76xx77xx_dma.h"
 #include "chip/stm32f76xx77xx_memorymap.h"
 #include <meadow/hcom_shared_common.h>
+#include <meadow/meadow_syscall_support.h>
 #include "hcom_nx/hcom_nx_common.h"
-#include "chip/stm32f76xx77xx_dma.h"
 
 #if defined (CONFIG_ADC_TESTS)
 
-#warning "(--) Hacking ana_to_dig_conv_tests.c"
+#pragma message "(--) ana_to_dig_conv_tests.c included"
 
 #ifndef CONFIG_STM32F7_DMA2
 #error "Meadow ADC with DMA requires CONFIG_STM32F7_DMA2"

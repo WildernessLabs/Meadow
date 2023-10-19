@@ -243,12 +243,6 @@ uint32_t meadow_parse_iso8601_time_period(const char *isoTimePeriod,
 
 #define MEADOW_ISO_8601_PERIOD_FORMAT_LEAD_IN ('P')
 
-// Meadow ADC
-int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount, double *userDataBuf);
-int meadow_adc_read_values(void);
-int meadow_adc_read_temp_vbat(double *batteryVoltage, double *temperatureValue);
-int meadow_adc_start_temp_code(void);
-
 // Diagnostic related 
 int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t msgLen);
