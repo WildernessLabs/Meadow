@@ -697,5 +697,8 @@ int hcom_nx_exec_ex_flash_OS_update_flash2(void)
   if (ret)
     return ret;
   ret = unlink(UPDATE_OS_DIR HCOM_NX_FS_MONO_RUNTIME_FILENAME);
-  return ret;
+  if (ret)
+    return ret;
+  hcom_nx_common_utils_host_restart_meadow();
+  return 0; // restarts; never actually returns
 }
