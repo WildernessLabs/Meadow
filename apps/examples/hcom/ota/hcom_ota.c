@@ -177,11 +177,13 @@ int app_update(void)
 
 static int update_os_part1(void)
 {
+  printf("Applying OS update (part 1/2)\n");
   return hcom_via_nx_update_OS1();
 }
 
 static int update_os_part2(void)
 {
+  printf("Applying OS update (part 2/2)\n");
   return hcom_via_nx_update_OS2();
 }
 
