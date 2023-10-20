@@ -199,7 +199,10 @@ int hcom_nx_common_utils_calculate_serial_numb(uint8_t mcu6ByteSerialNumb[], cha
 void hcom_nx_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority)
 {
   if ((_syslogMask & LOG_MASK(msgPriority)) == 0)
+  {
+    syslog(1, "diag print buffer exited, priority too low.\n");
     return;
+  }
 
   // Use the Nuttx standard 'syslog' for output
   hcom_nx_diag_print_buffer_x(buffer, bufLen, msgPriority, syslog);
@@ -207,6 +210,7 @@ void hcom_nx_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t
 #else
 void hcom_nx_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority)
 {
+  syslog(2, "HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE not defined.\n");
 }
 #endif
 
