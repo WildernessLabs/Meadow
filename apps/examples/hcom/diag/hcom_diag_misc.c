@@ -74,6 +74,7 @@ int hcom_diag_misc_setup()
 #define HCOM_UTIL_DISPLAY_LENGTH (HCOM_UTIL_ASCII_OFFSET + HCOM_UTIL_BYTES_PER_LINE + 3)
 
 // For diagnostic use only
+// For Nuttx side use hcom_nx_diag_print_buffer()
 void hcom_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority)
 {
   if ((hcom_diag_logging_get_syslog_mask() & LOG_MASK(msgPriority)) == 0)

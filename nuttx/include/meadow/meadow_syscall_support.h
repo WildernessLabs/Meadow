@@ -1,7 +1,7 @@
 /****************************************************************************
- * meadow_kernel_tests.h
+ * nuttx\include\meadow\meadow_syscall_support.h
  * 
- *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,18 +33,30 @@
  *
  ****************************************************************************/
 
-void meadow_kt_espcp_tests(uint32_t);
-void meadow_kt_espcp_load_test_web_page(uint32_t);
-void meadow_kt_espcp_load_test_large_file_download(uint32_t);
+#ifndef __CONFIG_MEADOW_SRC_MEADOW_SYSCALL_SUPPORT__H
+#define __CONFIG_MEADOW_SRC_MEADOW_SYSCALL_SUPPORT__H
 
-void meadow_kt_ethernet_tests(uint32_t);
-void meadow_kt_ethernet_load_test_large_file_download(uint32_t);
-void meadow_kt_ethernet_load_test_web_page(uint32_t);
+#include <nuttx/config.h>
 
-void meadow_kt_bg77_tests(uint32_t);
-void meadow_kt_sd_card_tests(uint32_t);
-void meadow_kt_power_management_tests(uint32_t);
-void meadow_kt_iso8601_tests(uint32_t);
-void meadow_kt_quick_misc_tests(uint32_t);
-void meadow_kt_adc_tests(uint32_t);
-void meadow_kt_dac_tests(uint32_t);
+#include <sys/types.h>
+
+#include <stdint.h>
+#include <unistd.h>
+#include <errno.h>
+#include <debug.h>
+
+/************************************************************************************
+ * Pre-processor Definitions
+ ************************************************************************************/
+
+
+/************************************************************************************
+ * Public Functions
+ ************************************************************************************/
+
+// Meadow ADC
+int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount, double *userDataBuf);
+int meadow_adc_read_values(void);
+int meadow_adc_read_temp_vbat(double *batteryVoltage, double *temperatureValue);
+
+#endif // __CONFIG_MEADOW_SRC_MEADOW_SYSCALL_SUPPORT__H

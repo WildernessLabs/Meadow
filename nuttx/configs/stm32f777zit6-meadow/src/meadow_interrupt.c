@@ -1034,6 +1034,13 @@ int mint_config_interrupt_remove(struct mint_gpio_int_config* cfg,
 
   gpioInfoAddr->CurrentProcessState = mint_state_uncfg;
 
+  // BUG HERE! Meadow_Issue #346
+  // This free is not removing the memory allocated when this GPIO was
+  // originally configured! This memory was only allocated a moment ago
+  // when the call arrived to remove this GPIO.
+  // Probably need to add an list (either fixed size or one that grows) to
+  // hold the memory allocation addresses. On removed request, the list can
+  // be transversed and the matching PinId freed.
   free(gpioInfoAddr);
   return ret;
 }

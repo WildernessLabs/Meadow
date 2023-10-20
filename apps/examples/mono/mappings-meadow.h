@@ -21,6 +21,9 @@ extern void meadow_cell_change_state(int state);
 extern bool meadow_cell_is_connected(void);
 extern int meadow_get_cell_at_cmds_output(const char *buf);
 extern int meadow_idle_monitor_get_value(void);
+extern int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount, double *userDataBuf);
+extern int meadow_adc_read_values(void);
+extern int meadow_adc_read_temp_vbat(double *batteryVoltage, double *temperatureValue);
 
 int shim_open_void(char *pathname, int flags);
 
