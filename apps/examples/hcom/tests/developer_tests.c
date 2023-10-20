@@ -139,12 +139,8 @@ static meadow_test_t _tests[] =
     { 13, "Directory mgmt tests", meadow_dir_mgmt_tests },
 #endif
 
-#if defined(CONFIG_ADC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 14, "Analog to Digital tests", meadow_kt_adc_tests },
-#endif
-
-#if defined(CONFIG_DAC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 15, "Digital to Analog tests", meadow_kt_dac_tests },
+#if defined(CONFIG_ADC_DAC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { 14, "Analog (ADC/DAC) tests", meadow_kt_adc_dac_tests },
 #endif
 
   //

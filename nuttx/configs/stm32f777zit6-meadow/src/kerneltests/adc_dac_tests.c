@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs\stm32f777zit6-meadow\src\kerneltests\dig_to_ana_conv_tests.c
+ * configs\stm32f777zit6-meadow\src\kerneltests\meadow_adc_dac_tests.c
  * 
  *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -37,37 +37,45 @@
  * Included Files
  ****************************************************************************/
 
-#include <nuttx/config.h>
-#include <sys/types.h>
-#include <nuttx/arch.h>   // up_enable_irq
-#include "up_arch.h"      // getreg32 & putreg32
-#include <arch/stm32f7/chip.h>
-#include "stm32_gpio.h"
+#include "../hcom_nx/hcom_nx_common.h"
 #include <meadow/hcom_shared_common.h>
-#include <meadow/meadow_syscall_support.h>
 
-#if defined (CONFIG_DAC_TESTS)
-#warning "(--) Hacking dig_to_ana_conv_tests.c"
+#if defined (CONFIG_ADC_DAC_TESTS)
+#warning "(--) Peter adc_dac_tests.c"
 
 // Diagnostic always as this is test code
 // #define USE_MEADOW_DEBUG_HELPERS
 #undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
-#pragma GCC optimize "Og"
-
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
+
+// Build desired test code
+#define MEADOW_ANALOG_TO_DIGITAL_TESTS_COMPILE 0
+#define MEADOW_DIGITAL_TO_ANALOG_TESTS_COMPILE 1
+
+#if MEADOW_DIGITAL_TO_ANALOG_TESTS_COMPILE > 0 || \
+    MEADOW_ANALOG_TO_DIGITAL_TESTS_COMPILE > 0
+#define ADC_DAC_TESTS_AT_LEAST_ONE_TEST 1
+#else
+#define ADC_DAC_TESTS_AT_LEAST_ONE_TEST 0
+#endif
+
+#if MEADOW_DIGITAL_TO_ANALOG_TESTS_COMPILE > 0
+
 #include <stdio.h>
 #include <math.h>
+#include "up_arch.h"            // putreg32
+#include "stm32_gpio.h"         // stm32_configgpio
 #include "chip/stm32f76xx77xx_memorymap.h"
 
 #define QUICK_MISC_PIN_V2_A00_DAC_1  (GPIO_ANALOG | GPIO_FLOAT | GPIO_PORTA | GPIO_PIN4)
 #define QUICK_MISC_PIN_V2_A01_DAC_2  (GPIO_ANALOG | GPIO_FLOAT | GPIO_PORTA | GPIO_PIN5)
 
-#define CONFIG_DAC_TESTS_FIXED_PI 3.14159265
-#define CONFIG_DAC_TESTS_FIXED_N 128
+#define CONFIG_ADC_DAC_TESTS_PI 3.14159265
+#define CONFIG_ADC_DAC_TESTS_N 128
 
 // There seems to be very poor DAC support for STM32f7 in Nuttx
 // I pieced together the following. Basically, modified data from header files
@@ -91,6 +99,7 @@
 #  define STM32_DAC_DOR1         (STM32_DAC_BASE+STM32_DAC_DOR1_OFFSET)
 #  define STM32_DAC_DOR2         (STM32_DAC_BASE+STM32_DAC_DOR2_OFFSET)
 #  define STM32_DAC_SR           (STM32_DAC_BASE+STM32_DAC_SR_OFFSET)
+#endif
 
 /************************************************************************************
  * Private Data
@@ -135,76 +144,88 @@
 // };
 
 /************************************************************************************
+ * Public Data
+ ************************************************************************************/
+
+/************************************************************************************
  * Private Function Prototypes
  ************************************************************************************/
 
-static void dac_tests_initialize_dac_1(void);
+#if MEADOW_DIGITAL_TO_ANALOG_TESTS_COMPILE > 0
+static void quick_misc_test_initialize_dac_1(void);
 static void getSinTable(void);
+#endif
 
 /************************************************************************************
  * Public Functions
  ************************************************************************************/
-void meadow_kt_dac_tests(uint32_t userData)
+// ADC and DAC tests
+void meadow_kt_adc_dac_tests(uint32_t userData)
 {
-  static int firstTime = true;
+#if ADC_DAC_TESTS_AT_LEAST_ONE_TEST > 0
+  static int onlyOnce;
+#endif
 
-  syslog(1, "%s@%d-Entered meadow_kt_dac_tests, userData:%lu\n", __FILE__, __LINE__, userData);
+  syslog(1, "%s@%d-Entered meadow_kt_adc_dac_tests, userData:%lu\n", __FILE__, __LINE__, userData);
 
-//   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D01);
-//   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D02);
-//   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D03);
-//   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D04);
-  
-//   DEBUG_SET_LOW(DEBUG_PIN_V2_D01);
-//   DEBUG_SET_LOW(DEBUG_PIN_V2_D02);
-//   DEBUG_SET_LOW(DEBUG_PIN_V2_D03);
-//   DEBUG_SET_LOW(DEBUG_PIN_V2_D04);
-
+#if ADC_DAC_TESTS_AT_LEAST_ONE_TEST > 0
   switch(userData)
   {
+#if MEADOW_ANALOG_TO_DIGITAL_TESTS_COMPILE > 0
     case 1:
-      if(firstTime)
-      {
-        firstTime = false;
-        // Initialize only DAC 1 to start with
-        dac_tests_initialize_dac_1();
-      }
-      else
-      {
-        syslog(1, "Only first time\n");
-      }
       break;
 
     case 2:
-        getSinTable();
       break;
+#endif
+
+#if MEADOW_DIGITAL_TO_ANALOG_TESTS_COMPILE > 0
+    case 3:   // Configure for DAC-1 to function
+      if(onlyOnce)
+      {
+        onlyOnce = false;
+        quick_misc_test_initialize_dac_1();
+      }
+      else
+      {
+        syslog(1, "Only once\n");
+      }
+    break;
+
+    case 6:   // Configure for DAC-1 to function
+    getSinTable();
+    break;
+#endif      // ADC_DAC_TESTS_AT_LEAST_ONE_TEST
 
     default:
-      syslog(1, "Undefined test for meadow_kt_dac_tests, userData:%lu\n", userData);
+      syslog(1, "Undefined test for meadow_kt_quick_misc_tests, userData:%lu\n", userData);
       break;
   }
+
+#endif      // #if ADC_DAC_TESTS_AT_LEAST_ONE_TEST > 0
+
 }
 
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
 
-// Just getting started and needed to switch to another project
+#if MEADOW_DIGITAL_TO_ANALOG_TESTS_COMPILE > 0
 //-----------------------------------------------------------
 static void getSinTable()
 {
   int i;
   uint16_t sinValue;
-// IF USED NEED '/n' at end
-  for (i = 0; i < CONFIG_DAC_TESTS_FIXED_N; i++) {
-      sinValue = (uint16_t)(2047 * sin(2 * CONFIG_DAC_TESTS_FIXED_PI * i / CONFIG_DAC_TESTS_FIXED_N) + 2048);
+
+  for (i = 0; i < CONFIG_ADC_DAC_TESTS_N; i++) {
+      sinValue = (uint16_t)(2047 * sin(2 * CONFIG_ADC_DAC_TESTS_PI * i / CONFIG_ADC_DAC_TESTS_N) + 2048);
       syslog(1, "%u, ", sinValue);
   }
 }
 
 //-----------------------------------------------------------
 // DAC tests
-static void dac_tests_initialize_dac_1(void)
+static void quick_misc_test_initialize_dac_1(void)
 {
   int ret;
 
@@ -213,12 +234,14 @@ static void dac_tests_initialize_dac_1(void)
   ret = stm32_configgpio(QUICK_MISC_PIN_V2_A00_DAC_1);
   if(ret < 0)
   {
-    syslog(1, "Error#1 in dac_tests_initialize_dac_1.\n ret:%d errno:%d\n", ret, errno);
+    syslog(1, "Error#1 in quick_misc_test_initialize_dac_1. ret:%d errno:%d\n", ret, errno);
   }
 
   // Enable DAC1
   putreg32(DAC_CR_EN1, STM32_DAC_CR);
   
 }
+#endif
 
-#endif  // #if defined (CONFIG_DAC_TESTS)
+#endif  // #if defined (CONFIG_ADC_DAC_TESTS)
+

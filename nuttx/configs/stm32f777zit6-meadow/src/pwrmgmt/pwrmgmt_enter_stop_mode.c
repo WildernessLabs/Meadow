@@ -282,7 +282,7 @@ int pwrmgmt_enter_stop_mode(void)
   asm volatile ("wfe");    // This is the wait that forces low-power to begin
 
   //----------------------------------------------------------------------
-  // The calling thread is stopped here while in Stop Mode
+  // The calling thread is stoped here while in Stop Mode
   //----------------------------------------------------------------------
 
   // Meadow is running again. ISR has handled starting the clocks and the Nuttx
