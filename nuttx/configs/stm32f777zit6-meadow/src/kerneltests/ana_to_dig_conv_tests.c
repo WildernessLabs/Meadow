@@ -168,7 +168,7 @@ void meadow_kt_adc_tests(uint32_t userData)
       ret = meadow_adc_read_values();
       if(ret < 0)
       {
-        syslog(LOG_ERR, "Error:Internal vbat and temp conversion, ret:%d\n", ret);
+        syslog(LOG_ERR, "Error:GPIO conversion, ret:%d\n", ret);
       }
       // Show information in the buffer
       show_all_data_in_buffer("TestApp", _voltageResultBuf, _numbGpioActive);
@@ -211,7 +211,7 @@ void meadow_kt_adc_tests(uint32_t userData)
 void adc_test_initialize(uint32_t numberGpio)
 {
   int ret;
-  uint8_t gpioList[16];   // Might as well prepare for max
+  uint8_t gpioList[ADC_TESTS_MAX_GPIO_COUNT];   // Might as well prepare for max
 
   syslog(1, "--> Entered adc_test_initialize()\n"); usleep(20 * 1000);
 
@@ -310,7 +310,7 @@ void *adc_test_kthread_func(int argc, char *argv[])
 
       // Show information in the buffer
       char textBuf[64];
-      snprintf_chk(textBuf, 64, "%04d-%s", chkCnt + 1, "Test App");
+      snprintf_chk(textBuf, sizeof(textBuf), "%04d-%s", chkCnt + 1, "Test App");
 
       show_all_data_in_buffer(textBuf, _voltageResultBuf, _numbGpioActive);
     }

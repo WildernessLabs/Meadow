@@ -126,13 +126,13 @@
 // Each analog input is digitized to a 12-bit number
 #define MEADOW_ADC_MAX_DMA_BUFFER_SIZE (MEADOW_ADC_MAX_NUMBER_OF_ADC_INPUTS * sizeof(uint16_t))
 
-// From Data Sheet-Internal reference addresses of parameter TS_CAL1, TS_CAL2
+// From Datasheet-Internal reference addresses of parameter TS_CAL1, TS_CAL2
 // (Table 79) and VREFINT_CAL (Table 81).
 #define MEADOW_ADC_TEMPSENSOR_CAL30_ADDR ((const uint16_t*) 0x1FF0F44C)
 #define MEADOW_ADC_TEMPSENSOR_CAL110_ADDR ((const uint16_t*) 0x1FF0F44E)
 #define MEADOW_ADC_VREFINT_CAL_ADDR ((const uint16_t*) 0x1FF0F44A)
 
-// From the Sata sheet Table 82 the calibration value was read at 3.3v.
+// From the Datasheet Table 82 the calibration value was read at 3.3v.
 #define MEADOW_ADC_VOLTAGE_ADC_CAL_TAKEN (3.30)
 
 // With a 12-bit ADC this is the maximum count that can be read is 4095
