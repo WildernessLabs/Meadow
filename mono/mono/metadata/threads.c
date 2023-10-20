@@ -835,16 +835,8 @@ mono_thread_internal_set_priority (MonoInternalThread *internal, MonoThreadPrior
 	/* Under NuttX, all Mono threads must be of the same priority
 	 otherwise, Mono's use of sched_yield() e.g. in mono-lazy-init.c
 	 may fail to yield to the initializing thread, and block forever. */
-
-	/* We make an exception for highest priority, which should be used with 
-	 extreme care as it can lead to hangs. Currently, it is used in Meadow.Core's
-	 F7GPIOManager's IST thread, InterruptServiceThreadProc(), to prioritize
-	 interrupt handling. */
-	if (priority == MONO_THREAD_PRIORITY_HIGHEST)
-		param.sched_priority = MONO_TASK_PRIORITY + 1;
-	else
-		param.sched_priority = MONO_TASK_PRIORITY;
-	policy = SCHED_RR;
+	
+	param.sched_priority = MONO_TASK_PRIORITY;
 #endif
 	res = pthread_setschedparam (tid, policy, &param);
 #endif
