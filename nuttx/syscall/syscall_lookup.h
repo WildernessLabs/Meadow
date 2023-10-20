@@ -413,13 +413,7 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
 #endif
 
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)
-  SYSCALL_LOOKUP(meadow_idle_monitor_get_value,     1, STUB_meadow_idle_monitor_get_value)
-#endif
-
-#if defined (CONFIG_STM32F7_DMA2)
-SYSCALL_LOOKUP(meadow_adc_configure,                 3, STUB_meadow_adc_configure)
-SYSCALL_LOOKUP(meadow_adc_read_values,               0, STUB_meadow_adc_read_values)
-SYSCALL_LOOKUP(meadow_adc_read_temp_vbat,            2, STUB_meadow_adc_read_temp_vbat)
+  SYSCALL_LOOKUP(meadow_idle_monitor_get_value, 1, STUB_meadow_idle_monitor_get_value)
 #endif
 
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
@@ -454,12 +448,8 @@ SYSCALL_LOOKUP(meadow_adc_read_temp_vbat,            2, STUB_meadow_adc_read_tem
   SYSCALL_LOOKUP(meadow_kt_quick_misc_tests,  1, STUB_meadow_kt_quick_misc_tests)
 #endif
 
-#if defined(CONFIG_ADC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-  SYSCALL_LOOKUP(meadow_kt_adc_tests,      1, STUB_meadow_kt_adc_tests)
-#endif
-
-#if defined(CONFIG_DAC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-  SYSCALL_LOOKUP(meadow_kt_dac_tests,      1, STUB_meadow_kt_dac_tests)
+#if defined(CONFIG_ADC_DAC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_adc_dac_tests,      1, STUB_meadow_kt_adc_dac_tests)
 #endif
 
 #if defined(CONFIG_ARCH_BOARD_MEADOW)

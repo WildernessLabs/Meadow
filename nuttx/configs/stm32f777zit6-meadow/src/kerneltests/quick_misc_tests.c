@@ -42,27 +42,42 @@
 
 // Only build if configured
 #if defined(CONFIG_QUICK_MISC_TESTS)
-#warning "(--) Here quick_misc_tests.c"
+#warning "(--) Peter quick_misc_tests.c"
 
+// Diagnostic always as this is test code
+// #define USE_MEADOW_DEBUG_HELPERS
+#undef USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
+
+// Optionally build desired test code, Add more defines here for different
+// tests
+#define QUICK_MISC_TESTS_GPIO_LP_SLEEP_WAKEUP 1
+
+#if QUICK_MISC_TESTS_GPIO_LP_SLEEP_WAKEUP > 0
+// Add additional test defines here
+#define QUICK_MISC_TESTS_AT_LEAST_ONE_TEST 1
+#else
+#define QUICK_MISC_TESTS_AT_LEAST_ONE_TEST 0
+#endif
+
+#if QUICK_MISC_TESTS_GPIO_LP_SLEEP_WAKEUP > 0
 #include "stm32_gpio.h"   // stm32_configgpio
 #include "stm32_exti.h"   // STM32_EXTI_PR
 #include "stm32_rcc.h"    // stm32_clockenable
 #include "up_arch.h"      // putreg32
 #include "nvic.h"         // NVIC access
 #include "meadow-upd.h"   // mint_config_interrupt(cfg);
+#endif
 
-// Diagnostic always as this is test code
-// #define USE_MEADOW_DEBUG_HELPERS
-#undef USE_MEADOW_DEBUG_HELPERS
-#include <meadow/meadow_debug_helpers.h>
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
-
+#if QUICK_MISC_TESTS_GPIO_LP_SLEEP_WAKEUP > 0
 // D05 (PB4) for Version 2 Feather or CCM V1
 // For Testing wanted a pin that was Px0-4 to more easily figure out interrupts
 // and because these are a high priority interrupts.
 // #define QUICK_MISC_PIN_V2_D05  (GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTB | GPIO_PIN4)
+#endif
 
 /************************************************************************************
  * Private Data
@@ -76,30 +91,35 @@
  * Private Function Prototypes
  ************************************************************************************/
 
+#if QUICK_MISC_TESTS_GPIO_LP_SLEEP_WAKEUP > 0
 static void quick_misc_test_initialize_interrupt_for_wakeup(void);
 
 int mint_config_interrupt(struct mint_gpio_int_config* cfg);    // This is a duplicate
+#endif
 
 /************************************************************************************
  * Public Functions
  ************************************************************************************/
 void meadow_kt_quick_misc_tests(uint32_t userData)
 {
-  static bool firstTime = true;
+#if QUICK_MISC_TESTS_AT_LEAST_ONE_TEST > 0
+  static bool onlyOnce = true;
+#endif
 
   syslog(1, "Quick and Misc tests received 'set developer -d 12 -v %lu'\n", userData);
 
   switch(userData)
   {
+#if QUICK_MISC_TESTS_GPIO_LP_SLEEP_WAKEUP > 0
     case 1:
-      if(firstTime)
+      if(onlyOnce)
       {
-        firstTime = false;
+        onlyOnce = false;
         quick_misc_test_initialize_interrupt_for_wakeup();
       }
       else
       {
-        syslog(1, "Only first time\n");
+        syslog(1, "Only once\n");
       }
       break;
     
@@ -108,6 +128,7 @@ void meadow_kt_quick_misc_tests(uint32_t userData)
       pwrmgmt_enter_stm32f7_stop_mode(10);    // Stop for 10 seconds
       DEBUG_SET_LOW(DEBUG_PIN_V2_D14);
       break;
+#endif
 
     default:
       syslog(1, "Undefined test for meadow_kt_quick_misc_tests, userData:%lu\n", userData);
@@ -118,6 +139,8 @@ void meadow_kt_quick_misc_tests(uint32_t userData)
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
+
+#if QUICK_MISC_TESTS_GPIO_LP_SLEEP_WAKEUP > 0
 // ============================================================================
 // This test is used to determine if an interrupt can wakeup the F7 from a
 // low-power mode. It simulates being configured via Meadow.Core.
@@ -153,4 +176,6 @@ static void quick_misc_test_initialize_interrupt_for_wakeup(void)
   }
   free (cfg);
 }
+#endif    // #if QUICK_MISC_TESTS_GPIO_LP_SLEEP_WAKEUP > 0
+
 #endif  // #if defined(CONFIG_QUICK_MISC_TESTS)

@@ -283,14 +283,9 @@ if [ ! -z "$UNIT_TESTS" ]; then
             kconfig-tweak --file $NUTTX_CONFIG_FILE --enable DIR_MGMT_TESTS
             BUILD_TESTS=true
             ;;
-            adc)
-            echo "Analog to Digital conversion tests requested."
-            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable ADC_TESTS
-            BUILD_TESTS=true
-            ;;
-            dac)
-            echo "Digital to Analog conversion tests requested."
-            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable DAC_TESTS
+            adc-dac)
+            echo "Analog / Digital conversion tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable ADC_DAC_TESTS
             BUILD_TESTS=true
             ;;
             all)
@@ -299,7 +294,7 @@ if [ ! -z "$UNIT_TESTS" ]; then
             BUILD_TESTS=true
             ;;
             *)
-            printf "Unknown unit test $test."
+            printf "Uknown unit test $test."
             exit 1
             ;;
         esac
