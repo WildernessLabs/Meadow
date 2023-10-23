@@ -66,7 +66,7 @@ static void check_if_itm_prologue_needed(FILE *stream, const char *name)
 {
   if ((strcmp(name, "sem_wait") == 0) || (strcmp(name, "sem_post") == 0))
     {
-      fprintf(stream, "#if defined(MEADOW_ITM_SEM_ENABLED)\n");
+      fprintf(stream, "#if defined(CONFIG_MEADOW_ITM_SEM_ENABLED)\n");
       fprintf(stream, "  uint32_t words[3];\n");
       if (strcmp(name, "sem_wait") == 0)
         {

@@ -242,7 +242,7 @@ int sem_wait(FAR sem_t *sem)
   int errcode;
   int ret;
 
- #if defined(MEADOW_ITM_SEM_ENABLED)
+ #if defined(CONFIG_MEADOW_ITM_SEM_ENABLED)
   uint32_t words[3];
   words[0] = MEADOW_ITM_SEM_KERNEL | MEADOW_ITM_SEM_WAIT;
   MEADOW_GET_RETURN_ADDRESS(words[1]);
