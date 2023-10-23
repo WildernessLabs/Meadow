@@ -325,6 +325,11 @@ if [ ! -z "$SWO_OPTIONS" ]; then
             kconfig-tweak --file $NUTTX_CONFIG_FILE --enable MEADOW_ITM_MALLOC_ENABLED
             SWO_ENABLED=true
             ;;
+            sem)
+            echo "SWO: semaphore tracing enabled."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable MEADOW_ITM_SEM_ENABLED
+            SWO_ENABLED=true
+            ;;
             *)
             printf "Uknown SWO option $swooption."
             exit 1
