@@ -70,11 +70,11 @@ static void check_if_itm_prologue_needed(FILE *stream, const char *name)
       fprintf(stream, "  uint32_t words[3];\n");
       if (strcmp(name, "sem_wait") == 0)
         {
-          fprintf(stream, "  words[0] = MEADOW_ITM_SEMAPHORE_CHANNEL | MEADOW_ITM_SEM_USER | MEADOW_ITM_SEM_WAIT;\n");
+          fprintf(stream, "  words[0] = MEADOW_ITM_SEM_USER | MEADOW_ITM_SEM_WAIT;\n");
         }
       else
         {
-          fprintf(stream, "  words[0] = MEADOW_ITM_SEMAPHORE_CHANNEL | MEADOW_ITM_SEM_USER | MEADOW_ITM_SEM_POST;\n");
+          fprintf(stream, "  words[0] = MEADOW_ITM_SEM_USER | MEADOW_ITM_SEM_POST;\n");
         }
       fprintf(stream, "  MEADOW_GET_RETURN_ADDRESS(words[1]);\n");
       fprintf(stream, "  words[2] = (unsigned int) parm1;\n");
