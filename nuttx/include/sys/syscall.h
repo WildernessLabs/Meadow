@@ -603,7 +603,7 @@
 #  define SYS_meadow_kt_espcp_load_test_web_page                (SYS_meadow_adc_read_temp_vbat + 2)
 #  define SYS_meadow_kt_espcp_tests                             (SYS_meadow_adc_read_temp_vbat + 3)
 #else
-#  define SYS_meadow_kt_espcp_tests    SYS_meadow_idle_monitor_get_value
+#  define SYS_meadow_kt_espcp_tests    SYS_meadow_adc_read_temp_vbat
 #endif
 
 #if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
