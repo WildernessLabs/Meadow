@@ -78,7 +78,7 @@ static void check_if_itm_prologue_needed(FILE *stream, const char *name)
         }
       fprintf(stream, "  MEADOW_GET_RETURN_ADDRESS(words[1]);\n");
       fprintf(stream, "  words[2] = (unsigned int) parm1;\n");
-      fprintf(stream, "  meadow_os_itm_send_words(MEADOW_ITM_MALLOC_CHANNEL, words, 3);\n");
+      fprintf(stream, "  meadow_os_itm_send_words(MEADOW_ITM_SEMAPHORE_CHANNEL, words, 3);\n");
 
       fprintf(stream, "#endif\n");
     }
