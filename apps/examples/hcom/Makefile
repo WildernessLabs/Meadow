@@ -103,7 +103,8 @@ ifeq ($(CONFIG_HCOM_ESP32_COMMS),y)
  esp32/hcom_esp32_uart_comms.c
 endif
 
-MAINSRC = hcom_startup_manager.c
+MAINSRC = hcom_startup_manager.c \
+          misc/hcom_itm.c
 
 CSRCS += $(HCOM_SRCS) 
 

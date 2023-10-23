@@ -43,24 +43,37 @@
 //  The ITM ports are 4 bytes wide and start with the "printf" channel (0)
 //  below.
 //
-//  There are 32 channels (0 - 32).
+//  There are 32 channels (0 - 31).
 //
 #define MEADOW_ITM_PRINTF_CHANNEL       ((volatile uint32_t *) 0xE0000000u)
 #define MEADOW_ITM_MALLOC_CHANNEL       ((volatile uint32_t *) 0xE0000004u)
+#define MEADOW_ITM_SEMAPHORE_CHANNEL    ((volatile uint32_t *) 0xE0000008u)
 
 #define MEADOW_ITM_MALLOC_SIGNATURE     0xa5a5a500
 
 //
 //  Bit 0 in the malloc header.
 //
-#define MEADOW_ITM_MALLOC_KERNEL_HEAP   0x00000000
-#define MEADOW_ITM_MALLOC_USER_HEAP     0x00000001
+#define MEADOW_ITM_MALLOC_KERNEL_HEAP   (0)
+#define MEADOW_ITM_MALLOC_USER_HEAP     (1)
 
 //
 //  Bit 1 in the malloc header.
 //
-#define MEADOW_ITM_MALLOC               0x00000000
-#define MEADOW_ITM_FREE                 0x00000002
+#define MEADOW_ITM_MALLOC               (0 << 1)
+#define MEADOW_ITM_FREE                 (1 << 1)
+
+//
+//  Bit 0 in the semaphore header.
+//
+#define MEADOW_ITM_SEM_KERNEL           (0)
+#define MEADOW_ITM_SEM_USER             (1)
+
+//
+//  Bit 1 in the semaphore header.
+//
+#define MEADOW_ITM_SEM_WAIT             (0 << 1)
+#define MEADOW_ITM_SEM_POST             (1 << 1)
 
 //
 //  Extract the return address for the caller.  This maybe the line after the
