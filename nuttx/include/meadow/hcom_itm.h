@@ -41,6 +41,6 @@
 
 void hcom_itm_send_word(volatile uint32_t *, uint32_t);
 void hcom_itm_send_string(char *str);
-void hcom_itm_send_words(volatile uint32_t *, uint32_t *, uint32_t;
+void hcom_itm_send_words(volatile uint32_t *, uint32_t *, uint32_t);
 
 #endif /* __INCLUDE_MEADOW_HCOM_ITM_H */
