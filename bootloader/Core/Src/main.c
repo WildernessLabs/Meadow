@@ -332,6 +332,7 @@ int main(void)
 		if(VerifySecondaryImage())
 		{
 			PerformUpdate();
+			HAL_NVIC_SystemReset();
 		}
 		else
 		{
@@ -346,6 +347,7 @@ int main(void)
 			if(VerifySecondaryImage())
 			{
 				PerformUpdate();
+				HAL_NVIC_SystemReset();
 			}
 			else
 			{
@@ -357,7 +359,7 @@ int main(void)
 			if(VerifySecondaryImage())
 			{
 				PerformRollback();
-				
+				HAL_NVIC_SystemReset();
 			}
 		}
 		
@@ -371,6 +373,7 @@ int main(void)
 		if(VerifySecondaryImage())
 		{
 			PerformRollback();
+			HAL_NVIC_SystemReset();
 		}
 		else
 		{
@@ -405,7 +408,7 @@ int main(void)
 			if(VerifyPrimaryImage())
 			{
 				LogConsole(PRIMARY_IMG_VERIFY_SUCCESS_MSG, SIZEOF(PRIMARY_IMG_VERIFY_SUCCESS_MSG));
-				BootMeadowOS();
+				HAL_NVIC_SystemReset();
 			}
 			else
 			{
