@@ -1,5 +1,5 @@
 /****************************************************************************
- * meadow_os_itm.c
+ * hcom_itm.c
  *
  *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
  *   Author:  Mark Stevens
@@ -38,17 +38,12 @@
 #if defined(CONFIG_MEADOW_ITM_ENABLED)
 
 #include <stdlib.h>
-#include "itm.h"
-#include "nvic.h"
-#include <nuttx/kmalloc.h>
 
 #include <meadow/meadow_os.h>
 
 /****************************************************************************
  * Uncomment the #define below to turn on debug help macros.
  ****************************************************************************/
-// #define USE_MEADOW_DEBUG_HELPERS
-#include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -67,7 +62,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: meadow_os_itm_send_word
+ * Name: hcom_itm_send_word
  *
  * Description:
  *  Send a single uint32_t word to the specified ITM channel.
@@ -83,14 +78,14 @@
  *  None
  *
  ****************************************************************************/
-void meadow_os_itm_send_word(volatile uint32_t *channel, uint32_t word)
+void hcom_itm_send_word(volatile uint32_t *channel, uint32_t word)
 {
     while (!(*channel & 1));
     *channel = word;
 }
 
 /****************************************************************************
- * Name: meadow_os_itm_send_string
+ * Name: hcom_itm_send_string
  *
  * Description:
  *  Send a string to ITM channel 0.
@@ -105,7 +100,7 @@ void meadow_os_itm_send_word(volatile uint32_t *channel, uint32_t word)
  *  None
  *
  ****************************************************************************/
-void meadow_os_itm_send_string(char *str)
+void hcom_itm_send_string(char *str)
 {
     if ((str == NULL) || (*str == '\0'))
     {
@@ -114,13 +109,12 @@ void meadow_os_itm_send_string(char *str)
 
     while (*str)
     {
-        meadow_os_itm_send_word(MEADOW_ITM_PRINTF_CHANNEL, (uint32_t) *str++);
+        hcom_itm_send_word(MEADOW_ITM_PRINTF_CHANNEL, (uint32_t) *str++);
     }
 }
 
-
 /****************************************************************************
- * Name: meadow_os_itm_send_words
+ * Name: hcom_itm_send_words
  *
  * Description:
  *  Send an array of uint32_t words to the specified ITM channel.
@@ -137,33 +131,12 @@ void meadow_os_itm_send_string(char *str)
  *  None
  *
  ****************************************************************************/
-void meadow_os_itm_send_words(volatile uint32_t * channel, uint32_t *words, uint32_t length)
+void hcom_itm_send_words(volatile uint32_t *channel, uint32_t *words, uint32_t length)
 {
     for (int index = 0; index < length; index++)
     {
-        meadow_os_itm_send_word(channel, words[index]);
+        hcom_itm_send_word(channel, words[index]);
     }
-}
-
-/****************************************************************************
- * Name: meadow_os_itm_enable
- *
- * Description:
- *  Ensure that ITM is enabled.
- *
- * Input Parameters:
- *  None.
- *
- * Returned Value:
- *  None.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-void meadow_os_itm_enable(void)
-{
-     *((uint32_t *) (NVIC_DEMCR)) |= ( 1 << 24);
 }
 
 #endif /* CONFIG_MEADOW_ITM_ENABLED */

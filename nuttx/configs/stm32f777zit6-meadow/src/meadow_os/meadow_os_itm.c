@@ -137,7 +137,7 @@ void meadow_os_itm_send_string(char *str)
  *  None
  *
  ****************************************************************************/
-void meadow_os_itm_send_words(volatile uint32_t * channel, uint32_t *words, uint32_t length)
+void meadow_os_itm_send_words(volatile uint32_t *channel, uint32_t *words, uint32_t length)
 {
     for (int index = 0; index < length; index++)
     {
@@ -165,5 +165,7 @@ void meadow_os_itm_enable(void)
 {
      *((uint32_t *) (NVIC_DEMCR)) |= ( 1 << 24);
 }
+
+#else
 
 #endif /* CONFIG_MEADOW_ITM_ENABLED */
