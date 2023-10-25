@@ -71,7 +71,7 @@ void WiFiRequestHandler::GetAddrInfo(void *vpMessage)
             Esp32Messaging::SockAddr sa = { };
             Esp32Messaging::AddrInfo a = { };
 
-            int32_t family;
+            int family;
             Mapping::GetStmValue(Mapping::AddressFamily, addressInformation->ai_addr->sa_family, &family);
             sa.Family = (unsigned char) (family & 0xff);
             Encoders::EncodeSockAddr(&sa, a.Addr);
@@ -132,7 +132,7 @@ void WiFiRequestHandler::Socket(void *vpMessage)
     if (IsConnected())
     {
         Esp32Messaging::SocketRequest *request = Encoders::ExtractSocketRequest(message->Payload);
-        TRACE_MESSAGE("Socket: Creating socket on domain %d, type %d and protocol %d", (int) request->Domain, (int) request->Type, (int)request->Protocol);
+        TRACE_MESSAGE("Socket: Creating socket on domain %d, type %d and protocol %d", request->Domain, request->Type, request->Protocol);
 
         response.Result = socket(request->Domain, request->Type, request->Protocol);
         if (response.Result < 0)
@@ -142,7 +142,7 @@ void WiFiRequestHandler::Socket(void *vpMessage)
         }
         else
         {
-            TRACE_MESSAGE("Socket: Created socket %d", (int) response.Result);
+            TRACE_MESSAGE("Socket: Created socket %d", response.Result);
             response.ResponseErrno = 0;
         }
 
@@ -195,7 +195,7 @@ void WiFiRequestHandler::Connect(void *vpMessage)
         }
 
         struct sockaddr_in sa = { };
-        int32_t family;
+        int family;
         Mapping::GetEspValue(Mapping::AddressFamily, socketAddress->Family, &family);
         errno = 0;
         if (family == AF_INET)
@@ -204,8 +204,8 @@ void WiFiRequestHandler::Connect(void *vpMessage)
             sa.sin_port = socketAddress->Port;
             memcpy(&sa.sin_addr, &socketAddress->Ip4Address, sizeof(sa.sin_addr));
             sa.sin_len = sizeof(struct sockaddr_in);
-            TRACE_MESSAGE("Connect: Connecting socket: %d", (int) request->SocketHandle);
-            TRACE_MESSAGE("Connect: Family: %hhd", sa.sin_family);
+            TRACE_MESSAGE("Connect: Connecting socket: %d", request->SocketHandle);
+            TRACE_MESSAGE("Connect: Family: %d", sa.sin_family);
             TRACE_MESSAGE("Connect: IP address: %s", inet_ntoa(sa.sin_addr));
             TRACE_MESSAGE("Connect: Port: %d", ntohs(sa.sin_port));
             response.Result = connect(request->SocketHandle, (struct sockaddr *) &sa, sizeof(sa));
@@ -302,7 +302,7 @@ void WiFiRequestHandler::GetSockOpt(void *vpMessage)
 
         if (Mapping::GetEspValue(Mapping::SocketOptions, request->OptionName, &optionName) < 0)
         {
-            TRACE_MESSAGE("GetSockOpt: Unknown option: %d", (int) request->OptionName);
+            TRACE_MESSAGE("GetSockOpt: Unknown option: %d", request->OptionName);
             response.Result = -1;
             response.ResponseErrno = MapErrno(ENOPROTOOPT);
         }
@@ -347,7 +347,7 @@ void WiFiRequestHandler::GetSockOpt(void *vpMessage)
             {
                 int32_t level = 0;
                 Mapping::GetEspValue(Mapping::SocketLevel, request->Level, &level);
-                TRACE_MESSAGE("GetSockOpt: Getting socket option level 0x%x, option name 0x%x for socket %d", (unsigned int) level, (unsigned int) optionName, (int) request->SocketHandle);
+                TRACE_MESSAGE("GetSockOpt: Getting socket option level 0x%x, option name 0x%x for socket %d", level, optionName, request->SocketHandle);
                 response.Result = getsockopt(request->SocketHandle, level, optionName, static_cast<void *>(optionValue), &optionLength);
             }
         }
@@ -412,7 +412,7 @@ void WiFiRequestHandler::GetSockOpt(void *vpMessage)
         {
             response.ResponseErrno = MapErrno(errno);
         }
-        TRACE_MESSAGE("GetSockOpt: Result: %d, errno: %d - %s", (int) response.Result, (int) response.ResponseErrno, strerror(response.ResponseErrno));
+        TRACE_MESSAGE("GetSockOpt: Result: %d, errno: %d - %s", response.Result, response.ResponseErrno, strerror(response.ResponseErrno));
 
         vPortFree(request);
     }
@@ -612,14 +612,14 @@ void WiFiRequestHandler::SetSockOpt(void *vpMessage)
 
         if (Mapping::GetEspValue(Mapping::SocketLevel, request->Level, &level) < 0)
         {
-            TRACE_MESSAGE("SetSockOpt: Unknown level: 0x%x", (unsigned int) request->Level);
+            TRACE_MESSAGE("SetSockOpt: Unknown level: 0x%x", request->Level);
         }
         else
         {
             int32_t optionName = 0;
             if (Mapping::GetEspValue(level == SOL_SOCKET ? Mapping::SocketOptions : Mapping::TCPOptions, request->OptionName, &optionName) < 0)
             {
-                TRACE_MESSAGE("SetSockOpt: Unknown option name: 0x%x", (unsigned int) request->OptionName);
+                TRACE_MESSAGE("SetSockOpt: Unknown option name: 0x%x", request->OptionName);
             }
 
             switch (level)
@@ -631,12 +631,12 @@ void WiFiRequestHandler::SetSockOpt(void *vpMessage)
                     optionValue = GetTcpOptionValue(optionName, request->OptionValue, &optionLength);
                     break;   
                 default:
-                    TRACE_MESSAGE("SetSockOpt: Cannot process option level: 0x%x", (unsigned int) request->Level);
+                    TRACE_MESSAGE("SetSockOpt: Cannot process option level: 0x%x", request->Level);
                     break;
             }
             if (optionValue != NULL)
             {
-                TRACE_MESSAGE("SetSockOpt: Setting socket option level to 0x%x, option name 0x%x for socket %d", (unsigned int) level, (unsigned int) optionName, (int) request->SocketHandle);
+                TRACE_MESSAGE("SetSockOpt: Setting socket option level to 0x%x, option name 0x%x for socket %d", level, optionName, request->SocketHandle);
                 response.Result = setsockopt(request->SocketHandle, level, optionName, optionValue, optionLength);
                 vPortFree(optionValue);
             }
@@ -646,7 +646,7 @@ void WiFiRequestHandler::SetSockOpt(void *vpMessage)
         {
             response.ResponseErrno = MapErrno(errno);
         }
-        TRACE_MESSAGE("SetSockOpt: Result: %d, errno: %d - %s", (int) response.Result, (int) response.ResponseErrno, strerror(response.ResponseErrno));
+        TRACE_MESSAGE("SetSockOpt: Result: %d, errno: %d - %s", response.Result, response.ResponseErrno, strerror(response.ResponseErrno));
 
         if (request->OptionValueLength > 0)
         {
@@ -865,12 +865,12 @@ void WiFiRequestHandler::Send(void *vpMessage)
             response.ResponseErrno = MapErrno(EFAULT);
         }
 
-        TRACE_MESSAGE("Send: Sent %d bytes.", (int) request->Length);
+        TRACE_MESSAGE("Send: Sent %d bytes.", request->Length);
         if (request->Buffer && (request->Length > 0))
         {
             TRACE_HEX_BUFFER(request->Buffer, request->Length);
         }
-        TRACE_MESSAGE("Send: Result: %d, errno: %d - %s", (int) response.Result, (int) response.ResponseErrno, strerror(response.ResponseErrno));
+        TRACE_MESSAGE("Send: Result: %d, errno: %d - %s", response.Result, response.ResponseErrno, strerror(response.ResponseErrno));
 
         vPortFree(request->Buffer);
         vPortFree(request);
@@ -924,7 +924,7 @@ void WiFiRequestHandler::SendTo(void *vpMessage)
             {
                 socketAddress = Encoders::ExtractSockAddr(request->DestinationAddress);
                 Mapping::GetEspValue(Mapping::AddressFamily, socketAddress->Family, &family);
-                TRACE_MESSAGE("SendTo: Mapping request family %hhd to ESP family %d", socketAddress->Family, (int) family);
+                TRACE_MESSAGE("SendTo: Mapping request family %d to ESP family %d", socketAddress->Family, family);
             }
             
             struct sockaddr_in sa = { };
@@ -944,8 +944,8 @@ void WiFiRequestHandler::SendTo(void *vpMessage)
                         psa = (struct sockaddr *) &sa;
                         lenSa = sizeof(sa);
                     }
-                    TRACE_MESSAGE("SendTo: Connecting socket: %d", (int) request->SocketHandle);
-                    TRACE_MESSAGE("SendTo: Family: %hhd", (psa == NULL) ? 0 : sa.sin_family);
+                    TRACE_MESSAGE("SendTo: Connecting socket: %d", request->SocketHandle);
+                    TRACE_MESSAGE("SendTo: Family: %d", (psa == NULL) ? 0 : sa.sin_family);
                     TRACE_MESSAGE("SendTo: IP address: %s", (psa == NULL) ? "NULL" : inet_ntoa(sa.sin_addr));
                     TRACE_MESSAGE("SendTo: Port: %d", (psa == NULL) ? 0 : ntohs(sa.sin_port));
                 }
@@ -967,12 +967,12 @@ void WiFiRequestHandler::SendTo(void *vpMessage)
             response.ResponseErrno = MapErrno(EFAULT);
         }
 
-        TRACE_MESSAGE("SendTo: Sent %d bytes.", (int) response.Result);
+        TRACE_MESSAGE("SendTo: Sent %d bytes.", response.Result);
         if (request->Buffer && (request->Length > 0))
         {
             TRACE_HEX_BUFFER(request->Buffer, request->Length);
         }
-        TRACE_MESSAGE("SendTo: Result: %d, errno: %d - %s", (int) response.Result, (int) response.ResponseErrno, strerror(response.ResponseErrno));
+        TRACE_MESSAGE("SendTo: Result: %d, errno: %d - %s", response.Result, response.ResponseErrno, strerror(response.ResponseErrno));
 
         if (request->DestinationAddress)
         {
@@ -1021,7 +1021,7 @@ void WiFiRequestHandler::RecvFrom(void *vpMessage)
         response.Result = Mapping::GetEspFlagValue(Mapping::MessageFlags, request->Flags, &mappedFlags);
         if (response.Result == 0)
         {
-            TRACE_MESSAGE("Requesting %d bytes from socket handle %d", (int) request->Length, (int) request->SocketHandle);
+            TRACE_MESSAGE("Requesting %d bytes from socket handle %d", request->Length, request->SocketHandle);
             struct sockaddr_in *sa = NULL;
             socklen_t len;
             if (request->GetSourceAddress != 0)
@@ -1051,7 +1051,7 @@ void WiFiRequestHandler::RecvFrom(void *vpMessage)
                 if (request->GetSourceAddress != 0)
                 {
                     Esp32Messaging::SockAddr socketAddress = { };
-                    int32_t family;
+                    int family;
                     Mapping::GetStmValue(Mapping::AddressFamily, sa->sin_family, &family);
                     socketAddress.Family = (uint8_t) (family & 0xff);
                     memcpy(&socketAddress.Ip4Address, &sa->sin_addr, sizeof(sa->sin_addr));
@@ -1088,12 +1088,12 @@ void WiFiRequestHandler::RecvFrom(void *vpMessage)
         {
             response.ResponseErrno = EFAULT;
         }
-        TRACE_MESSAGE("RecvFrom: Received %d bytes.", (int) response.Result);
+        TRACE_MESSAGE("RecvFrom: Received %d bytes.", response.Result);
         if (response.Buffer && (response.BufferLength > 0))
         {
             TRACE_HEX_BUFFER(response.Buffer, response.Result);
         }
-        TRACE_MESSAGE("RecvFrom: Result: %d, errno: %d - %s", (int) response.Result, (int) response.ResponseErrno, strerror(response.ResponseErrno));
+        TRACE_MESSAGE("RecvFrom: Result: %d, errno: %d - %s", response.Result, response.ResponseErrno, strerror(response.ResponseErrno));
         if (response.Result < 0)
         {
             response.ResponseErrno = MapErrno(response.ResponseErrno);
@@ -1157,7 +1157,7 @@ void WiFiRequestHandler::Bind(void *vpMessage)
         }
 
         struct sockaddr_in sa = { };
-        int32_t family;
+        int family;
         Mapping::GetEspValue(Mapping::AddressFamily, socketAddress->Family, &family);
         errno = 0;
         if (family == AF_INET)
@@ -1165,8 +1165,8 @@ void WiFiRequestHandler::Bind(void *vpMessage)
             sa.sin_family = socketAddress->Family;
             sa.sin_port = socketAddress->Port;
             memcpy(&sa.sin_addr, &socketAddress->Ip4Address, sizeof(socketAddress->Ip4Address));
-            TRACE_MESSAGE("Bind: Socket handle: %d", (int) request->SocketHandle);
-            TRACE_MESSAGE("Bind: Family: %hhd", sa.sin_family);
+            TRACE_MESSAGE("Bind: Socket handle: %d", request->SocketHandle);
+            TRACE_MESSAGE("Bind: Family: %d", sa.sin_family);
             TRACE_MESSAGE("Bind: IP address: %s", inet_ntoa(sa.sin_addr));
             TRACE_MESSAGE("Bind: Port: %d", ntohs(sa.sin_port));
             response.Result = bind(request->SocketHandle, (struct sockaddr *) &sa, sizeof(sa));
@@ -1271,7 +1271,7 @@ void WiFiRequestHandler::Accept(void *vpMessage)
         {
             Esp32Messaging::SockAddr *sockAddr = static_cast<Esp32Messaging::SockAddr *>(pvPortMalloc(sizeof(Esp32Messaging::SockAddr)));
             bzero(sockAddr, sizeof(Esp32Messaging::SockAddr));
-            int32_t family;
+            int family;
             Mapping::GetStmValue(Mapping::AddressFamily, sa.sa_family, &family);
             sockAddr->Family = (uint8_t) (family & 0xff);
             struct sockaddr_in *sin = (struct sockaddr_in *) &sa;
@@ -1282,8 +1282,8 @@ void WiFiRequestHandler::Accept(void *vpMessage)
             Encoders::EncodeSockAddr(sockAddr, response.Addr);
             vPortFree(sockAddr);
             response.ResponseErrno = 0;
-            TRACE_MESSAGE("Accept: Socket handle: %d", (int) response.Result);
-            TRACE_MESSAGE("Accept: Family: %hhd", sin->sin_family);
+            TRACE_MESSAGE("Accept: Socket handle: %d", response.Result);
+            TRACE_MESSAGE("Accept: Family: %d", sin->sin_family);
             TRACE_MESSAGE("Accept: IP address: %s", inet_ntoa(sin->sin_addr));
             TRACE_MESSAGE("Accept: Port: %d", ntohs(sin->sin_port));
         }
@@ -1338,7 +1338,7 @@ void WiFiRequestHandler::Ioctl(void *vpMessage)
 
         esp_netif_ip_info_t ipInfo;
         Esp32Messaging::SockAddr sa = { };
-        int32_t family;
+        int family;
 
         Mapping::GetStmValue(Mapping::AddressFamily, AF_INET, &family);
         sa.Family = (unsigned char) (family & 0xff);
@@ -1384,7 +1384,7 @@ void WiFiRequestHandler::Ioctl(void *vpMessage)
             default:
                 response.Result = -1;
                 response.ResponseErrno = MapErrno(EINVAL);
-                TRACE_MESSAGE("Unknown ioctl request %04x", (int) request->Command);
+                TRACE_MESSAGE("Unknown ioctl request %04x", request->Command);
                 break;
         }
         vPortFree(request);
@@ -1448,7 +1448,7 @@ void WiFiRequestHandler::GetSockPeerName(void *vpMessage, WiFiFunction::WiFiFunc
         {
             Esp32Messaging::SockAddr *sockAddr = static_cast<Esp32Messaging::SockAddr *>(pvPortMalloc(sizeof(Esp32Messaging::SockAddr)));
             bzero(sockAddr, sizeof(Esp32Messaging::SockAddr));
-            int32_t family;
+            int family;
             Mapping::GetStmValue(Mapping::AddressFamily, sa.sa_family, &family);
             sockAddr->Family = (uint8_t) (family & 0xff);
             struct sockaddr_in *sin = (struct sockaddr_in *) &sa;
@@ -1459,8 +1459,8 @@ void WiFiRequestHandler::GetSockPeerName(void *vpMessage, WiFiFunction::WiFiFunc
             Encoders::EncodeSockAddr(sockAddr, response.Addr);
             vPortFree(sockAddr);
             response.ResponseErrno = 0;
-            TRACE_MESSAGE("GetSockPeerName: Socket handle: %d", (int) request->SocketHandle);
-            TRACE_MESSAGE("GetSockPeerName: Family: %hhd", sin->sin_family);
+            TRACE_MESSAGE("GetSockPeerName: Socket handle: %d", request->SocketHandle);
+            TRACE_MESSAGE("GetSockPeerName: Family: %d", sin->sin_family);
             TRACE_MESSAGE("GetSockPeerName: IP address: %s", inet_ntoa(sin->sin_addr));
             TRACE_MESSAGE("GetSockPeerName: Port: %d", ntohs(sin->sin_port));
         }
@@ -1469,7 +1469,7 @@ void WiFiRequestHandler::GetSockPeerName(void *vpMessage, WiFiFunction::WiFiFunc
             response.AddrLength = 0;
             response.Addr = nullptr;
             response.ResponseErrno = MapErrno(errno);
-            ERROR_MESSAGE("Failure: Result code %d (%s), errno %d (%s)", (int) response.Result, esp_err_to_name(response.Result), errno, strerror(errno));
+            ERROR_MESSAGE("Failure: Result code %d (%s), errno %d (%s)", response.Result, esp_err_to_name(response.Result), errno, strerror(errno));
         }
         vPortFree(request);
     }
@@ -1578,7 +1578,7 @@ void WiFiRequestHandler::DumpActivePollRequests()
         //
         // cppcheck-suppress unreadVariable symbolName=fds
         __attribute__ ((unused)) struct pollfd *fds = static_cast<struct pollfd *>(it->second);
-        TRACE_MESSAGE("DumpActiveRequests: Key %08x, socket %d, dummy socket %d", (unsigned int) it->first, fds[POLL_FD_INDEX].fd, fds[POLL_DUMMY_FD_INDEX].fd);
+        TRACE_MESSAGE("DumpActiveRequests: Key %08x, socket %d, dummy socket %d", it->first, fds[POLL_FD_INDEX].fd, fds[POLL_DUMMY_FD_INDEX].fd);
         it++;
     }
     UnlockPollRequests();
@@ -1623,7 +1623,7 @@ int WiFiRequestHandler::PollSetup(void *vpMessage)
     fds[WiFiRequestHandler::POLL_DUMMY_FD_INDEX].fd = dummy_socket_handle;
     fds[WiFiRequestHandler::POLL_DUMMY_FD_INDEX].events = POLLIN;
 
-    TRACE_MESSAGE("Poll: Requested Nuttx events 0x%04hx maps to ESP events 0x%04x", (unsigned short) request->Events, (int) events);
+    TRACE_MESSAGE("Poll: Requested Nuttx events 0x%04x maps to ESP events 0x%04x", request->Events, events);
 
     LockPollRequests();
     _pollRequests[request->SetupMessageId] = fds;
@@ -1661,7 +1661,7 @@ int WiFiRequestHandler::PollTeardown(void *vpMessage)
     std::map<uint32_t, struct pollfd *>::iterator it = _pollRequests.find(request->SetupMessageId);
     if (it != _pollRequests.end())
     {
-        TRACE_MESSAGE("PollTeardown: Found socket handle for request 0x%08x", (unsigned int) request->SetupMessageId);
+        TRACE_MESSAGE("PollTeardown: Found socket handle for request 0x%08x", request->SetupMessageId);
         struct pollfd *fds = static_cast<struct pollfd *>(it->second);
         result = write(fds[WiFiRequestHandler::POLL_DUMMY_FD_INDEX].fd, "E", 1);      // Writing to the dummy file descriptor should end the poll request.
         if (close(fds[WiFiRequestHandler::POLL_DUMMY_FD_INDEX].fd) < 0)
@@ -1677,7 +1677,7 @@ int WiFiRequestHandler::PollTeardown(void *vpMessage)
         //  We do not treat this as an error as the request information may have been removed by the 
         //  interrupt handler.
         //
-        TRACE_MESSAGE("PollTeardown: Cannot find request %08x", (unsigned int) request->SetupMessageId);
+        TRACE_MESSAGE("PollTeardown: Cannot find request %08x", request->SetupMessageId);
     }
     UnlockPollRequests();
 
@@ -1726,7 +1726,7 @@ void WiFiRequestHandler::PollSocket(void *requestId)
                 {
                     response.Result = 1;
                 }
-                TRACE_MESSAGE("Poll: Returned ESP32 events 0x%04hx maps to NuttX events 0x%04x", fds[POLL_FD_INDEX].revents, (unsigned int) events);
+                TRACE_MESSAGE("Poll: Returned ESP32 events 0x%04x maps to NuttX events 0x%04x", fds[POLL_FD_INDEX].revents, events);
                 response.SetupMessageId = (uint32_t) requestId;
                 close(fds[POLL_DUMMY_FD_INDEX].fd);
                 vPortFree(fds);
@@ -1740,7 +1740,7 @@ void WiFiRequestHandler::PollSocket(void *requestId)
             UnlockPollRequests();
         }
     }
-    TRACE_MESSAGE("PollSocket: Return value from poll: %d", (int) response.Result);
+    TRACE_MESSAGE("PollSocket: Return value from poll: %d", response.Result);
 
     Message *message = static_cast<Message *>(pvPortMalloc(sizeof(Message)));
     *message = { };

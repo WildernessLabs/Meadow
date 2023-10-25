@@ -6,8 +6,6 @@
  */
 #include "sdkconfig.h"
 
-#include "esp_rom_gpio.h"
-
 #include "SpiTransportProvider.hpp"
 #include "Esp32Messaging.hpp"
 #include "Encoders.hpp"
@@ -82,10 +80,10 @@ SpiTransportProvider::SpiTransportProvider() : TransportProviderBase()
      *  The second pin is the pin used by the ESP32 to indicate that a message
      *  is waiting.  This should be the UART0 Rx pin.
      */
-    esp_rom_gpio_pad_select_gpio(Gpio::ESP32_SPI_READY_PIN);
+    gpio_pad_select_gpio(Gpio::ESP32_SPI_READY_PIN);
     gpio_set_direction(Gpio::ESP32_SPI_READY_PIN, GPIO_MODE_OUTPUT);
     //
-    esp_rom_gpio_pad_select_gpio(Gpio::ESP32_MESSAGE_WAITING_PIN);
+    gpio_pad_select_gpio(Gpio::ESP32_MESSAGE_WAITING_PIN);
     gpio_set_direction(Gpio::ESP32_MESSAGE_WAITING_PIN, GPIO_MODE_OUTPUT);
 
     /*
@@ -98,7 +96,7 @@ SpiTransportProvider::SpiTransportProvider() : TransportProviderBase()
     /*
      *  Configure the chip select pin for the SPI bus to allow interrupts.
      */
-    gpio_config_t chipSelectConfiguration = { };
+    gpio_config_t chipSelectConfiguration;
     chipSelectConfiguration.intr_type = GPIO_INTR_DISABLE;
     chipSelectConfiguration.mode = GPIO_MODE_INPUT;
     chipSelectConfiguration.pull_down_en = GPIO_PULLDOWN_DISABLE;
@@ -109,7 +107,7 @@ SpiTransportProvider::SpiTransportProvider() : TransportProviderBase()
     /*
      *  Setup the SPI bus.
      */
-    spi_bus_config_t spiBusConfiguration = { };
+    spi_bus_config_t spiBusConfiguration;
     spiBusConfiguration.mosi_io_num = Gpio::MOSI_PIN;
     spiBusConfiguration.miso_io_num = Gpio::MISO_PIN;
     spiBusConfiguration.sclk_io_num = Gpio::CLOCK_PIN;
@@ -121,7 +119,7 @@ SpiTransportProvider::SpiTransportProvider() : TransportProviderBase()
     /*
      *  Configuration for the SPI slave interface.
      */
-    spi_slave_interface_config_t slaveConfiguration = { };
+    spi_slave_interface_config_t slaveConfiguration;
     slaveConfiguration.mode = 3;
     slaveConfiguration.spics_io_num = Gpio::CHIP_SELECT_PIN;
     slaveConfiguration.queue_size = 3;
@@ -138,7 +136,7 @@ SpiTransportProvider::SpiTransportProvider() : TransportProviderBase()
      *  as they will be frequently used for header and transport packets.
      */
     _headerFrameSize = Encoders::CalculateSpiBufferSize(Message::HEADER_SIZE);
-    TRACE_MESSAGE("Header frame size: %u", (unsigned int) _headerFrameSize);
+    TRACE_MESSAGE("Header frame size: %d", _headerFrameSize);
     _txBuffer = static_cast<uint8_t *>(heap_caps_calloc(Message::MAXIMUM_SPI_FRAME_SIZE, 1, MALLOC_CAP_DMA));
     _rxBuffer = static_cast<uint8_t *>(heap_caps_calloc(Message::MAXIMUM_SPI_FRAME_SIZE, 1, MALLOC_CAP_DMA));
     ClearTransmitAndReceiveBuffers();
@@ -487,7 +485,7 @@ spi_slave_transaction_t *SpiTransportProvider::ProcessTransportMessage(Message *
             _currentState = SendingPacketDetails;
             break;
         default:
-            TRACE_MESSAGE("ProcessTransportMessage: Transport function %u not recognised.", (unsigned int) request->Function);
+            TRACE_MESSAGE("ProcessTransportMessage: Transport function %d not recognised.", request->Function);
             break;
     }
     TRACE_MESSAGE("ProcessTransportMessage: Exit");
@@ -566,7 +564,7 @@ spi_slave_transaction_t *SpiTransportProvider::ProcessInboundPacket(Message *pac
             //  enough to hold the full payload, copy the packet into the new buffer, release the current payload buffer
             //  and replace it with the new, larger, buffer.
             //
-            TRACE_MESSAGE("First packet in a multipacket message, expecting %u bytes, received %u bytes", (unsigned int)  packet->PayloadLength, (unsigned int) packet->PacketLength);
+            TRACE_MESSAGE("First packet in a multipacket message, expecting %d bytes, received %d bytes", packet->PayloadLength, packet->PacketLength);
             uint8_t *payloadBuffer = static_cast<uint8_t *>(pvPortMalloc(packet->PayloadLength));
             memcpy(static_cast<void *>(payloadBuffer), static_cast<const void *>(packet->Payload), packet->PacketLength);
             vPortFree(packet->Payload);
