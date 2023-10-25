@@ -378,6 +378,13 @@ int hcom_mono_ctrl_start_mono_main()
                          (FAR char *const *)argv);
   if (mono_pid > 0)
   {
+    // switch to the round-robin scheduler
+    struct sched_param param = { .sched_priority = MONO_TASK_PRIORITY};
+    int rr_policy = SCHED_RR;
+    int ret = pthread_setschedparam ((pthread_t) mono_pid, rr_policy, &param);
+    if (ret != 0)
+		  printf("Meadow OS: Mono driver thread %d is NOT round-robin (error: %d)\n", mono_pid, ret);
+
     hcom_logging_syslog(LOG_INFO, "%s@%d-MONO launched [pid:%d, pri:%d, stack size:%d]\n",
                         thisFile, __LINE__, mono_pid, MONO_TASK_PRIORITY,
                         MONO_TASK_STACKSIZE);
