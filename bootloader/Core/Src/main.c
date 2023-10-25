@@ -409,24 +409,24 @@ int main(void)
 			}
 			else
 			{
-				//Turn off Green LED and blink Red LED to indicate image check fail.
+				//Turn off Green LED and blink Blue LED to indicate image check fail.
 				LogConsole(PRIMARY_IMG_VERIFY_FAIL_MSG, SIZEOF(PRIMARY_IMG_VERIFY_FAIL_MSG));
 				HAL_GPIO_WritePin(OnboardLedGreen_GPIO_Port, OnboardLedGreen_Pin, GPIO_PIN_SET);
 				while(1)
 				{
-					HAL_GPIO_TogglePin(OnboardLedRed_GPIO_Port, OnboardLedRed_Pin);
+					HAL_GPIO_TogglePin(OnboardLedRed_GPIO_Port, OnboardLedBlue_Pin);
 					HAL_Delay(250);
 				}
 			}
 		}
 		else
 		{
-			//Turn off Green LED and blink Red LED to indicate image check fail.
+			//Turn off Green LED and blink Blue LED to indicate image check fail.
 			HAL_GPIO_WritePin(OnboardLedGreen_GPIO_Port, OnboardLedGreen_Pin, GPIO_PIN_SET);
 			while(1)
 			{
-				HAL_GPIO_TogglePin(OnboardLedRed_GPIO_Port, OnboardLedRed_Pin);
-				HAL_Delay(250);
+				HAL_GPIO_TogglePin(OnboardLedRed_GPIO_Port, OnboardLedBlue_Pin);
+				HAL_Delay(3000);
 			}
 		}
 	}
