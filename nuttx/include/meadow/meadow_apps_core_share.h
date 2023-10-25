@@ -1,5 +1,5 @@
 /****************************************************************************
- * nuttx/include/meadow/meadow_syscall.h
+ * nuttx/include/meadow/meadow_apps_core_share.h
  * 
  *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -33,18 +33,21 @@
  *
  ****************************************************************************/
  
-// This file contains information needed to add syscalls used by Meadow.
+// This file contains header information needed expose functions to the apps
+// side and add syscalls used by Meadow.
 
  /***************************************************************************/
-#ifndef __CONFIGS_MEADOW_SRC_MEADOW_CIRCULAR_BUFFER__H
-#define __CONFIGS_MEADOW_SRC_MEADOW_CIRCULAR_BUFFER__H
+#ifndef __CONFIGS_MEADOW_SRC_MEADOW_APPS_CORE_SHARE__H
+#define __CONFIGS_MEADOW_SRC_MEADOW_APPS_CORE_SHARE__H
 
 #include <stdint.h>
 
-// Had trouble finding the appropriate header in syscall.csv for these
-// functions.
+// Added syscalls fore these GPIO functions
 int stm32_configgpio(uint32_t cfgset);
 int stm32_unconfiggpio(uint32_t cfgset);
 void stm32_gpiowrite(uint32_t pinset, int value);
+
+// This API allows Meadow.Core to get information about flash size and flash free
+int meadow_read_file_total_free_flash_size(uint32_t *totalBytes, uint32_t *freeBytes);
 
 #endif
