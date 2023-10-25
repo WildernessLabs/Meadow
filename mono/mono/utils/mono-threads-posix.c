@@ -239,7 +239,23 @@ mono_native_thread_id_equals (MonoNativeThreadId id1, MonoNativeThreadId id2)
 gboolean
 mono_native_thread_create (MonoNativeThreadId *tid, gpointer func, gpointer arg)
 {
-	return pthread_create (tid, NULL, (void *(*)(void *)) func, arg) == 0;
+	int res = pthread_create (tid, NULL, (void *(*)(void *)) func, arg) == 0;
+	if (res != 0)
+		return res;
+#if defined(__NuttX__)
+	//
+	//	**** IMPORTANT ****
+	//	This priority must match the defintion in meadow/mono_thread_config.h
+	//
+#define MONO_TASK_PRIORITY 80
+	struct sched_param param = { .sched_priority = MONO_TASK_PRIORITY};
+	int rr_policy = SCHED_FIFO;
+
+	res = pthread_setschedparam (*tid, rr_policy, &param);
+	if (res != 0)
+		printf("Meadow OS: Native thread %d is NOT round-robin (error: %d)\n", *tid, res);
+#endif
+	return res;
 }
 
 size_t
