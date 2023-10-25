@@ -1,5 +1,5 @@
 /****************************************************************************
- * \apps\examples\hcom\file\hcom_file_dir_cmds.c
+ * \apps\examples\hcom\file\hcom_file_subdir_utils.c
  * 
  *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -33,10 +33,39 @@
  *
  ****************************************************************************/
 
-// This module contains the code needed to resolve Meadow_Issues
-// #320 Add HCOM support for “current directory”
+// This module contains utilities to support adding subdirectories to Meadow.OS
+// This will resolve Meadow_Issues #320 Add HCOM support for “current directory”
 
+// The existing situation is that all files are placed in the /meadow0/
+// directory and the CLI just sends the bare file name and it is assumed that
+// the file is to be written to the /meadow0/ device.
+//
+// The following rules will be implemented.
+// 1. All reads or writes sent with just a bare file name will default to using meadow0/ device.
+//    The intent is to support the existing CLI behavior, without changes.
+// 2. Files prepended with a single '/' (e.g. /filename) will considered an error.
+// 3. Files prepended with /dir are an error, must prepend with /meadow0/dir/file name.
+// 4. For writing files, if the directory or directory tree does not exist, it will be created.
+// 5. Reads from a non-existing directory will return an error.
+// 6. There should be an nesting limit for directories. The initial limit is 6.
+// 7. When HCOM deletes a file if the directory is now empty, it will be automatically deleted.
+// 8. Al file writes or reads for the SD-Card must begin with '/mmcsd0/filename'.
+//    No legacy support as #1.
+// 9. Relative directories and the like are not supported.
 
+// ctacke
+// 1. Agreed, no leading '/' would be "legacy" and just mean /meadow0/ is pre-pended
+// 2. this feels a bit confusing.  Why not force the client to always use an
+//    absolute path (e.g. /meadow0/foo or /mmcsd0/bar)? That would keep things
+//    clean for other attached devices or partitions in the future
+// 3. See #2.  Put the work on the client to keep it straight
+// 4. :+1:
+// 5. :+1:
+// 6. With the store name, that is really only 3, which seems light - can we do 6?
+// 7. You mean only when it becomes empty through an HCOM delete, yes?  If so :+1:
+// 8. See #2. if we require the absolute name it addresses this
+// 9. :+1:
+// 10. We will need a way to query directories - right now we can only get file lists
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -51,13 +80,6 @@
 #include <sys/ioctl.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/fs/dirent.h>
-
-// These are the supported CLI/HCOM commmands:
-// Change working directory (cd)
-// Make directory (mkdir)
-// Return working directory (pwd)
-// Remove directory (rmdir)
-// List directories-subset (ls)
 
 #define HCOM_FILE_DIR_OUTPUT_TO_SYSLOG (1)
 
@@ -83,6 +105,7 @@ int hcom_file_dir_nested_dev_dir_and_files(const char *name,
 /****************************************************************************
  * Public Functions
  ***************************************************************************/
+
 int hcom_file_dir_nested_dev_dir_and_files_start()
 {
   // Keep these larger objects off the stack of the recursive function
@@ -93,7 +116,7 @@ int hcom_file_dir_nested_dev_dir_and_files_start()
 }
 
 //--------------------------------------------------------------------------
-// NOTE - Recursive function
+// NOTE - Recursive function, this is not public
 int hcom_file_dir_nested_dev_dir_and_files(const char *name,
             char *hostMsg, struct dirent *entry, int indent)
 {

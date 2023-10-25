@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\mono\hcom_mono_control.c
  *
- *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2020-2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@
 #include <meadow/hcom_upd_shared.h>
 #include <meadow/meadow_hw_version.h>
 #include <meadow/meadow_os.h>
-#include <meadow/meadow_syscall.h>
+#include <meadow/meadow_apps_core_share.h>
 
 #include <string.h>
 

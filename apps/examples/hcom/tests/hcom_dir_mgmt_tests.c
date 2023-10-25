@@ -44,9 +44,11 @@
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_dnld_shared.h>
+#include <meadow/meadow_apps_core_share.h>
+#include <dirent.h>
 
 #if defined (CONFIG_DIR_MGMT_TESTS)
-#warning "(--) Peter dir_mgmt_tests.c"
+#pragma message "(--) dir_mgmt_tests.c"
 
 #include <sys/mount.h>
 #include <sys/stat.h>
@@ -72,15 +74,44 @@ void meadow_dir_mgmt_test_nested_directory(uint32_t userData);
 /****************************************************************************
  * Public Functions
  ***************************************************************************/
-
+// These tests are developer -d 13
 void meadow_dir_mgmt_tests(uint32_t userData)
 {
+  int ret;
+  uint32_t totalBytes;
+  uint32_t freeBytes;
+  uint32_t usedBytes;
+
+  syslog(1, "Directory management received 'set developer -d 13 -v %lu'\n", userData);
+
   switch (userData)
   {
   case 1:
     meadow_dir_mgmt_test_nested_directory(userData);
     break;
   
+      // Test getting total available external flash size in bytes
+    case 2:
+      ret = meadow_read_file_total_free_flash_size(&totalBytes, &freeBytes);
+      if(ret < 0)
+      {
+        syslog(1, "Error: calling meadow_read_file_total_free_flash_size(), ret:%d, errno:%d\n",
+                  ret, errno);
+        return;
+      }
+      usedBytes = totalBytes - freeBytes;
+      syslog(1, "--> Total bytes:%lu (%luMb), Free bytes:%lu (%luMb), Used bytes:%lu (%luMb)\n",
+                totalBytes, totalBytes/(1024*1024),
+                freeBytes, freeBytes/(1024*1024),
+                usedBytes, usedBytes/(1024*1024));
+      break;
+
+    case 3:
+      hcom_file_dir_nested_dev_dir_and_files_start();
+      // show_directories("/meadow0", 1);
+      break;
+
+
   default:
     break;
   }

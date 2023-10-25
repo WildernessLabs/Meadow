@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\file\hcom_file_misc.c
  * 
- *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2021-2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,7 @@
 #include <nuttx/config.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <sys/statfs.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -190,4 +191,26 @@ uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
 
   *detectError = OK;
   return crc32Checksum;
+}
+
+//==========================================================================
+// This function returns the total and free space on the external flash
+int meadow_read_file_total_free_flash_size(uint32_t *totalBytes,
+          uint32_t *freeBytes)
+{
+  int ret;
+  struct statfs statFs;
+
+  ret = statfs("/meadow0", &statFs);
+  if(ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Error: ret:%d, errno:%d\n",
+              __FILE__, __LINE__, ret, errno);
+    return ret;
+  }
+
+  *totalBytes = statFs.f_bsize * statFs.f_blocks;
+  *freeBytes = statFs.f_bsize * statFs.f_bfree;
+
+  return OK;
 }
