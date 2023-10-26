@@ -510,7 +510,8 @@ int espcp_usrsock_accept(struct socket *psock, struct sockaddr *addr, socklen_t 
         }
         else
         {
-            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+            uint32_t message_result = espcp_queue_message(message, true);
+            if (message_result == espcp_status_codes_completed_ok)
             {
                 espcp_accept_response_t *response = espcp_extract_accept_response(message->payload);
                 if (response == NULL)
@@ -552,6 +553,14 @@ int espcp_usrsock_accept(struct socket *psock, struct sockaddr *addr, socklen_t 
                     }
                     free(response);
                 }
+            }
+            else if (message_result == espcp_status_codes_thread_pool_is_full)
+            {
+                result = -ENOMEM;
+            }
+            else
+            {
+                result = -1;
             }
         }
     }
@@ -663,7 +672,8 @@ int espcp_usrsock_bind(struct socket *psock, const struct sockaddr *addr, sockle
         }
         else
         {
-            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+            uint32_t message_result = espcp_queue_message(message, true);
+            if (message_result == espcp_status_codes_completed_ok)
             {
                 espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
                 if (response == NULL)
@@ -675,6 +685,14 @@ int espcp_usrsock_bind(struct socket *psock, const struct sockaddr *addr, sockle
                     result = -response->response_errno;
                     free(response);
                 }
+            }
+            else if (message_result == espcp_status_codes_thread_pool_is_full)
+            {
+                result = -ENOMEM;
+            }
+            else
+            {
+                result = -1;
             }
         }
     }
@@ -749,7 +767,8 @@ int espcp_usrsock_close(struct socket *psock)
         }
         else
         {
-            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+            uint32_t message_result = espcp_queue_message(message, true);
+            if (message_result == espcp_status_codes_completed_ok)
             {
                 espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
                 if (response == NULL)
@@ -765,6 +784,14 @@ int espcp_usrsock_close(struct socket *psock)
                     }
                     free(response);
                 }
+            }
+            else if (message_result == espcp_status_codes_thread_pool_is_full)
+            {
+                result = -ENOMEM;
+            }
+            else
+            {
+                result = -1;
             }
         }
     }
@@ -860,7 +887,8 @@ int espcp_usrsock_connect(struct socket *psock, const struct sockaddr *addr, soc
         }
         else
         {
-            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+            uint32_t message_result = espcp_queue_message(message, true);
+            if (message_result == espcp_status_codes_completed_ok)
             {
                 espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
                 if (response == NULL)
@@ -872,6 +900,10 @@ int espcp_usrsock_connect(struct socket *psock, const struct sockaddr *addr, soc
                     result = -response->response_errno;
                     free(response);
                 }
+            }
+            else if (message_result == espcp_status_codes_thread_pool_is_full)
+            {
+                result = -ENOMEM;
             }
             else
             {
@@ -955,7 +987,8 @@ static int espcp_usrsock_getsockpeername(struct socket *psock, struct sockaddr *
         }
         else
         {
-            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+            uint32_t message_result = espcp_queue_message(message, true);
+            if (message_result == espcp_status_codes_completed_ok)
             {
                 espcp_get_sock_peer_name_response_t *response = espcp_extract_get_sock_peer_name_response(message->payload);
                 if (response == NULL)
@@ -993,6 +1026,14 @@ static int espcp_usrsock_getsockpeername(struct socket *psock, struct sockaddr *
                     }
                     free(response);
                 }
+            }
+            else if (message_result == espcp_status_codes_thread_pool_is_full)
+            {
+                result = -ENOMEM;
+            }
+            else
+            {
+                result = -1;
             }
         }
     }
@@ -1138,7 +1179,8 @@ static int espcp_usrsock_send_ioctl_to_esp(struct socket *psock, int cmd, void *
             MEADOW_TRACE_DEBUG("espcp_usrsock_send_ioctl_to_esp - result ENOMEM\n");
             return(-ENOMEM);
         }
-        if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+        uint32_t message_result = espcp_queue_message(message, true);
+        if (message_result == espcp_status_codes_completed_ok)
         {
             espcp_ioctl_response_t *response = espcp_extract_ioctl_response(message->payload);
             if (response != NULL)
@@ -1195,6 +1237,14 @@ static int espcp_usrsock_send_ioctl_to_esp(struct socket *psock, int cmd, void *
             {
                 result = -EINVAL;
             }
+        }
+        else if (message_result == espcp_status_codes_thread_pool_is_full)
+        {
+            result = -ENOMEM;
+        }
+        else
+        {
+            result = -1;
         }
         espcp_delete_message_and_payload(message);
     }
@@ -1340,7 +1390,8 @@ int espcp_usrsock_listen(struct socket *psock, int backlog)
         }
         else
         {
-            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+            uint32_t message_result = espcp_queue_message(message, true);
+            if (message_result == espcp_status_codes_completed_ok)
             {
                 espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
                 if (response == NULL)
@@ -1352,6 +1403,14 @@ int espcp_usrsock_listen(struct socket *psock, int backlog)
                     result = -response->response_errno;
                     free(response);
                 }
+            }
+            else if (message_result == espcp_status_codes_thread_pool_is_full)
+            {
+                result = -ENOMEM;
+            }
+            else
+            {
+                result = -1;
             }
         }
     }
@@ -1710,11 +1769,13 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
     }
     else
     {
-        if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+        uint32_t message_result = espcp_queue_message(message, true);
+        if (message_result == espcp_status_codes_completed_ok)
         {
             espcp_recv_from_response_t *response = espcp_extract_recv_from_response(message->payload);
             if (response == NULL)
             {
+                MEADOW_TRACE_DEBUG("recvfrom - result ENOMEM\n");
                 result = -ENOMEM;       // Message and payload deleted at the end of the method.
             }
             else
@@ -1726,6 +1787,7 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
                         espcp_sock_addr_t *sa = espcp_extract_sock_addr(response->source_address);
                         if (sa == NULL)
                         {
+                            MEADOW_TRACE_DEBUG("recvfrom - result ENOMEM\n");
                             result = -ENOMEM;   // Message and payload deleted at the end of the method.
                         }
                         else
@@ -1756,6 +1818,11 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
                 free(response->buffer);
                 free(response);
             }
+        }
+        else if (message_result == espcp_status_codes_thread_pool_is_full)
+        {
+            MEADOW_TRACE_DEBUG("recvfrom - result ENOMEM\n");
+            result = -ENOMEM;
         }
         else
         {
@@ -1881,7 +1948,8 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
         }
         else
         {
-            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+            uint32_t message_result = espcp_queue_message(message, true);
+            if (message_result == espcp_status_codes_completed_ok)
             {
                 espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
                 if (response == NULL)
@@ -1895,6 +1963,14 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
                     result = (response->result < 0) ? -response->response_errno : response->result;
                     free(response);
                 }
+            }
+            else if (message_result == espcp_status_codes_thread_pool_is_full)
+            {
+                result = -ENOMEM;
+            }
+            else
+            {
+                result = -1;
             }
         }
     }
@@ -2114,7 +2190,8 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
         }
         else
         {
-            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+            uint32_t message_result = espcp_queue_message(message, true);
+            if (message_result == espcp_status_codes_completed_ok)
             {
                 espcp_get_sock_opt_response_t *response = espcp_extract_get_sock_opt_response(message->payload);
                 if (response == NULL)
@@ -2215,6 +2292,14 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
                     }
                     free(response);
                 }
+            }
+            else if (message_result == espcp_status_codes_thread_pool_is_full)
+            {
+                result = -ENOMEM;
+            }
+            else
+            {
+                result = -1;
             }
         }
     }
@@ -2505,7 +2590,8 @@ int espcp_usrsock_setsockopt(struct socket *psock, int level, int option,
             }
             else
             {
-                if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+                uint32_t message_result = espcp_queue_message(message, true);
+                if (message_result == espcp_status_codes_completed_ok)
                 {
                     espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
                     if (response == NULL)
@@ -2517,6 +2603,14 @@ int espcp_usrsock_setsockopt(struct socket *psock, int level, int option,
                         result = (response->result < 0) ? -response->response_errno : response->result;
                         free(response);
                     }
+                }
+                else if (message_result == espcp_status_codes_thread_pool_is_full)
+                {
+                    result = -ENOMEM;
+                }
+                else
+                {
+                    result = -1;
                 }
             }
         }
@@ -2618,7 +2712,8 @@ int espcp_usrsock_socket(int domain, int type, int protocol, struct socket *psoc
     }
     else
     {
-        if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+        uint32_t message_result = espcp_queue_message(message, true);
+        if (message_result == espcp_status_codes_completed_ok)
         {
             espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
             if (response == NULL)
@@ -2640,6 +2735,14 @@ int espcp_usrsock_socket(int domain, int type, int protocol, struct socket *psoc
                 psock->s_type = type;
                 psock->s_esp32_sockfd = result;
             }
+        }
+        else if (message_result == espcp_status_codes_thread_pool_is_full)
+        {
+            result = -ENOMEM;
+        }
+        else
+        {
+            result = -1;
         }
     }
 
@@ -2726,7 +2829,8 @@ int32_t espcp_usrsock_read(struct socket *psock, const void *buffer, size_t coun
         }
         else
         {
-            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+            uint32_t message_result = espcp_queue_message(message, true);
+            if (message_result == espcp_status_codes_completed_ok)
             {
                 espcp_read_response_t *response = espcp_extract_read_response(message->payload);
                 if (response == NULL)
@@ -2743,6 +2847,14 @@ int32_t espcp_usrsock_read(struct socket *psock, const void *buffer, size_t coun
                     result = (response->read_response_result < 0) ? -response->read_response_errno : response->read_response_result;
                     free(response);
                 }
+            }
+            else if (message_result == espcp_status_codes_thread_pool_is_full)
+            {
+                result = -ENOMEM;
+            }
+            else
+            {
+                result = -1;
             }
         }
     }
