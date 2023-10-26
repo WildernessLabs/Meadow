@@ -59,7 +59,8 @@ enum espcp_status_codes
     espcp_status_codes_access_point_not_started = 37,
     espcp_status_codes_access_point_already_started = 38,
     espcp_status_codes_not_implemented = 39,
-    espcp_status_codes_file_not_found = 40
+    espcp_status_codes_file_not_found = 40,
+    espcp_status_codes_thread_pool_is_full = 41
 };
 typedef enum espcp_status_codes espcp_status_codes_t;
 
