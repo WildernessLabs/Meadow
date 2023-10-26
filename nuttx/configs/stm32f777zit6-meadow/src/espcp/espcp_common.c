@@ -120,7 +120,7 @@ uint32_t espcp_queue_message(espcp_message_t *message, bool block)
                 }
             }
         }
-        result = espcp_status_codes_completed_ok;
+        result = message->status_code;
     }
     return (result);
 }

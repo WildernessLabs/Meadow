@@ -1710,11 +1710,13 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
     }
     else
     {
-        if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+        uint32_t message_result = espcp_queue_message(message, true);
+        if (message_result == espcp_status_codes_completed_ok)
         {
             espcp_recv_from_response_t *response = espcp_extract_recv_from_response(message->payload);
             if (response == NULL)
             {
+                MEADOW_TRACE_DEBUG("recvfrom - result ENOMEM\n");
                 result = -ENOMEM;       // Message and payload deleted at the end of the method.
             }
             else
@@ -1726,6 +1728,7 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
                         espcp_sock_addr_t *sa = espcp_extract_sock_addr(response->source_address);
                         if (sa == NULL)
                         {
+                            MEADOW_TRACE_DEBUG("recvfrom - result ENOMEM\n");
                             result = -ENOMEM;   // Message and payload deleted at the end of the method.
                         }
                         else
@@ -1756,6 +1759,11 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
                 free(response->buffer);
                 free(response);
             }
+        }
+        else if (message_result == espcp_status_codes_thread_pool_is_full)
+        {
+            MEADOW_TRACE_DEBUG("recvfrom - result ENOMEM\n");
+            result = -ENOMEM;
         }
         else
         {
