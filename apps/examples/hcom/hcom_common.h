@@ -248,7 +248,7 @@ int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData);
 
 // -----------------------------------------------
 // File directory functions
-int hcom_file_dir_nested_dev_dir_and_files_start(void);
+int hcom_file_subdir_read_nested_directories_start(const char *rootDir);
 
 // -----------------------------------------------
 // File download misc functions

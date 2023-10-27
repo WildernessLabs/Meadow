@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\comms\hcom_host_process.c
  * 
- *   Copyright (C) 2019 - 2022 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,12 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+// The following deal with subdirectory support
+#define MEADOW_FILE_SUBDIR_PREPEND_MEADOW_STR   ("/meadow0/")
+#define MEADOW_FILE_SUBDIR_PREPEND_MEADOW_LEN   (9)
+#define MEADOW_FILE_SUBDIR_PREPEND_SDCARD_STR   ("/mmcsd0/")
+#define MEADOW_FILE_SUBDIR_PREPEND_SDCARD_LEN   (8)
+
 
 /****************************************************************************
  * Private Data
@@ -52,10 +58,18 @@
 static char *thisFile = __FILE__;
 
 static bool _shutting_down;
-
 static hcom_dnld_shared_t *_dnldShared;
 static uint8_t *_packet_dest_buf = NULL;
 static uint8_t *_decode_dest_buf = NULL;
+
+enum hcom_file_subdir_parsed
+{
+  fnameInvalid = 100,
+  fnameOriginal = 101,        // No '/' found
+  fnameMeadowFull = 102,  // Starts '/meadow0/'
+  fnameMmcsdFull = 103    // Starts '/mmcsd0/'
+};
+
 
 /****************************************************************************
  * Private Function Prototypes
@@ -202,11 +216,93 @@ int hcom_host_process_run()
   return OK;
 }
 
-//====================================================================
+//============================================================================
+// This function will return the potential depth of subdirectories in the file
+// name provided.
+static size_t find_subdir_depth(const char *fileName, size_t strLen)
+{
+  // Allocate a modifiable version of the string for tokenizing
+  char *fileNameTemp = malloc(strLen + 1);
+  strcpy(fileNameTemp, fileName);
+
+  // Count the number of '/' characters to give an indication of the subdir
+  // depth
+  int tokenCount = 0;
+  char *savePtr;
+  char *token = strtok_r(fileNameTemp, "/", &savePtr);
+
+  while (token != NULL)
+  {
+    tokenCount++;
+    token = strtok_r(NULL, "/", &savePtr);
+  }
+
+  free(fileNameTemp);
+  return tokenCount - 2;
+}
+
+//============================================================================
+// This function will check the received filename and categorize it so the
+// remaining steps will know what they are dealing with
+static int hcom_file_subdir_categorize_filename(const char *fileName,
+          size_t strLen, size_t *subdirDepth)
+{
+  *subdirDepth = 0;
+
+  // Only alphanumeric, '.' or '/' are allowed
+  // 'filename', '/meadow0/.../..', '/mmcsd0/../..'
+  // These are illegal formats:
+  // '/filename', /dirname/filename/
+
+  // Is this a bare filename (i.e. no '/')
+  if(memchr(fileName, '/', strLen) == NULL)
+  {
+    // No '/' in file name, this is like original naming scheme
+    // 101
+    return fnameOriginal;
+  }
+  else if (strLen < MEADOW_FILE_SUBDIR_PREPEND_SDCARD_LEN)
+  {
+    // 100
+    return fnameInvalid;          // Too short 
+  }
+  else if(memcmp(MEADOW_FILE_SUBDIR_PREPEND_MEADOW_STR,
+              fileName, MEADOW_FILE_SUBDIR_PREPEND_MEADOW_LEN) == 0)
+  {
+    // '/meadow0/' found, but can't end in '/'
+    if(fileName[strLen-1] == '/')
+        return fnameInvalid;
+    
+    *subdirDepth = find_subdir_depth(fileName, strLen);
+    
+    // 102
+    return fnameMeadowFull;
+  }
+  // (--) Only do this if SD-Card is enabled
+  else if(memcmp(MEADOW_FILE_SUBDIR_PREPEND_SDCARD_STR,
+              fileName, MEADOW_FILE_SUBDIR_PREPEND_SDCARD_LEN) == 0)
+  {
+    // '/mmcsd0/' found
+    if(fileName[strLen-1] == '/')
+        return fnameInvalid;      // Can't end in '/'
+
+    *subdirDepth = find_subdir_depth(fileName, strLen);
+
+  // 103
+    return fnameMmcsdFull;
+  }
+  else
+  {
+    return fnameInvalid;
+  }
+}
+
+//============================================================================
 // Parse and process received decoded packets as sent by host (CLI).
 // Grab the sequence number, using it to determine if data or command.
 int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t decodedSize)
 {
+  int ret;
   uint16_t requestType;
   uint32_t userData;
 
@@ -225,8 +321,6 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
     // ESP32?
     if(hcom_host_process_is_stm32f7_dnld_active())
     {
-      int ret;
-
       // Keep resetting the watchdog on every packet
       ret = hcom_host_watchdog_dnld_timer_set_delay(HCOM_FILE_DNLD_STM32F7_WDOG_TIME);
       if(ret < 0)
@@ -335,40 +429,110 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
       return -ENOMEM;
     }
 
-    // File name
+    //----------------------------------------------------------------------------------
+    // File name processing
     HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
     memcpy(_dnldShared->dnldOrigFileName, fileMsg->fileInfo.fileName, fileNameLength);
     _dnldShared->dnldOrigFileName[fileNameLength] = '\0';
 
-    // Build the full path plus file name string (e.g. /mnt0/FileName.ext)
-    size_t fullFileNameLen = strlen(_dnldShared->dnldOrigFileName) + \
-              strlen(HCOM_FILE_MOUNT_POINT_TARGET) + 3; // Room for '/', partition Id, NULL
+    size_t subDirDepth;
 
-    _dnldShared->dnldFullFileName = malloc(fullFileNameLen + 1);
-    if(_dnldShared->dnldFullFileName == NULL)
+    // There are 3 valid file name formats.
+    // 1. A simple file name, with just a file name and nothing else.
+    // 2. A file beginning with '/meadow0/'
+    // 3. A file beginning with '/mmcsd0/'
+    // This call will catergorize as one of the above or error. In the case of
+    // a file within subdirectories, it provides the number of subdirectories.
+    // This is used to further catergorize the request. 
+    ret = hcom_file_subdir_categorize_filename(_dnldShared->dnldOrigFileName,
+              fileNameLength, &subDirDepth);
+
+// (--) DIAGNOSTIC CODE
+    char fnameText[32];
+    switch (ret)
     {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-      return -ENOMEM;
+    case fnameInvalid:
+      strcpy(fnameText, "fnameInvalid - bad filename");
+      break;
+    case fnameOriginal:
+      strcpy(fnameText, "fnameOriginal-no '/' ");
+      break;
+    case fnameMeadowFull:
+      strcpy(fnameText, "fnameMeadowFull-Starts '/meadow0/'");
+      break;
+    case fnameMmcsdFull:
+      strcpy(fnameText, "fnameMmcsdFull-Starts '/mmcsd0/'");
+      break;
+    default:
+      strcpy(fnameText, "default?");
+      break;
+    }
+// (--) DIAGNOSTIC CODE
+
+    if(ret == fnameInvalid)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-file name '%s' is invalid\n",
+                thisFile, __LINE__, _dnldShared->dnldOrigFileName);
+      // (--) Need to send a host message here
+      return -EINVAL;   // Bad argument
     }
 
+    syslog(1, "===> Valid format, file '%s'. It is categorized as %d (%s), subDirDepth:%lu\n",
+              _dnldShared->dnldOrigFileName, ret, fnameText, subDirDepth);
+
+    // A file name based on the original naming convention needs
+    // '/meadow0/filename' prepended.
+    if(ret == fnameOriginal)
+    {
+      // Build the full path plus file name string (e.g. /mnt0/FileName.ext)
+      size_t fullFileNameLen = strlen(_dnldShared->dnldOrigFileName) + \
+                strlen(HCOM_FILE_MOUNT_POINT_TARGET) + 3; // Room for '/', partition Id, NULL
+
+      _dnldShared->dnldFullFileName = malloc(fullFileNameLen + 1);
+      if(_dnldShared->dnldFullFileName == NULL)
+      {
+        hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+        return -ENOMEM;
+      }
+
 #ifdef CONFIG_MTD_PARTITION
-    snprintf_chk(_dnldShared->dnldFullFileName, fullFileNameLen, "%s%d/%s",
-                              HCOM_FILE_MOUNT_POINT_TARGET,
-                              _dnldShared->dnldFilePartId,
-                              _dnldShared->dnldOrigFileName);
+      snprintf_chk(_dnldShared->dnldFullFileName, fullFileNameLen, "%s%d/%s",
+                                HCOM_FILE_MOUNT_POINT_TARGET,
+                                _dnldShared->dnldFilePartId,
+                                _dnldShared->dnldOrigFileName);
 #else
-    snprintf_chk(_dnldShared->dnldFullFileName, fullFileNameLen, "%s/%s",
-                              HCOM_FILE_MOUNT_POINT_TARGET,
-                              _dnldShared->dnldOrigFileName);
+      snprintf_chk(_dnldShared->dnldFullFileName, fullFileNameLen, "%s/%s",
+                                HCOM_FILE_MOUNT_POINT_TARGET,
+                                _dnldShared->dnldOrigFileName);
 #endif
+    }
+    else
+    {
+      // Allocate the same size buffer as originally provided
+      size_t fullFileNameLen = strlen(_dnldShared->dnldOrigFileName) + 1;
+
+      _dnldShared->dnldFullFileName = malloc(fullFileNameLen + 1);
+      if(_dnldShared->dnldFullFileName == NULL)
+      {
+        hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+        return -ENOMEM;
+      }
+      
+      // Just copy the name, null and all.
+      strcpy(_dnldShared->dnldFullFileName, _dnldShared->dnldOrigFileName);
+    }
+
+    syslog(1, "===> %s@%d-Full download file name:'%s' with %lu subdirectories\n",
+              __FILE__, __LINE__, _dnldShared->dnldFullFileName, subDirDepth);
+    usleep(20 * 1000);
+
+    //----------------------------------------------------------------------------------
 
     // For the Meadow file system download start, need to initialize a
     // watchdog timer
     if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
        requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME)
     {
-      int ret;
-
       ret = hcom_host_watchdog_dnld_timer_initialize();
       if(ret < 0)
       {
@@ -388,8 +552,6 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
   }
   else if(requestType == HCOM_MDOW_REQUEST_END_FILE_TRANSFER)
   {
-    int ret;
-
     // Stop and delete watchdog
     ret = hcom_host_watchdog_dnld_timer_delete();
     if(ret < 0)

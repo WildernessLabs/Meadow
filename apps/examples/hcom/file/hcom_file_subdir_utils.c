@@ -88,14 +88,12 @@
  ****************************************************************************/
 static char *thisFile = __FILE__;
 
-// Use "/" to show all files and directories
-static char workingDir[] = "/meadow0";
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
-int hcom_file_dir_nested_dev_dir_and_files(const char *name,
+int hcom_file_subdir_read_nested_directories(const char *rootDir,
           char *hostMsg, struct dirent *entry, int indent);
 
 /****************************************************************************
@@ -106,26 +104,27 @@ int hcom_file_dir_nested_dev_dir_and_files(const char *name,
  * Public Functions
  ***************************************************************************/
 
-int hcom_file_dir_nested_dev_dir_and_files_start()
+// Use rootDir as a single "/" to show all files and directories
+int hcom_file_subdir_read_nested_directories_start(const char *rootDir)
 {
   // Keep these larger objects off the stack of the recursive function
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   struct dirent *entry;
 
-  return hcom_file_dir_nested_dev_dir_and_files(workingDir, hostMsg, entry, 0);
+  return hcom_file_subdir_read_nested_directories(rootDir, hostMsg, entry, 0);
 }
 
 //--------------------------------------------------------------------------
-// NOTE - Recursive function, this is not public
-int hcom_file_dir_nested_dev_dir_and_files(const char *name,
+// NOTE - Recursive function, is not public
+int hcom_file_subdir_read_nested_directories(const char *rootDir,
             char *hostMsg, struct dirent *entry, int indent)
 {
   DIR *dir;
 
-  if (!(dir = opendir(name)))
+  if (!(dir = opendir(rootDir)))
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Could not open:%s as a directory\n",
-              thisFile, __LINE__, name);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Could not open:%s as root directory\n",
+              thisFile, __LINE__, rootDir);
     return -1;
   }
 
@@ -148,32 +147,36 @@ int hcom_file_dir_nested_dev_dir_and_files(const char *name,
       if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
         continue;
 
-      char path[256];
-      snprintf_chk(path, sizeof(path), "%s/%s", name, entry->d_name);
+      char path[256];   // MAX_PATH
+      snprintf_chk(path, sizeof(path), "%s/%s", rootDir, entry->d_name);
 
-      // Recursion is here
-      hcom_file_dir_nested_dev_dir_and_files(path, hostMsg, entry, indent + 1);
+      // Recursion is here since directory
+      hcom_file_subdir_read_nested_directories(path, hostMsg, entry, indent + 1);
     }
-//     else
-//     {
-//       // All non-directory types
-//       char *entryType;
-//       if(DIRENT_ISFILE(entry->d_type)) {entryType = "file";}
-//       else if(DIRENT_ISCHR(entry->d_type)) {entryType = "char";}
-//       else if(DIRENT_ISBLK(entry->d_type)) {entryType = "block";}
-//       else if(DIRENT_ISLINK(entry->d_type)) {entryType = "link";}
-//       else {entryType = "????";}
-//       snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-//               "%*s%s [%s]\n", indent, "", entry->d_name, entryType);
-// #if HCOM_FILE_DIR_OUTPUT_TO_SYSLOG > 0
-//       syslog(2, hostMsg);
-// #else
-//       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
-//                 0, hostMsg, thisFile, __LINE__);
-// #endif
-//     }
+#if 1     // Show everything not just directories
+    else
+    {
+      // All non-directory types
+      char *entryType;
+      if(DIRENT_ISFILE(entry->d_type)) {entryType = "file";}
+      else if(DIRENT_ISCHR(entry->d_type)) {entryType = "char";}
+      else if(DIRENT_ISBLK(entry->d_type)) {entryType = "block";}
+      else if(DIRENT_ISLINK(entry->d_type)) {entryType = "link";}
+      else {entryType = "????";}
+      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+              "%*s%s [%s]\n", indent, "", entry->d_name, entryType);
+#if HCOM_FILE_DIR_OUTPUT_TO_SYSLOG > 0
+      syslog(2, hostMsg);
+#else
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
+                0, hostMsg, thisFile, __LINE__);
+#endif
+    }
+#endif
+
   }
 
   closedir(dir);
   return OK;
 }
+

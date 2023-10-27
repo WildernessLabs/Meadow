@@ -154,6 +154,9 @@ int hcom_file_lists_files_in_partition(uint32_t partitionId)
 }
 
 //=====================================================================
+// (--) This will need to be modified to work with subdirectories
+// It will need to Start at '/meadow0' and proceeds downward.
+//
 int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId)
 {
   int fileCount = 0;
@@ -215,7 +218,7 @@ int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId)
     if(DIRENT_ISFILE(direntry->d_type))
     {
       fileCount++;
-      snprintf_chk(completeNameBuf, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", 
+      snprintf_chk(completeNameBuf, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s",
                 fullMountPtName, direntry->d_name);
       
       // Find the CRC checksum
@@ -233,7 +236,6 @@ int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId)
     
       totalSizeOfFiles += fileSize;
       totalFlashSizeKB += blockSizeKB;
-
 
       // Send this file's information to the host
       snprintf_chk(singleFileFound, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,

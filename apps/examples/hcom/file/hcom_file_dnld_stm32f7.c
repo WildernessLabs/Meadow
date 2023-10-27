@@ -255,26 +255,6 @@ void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
 
   hcom_logging_syslog(LOG_NOTICE, "End of file write\n");
 
-  // Allocate memory for delete
-  char *completeNameBuf = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-  if(completeNameBuf == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n",
-              thisFile, __LINE__);
-    hcom_host_process_free_dnld_share_mem();
-    return;
-  }
-
-  char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-  if(fullMountPtName == NULL)
-  {
-    free(completeNameBuf);
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n",
-              thisFile, __LINE__);
-    hcom_host_process_free_dnld_share_mem();
-    return;
-  }
-
   if(dnldShared->dnldCurrentState != HcomStm32F7DnldStateFileXfer)
   {
     hcom_logging_syslog(LOG_WARNING, "%s@%d-Dnld end, unexpected state, expected:%d\n",
@@ -290,26 +270,12 @@ void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
     // Continue even with error
   }
 
-  // Construct file name
-#ifdef CONFIG_MTD_PARTITION
-  snprintf_chk(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d",
-            HCOM_FILE_MOUNT_POINT_TARGET, dnldShared->dnldFilePartId);
-#else
-  strcpy(fullMountPtName, HCOM_FILE_MOUNT_POINT_TARGET);
-#endif
-
-  snprintf_chk(completeNameBuf, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", 
-            fullMountPtName, dnldShared->dnldOrigFileName);
-
   off_t fileSize;       // Required by function call but not used
   uint32_t blockSizeKB; // Required by function call but not used
   int detectError = OK;
 
-  uint32_t actualFileCrc = hcom_file_misc_calc_crc_for_file(completeNameBuf,
+  uint32_t actualFileCrc = hcom_file_misc_calc_crc_for_file(dnldShared->dnldFullFileName,
                 &fileSize, &blockSizeKB, &detectError);
-
-  free(completeNameBuf);
-  free(fullMountPtName);
 
   // Report to host
   if(detectError < 0)

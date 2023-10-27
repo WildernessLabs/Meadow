@@ -59,13 +59,11 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-static char *thisFile = __FILE__;
+// static char *thisFile = __FILE__;
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-
-void meadow_dir_mgmt_test_nested_directory(uint32_t userData);
 
 /****************************************************************************
  * Public Types
@@ -83,15 +81,12 @@ void meadow_dir_mgmt_tests(uint32_t userData)
   uint32_t usedBytes;
 
   syslog(1, "Directory management received 'set developer -d 13 -v %lu'\n", userData);
+  usleep(20 * 1000);
 
   switch (userData)
   {
-  case 1:
-    meadow_dir_mgmt_test_nested_directory(userData);
-    break;
-  
       // Test getting total available external flash size in bytes
-    case 2:
+    case 1:
       ret = meadow_read_file_total_free_flash_size(&totalBytes, &freeBytes);
       if(ret < 0)
       {
@@ -100,34 +95,26 @@ void meadow_dir_mgmt_tests(uint32_t userData)
         return;
       }
       usedBytes = totalBytes - freeBytes;
-      syslog(1, "--> Total bytes:%lu (%luMb), Free bytes:%lu (%luMb), Used bytes:%lu (%luMb)\n",
+      syslog(1, "--> Total bytes:%lu (%luMb), Free bytes:%lu (%luMb), Used bytes (calculated):%lu (%luMb)\n",
                 totalBytes, totalBytes/(1024*1024),
                 freeBytes, freeBytes/(1024*1024),
                 usedBytes, usedBytes/(1024*1024));
       break;
 
-    case 3:
-      hcom_file_dir_nested_dev_dir_and_files_start();
-      // show_directories("/meadow0", 1);
-      break;
+  case 2:
+    hcom_file_subdir_read_nested_directories_start("/meadow0");
+    break;
 
+  case 3:
+    hcom_file_subdir_read_nested_directories_start("/mmcsd0");
+    break;
+
+  case 4:
+    hcom_file_subdir_read_nested_directories_start("/");
+    break;
 
   default:
     break;
-  }
-}
-
-//=======================================================================
-void meadow_dir_mgmt_test_nested_directory(uint32_t userData)
-{
-  int ret;
-  
-  syslog(2, "Test - Nested Directory, Devices and Files\n");
-
-  ret = hcom_file_dir_nested_dev_dir_and_files_start();
-  if(ret < 0)
-  {
-    syslog(2, "%s@%d-Error:ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
   }
 }
 

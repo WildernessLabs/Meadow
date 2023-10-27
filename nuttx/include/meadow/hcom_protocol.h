@@ -414,7 +414,9 @@ enum HcomMeadowRequestType
   // >>> Breaking protocol change.
   // This should be move our of the 0xfx range since it has nothing to do with
   // diagnostics
-  // Old set developer 4 now used to get file and directory listing.
+  // Old set developer 4 now used to get file and directory listing. At this
+  // time (Oct23) CLIv1 only uses it to find nested temporary files in a fixed
+  // set of directories
   HCOM_MDOW_REQUEST_GET_FILES_AND_FOLDERS   = 0xf3 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
 
   // Testing QSPI flash
