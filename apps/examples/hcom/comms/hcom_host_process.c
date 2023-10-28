@@ -42,15 +42,13 @@
 #include "../hcom_common.h"
 #include <meadow/hcom_dnld_shared.h>
 
+#if defined (CONFIG_DIR_MGMT_TESTS)
+#pragma message "(--) hcom_host_process.c"
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-// The following deal with subdirectory support
-#define MEADOW_FILE_SUBDIR_PREPEND_MEADOW_STR   ("/meadow0/")
-#define MEADOW_FILE_SUBDIR_PREPEND_MEADOW_LEN   (9)
-#define MEADOW_FILE_SUBDIR_PREPEND_SDCARD_STR   ("/mmcsd0/")
-#define MEADOW_FILE_SUBDIR_PREPEND_SDCARD_LEN   (8)
-
 
 /****************************************************************************
  * Private Data
@@ -62,34 +60,25 @@ static hcom_dnld_shared_t *_dnldShared;
 static uint8_t *_packet_dest_buf = NULL;
 static uint8_t *_decode_dest_buf = NULL;
 
-enum hcom_file_subdir_parsed
-{
-  fnameInvalid = 100,
-  fnameOriginal = 101,        // No '/' found
-  fnameMeadowFull = 102,  // Starts '/meadow0/'
-  fnameMmcsdFull = 103    // Starts '/mmcsd0/'
-};
-
-
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
 
 static int hcom_host_process_route_packet(const uint8_t *packet, const size_t packetSize);
 static int hcom_host_process_run(void);
-static int hcom_host_process_init_dnld_share(uint32_t partitionId);
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// Note: this thread was created by Nuttx and was used to do the Meadow
-// initialization within apps. Once all initialization is completed, it is used
+// Note: this thread was created by Nuttx and initially was used to do the
+// Meadow initialization. Once all initialization is completed, it is used
 // here to processing the HCOM messages. Therefore, it never returns.
 int hcom_host_process_setup()
 {
   int ret;
   _shutting_down = false;
 
+  // These allocation continue throughout the life of Meadow
   _packet_dest_buf = (uint8_t *)malloc(HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE);
   if (_packet_dest_buf == NULL)
   {
@@ -160,14 +149,15 @@ int hcom_host_process_setup()
 }
 
 //====================================================================
-//
+// Shutdown
 void hcom_host_process_shutdown()
 {
   _shutting_down = true;
 
   free(_decode_dest_buf);
   free(_packet_dest_buf);
-  free(_dnldShared);
+
+  hcom_file_dir_mgmt_free_dnld_file_mem(_dnldShared);
 }
 
 //==========================================================================
@@ -217,89 +207,8 @@ int hcom_host_process_run()
 }
 
 //============================================================================
-// This function will return the potential depth of subdirectories in the file
-// name provided.
-static size_t find_subdir_depth(const char *fileName, size_t strLen)
-{
-  // Allocate a modifiable version of the string for tokenizing
-  char *fileNameTemp = malloc(strLen + 1);
-  strcpy(fileNameTemp, fileName);
-
-  // Count the number of '/' characters to give an indication of the subdir
-  // depth
-  int tokenCount = 0;
-  char *savePtr;
-  char *token = strtok_r(fileNameTemp, "/", &savePtr);
-
-  while (token != NULL)
-  {
-    tokenCount++;
-    token = strtok_r(NULL, "/", &savePtr);
-  }
-
-  free(fileNameTemp);
-  return tokenCount - 2;
-}
-
-//============================================================================
-// This function will check the received filename and categorize it so the
-// remaining steps will know what they are dealing with
-static int hcom_file_subdir_categorize_filename(const char *fileName,
-          size_t strLen, size_t *subdirDepth)
-{
-  *subdirDepth = 0;
-
-  // Only alphanumeric, '.' or '/' are allowed
-  // 'filename', '/meadow0/.../..', '/mmcsd0/../..'
-  // These are illegal formats:
-  // '/filename', /dirname/filename/
-
-  // Is this a bare filename (i.e. no '/')
-  if(memchr(fileName, '/', strLen) == NULL)
-  {
-    // No '/' in file name, this is like original naming scheme
-    // 101
-    return fnameOriginal;
-  }
-  else if (strLen < MEADOW_FILE_SUBDIR_PREPEND_SDCARD_LEN)
-  {
-    // 100
-    return fnameInvalid;          // Too short 
-  }
-  else if(memcmp(MEADOW_FILE_SUBDIR_PREPEND_MEADOW_STR,
-              fileName, MEADOW_FILE_SUBDIR_PREPEND_MEADOW_LEN) == 0)
-  {
-    // '/meadow0/' found, but can't end in '/'
-    if(fileName[strLen-1] == '/')
-        return fnameInvalid;
-    
-    *subdirDepth = find_subdir_depth(fileName, strLen);
-    
-    // 102
-    return fnameMeadowFull;
-  }
-  // (--) Only do this if SD-Card is enabled
-  else if(memcmp(MEADOW_FILE_SUBDIR_PREPEND_SDCARD_STR,
-              fileName, MEADOW_FILE_SUBDIR_PREPEND_SDCARD_LEN) == 0)
-  {
-    // '/mmcsd0/' found
-    if(fileName[strLen-1] == '/')
-        return fnameInvalid;      // Can't end in '/'
-
-    *subdirDepth = find_subdir_depth(fileName, strLen);
-
-  // 103
-    return fnameMmcsdFull;
-  }
-  else
-  {
-    return fnameInvalid;
-  }
-}
-
-//============================================================================
 // Parse and process received decoded packets as sent by host (CLI).
-// Grab the sequence number, using it to determine if data or command.
+// Grab the sequence number and use it to determine if data or command.
 int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t decodedSize)
 {
   int ret;
@@ -316,7 +225,7 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
   // Test to determine if this is a data packet or a command
   if (hcomDataMsg->seqNumber != HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER)
   {
-    // Must be a Data Packet because sequence number != 0.
+    // Must be a Data Packet (download) because sequence number != 0.
     // What is the current download state? What is active, external flash or
     // ESP32?
     if(hcom_host_process_is_stm32f7_dnld_active())
@@ -327,10 +236,10 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
       {
         hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set errno:%d, ret:%d\n",
                   thisFile, __LINE__, errno, ret);
-        hcom_host_process_free_dnld_share_mem();
+        hcom_file_dir_mgmt_free_dnld_file_mem(_dnldShared);
       }
 
-      // Here's the data
+      // Here's the data for download
       hcom_file_dnld_stm32f7_recvd_file_data(hcomDataMsg, decodedSize, _dnldShared);
     }
     else if(hcom_file_dnld_esp32_is_active())
@@ -345,13 +254,14 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
                 thisFile, __LINE__);
     }
 
+    // Finished with download packet
     return OK;
   }
 
   //----------------------------------------------------------------------
   // Since sequence number is 0, must be a command (non-data packet). And
   // these always have the full HCOM header.
-  // Note: Adding the full header to data packets is on the list to be fixed.
+  // Note: Adding the full header to data packets has been planned for a while.
   const HcomProtoHdrMsg_t *hdrMsg = (HcomProtoHdrMsg_t *) decodedPacket;
 
 #if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
@@ -391,9 +301,10 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
 
   //---------------------------------------------------------------
   // For downloading or deleting files we need more information and require
-  // HCOM to keep this activity state alive while downloading. These commands
-  // are those that need the file's name and may need to establish a temporary
-  // state while the download is being processed.
+  // HCOM to keep the state while downloading.
+  // These 3 commands are those that need the file's name and may need to
+  // establish a temporary state while the download is being processed.
+  // This is done here so it doesn't needed to be done in multiple places.
   if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
      requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME ||
      requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME)
@@ -417,119 +328,33 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
       return OK;
     }
 
-    // Initialize the struct containing all download/delete state information
-    hcom_host_process_init_dnld_share(userData);
-  
-    // We'll do some work here so it doesn't need to be done in multiple places
-    size_t fileNameLength = decodedSize - HCOM_PROTOCOL_FILE_MSG_LENGTH;
-    _dnldShared->dnldOrigFileName = malloc(fileNameLength + 1);
-    if(_dnldShared->dnldOrigFileName == NULL)
-    {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-      return -ENOMEM;
-    }
+    // Initialize the entire struct containing all download/delete and state
+    // information.
+    memset(_dnldShared, 0, sizeof(hcom_dnld_shared_t));
 
-    //----------------------------------------------------------------------------------
-    // File name processing
-    HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
-    memcpy(_dnldShared->dnldOrigFileName, fileMsg->fileInfo.fileName, fileNameLength);
-    _dnldShared->dnldOrigFileName[fileNameLength] = '\0';
-
-    size_t subDirDepth;
-
-    // There are 3 valid file name formats.
-    // 1. A simple file name, with just a file name and nothing else.
-    // 2. A file beginning with '/meadow0/'
-    // 3. A file beginning with '/mmcsd0/'
-    // This call will catergorize as one of the above or error. In the case of
-    // a file within subdirectories, it provides the number of subdirectories.
-    // This is used to further catergorize the request. 
-    ret = hcom_file_subdir_categorize_filename(_dnldShared->dnldOrigFileName,
-              fileNameLength, &subDirDepth);
-
-// (--) DIAGNOSTIC CODE
-    char fnameText[32];
-    switch (ret)
-    {
-    case fnameInvalid:
-      strcpy(fnameText, "fnameInvalid - bad filename");
-      break;
-    case fnameOriginal:
-      strcpy(fnameText, "fnameOriginal-no '/' ");
-      break;
-    case fnameMeadowFull:
-      strcpy(fnameText, "fnameMeadowFull-Starts '/meadow0/'");
-      break;
-    case fnameMmcsdFull:
-      strcpy(fnameText, "fnameMmcsdFull-Starts '/mmcsd0/'");
-      break;
-    default:
-      strcpy(fnameText, "default?");
-      break;
-    }
-// (--) DIAGNOSTIC CODE
-
-    if(ret == fnameInvalid)
-    {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-file name '%s' is invalid\n",
-                thisFile, __LINE__, _dnldShared->dnldOrigFileName);
-      // (--) Need to send a host message here
-      return -EINVAL;   // Bad argument
-    }
-
-    syslog(1, "===> Valid format, file '%s'. It is categorized as %d (%s), subDirDepth:%lu\n",
-              _dnldShared->dnldOrigFileName, ret, fnameText, subDirDepth);
-
-    // A file name based on the original naming convention needs
-    // '/meadow0/filename' prepended.
-    if(ret == fnameOriginal)
-    {
-      // Build the full path plus file name string (e.g. /mnt0/FileName.ext)
-      size_t fullFileNameLen = strlen(_dnldShared->dnldOrigFileName) + \
-                strlen(HCOM_FILE_MOUNT_POINT_TARGET) + 3; // Room for '/', partition Id, NULL
-
-      _dnldShared->dnldFullFileName = malloc(fullFileNameLen + 1);
-      if(_dnldShared->dnldFullFileName == NULL)
-      {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-        return -ENOMEM;
-      }
-
-#ifdef CONFIG_MTD_PARTITION
-      snprintf_chk(_dnldShared->dnldFullFileName, fullFileNameLen, "%s%d/%s",
-                                HCOM_FILE_MOUNT_POINT_TARGET,
-                                _dnldShared->dnldFilePartId,
-                                _dnldShared->dnldOrigFileName);
+    // Start populating the shared download fields
+#ifdef CONFIG_MTD_PARTITION    // This is a nuttx configuration
+    _dnldShared->dnldFilePartId = userData;
 #else
-      snprintf_chk(_dnldShared->dnldFullFileName, fullFileNameLen, "%s/%s",
-                                HCOM_FILE_MOUNT_POINT_TARGET,
-                                _dnldShared->dnldOrigFileName);
+    _dnldShared->dnldFilePartId = 0;    // Ignore any other partition value
 #endif
-    }
-    else
+
+    // Insure no active state
+    _dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+    HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
+
+    size_t fileNameLength = decodedSize - HCOM_PROTOCOL_FILE_MSG_LENGTH;
+
+    // Do work to test and/or construct the proper file name
+    ret = hcom_file_dir_mgmt_check_file_and_path(_dnldShared, fileMsg, fileNameLength);
+    if(ret < 0)
     {
-      // Allocate the same size buffer as originally provided
-      size_t fullFileNameLen = strlen(_dnldShared->dnldOrigFileName) + 1;
-
-      _dnldShared->dnldFullFileName = malloc(fullFileNameLen + 1);
-      if(_dnldShared->dnldFullFileName == NULL)
-      {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-        return -ENOMEM;
-      }
-      
-      // Just copy the name, null and all.
-      strcpy(_dnldShared->dnldFullFileName, _dnldShared->dnldOrigFileName);
+      hcom_logging_syslog(LOG_ERR, "%s@%d-subdir check errno:%d, ret:%d\n",
+                thisFile, __LINE__, errno, ret);
     }
-
-    syslog(1, "===> %s@%d-Full download file name:'%s' with %lu subdirectories\n",
-              __FILE__, __LINE__, _dnldShared->dnldFullFileName, subDirDepth);
-    usleep(20 * 1000);
-
-    //----------------------------------------------------------------------------------
 
     // For the Meadow file system download start, need to initialize a
-    // watchdog timer
+    // watchdog timer.
     if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
        requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME)
     {
@@ -558,7 +383,7 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-Timer delete errno:%d, ret:%d\n",
                 thisFile, __LINE__, errno, ret);
-      hcom_host_process_free_dnld_share_mem();
+      hcom_file_dir_mgmt_free_dnld_file_mem(_dnldShared);
     }
   }
 
@@ -566,39 +391,6 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
   // All commands are routed here
   hcom_host_route_request_by_cmd_type(hdrMsg, decodedSize, userData,
             requestType, _dnldShared);
-
-  return OK;
-}
-
-//============================================================
-// Free any memory that needs freeing in struct hcom_dnld_shared_s.
-// The intent is any function can call this and be assured that all the
-// internally allocated memory is freed.
-int hcom_host_process_free_dnld_share_mem()
-{
-  // Free any strings etc.
-  free(_dnldShared->dnldOrigFileName);
-  free(_dnldShared->dnldFullFileName);
-  memset(_dnldShared, 0, sizeof(hcom_dnld_shared_t));
-
-  return OK;
-}
-
-//============================================================
-// Basic initialization
-int hcom_host_process_init_dnld_share(uint32_t partitionId)
-{
-  memset(_dnldShared, 0, sizeof(hcom_dnld_shared_t));
-
-  // This is a nuttx configuration about partitioning 
-#ifdef CONFIG_MTD_PARTITION
-  _dnldShared->dnldFilePartId = partitionId;
-#else
-  _dnldShared->dnldFilePartId = 0;    // Ignore any other partition value
-#endif
-
-  // Reset to None
-  _dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
 
   return OK;
 }

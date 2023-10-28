@@ -186,7 +186,7 @@ int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf, size_t *packetLen
 // Received message are first processed using these functions
 int hcom_host_process_setup(void);
 void hcom_host_process_shutdown(void);
-int hcom_host_process_free_dnld_share_mem(void);
+int hcom_file_dir_mgmt_free_dnld_file_mem(hcom_dnld_shared_t *dnldShared);
 bool hcom_host_process_is_stm32f7_dnld_active(void);
 
 int hcom_host_watchdog_dnld_timer_initialize(void);
@@ -248,7 +248,9 @@ int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData);
 
 // -----------------------------------------------
 // File directory functions
-int hcom_file_subdir_read_nested_directories_start(const char *rootDir);
+int hcom_file_dir_mgmt_read_nested_directories_start(const char *rootDir);
+int hcom_file_dir_mgmt_check_file_and_path(hcom_dnld_shared_t *dnldShared,
+          HcomProtoFileMsg_t *fileMsg, size_t fileNameLength);
 
 // -----------------------------------------------
 // File download misc functions

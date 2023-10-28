@@ -47,6 +47,10 @@
 #include <nuttx/arch.h>
 #include <nuttx/mtd/mtd.h>
 
+#if defined (CONFIG_DIR_MGMT_TESTS)
+#pragma message "(--) hcom_file_dnld_stm32f7.c"
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -153,7 +157,7 @@ void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
           0, hostMsg, thisFile, __LINE__);
 
     // Cleanup after failure
-    hcom_host_process_free_dnld_share_mem();
+    hcom_file_dir_mgmt_free_dnld_file_mem(dnldShared);
   }
   else
   {
@@ -186,7 +190,7 @@ void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMs
     }
 
     // Don't do any processing
-    hcom_host_process_free_dnld_share_mem();
+    hcom_file_dir_mgmt_free_dnld_file_mem(dnldShared);
 
     return;
   }
@@ -240,7 +244,7 @@ void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMs
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
             thisFile, __LINE__);
 
-    hcom_host_process_free_dnld_share_mem();
+    hcom_file_dir_mgmt_free_dnld_file_mem(dnldShared);
   }
 }
 
@@ -274,7 +278,7 @@ void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
   uint32_t blockSizeKB; // Required by function call but not used
   int detectError = OK;
 
-  uint32_t actualFileCrc = hcom_file_misc_calc_crc_for_file(dnldShared->dnldFullFileName,
+  uint32_t actualFileCrc = hcom_file_misc_calc_crc_for_file(dnldShared->dnldFileAndPathName,
                 &fileSize, &blockSizeKB, &detectError);
 
   // Report to host
@@ -343,5 +347,5 @@ void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
 
   dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
 
-  hcom_host_process_free_dnld_share_mem();
+  hcom_file_dir_mgmt_free_dnld_file_mem(dnldShared);
 }

@@ -48,6 +48,10 @@
 #include <nuttx/fs/fs.h>
 #include <nuttx/fs/dirent.h>
 
+#if defined (CONFIG_DIR_MGMT_TESTS)
+#pragma message "(--) hcom_file_delete_stm32f7.c"
+#endif
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -70,7 +74,7 @@ void hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared)
   hcom_file_delete_stm32f7_file_by_name_internal(dnldShared);
   
   // This will remove all data from dnld shared struct
-  hcom_host_process_free_dnld_share_mem();
+  hcom_file_dir_mgmt_free_dnld_file_mem(dnldShared);
 }
 
 //====================================================================
@@ -85,17 +89,17 @@ void hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShar
   if(hostMsg == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    hcom_host_process_free_dnld_share_mem();
+    hcom_file_dir_mgmt_free_dnld_file_mem(dnldShared);
     return;
   }
 
-  ret = unlink(dnldShared->dnldFullFileName);
+  ret = unlink(dnldShared->dnldFileAndPathName);
   if (ret < 0)
   {
     char *errorCause;
 
     hcom_logging_syslog(LOG_ERR, "%s@%d-unlink %s, errno %d\n",
-             thisFile, __LINE__, dnldShared->dnldFullFileName,
+             thisFile, __LINE__, dnldShared->dnldFileAndPathName,
              get_errno());
 
     switch(get_errno())
@@ -126,18 +130,18 @@ void hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShar
     hostMsgType = HCOM_HOST_REQUEST_TEXT_ERROR;
 
     hcom_logging_syslog(LOG_ERR, "%s@%d-Error %d (%s) failed to delete:'%s'\n",
-        thisFile, __LINE__, get_errno(), errorCause, dnldShared->dnldFullFileName);
+        thisFile, __LINE__, get_errno(), errorCause, dnldShared->dnldFileAndPathName);
 
     snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
           "Meadow failed to delete '%s' - %s",
-          dnldShared->dnldFullFileName, errorCause);
+          dnldShared->dnldFileAndPathName, errorCause);
   }
   else
   {
     hostMsgType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
     snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
           "Meadow successfully deleted '%s'",
-          dnldShared->dnldFullFileName);
+          dnldShared->dnldFileAndPathName);
   }
 
   // Send text message to host

@@ -42,7 +42,7 @@
 
 // Only build if configured
 #if defined(CONFIG_QUICK_MISC_TESTS)
-#warning "(--) Here quick_misc_tests.c"
+#pragma message "(--) quick_misc_tests.c"
 
 #include "stm32_gpio.h"   // stm32_configgpio
 #include "stm32_exti.h"   // STM32_EXTI_PR

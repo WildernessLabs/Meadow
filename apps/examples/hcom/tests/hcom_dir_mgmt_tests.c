@@ -102,15 +102,15 @@ void meadow_dir_mgmt_tests(uint32_t userData)
       break;
 
   case 2:
-    hcom_file_subdir_read_nested_directories_start("/meadow0");
+    hcom_file_dir_mgmt_read_nested_directories_start("/meadow0");
     break;
 
   case 3:
-    hcom_file_subdir_read_nested_directories_start("/mmcsd0");
+    hcom_file_dir_mgmt_read_nested_directories_start("/mmcsd0");
     break;
 
   case 4:
-    hcom_file_subdir_read_nested_directories_start("/");
+    hcom_file_dir_mgmt_read_nested_directories_start("/");
     break;
 
   default:

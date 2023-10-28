@@ -47,7 +47,7 @@
 #include <meadow/meadow_syscall_support.h>
 
 #if defined (CONFIG_DAC_TESTS)
-#warning "(--) Hacking dig_to_ana_conv_tests.c"
+##pragma message "(--) Hacking dig_to_ana_conv_tests.c"
 
 // Diagnostic always as this is test code
 // #define USE_MEADOW_DEBUG_HELPERS
