@@ -56,6 +56,8 @@
 static char *thisFile = __FILE__;
 
 static bool _shutting_down;
+
+// The following are allocated at startup
 static hcom_dnld_shared_t *_dnldShared;
 static uint8_t *_packet_dest_buf = NULL;
 static uint8_t *_decode_dest_buf = NULL;
@@ -64,8 +66,9 @@ static uint8_t *_decode_dest_buf = NULL;
  * Private Function Prototypes
  ****************************************************************************/
 
-static int hcom_host_process_route_packet(const uint8_t *packet, const size_t packetSize);
-static int hcom_host_process_run(void);
+static int hcom_host_process_route_packet(hcom_dnld_shared_t *dnldShared,
+          const uint8_t *packet, const size_t packetSize);
+static int hcom_host_process_run_loop(void);
 
 /****************************************************************************
  * Public Functions
@@ -95,14 +98,16 @@ int hcom_host_process_setup()
     return -ENOMEM;
   }
 
-  // Allocate for the download shared structure
-  _dnldShared = zalloc(sizeof(hcom_dnld_shared_t));
+  // One time allocation for the download shared structure
+  _dnldShared = malloc(sizeof(hcom_dnld_shared_t));
   if (_decode_dest_buf == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Download shared allocation failed\n",
               thisFile, __LINE__);
     return -ENOMEM;
   }
+
+  memset(_dnldShared, 0, sizeof(hcom_dnld_shared_t));
 
   // The watchdog needs access to the download shared structure
   ret = hcom_host_watchdog_initialize(_dnldShared);
@@ -112,9 +117,6 @@ int hcom_host_process_setup()
               thisFile, __LINE__, ret);
     return -ENOEXEC;    // May be better error code....
   }
-
-  // Set initial state to none
-  _dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
 
   // This threads priority and initial stack size are set via menuconfig
   // Priority: CONFIG_USERMAIN_PRIORITY with a default of 100. This priority
@@ -142,10 +144,34 @@ int hcom_host_process_setup()
 
   // This thread now runs host processing of received messages. As such this
   // call will never return.
-  ret = hcom_host_process_run();
+  ret = hcom_host_process_run_loop();
  
   // This return is only reached on shutddown
   return ret;
+}
+
+//===========================================================================
+// Free any memory in struct hcom_dnld_shared_s.
+// The intent is any function can call this and be assured that all the
+// internally allocated memory is freed.
+static int hcom_file_dir_mgmt_free_file_info(hcom_dnld_shared_t *dnldShared)
+{
+  // Free any string memory allocations
+  if(dnldShared->dnldOrigFileName != NULL)
+  {
+    free(dnldShared->dnldOrigFileName);
+    dnldShared->dnldOrigFileName = NULL;
+  }
+    
+  if(dnldShared->dnldFileAndPathName != NULL)
+  {
+    free(dnldShared->dnldFileAndPathName);
+    dnldShared->dnldFileAndPathName = NULL;
+  }
+
+  memset(dnldShared, 0, sizeof(hcom_dnld_shared_t));
+
+  return OK;
 }
 
 //====================================================================
@@ -157,59 +183,177 @@ void hcom_host_process_shutdown()
   free(_decode_dest_buf);
   free(_packet_dest_buf);
 
-  hcom_file_dir_mgmt_free_dnld_file_mem(_dnldShared);
+  hcom_file_dir_mgmt_free_file_info(_dnldShared);
 }
 
 //==========================================================================
 // Are we involved in some external flash download activity? There are the
 // following states: HcomStm32F7DnldStateNone, HcomStm32F7DnldStateStarting
 // and HcomStm32F7DnldStateFileXfer
-bool hcom_host_process_is_stm32f7_dnld_active()
+static bool hcom_host_process_is_stm32f7_dnld_active(hcom_dnld_shared_t *dnldShared)
 {
-  return((_dnldShared->dnldCurrentState == HcomStm32F7DnldStateStarting) ||
-         (_dnldShared->dnldCurrentState == HcomStm32F7DnldStateFileXfer));
+  return((dnldShared->dnldCurrentState == HcomStm32F7DnldStateStarting) ||
+         (dnldShared->dnldCurrentState == HcomStm32F7DnldStateFileXfer));
 }
 
-//=================================================================
+//==========================================================================
+// This function consolidates a lot of the needed processing for file download
+// and file delete into a single function instead of being spread all over
+// the code base.
+static int hcom_host_process_init_write_or_del(const HcomProtoHdrMsg_t *hdrMsg,
+            const size_t packetSize, const uint32_t userData,
+            const uint16_t requestType, hcom_dnld_shared_t *dnldShared)
+{
+  int ret;
+  
+  // Verify that mono has been disabled, if not don't allow download
+  if(hcom_mono_ctrl_is_mono_enabled())
+  {
+    char hostMsg[HCOM_TINY_HOST_STRING_BUFF_LENGTH];
+    snprintf_chk(hostMsg, HCOM_TINY_HOST_STRING_BUFF_LENGTH,
+            "Mono must be disabled for file download");
+
+    hcom_logging_syslog(LOG_ERR, "%s@%d-%s\n", thisFile, __LINE__, hostMsg);
+
+    // Let CLI user know the problem
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
+            hostMsg, thisFile, __LINE__);
+
+    // Notify CLI that download can't continue because of an error.
+    hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL, 0, thisFile, __LINE__);
+    return -EPERM;    // Operation not permitted
+  }
+
+  // Clear the entire struct containing all download/delete and state
+  // information.
+  memset(dnldShared, 0, sizeof(hcom_dnld_shared_t));
+
+  // Start populating the shared download fields
+#ifdef CONFIG_MTD_PARTITION    // This is a nuttx configuration
+  dnldShared->dnldFilePartId = userData;
+#else
+  dnldShared->dnldFilePartId = 0;    // Ignore any other partition value
+#endif
+
+  HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
+
+  size_t fileNameLength = packetSize - HCOM_PROTOCOL_FILE_MSG_LENGTH;
+
+  // Do work to test and/or construct the proper full file name
+  //
+  // Note: This call may allocate memory, therefore, this must be considered
+  // this memory after this point.
+  ret = hcom_file_dir_mgmt_check_file_and_path(dnldShared, fileMsg, fileNameLength);
+  if(ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-subdir check errno:%d, ret:%d\n",
+              thisFile, __LINE__, errno, ret);
+
+    return ret;
+  }
+
+  // For the Meadow file system download start, need to do extra
+  // initialization
+  if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
+      requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME)
+  {
+    // If there are subdirectories, we may need to add 1-n subdirectories
+    if(dnldShared->dnldSubdirDepth > 0)
+    {
+      ret = hcom_file_dir_mgmt_check_and_add_subdir(dnldShared);
+      if(ret < 0)
+      {
+        hcom_logging_syslog(LOG_ERR, "%s@%d-Checking subdir errno:%d, ret:%d\n",
+                  thisFile, __LINE__, errno, ret);
+
+        return ret;
+      }
+    }
+
+    ret = hcom_host_watchdog_dnld_timer_initialize();
+    if(ret < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Timer init errno:%d, ret:%d\n",
+                thisFile, __LINE__, errno, ret);
+
+      return ret;
+    }
+
+    // Start the timer to ensure we start and continue to receiving data
+    // from CLI
+    ret = hcom_host_watchdog_dnld_timer_set_delay(HCOM_FILE_DNLD_STM32F7_WDOG_TIME);
+    if(ret < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set errno:%d, ret:%d\n",
+                thisFile, __LINE__, errno, ret);
+
+      return ret;
+    }
+  }
+  return OK;
+}
+
+//==========================================================================
 // This thread processes all the messages the receive thread has written to
-// the circular buffer.
-int hcom_host_process_run()
+// the circular buffer in this loop
+int hcom_host_process_run_loop()
 {
   int ret;
   size_t packetLength;
-  
+
   while (!_shutting_down)
   {
-    // Dequeue the next packet received
+    // Dequeue the next packet received. Also, checks watchdog timer
     ret = hcom_host_enq_deq_dequeue_packet(_packet_dest_buf, &packetLength);
     if(ret < 0)
     {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-Failed to dequeue message\n", thisFile, __LINE__);
+      // Error processing, cleanup allocated memory
+      if(ret == -ETIME)
+      {
+        // Watchdog timeout waiting for data
+        hcom_logging_syslog(LOG_ERR, "%s@%d-Watchdog timeout during download\n",
+                  thisFile, __LINE__);
+
+        // If any download/delete state information, delete it
+        hcom_file_dir_mgmt_free_file_info(_dnldShared);
+      }
+      else
+      {
+        hcom_logging_syslog(LOG_ERR, "%s@%d-Failed to dequeue message\n",
+                  thisFile, __LINE__);
+      }
       continue;
     }
 
     // We have a good packet. Drop trailing delimiter using --packetLength,
     // then decode the packet and route it for processing.
-    size_t decodedPacketSize = hcom_host_cobs_decoder(_packet_dest_buf, --packetLength, _decode_dest_buf);
+    size_t decodedPacketSize = hcom_host_cobs_decoder(_packet_dest_buf,
+              --packetLength, _decode_dest_buf);
     if(decodedPacketSize == 0)
       continue;
 
-    ret = hcom_host_process_route_packet(_decode_dest_buf, decodedPacketSize);
+    // Do initial processing of packet
+    ret = hcom_host_process_route_packet(_dnldShared, _decode_dest_buf,
+              decodedPacketSize);
     if (ret < 0)
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-processing data:%d\n",
                 thisFile, __LINE__, ret);
+
+      // If any download/delete state information, delete it
+      hcom_file_dir_mgmt_free_file_info(_dnldShared);
     }
   }
 
-  // Thread is exiting
+  // Thread is exiting, this is not good
   return OK;
 }
 
 //============================================================================
 // Parse and process received decoded packets as sent by host (CLI).
 // Grab the sequence number and use it to determine if data or command.
-int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t decodedSize)
+int hcom_host_process_route_packet(hcom_dnld_shared_t *dnldShared,
+          const uint8_t *decodedPacket, const size_t decodedSize)
 {
   int ret;
   uint16_t requestType;
@@ -228,19 +372,26 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
     // Must be a Data Packet (download) because sequence number != 0.
     // What is the current download state? What is active, external flash or
     // ESP32?
-    if(hcom_host_process_is_stm32f7_dnld_active())
+    if(hcom_host_process_is_stm32f7_dnld_active(dnldShared))
     {
-      // Keep resetting the watchdog on every packet
+      // Keep resetting the watchdog here on every packet
       ret = hcom_host_watchdog_dnld_timer_set_delay(HCOM_FILE_DNLD_STM32F7_WDOG_TIME);
       if(ret < 0)
       {
         hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set errno:%d, ret:%d\n",
                   thisFile, __LINE__, errno, ret);
-        hcom_file_dir_mgmt_free_dnld_file_mem(_dnldShared);
+        return ret;
       }
 
       // Here's the data for download
-      hcom_file_dnld_stm32f7_recvd_file_data(hcomDataMsg, decodedSize, _dnldShared);
+      ret = hcom_file_dnld_stm32f7_recvd_file_data(hcomDataMsg, decodedSize,
+                dnldShared);
+      if(ret < 0)
+      {
+        hcom_logging_syslog(LOG_ERR, "%s@%d-Receving data errno:%d, ret:%d\n",
+                  thisFile, __LINE__, errno, ret);
+        return ret;
+      }
     }
     else if(hcom_file_dnld_esp32_is_active())
     {
@@ -254,7 +405,7 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
                 thisFile, __LINE__);
     }
 
-    // Finished with download packet
+    // Finished with download data packet processing
     return OK;
   }
 
@@ -273,7 +424,7 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
   {
     char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
     snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
-          "Meadow is expecting a newer CLI Protocol version. Please update Meadow.CLI." \
+          "Meadow is expecting a different CLI Protocol version. Please update Meadow.CLI." \
           " (version received: %04x required: %04x).",
           hdrMsg->stdHeader.version, HCOM_PROTOCOL_PREFERRED_VERSION_NUMBER);
 
@@ -296,101 +447,72 @@ int hcom_host_process_route_packet(const uint8_t *decodedPacket, const size_t de
   }
 
   // Pull out important values
-  requestType = hdrMsg->stdHeader.rqstType;
   userData = hdrMsg->stdHeader.userData;
+  requestType = hdrMsg->stdHeader.rqstType;
+
+  // Remove any remaining memory unless this is the file download end message
+  if(requestType != HCOM_MDOW_REQUEST_END_FILE_TRANSFER &&
+     requestType != HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END)
+  {
+    hcom_file_dir_mgmt_free_file_info(_dnldShared);
+  }
 
   //---------------------------------------------------------------
   // For downloading or deleting files we need more information and require
   // HCOM to keep the state while downloading.
-  // These 3 commands are those that need the file's name and may need to
+  // These 3 commands are those that need the file's name and need to
   // establish a temporary state while the download is being processed.
   // This is done here so it doesn't needed to be done in multiple places.
   if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
      requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME ||
      requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME)
   {
-    // Verify that mono has been disabled, if not don't allow download
-    if(hcom_mono_ctrl_is_mono_enabled())
-    {
-      char hostMsg[HCOM_TINY_HOST_STRING_BUFF_LENGTH];
-      snprintf_chk(hostMsg, HCOM_TINY_HOST_STRING_BUFF_LENGTH,
-              "Mono must be disabled for file download");
-
-      hcom_logging_syslog(LOG_ERR, "%s@%d-%s\n", thisFile, __LINE__, hostMsg);
-
-      // Let CLI user know the problem
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
-              hostMsg, thisFile, __LINE__);
-
-      // Notify CLI that download can't continue because of an error.
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL, 0, thisFile, __LINE__);
-
-      return OK;
-    }
-
-    // Initialize the entire struct containing all download/delete and state
-    // information.
-    memset(_dnldShared, 0, sizeof(hcom_dnld_shared_t));
-
-    // Start populating the shared download fields
-#ifdef CONFIG_MTD_PARTITION    // This is a nuttx configuration
-    _dnldShared->dnldFilePartId = userData;
-#else
-    _dnldShared->dnldFilePartId = 0;    // Ignore any other partition value
-#endif
-
-    // Insure no active state
-    _dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
-    HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
-
-    size_t fileNameLength = decodedSize - HCOM_PROTOCOL_FILE_MSG_LENGTH;
-
-    // Do work to test and/or construct the proper file name
-    ret = hcom_file_dir_mgmt_check_file_and_path(_dnldShared, fileMsg, fileNameLength);
+    // Starting a file transfer or delete needs special pre-processing
+    // before being routed to the various write and delete functions.
+    ret = hcom_host_process_init_write_or_del(hdrMsg, decodedSize, userData,
+            requestType, dnldShared);
     if(ret < 0)
     {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-subdir check errno:%d, ret:%d\n",
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Write delete errno:%d, ret:%d\n",
                 thisFile, __LINE__, errno, ret);
-    }
 
-    // For the Meadow file system download start, need to initialize a
-    // watchdog timer.
-    if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
-       requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME)
-    {
-      ret = hcom_host_watchdog_dnld_timer_initialize();
-      if(ret < 0)
-      {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-Timer init errno:%d, ret:%d\n",
-                  thisFile, __LINE__, errno, ret);
-      }
-
-      // Start the timer to ensure we start and continue to receiving data
-      // from CLI
-      ret = hcom_host_watchdog_dnld_timer_set_delay(HCOM_FILE_DNLD_STM32F7_WDOG_TIME);
-      if(ret < 0)
-      {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set errno:%d, ret:%d\n",
-                  thisFile, __LINE__, errno, ret);
-      }
+      hcom_file_dir_mgmt_free_file_info(_dnldShared);
+      return ret;   // On error exit (mono must be enabled)
     }
   }
-  else if(requestType == HCOM_MDOW_REQUEST_END_FILE_TRANSFER)
+  else if(requestType == HCOM_MDOW_REQUEST_END_FILE_TRANSFER ||
+          requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END)
   {
-    // Stop and delete watchdog
+    // Since we're about to finish the data download, stop and delete
+    // watchdog as it's no longer needed.
     ret = hcom_host_watchdog_dnld_timer_delete();
     if(ret < 0)
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-Timer delete errno:%d, ret:%d\n",
                 thisFile, __LINE__, errno, ret);
-      hcom_file_dir_mgmt_free_dnld_file_mem(_dnldShared);
     }
   }
 
-  //---------------------------------------------------------------
-  // All commands are routed here
-  hcom_host_route_request_by_cmd_type(hdrMsg, decodedSize, userData,
-            requestType, _dnldShared);
+  // All command types are routed here. There are a few command type handlers
+  // that report errors. Specifically, those dealing with file download.
+  ret = hcom_host_route_request_by_cmd_type(hdrMsg, decodedSize, userData,
+            requestType, dnldShared);
+  if(ret < 0)
+  {
+    // (--) THE FOLLOWING IS PROBABLY NOT NEEDED. THE MEMORY WILL BE FREED
+    // WHEN THE NEXT COMMAND IS RECEIVED.
+    // These may have allocated memory, if they fail, we need to free the
+    // memory.
+    if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
+        requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME ||
+        requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME)
+    {
+      hcom_file_dir_mgmt_free_file_info(_dnldShared);
+    }
+
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Request Type:%u errno:%d, ret:%d\n",
+              thisFile, __LINE__, requestType, errno, ret);
+  }
 
   return OK;
 }

@@ -77,11 +77,14 @@ void hcom_host_route_shutdown()
 }
 
 //========================================================================
-// This function routes the message to the proper processing functions
-void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
+// This function routes the message to the proper processing functions.
+// Most function called are void, a few return 'ret'.
+int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
             const size_t packetSize, const uint32_t userData,
             const uint16_t requestType, hcom_dnld_shared_t *dnldShared)
 {
+  int ret = OK;
+
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "-->Received Meadow command of RqstType:0x%04x\n",
             requestType);
@@ -92,7 +95,7 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
     // Start file transfer handles Meadow 
     case HCOM_MDOW_REQUEST_START_FILE_TRANSFER:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_dnld_stm32f7_file_begin(hdrMsg, dnldShared);
+      ret = hcom_file_dnld_stm32f7_file_begin(hdrMsg, dnldShared);
       break;
 
     // End file transfer handles Meadow
@@ -105,7 +108,7 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
 
     case HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_delete_stm32f7_file_by_name(dnldShared);
+      ret = hcom_file_delete_stm32f7_file_by_name(dnldShared);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
@@ -239,7 +242,7 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
     // 1. CLI sends this first
     case HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_dnld_stm32f7_file_begin(hdrMsg, dnldShared);
+      ret = hcom_file_dnld_stm32f7_file_begin(hdrMsg, dnldShared);
       break;
       
       // 2. CLI sends data.....
@@ -425,4 +428,5 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
     }
   }
+  return ret;
 }

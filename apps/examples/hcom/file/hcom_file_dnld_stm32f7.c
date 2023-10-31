@@ -91,10 +91,10 @@ int hcom_file_dnld_stm32f7_setup()
 //==========================================================================
 // Beginning of a file download into the flash file system.
 // Called from hcom_host_route.c. The incomplete file name has been supplied.
-void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
+int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
           hcom_dnld_shared_t *dnldShared)
 {
-  int ret;
+  int ret = OK;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
 
@@ -155,9 +155,6 @@ void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
           dnldShared->dnldOrigFileName, errorCause);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL,
           0, hostMsg, thisFile, __LINE__);
-
-    // Cleanup after failure
-    hcom_file_dir_mgmt_free_dnld_file_mem(dnldShared);
   }
   else
   {
@@ -167,18 +164,21 @@ void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
     // Notify CLI that it's okay to send the file's data now
     hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_OKAY,
               0, thisFile, __LINE__);
+    ret = OK;
   }
+
+  return ret;
 }
 
 //============================================================================
 // Process a data packet
-void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg,
+int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg,
           const size_t packetSize, hcom_dnld_shared_t *dnldShared)
 {
   int ret;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
 
-  // Ignore download if it's not expected. Either not begin or error
+  // Ignore download if it's not expected. Either not begin or an error
   if(dnldShared->dnldCurrentState != HcomStm32F7DnldStateFileXfer)
   {
     // Show problem, but only once
@@ -189,10 +189,7 @@ void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMs
       _stateErrShown = true;
     }
 
-    // Don't do any processing
-    hcom_file_dir_mgmt_free_dnld_file_mem(dnldShared);
-
-    return;
+    return -ENOTRECOVERABLE;      // State not recoverable
   }
 
 #if (HCOM_RECV_DEBUG_TIMING) > 0 || (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
@@ -229,9 +226,6 @@ void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMs
   // Actually write the data to the file system
   ret = hcom_file_write_to_active_file(dnldShared, hcomDataMsg->binData,
             binDataLen);
-
-  dnldShared->dnldCalcFileSize += binDataLen;
-
   if (ret < 0)
   {
     // Error
@@ -244,8 +238,12 @@ void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMs
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
             thisFile, __LINE__);
 
-    hcom_file_dir_mgmt_free_dnld_file_mem(dnldShared);
+    return ret;
   }
+
+  dnldShared->dnldCalcFileSize += binDataLen;
+
+  return OK;
 }
 
 //=======================================================================================
@@ -261,7 +259,7 @@ void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
 
   if(dnldShared->dnldCurrentState != HcomStm32F7DnldStateFileXfer)
   {
-    hcom_logging_syslog(LOG_WARNING, "%s@%d-Dnld end, unexpected state, expected:%d\n",
+    hcom_logging_syslog(LOG_WARNING, "%s@%d-Dnld end, unexpected state:%d, expected\n",
               thisFile, __LINE__, dnldShared->dnldCurrentState);
     // Continue even with error
   }
@@ -344,8 +342,5 @@ void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
            thisFile, __LINE__, _dbgNumbPacketsRecvd, ((_dbgReceptionEndedAt - _dbgReceptionBeganAt) / 1000000),
            dnldShared->dnldCalcFileCrc);
 #endif
-
   dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
-
-  hcom_file_dir_mgmt_free_dnld_file_mem(dnldShared);
 }

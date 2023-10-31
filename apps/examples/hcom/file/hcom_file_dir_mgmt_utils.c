@@ -207,12 +207,11 @@ static int hcom_file_dir_mgmt_categorize_filename(const char *fileName,
 /****************************************************************************
  * Public Functions
  ***************************************************************************/
-
 // File name processing
 int hcom_file_dir_mgmt_check_file_and_path(hcom_dnld_shared_t *dnldShared,
           HcomProtoFileMsg_t *fileMsg, size_t fileNameLength)
 {
-  int ret;
+  int catType;
   uint32_t subdirDepth;
   size_t dnldFileAndPathLen;
   
@@ -239,37 +238,39 @@ int hcom_file_dir_mgmt_check_file_and_path(hcom_dnld_shared_t *dnldShared,
   // This call will catergorize as one of the above or error. In the case of
   // a file within subdirectories, it provides the number of subdirectories.
   // This is used to further catergorize the request. 
-  ret = hcom_file_dir_mgmt_categorize_filename(dnldShared->dnldOrigFileName,
+  catType = hcom_file_dir_mgmt_categorize_filename(dnldShared->dnldOrigFileName,
             fileNameLength, &subdirDepth);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set errno:%d, ret:%d\n",
-              thisFile, __LINE__, errno, ret);
-    hcom_file_dir_mgmt_free_dnld_file_mem(dnldShared);
-  }
+  dnldShared->dnldSubdirDepth = subdirDepth;
   
-// (--) DIAGNOSTIC CODE
-  char fNameType[32];
-  switch (ret)
+// (--) SOME DIAGNOSTIC CODE
+  char diagFNameType[32];
+  switch (catType)
   {
   case fnameInvalid:
-    strcpy(fNameType, "fnameInvalid - bad filename");
+    strcpy(diagFNameType, "fnameInvalid - bad filename");
     break;
   case fnameOriginal:
-    strcpy(fNameType, "fnameOriginal-no '/'");
+    dnldShared->dnldIsRootMeadow0 = true;
+    strcpy(diagFNameType, "fnameOriginal-no '/'");
     break;
   case fnameMeadowFull:
-    strcpy(fNameType, "fnameMeadowFull ('/meadow0/')");
+    dnldShared->dnldIsRootMeadow0 = true;
+    strcpy(diagFNameType, "fnameMeadowFull ('/meadow0/')");
     break;
   case fnameMmcsdFull:
-    strcpy(fNameType, "fnameMmcsdFull ('/mmcsd0/')");
+    dnldShared->dnldIsRootMeadow0 = false;
+    strcpy(diagFNameType, "fnameMmcsdFull ('/mmcsd0/')");
     break;
   default:
-    strcpy(fNameType, "default?");
+    strcpy(diagFNameType, "default?");
     break;
   }
-// (--) DIAGNOSTIC CODE
-  if(ret == fnameInvalid)
+
+  syslog(1, "===> Valid format, file '%s'. It is categorized as %d (%s), subdirDepth:%lu\n",
+            dnldShared->dnldOrigFileName, catType, diagFNameType, subdirDepth);
+// (--) SOME DIAGNOSTIC CODE
+
+  if(catType == fnameInvalid)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-file name '%s' is invalid\n",
               thisFile, __LINE__, dnldShared->dnldOrigFileName);
@@ -278,12 +279,12 @@ int hcom_file_dir_mgmt_check_file_and_path(hcom_dnld_shared_t *dnldShared,
     return -EINVAL;   // Bad argument
   }
 
-  syslog(1, "===> Valid format, file '%s'. It is categorized as %d (%s), subdirDepth:%lu\n",
-            dnldShared->dnldOrigFileName, ret, fNameType, subdirDepth);
+  // Save sub-directory depth for whoever may want it
+  dnldShared->dnldSubdirDepth = subdirDepth;
 
   // A file name based on the original naming convention needs
   // to have '/meadow0/' prepended to the filename so it can be used.
-  if(ret == fnameOriginal)
+  if(catType == fnameOriginal)
   {
     // Build the full path plus file name string (e.g. /meadow0/FileName.ext)
     dnldFileAndPathLen = strlen(dnldShared->dnldOrigFileName) + \
@@ -309,7 +310,8 @@ int hcom_file_dir_mgmt_check_file_and_path(hcom_dnld_shared_t *dnldShared,
   }
   else
   {
-    // Since the entire path has been provide by the host message, we'll
+    // (--) CHANCE TO REFACTOR??? SINCE THE SAME NAME IS IN 2 PLACES IN STRUCT
+    // Since the entire path must be provide by the host message, we'll
     // allocate the same size buffer as originally provided for the full name.
     // This should take care of both '/meadow0/' and '/mmcsd0/' files.
     dnldShared->dnldFileAndPathName = malloc(fileNameLength + 1);
@@ -330,21 +332,40 @@ int hcom_file_dir_mgmt_check_file_and_path(hcom_dnld_shared_t *dnldShared,
   return OK;
 }
 
-//============================================================
-// Free any memory that needs freeing in struct hcom_dnld_shared_s.
-// The intent is any function can call this and be assured that all the
-// internally allocated memory is freed.
-int hcom_file_dir_mgmt_free_dnld_file_mem(hcom_dnld_shared_t *dnldShared)
+//===========================================================================
+// This function will add any missing directories needed to write the file
+// being added
+int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
 {
-  // Free any strings etc.
-  free(dnldShared->dnldOrigFileName);
-  free(dnldShared->dnldFileAndPathName);
-  memset(dnldShared, 0, sizeof(hcom_dnld_shared_t));
+  // DIR *dir;
+
+  // The entire subdir tree is in this string
+  // dnldShared->dnldFileAndPathName
+
+  // Open top most directory
+  // if (!(dir = opendir(rootDir)))
+  // {
+  //   hcom_logging_syslog(LOG_ERR, "%s@%d-Could not open:%s as root directory, errno:%d\n",
+  //             thisFile, __LINE__, rootDir, errno);
+  //   return -errno;
+  // }
+
+  // while ((entry = readdir(dir)) != NULL)
+  // {
+  //   if (DIRENT_ISDIRECTORY(entry->d_type))
+  //   {
+
+  //   }
+  //   else
+  //   {
+
+  //   }
 
   return OK;
 }
 
 // (--) REPLACE RECURSIVE WITH NON_RECURSIVE VERSION!!
+// (--) KEEPING TILL NEW VERSION AVAILABLE SINCE THIS ONE WORKS
 //===========================================================================
 // Note: Use "/" as the rootDir to show all files and directories etc.
 int hcom_file_dir_mgmt_read_nested_directories_start(const char *rootDir)
@@ -365,9 +386,9 @@ int hcom_file_dir_mgmt_read_nested_directories(const char *rootDir,
 
   if (!(dir = opendir(rootDir)))
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Could not open:%s as root directory\n",
-              thisFile, __LINE__, rootDir);
-    return -1;
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Could not open:%s as root directory, errno:%d\n",
+              thisFile, __LINE__, rootDir, errno);
+    return -errno;
   }
 
   while ((entry = readdir(dir)) != NULL)

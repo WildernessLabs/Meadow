@@ -186,15 +186,13 @@ int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf, size_t *packetLen
 // Received message are first processed using these functions
 int hcom_host_process_setup(void);
 void hcom_host_process_shutdown(void);
-int hcom_file_dir_mgmt_free_dnld_file_mem(hcom_dnld_shared_t *dnldShared);
-bool hcom_host_process_is_stm32f7_dnld_active(void);
 
 int hcom_host_watchdog_dnld_timer_initialize(void);
 int hcom_host_watchdog_dnld_timer_set_delay(time_t sec);
 int hcom_host_watchdog_dnld_timer_delete(void);
 int hcom_esp32_exec_flash_file(uint8_t *, uint32_t, uint32_t, char *);
 
-void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hcomMsg,
+int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hcomMsg,
       const size_t packetSize, const uint32_t userData,
       const uint16_t requestType, hcom_dnld_shared_t *dnldShared);  
 int hcom_host_route_setup(void);
@@ -203,13 +201,13 @@ void hcom_host_route_shutdown(void);
 // -----------------------------------------------
 // Execute Request for download add and delete
 int hcom_file_dnld_stm32f7_setup(void);
-void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
+int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
       hcom_dnld_shared_t *dnldShared);
-void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
+int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
       const size_t packetSize, hcom_dnld_shared_t *dnldShared);
 void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared);
-void hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared);
-void hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShared);
+int hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared);
+int hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShared);
 
 int hcom_file_dnld_esp32_setup(void);
 bool hcom_file_dnld_esp32_is_active(void);

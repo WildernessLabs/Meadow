@@ -65,22 +65,25 @@ struct hcom_dnld_shared_s
   uint32_t dnldCalcFileCrc;         // CRC calculated over while receiving
   uint32_t dnldInitFileSize;        // File size based on received CLI data
   uint32_t dnldCalcFileSize;        // This size calculated while receiving
+  uint32_t dnldSubdirDepth;         // Number of subdirectories
+  bool     dnldIsRootMeadow0;       // True='/meadow0' False='/mmcsd0'
+
   int dnldFileFD;                   // For file write persisted fd
   int dnldPercentSent;              // Used to calculate the % completed
-
-  // Set by processing and used by file handling
+  // Set by processing and used by file handling (This is always 1)
   uint32_t dnldFilePartId;          // File partition from CLI
+  // These are allocated and may be exactly the same string
   char *dnldOrigFileName;           // File name as provided by CLI
   char *dnldFileAndPathName;        // Full file name (e.g. /meadow0/file.txt)
 };
-
 typedef struct hcom_dnld_shared_s hcom_dnld_shared_t;
 
-int hcom_file_dir_mgmt_free_dnld_file_mem(hcom_dnld_shared_t *dnldShared);
+// int hcom_file_dir_mgmt_free_file_info(hcom_dnld_shared_t *dnldShared);
 
-// The watchdog has a close relationship with hcom host process
+// The watchdog has a close relationship with hcom CLI message process
 int hcom_host_watchdog_initialize(hcom_dnld_shared_t *dnldShared);
 void hcom_host_watchdog_stopping(void);
-void hcom_host_watchdog_check_execute_if_expired(void);
+int hcom_host_watchdog_check_execute_if_expired(void);
+int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared);
 
 #endif  // __INCLUDE_HCOM_DOWNLOAD_SHARED__H

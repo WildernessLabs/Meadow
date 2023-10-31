@@ -68,18 +68,16 @@ static char *thisFile = __FILE__;
 /****************************************************************************
  * Public Functions
  ***************************************************************************/
-// This is called by CLI
-void hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared)
+// This is directly called by CLI
+int hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared)
 {
-  hcom_file_delete_stm32f7_file_by_name_internal(dnldShared);
-  
-  // This will remove all data from dnld shared struct
-  hcom_file_dir_mgmt_free_dnld_file_mem(dnldShared);
+  // Delete the file
+  return hcom_file_delete_stm32f7_file_by_name_internal(dnldShared);
 }
 
 //====================================================================
 // This is a internal function accessable to internal callers
-void hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShared)
+int hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShared)
 {
   int ret;
   uint16_t hostMsgType;
@@ -89,8 +87,7 @@ void hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShar
   if(hostMsg == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    hcom_file_dir_mgmt_free_dnld_file_mem(dnldShared);
-    return;
+    return -ENOMEM;
   }
 
   ret = unlink(dnldShared->dnldFileAndPathName);
@@ -101,22 +98,22 @@ void hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShar
     hcom_logging_syslog(LOG_ERR, "%s@%d-unlink %s, errno %d\n",
              thisFile, __LINE__, dnldShared->dnldFileAndPathName,
              get_errno());
-
-    switch(get_errno())
+    ret = -get_errno();
+    switch(ret)
     {
-      case ENOENT: // No such file or directory
+      case -ENOENT: // No such file or directory
       errorCause = "No such file";
       break;
 
-      case EEXIST: // File already open
+      case -EEXIST: // File already open
       errorCause = "Another file is being processed";
       break;
       
-      case ENAMETOOLONG: // File name too long
+      case -ENAMETOOLONG: // File name too long
       errorCause = "File name too long";
       break;
 
-      case EMFILE: // Too many files open
+      case -EMFILE: // Too many files open
       errorCause = "Too many files open";
       break;
 
@@ -129,7 +126,7 @@ void hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShar
 
     hostMsgType = HCOM_HOST_REQUEST_TEXT_ERROR;
 
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Error %d (%s) failed to delete:'%s'\n",
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Errno:%d (%s) failed to delete:'%s'\n",
         thisFile, __LINE__, get_errno(), errorCause, dnldShared->dnldFileAndPathName);
 
     snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
@@ -142,10 +139,14 @@ void hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShar
     snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
           "Meadow successfully deleted '%s'",
           dnldShared->dnldFileAndPathName);
+
+    ret = OK;
   }
 
   // Send text message to host
   hcom_host_send_simple_string_msg(hostMsgType, 0, hostMsg, thisFile, __LINE__);
 
   free(hostMsg);
+
+  return ret;
 }
