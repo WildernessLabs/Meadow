@@ -19,12 +19,15 @@ static gboolean mono_mbedtls_initialized = FALSE;
 // File paths to client certificate and private key
 static const char* private_key_path = "/meadow0/private_key.pem";
 static const char* client_cert_path = "/meadow0/client_cert.pem";
+static int server_cert_authmode = MBEDTLS_SSL_VERIFY_REQUIRED;
 
-int mono_mbedtls_init (void);
+int mono_mbedtls_init (int authmode);
 intptr_t mono_mbedtls_connect(intptr_t mono_fd, intptr_t readbuf, intptr_t writebuf, char * hostname);
 int mono_mbedtls_read (MonoMbedTlsContext * ctx, int length);
 int mono_mbedtls_write (MonoMbedTlsContext * ctx, int length);
 void mono_mbedtls_close (MonoMbedTlsContext * ctx);
+int mono_mbedtls_set_server_cert_authmode (int authmode);
+void check_if_cert_files_exist(void);
 
 static void my_debug( void *ctx, int level, const char *file, int line, const char *str )
 {
@@ -3346,7 +3349,7 @@ void check_if_cert_files_exist()
     }
 }
 
-int mono_mbedtls_init ()
+int mono_mbedtls_init ( int server_cert_authmode )
 {
     int ret;
     mbedtls_ssl_config_init( &conf );
@@ -3360,7 +3363,7 @@ int mono_mbedtls_init ()
         goto error;
     }
 
-    mbedtls_ssl_conf_authmode (&conf, MBEDTLS_SSL_VERIFY_REQUIRED );
+    mbedtls_ssl_conf_authmode ( &conf, server_cert_authmode );
 
     //debug
     mbedtls_ctr_drbg_init( &ctr_drbg );
@@ -3428,7 +3431,7 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
     if (mono_mbedtls_initialized == FALSE)
     {
         mono_mbedtls_initialized = TRUE;
-        if (mono_mbedtls_init () < 0)
+        if (mono_mbedtls_init ( server_cert_authmode ) < 0)
             goto error;
     }
 
@@ -3535,4 +3538,22 @@ void mono_mbedtls_close (MonoMbedTlsContext * ctx)
     g_free (ctx->mbedtls_fd);
     g_free (ctx);
     return;
+}
+
+int mono_mbedtls_set_server_cert_authmode (int authmode)
+{
+    if ( authmode == MBEDTLS_SSL_VERIFY_REQUIRED ||
+        authmode == MBEDTLS_SSL_VERIFY_OPTIONAL ||
+        authmode == MBEDTLS_SSL_VERIFY_NONE )
+    {
+        server_cert_authmode = authmode;
+    }
+    else
+    {
+        server_cert_authmode = MBEDTLS_SSL_VERIFY_REQUIRED;
+        printf("Invalid server certificate validation mode: %d", server_cert_authmode);
+        return -1;
+    }
+
+    return server_cert_authmode;
 }
