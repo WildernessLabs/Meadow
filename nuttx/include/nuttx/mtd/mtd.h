@@ -82,6 +82,9 @@
                                            * OUT: None */
 #define MTDIOC_ECCSTATUS  _MTDIOC(0x0008) /* IN:  Pointer to uint8_t
                                            * OUT: ECC status */
+#define MTDIOC_RESET      _MTDIOC(0x0008) /* IN: None 
+                                             OUT: None */
+
 
 /* Macros to hide implementation */
 

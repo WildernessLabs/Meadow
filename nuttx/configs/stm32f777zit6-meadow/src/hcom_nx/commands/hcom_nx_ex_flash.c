@@ -702,3 +702,8 @@ int hcom_nx_exec_ex_flash_OS_update_flash2(void)
   hcom_nx_common_utils_host_restart_meadow();
   return 0; // restarts; never actually returns
 }
+
+int hcom_nx_exec_ex_flash_reset(void)
+{
+  return _mtd->ioctl(_mtd, MTDIOC_RESET, 0);
+}
