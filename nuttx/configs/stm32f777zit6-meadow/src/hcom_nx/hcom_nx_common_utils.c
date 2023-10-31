@@ -79,11 +79,7 @@ void hcom_nx_common_utils_host_restart_meadow()
   // be sent to the host
   hcom_nx_bbreg_set_bbr_bits(HCOM_BBREG_RESTART_INITIATED_BY_HOST_CMD_BIT);
  
-  // Give time for reconnect message to arrive and be processed before restart
-  usleep(500 * 1000);
-
-  // This never returns
-  up_systemreset();
+  hcom_nx_common_utils_only_restart_meadow();
 }
 
 //============================================================================
@@ -91,6 +87,9 @@ void hcom_nx_common_utils_only_restart_meadow()
 {
   // Give time for message to arrive and be processed before restart
   usleep(500 * 1000);
+
+  // Send a reset message to the QSPI chip
+  hcom_nx_exec_ex_flash_reset();
 
   // This never returns
   up_systemreset();
