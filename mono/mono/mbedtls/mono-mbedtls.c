@@ -7,6 +7,9 @@
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/debug.h"
 
+#define INVALID_SERVER_CERT_VALIDATION_MODE  1
+#define MBEDTLS_HAS_ALREADY_STARTED          2
+
 typedef struct {
     intptr_t read_buf;
     intptr_t write_buf;
@@ -3542,6 +3545,12 @@ void mono_mbedtls_close (MonoMbedTlsContext * ctx)
 
 int mono_mbedtls_set_server_cert_authmode (int authmode)
 {
+    if (mono_mbedtls_initialized == TRUE)
+    {
+        server_cert_authmode = MBEDTLS_SSL_VERIFY_REQUIRED;
+        return -MBEDTLS_HAS_ALREADY_STARTED;
+    }
+
     if ( authmode == MBEDTLS_SSL_VERIFY_REQUIRED ||
         authmode == MBEDTLS_SSL_VERIFY_OPTIONAL ||
         authmode == MBEDTLS_SSL_VERIFY_NONE )
@@ -3551,8 +3560,7 @@ int mono_mbedtls_set_server_cert_authmode (int authmode)
     else
     {
         server_cert_authmode = MBEDTLS_SSL_VERIFY_REQUIRED;
-        printf("Invalid server certificate validation mode: %d", server_cert_authmode);
-        return -1;
+        return -INVALID_SERVER_CERT_VALIDATION_MODE;
     }
 
     return server_cert_authmode;
