@@ -460,6 +460,7 @@ static ssize_t w25qxxxjv_read(FAR struct mtd_dev_s *dev,
 static int  w25qxxxjv_ioctl(FAR struct mtd_dev_s *dev,
                             int cmd,
                             unsigned long arg);
+static int  w25qxxjv_reset(FAR struct mtd_dev_s *dev);
 
 /****************************************************************************
  * Private Functions
@@ -1457,6 +1458,22 @@ static ssize_t w25qxxxjv_read(FAR struct mtd_dev_s *dev,
 }
 
 /****************************************************************************
+ * Name:  w25qxxxjv_reset
+ ****************************************************************************
+ *
+ * Description:
+ * Reset the W25QxxxJV.
+ * Reference: https://www.winbond.com/resource-files/W25Q512JV%20SPI%20RevB%2006252019%20KMS.pdf
+ */
+
+void w25qxxxjv_reset(FAR struct w25qxxxjv_dev_s *priv)
+{
+  w25qxxxjv_command(priv->qspi, W25QXXXJV_RESET_ENABLE);
+  w25qxxxjv_command(priv->qspi, W25QXXXJV_DEVICE_RESET);
+  usleep(30);
+}
+
+/****************************************************************************
  * Name: w25qxxxjv_ioctl
  ****************************************************************************/
 
@@ -1544,6 +1561,12 @@ static int w25qxxxjv_ioctl(FAR struct mtd_dev_s *dev,
         ret = 0;
         break;
 #endif
+      case MTDIOC_RESET:
+        {
+          w25qxxxjv_reset(priv);
+          ret = 0;
+        }
+        break;
 
       default:
         ret = -ENOTTY; /* Bad/unsupported command */

@@ -237,7 +237,7 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
       return upd_handle_esp32_get_event_result((espcp_event_data_payload_t *) arg);
 
     case MUPD_PWR_RESET:
-      up_systemreset();
+      hcom_nx_common_utils_only_restart_meadow();
       break;
 
     case MUPD_GET_SET_CONFIGURATION_VALUE:
