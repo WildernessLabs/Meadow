@@ -22,6 +22,8 @@ static gboolean mono_mbedtls_initialized = FALSE;
 // File paths to client certificate and private key
 static const char* private_key_path = "/meadow0/private_key.pem";
 static const char* client_cert_path = "/meadow0/client_cert.pem";
+static mbedtls_pk_context *pkey = NULL;
+static mbedtls_x509_crt *clicert = NULL;
 static int server_cert_authmode = MBEDTLS_SSL_VERIFY_REQUIRED;
 
 int mono_mbedtls_init (int authmode);
@@ -30,7 +32,6 @@ int mono_mbedtls_read (MonoMbedTlsContext * ctx, int length);
 int mono_mbedtls_write (MonoMbedTlsContext * ctx, int length);
 void mono_mbedtls_close (MonoMbedTlsContext * ctx);
 int mono_mbedtls_set_server_cert_authmode (int authmode);
-void check_if_cert_files_exist(void);
 
 static void my_debug( void *ctx, int level, const char *file, int line, const char *str )
 {
@@ -3327,12 +3328,22 @@ static int dev_random_entropy_poll( void *data, unsigned char *output,
     return( 0 );
 }
 
-void check_if_cert_files_exist()
+int mono_mbedtls_init ( int server_cert_authmode )
 {
+    int ret;
+    mbedtls_ssl_config_init( &conf );
+    mbedtls_debug_set_threshold(0);
+    
     FILE *client_cert_file = fopen( client_cert_path, "r" );
     if ( client_cert_file )
     {
-        printf( " client certificate file found \n\n" );
+        clicert = g_malloc (sizeof(mbedtls_x509_crt));
+        mbedtls_x509_crt_init( clicert );
+
+        if ( ( ret = mbedtls_x509_crt_parse_file( clicert, client_cert_path ) ) != 0 ) {
+            printf( " failed to parse client certificate %d\n\n", ret);
+            goto error;
+        }
         fclose(client_cert_file);
     } 
     else
@@ -3343,22 +3354,19 @@ void check_if_cert_files_exist()
     FILE *private_key_file = fopen( private_key_path, "r" );
     if ( private_key_file )
     {
-        printf( " private key file found \n\n" );
+        pkey = g_malloc (sizeof(mbedtls_pk_context));
+        mbedtls_pk_init( pkey );
+
+        if ( ( ret = mbedtls_pk_parse_keyfile( pkey, private_key_path, NULL, mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 ) {
+            printf( " failed to parse private key %d\n\n", ret );
+            goto error;
+        }
         fclose( private_key_file );
     }
     else
     {
         private_key_path = NULL;
     }
-}
-
-int mono_mbedtls_init ( int server_cert_authmode )
-{
-    int ret;
-    mbedtls_ssl_config_init( &conf );
-    mbedtls_debug_set_threshold(0);
-    
-    check_if_cert_files_exist();
 
     if( ( ret = mbedtls_ssl_config_defaults( &conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT ) ) != 0 )
     {
@@ -3401,6 +3409,14 @@ int mono_mbedtls_init ( int server_cert_authmode )
     return 0;
 
     error:
+        if (pkey) {
+            mbedtls_pk_free (pkey);
+            g_free (pkey);
+        }
+        if (clicert) {
+            mbedtls_x509_crt_free (clicert);
+            g_free (clicert);
+        }
         return ret;
 }
 
@@ -3408,8 +3424,6 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
 {
     mbedtls_net_context *server_fd = NULL;
     mbedtls_ssl_context *ssl = NULL;
-    mbedtls_pk_context *pkey = NULL;
-    mbedtls_x509_crt *clicert = NULL;
 
     SocketHandle *sockethandle;
     if (!mono_fdhandle_lookup_and_ref (mono_fd, (MonoFDHandle**) &sockethandle)) {
@@ -3423,12 +3437,6 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
 
     ssl = g_malloc (sizeof(mbedtls_ssl_context));
     mbedtls_ssl_init( ssl );
-
-    pkey = g_malloc (sizeof(mbedtls_pk_context));
-    mbedtls_pk_init( pkey );
-
-    clicert = g_malloc (sizeof(mbedtls_x509_crt));
-    mbedtls_x509_crt_init( clicert );
 
     /* FIXME: TLS init here is not thread-safe */
     if (mono_mbedtls_initialized == FALSE)
@@ -3447,23 +3455,7 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
         goto error;
     }
 
-    // Load client private key
-    if (private_key_path != NULL) {
-        if ( ( ret = mbedtls_pk_parse_keyfile( pkey, private_key_path, NULL, mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 ) {
-            printf( " failed to parse private key %d\n\n", ret );
-            goto error;
-        }
-    }
-
-    // Load client certificate
-    if (client_cert_path != NULL) {
-        if ( ( ret = mbedtls_x509_crt_parse_file( clicert, client_cert_path ) ) != 0 ) {
-            printf( " failed to parse client certificate %d\n\n", ret);
-            goto error;
-        }
-    }
-
-    if ( client_cert_path != NULL && private_key_path != NULL ) {
+    if ( clicert != NULL && pkey != NULL ) {
         // Configure SSL context with client certificate and private key
         if ( ( ret = mbedtls_ssl_conf_own_cert( &conf, clicert, pkey ) ) != 0 ) {
             printf( " failed to configure client certificate and private key %d\n\n", ret );
@@ -3493,14 +3485,6 @@ error:
     if (server_fd) {
         mbedtls_net_free (server_fd);
         g_free (server_fd);
-    }
-    if (pkey) {
-        mbedtls_pk_free (pkey);
-        g_free (pkey);
-    }
-    if (clicert) {
-        mbedtls_x509_crt_free (clicert);
-        g_free (clicert);
     }
     return NULL;
 }
