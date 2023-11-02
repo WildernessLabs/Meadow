@@ -841,7 +841,7 @@ private:
     /**
      *  @brief Map the errno variable from an ESP to a STM32 value.
      */
-    static int32_t MapErrno(int);
+    static int32_t MapErrno(int32_t);
 
 public:
     /**
