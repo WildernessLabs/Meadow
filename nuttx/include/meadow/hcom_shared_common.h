@@ -70,13 +70,7 @@
 #  define MAX(a,b) (((a) > (b)) ? (a) : (b))
 #endif
 
-#ifdef CONFIG_MTD_PARTITION
-#define HCOM_FILE_MOUNT_POINT_TARGET "/meadow0"
-#define HCOM_MMCSD_MOUNT_POINT_TARGET "/mmcsd0"
-#else
 #define HCOM_FILE_MOUNT_POINT_TARGET "/meadow"
-#define HCOM_MMCSD_MOUNT_POINT_TARGET "/mmcsd0"
-#endif
 
 // Partitioning changes will effect the following
 #ifdef CONFIG_MTD_PARTITION

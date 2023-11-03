@@ -339,10 +339,8 @@ int hcom_file_dir_mgmt_build_pathname_save(hcom_dnld_shared_t *dnldShared,
 // being added
 int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
 {
-  DIR *dir;
   struct dirent *entry;
-  // char *rootDir;
-  char *dirArray[dnldShared->dnldFNameEleCount];
+  char *delimiterOffset;
   int dirOffset[dnldShared->dnldFNameEleCount];
   
   // Allocate a modifiable version of the string
@@ -356,55 +354,60 @@ int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
   uint32_t tokenCount = 0;
   char *savePtr;
   char *token = strtok_r(fullFileNamePath, "/", &savePtr);
-  dirArray[0] = token;    // Mount Point
-  syslog(1, "==>> token:'%s', tokenCount:%d\n", token, tokenCount, dirArray[tokenCount]);
+  dirOffset[0] = 0;
 
   // This loop will tokenize the directories and filename
   while (token != NULL)
   {
     tokenCount++;
     token = strtok_r(NULL, "/", &savePtr);
-
-    dirArray[tokenCount] = token;
     dirOffset[tokenCount] = (token - fullFileNamePath);
-    syslog(1, "==>> token:'%s' at:%p, tokenCount:%d, dirArray%s, offset:%d\n",
-              token, token, tokenCount, dirArray[tokenCount], dirOffset[tokenCount]);
-    usleep(50 * 1000);
   }
 
+  // This loop will modify fullFileNamePath, adding 1 element on each pass
   for(int i = 0; i < dnldShared->dnldFNameEleCount - 1; i++)
   {
-    syslog(1, "=-=>> dirArray:'%s', count:%d\n", dirArray[i], i);
-    usleep(50 * 1000);
+    delimiterOffset = fullFileNamePath + dirOffset[i];
+
+    if(i == 0)
+    {
+      // No delimiter to restore at the beginning 
+      syslog(1, "--=>> Full Name:'%s' at:%p, count:%d, delimiterOffset:'%s'\n",
+          fullFileNamePath, fullFileNamePath, i, delimiterOffset);
+      usleep(50 * 1000);
+    }
+    else
+    {
+      // Restore delimiter for next element
+      *(delimiterOffset - 1) = '/';
+
+      syslog(1, "--=>> Full Name:'%s' at:%p, count:%d, delimiterOffset:'%s'\n",
+          fullFileNamePath, fullFileNamePath, i, delimiterOffset - 1);
+      usleep(50 * 1000);
+    }
+
+    // use 'fullFileNamePath' for testing
   }
 
-  for(int i = 0; i < dnldShared->dnldFNameEleCount - 1; i++)
-  {
-    // Moving char *fullOffset before the for loop doesn't work but this does?????
-    // WORKS char *fullOffset = (fullFileNamePath + dirOffset[i] - 1);
-    char *fullOffset = (fullFileNamePath + dirOffset[i] - 1);
-    *fullOffset = '/';
 
-    // Restore the '/' characters 1-by-1
-   // *(fullFileNamePath + dirOffset[i]) = 
-    // syslog(1, "--=>> Full Name:'%s' at:%p, count:%d\n", fullFileNamePath, fullFileNamePath, i);
-    // usleep(50 * 1000);
 
-    syslog(1, "--=>> Full Name:'%s' at:%p, count:%d, fullOffset:%s\n", fullFileNamePath, fullFileNamePath, i, fullOffset);
-    usleep(50 * 1000);
-  }
-  
+
+
+
+
   free(fullFileNamePath);
+
+  syslog(1, "--=>> ---TESTING FINISHED---\n");
   return OK;
 }
 
   // if(dnldShared->dnldIsRootMeadow0)
-  //   rootDir = HCOM_FILE_MOUNT_POINT_TARGET;
+  //   rootDir = HCOMMONO_MEADOW_EXECUTABLE_PARTITION_NAME_FILE_MOUNT_POINT_TARGET;
   // else
   //   rootDir = HCOM_MMCSD_MOUNT_POINT_TARGET;
 //   // The entire subdir tree is in this string dnldShared->dnldFileAndPathName
 //   if(dnldShared->dnldIsRootMeadow0)
-//     rootDir = HCOM_FILE_MOUNT_POINT_TARGET;
+//     rootDir = MONO_MEADOW_EXECUTABLE_PARTITION_NAME;
 //   else
 //     rootDir = HCOM_MMCSD_MOUNT_POINT_TARGET;
 
