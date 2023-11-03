@@ -26,7 +26,7 @@ static mbedtls_pk_context *pkey = NULL;
 static mbedtls_x509_crt *clicert = NULL;
 static int server_cert_authmode = MBEDTLS_SSL_VERIFY_REQUIRED;
 
-int mono_mbedtls_init (int authmode);
+int mono_mbedtls_init (void);
 intptr_t mono_mbedtls_connect(intptr_t mono_fd, intptr_t readbuf, intptr_t writebuf, char * hostname);
 int mono_mbedtls_read (MonoMbedTlsContext * ctx, int length);
 int mono_mbedtls_write (MonoMbedTlsContext * ctx, int length);
@@ -3328,8 +3328,10 @@ static int dev_random_entropy_poll( void *data, unsigned char *output,
     return( 0 );
 }
 
-int mono_mbedtls_init ( int server_cert_authmode )
+int mono_mbedtls_init ()
 {
+    mono_mbedtls_initialized = TRUE;
+
     int ret;
     mbedtls_ssl_config_init( &conf );
     mbedtls_debug_set_threshold(0);
@@ -3438,14 +3440,6 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
     ssl = g_malloc (sizeof(mbedtls_ssl_context));
     mbedtls_ssl_init( ssl );
 
-    /* FIXME: TLS init here is not thread-safe */
-    if (mono_mbedtls_initialized == FALSE)
-    {
-        mono_mbedtls_initialized = TRUE;
-        if (mono_mbedtls_init ( server_cert_authmode ) < 0)
-            goto error;
-    }
-
     int ret;
 
     //SSL Connection
@@ -3529,6 +3523,7 @@ void mono_mbedtls_close (MonoMbedTlsContext * ctx)
 
 int mono_mbedtls_set_server_cert_authmode (int authmode)
 {
+    // The server certificate validation mode cannot be changed after TLS initialization
     if (mono_mbedtls_initialized == TRUE)
     {
         server_cert_authmode = MBEDTLS_SSL_VERIFY_REQUIRED;
