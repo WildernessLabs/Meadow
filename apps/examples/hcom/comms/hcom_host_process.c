@@ -243,7 +243,7 @@ static int hcom_host_process_init_write_or_del(const HcomProtoHdrMsg_t *hdrMsg,
   //
   // Note: This call may allocate memory, therefore, this must be considered
   // this memory after this point.
-  ret = hcom_file_dir_mgmt_check_file_and_path(dnldShared, fileMsg, fileNameLength);
+  ret = hcom_file_dir_mgmt_build_pathname_save(dnldShared, fileMsg, fileNameLength);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-subdir check errno:%d, ret:%d\n",
@@ -257,8 +257,8 @@ static int hcom_host_process_init_write_or_del(const HcomProtoHdrMsg_t *hdrMsg,
   if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
       requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME)
   {
-    // If there are subdirectories, we may need to add 1-n subdirectories
-    if(dnldShared->dnldSubdirDepth > 0)
+    // If there are subdirectories, the number of elements will be > 2
+    if(dnldShared->dnldFNameEleCount > 2)
     {
       ret = hcom_file_dir_mgmt_check_and_add_subdir(dnldShared);
       if(ret < 0)

@@ -247,8 +247,9 @@ int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData);
 // -----------------------------------------------
 // File directory functions
 int hcom_file_dir_mgmt_read_nested_directories_start(const char *rootDir);
-int hcom_file_dir_mgmt_check_file_and_path(hcom_dnld_shared_t *dnldShared,
+int hcom_file_dir_mgmt_build_pathname_save(hcom_dnld_shared_t *dnldShared,
           HcomProtoFileMsg_t *fileMsg, size_t fileNameLength);
+int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared);
 
 // -----------------------------------------------
 // File download misc functions

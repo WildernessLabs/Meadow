@@ -147,16 +147,18 @@ static uint32_t find_filename_subdir_depth(const char *fileName, size_t strLen)
   }
 
   free(fileNameTemp);
-  return tokenCount - 2;
+
+  // The number of elements is 1 more than the number of '/' characters
+  return tokenCount + 1;
 }
 
 //============================================================================
 // This function will check the received filename and categorize it so the
 // remaining steps will know what they are dealing with
 static int hcom_file_dir_mgmt_categorize_filename(const char *fileName,
-          size_t strLen, uint32_t *subdirDepth)
+          size_t strLen, uint32_t *fileNameElements)
 {
-  *subdirDepth = 0;
+  *fileNameElements = 0;
   
   // Valid and invalid file names
   // 'filename', '/meadow0/filename', '/meadow0/dir1/dir2/filename'
@@ -182,7 +184,7 @@ static int hcom_file_dir_mgmt_categorize_filename(const char *fileName,
     if(fileName[strLen-1] == '/')
         return fnameInvalid;
     
-    *subdirDepth = find_filename_subdir_depth(fileName, strLen);
+    *fileNameElements = find_filename_subdir_depth(fileName, strLen);
 
     return fnameMeadowFull;    // 102
   }
@@ -194,7 +196,7 @@ static int hcom_file_dir_mgmt_categorize_filename(const char *fileName,
     if(fileName[strLen-1] == '/')
         return fnameInvalid;
 
-    *subdirDepth = find_filename_subdir_depth(fileName, strLen);
+    *fileNameElements = find_filename_subdir_depth(fileName, strLen);
 
     return fnameMmcsdFull;    // 103
   }
@@ -208,11 +210,11 @@ static int hcom_file_dir_mgmt_categorize_filename(const char *fileName,
  * Public Functions
  ***************************************************************************/
 // File name processing
-int hcom_file_dir_mgmt_check_file_and_path(hcom_dnld_shared_t *dnldShared,
+int hcom_file_dir_mgmt_build_pathname_save(hcom_dnld_shared_t *dnldShared,
           HcomProtoFileMsg_t *fileMsg, size_t fileNameLength)
 {
   int catType;
-  uint32_t subdirDepth;
+  uint32_t fileNameElements;
   size_t dnldFileAndPathLen;
   
   _dnldShared = dnldShared;
@@ -239,8 +241,8 @@ int hcom_file_dir_mgmt_check_file_and_path(hcom_dnld_shared_t *dnldShared,
   // a file within subdirectories, it provides the number of subdirectories.
   // This is used to further catergorize the request. 
   catType = hcom_file_dir_mgmt_categorize_filename(dnldShared->dnldOrigFileName,
-            fileNameLength, &subdirDepth);
-  dnldShared->dnldSubdirDepth = subdirDepth;
+            fileNameLength, &fileNameElements);
+  dnldShared->dnldFNameEleCount = fileNameElements;
   
 // (--) SOME DIAGNOSTIC CODE
   char diagFNameType[32];
@@ -266,8 +268,8 @@ int hcom_file_dir_mgmt_check_file_and_path(hcom_dnld_shared_t *dnldShared,
     break;
   }
 
-  syslog(1, "===> Valid format, file '%s'. It is categorized as %d (%s), subdirDepth:%lu\n",
-            dnldShared->dnldOrigFileName, catType, diagFNameType, subdirDepth);
+  syslog(1, "===> Valid format, file '%s'. It is categorized as %d (%s), fileNameElements:%lu\n",
+            dnldShared->dnldOrigFileName, catType, diagFNameType, fileNameElements);
 // (--) SOME DIAGNOSTIC CODE
 
   if(catType == fnameInvalid)
@@ -280,7 +282,7 @@ int hcom_file_dir_mgmt_check_file_and_path(hcom_dnld_shared_t *dnldShared,
   }
 
   // Save sub-directory depth for whoever may want it
-  dnldShared->dnldSubdirDepth = subdirDepth;
+  dnldShared->dnldFNameEleCount = fileNameElements;
 
   // A file name based on the original naming convention needs
   // to have '/meadow0/' prepended to the filename so it can be used.
@@ -326,7 +328,7 @@ int hcom_file_dir_mgmt_check_file_and_path(hcom_dnld_shared_t *dnldShared,
   }
 
   syslog(1, "===> %s@%d-Full download file name:'%s' with %lu subdirectories\n",
-            __FILE__, __LINE__, dnldShared->dnldFileAndPathName, subdirDepth);
+            __FILE__, __LINE__, dnldShared->dnldFileAndPathName, fileNameElements);
   usleep(20 * 1000);
 
   return OK;
@@ -337,32 +339,161 @@ int hcom_file_dir_mgmt_check_file_and_path(hcom_dnld_shared_t *dnldShared,
 // being added
 int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
 {
-  // DIR *dir;
+  DIR *dir;
+  struct dirent *entry;
+  // char *rootDir;
+  char *dirArray[dnldShared->dnldFNameEleCount];
+  int dirOffset[dnldShared->dnldFNameEleCount];
+  
+  // Allocate a modifiable version of the string
+  char *fullFileNamePath = malloc(strlen(dnldShared->dnldFileAndPathName));
+  strcpy(fullFileNamePath, dnldShared->dnldFileAndPathName);
 
-  // The entire subdir tree is in this string
-  // dnldShared->dnldFileAndPathName
+  syslog(1, "==>> Starting path:'%s', total depth:%lu\n",
+            fullFileNamePath, dnldShared->dnldFNameEleCount);
+  usleep(50 * 1000);
 
-  // Open top most directory
-  // if (!(dir = opendir(rootDir)))
-  // {
-  //   hcom_logging_syslog(LOG_ERR, "%s@%d-Could not open:%s as root directory, errno:%d\n",
-  //             thisFile, __LINE__, rootDir, errno);
-  //   return -errno;
-  // }
+  uint32_t tokenCount = 0;
+  char *savePtr;
+  char *token = strtok_r(fullFileNamePath, "/", &savePtr);
+  dirArray[0] = token;    // Mount Point
+  syslog(1, "==>> token:'%s', tokenCount:%d\n", token, tokenCount, dirArray[tokenCount]);
 
-  // while ((entry = readdir(dir)) != NULL)
-  // {
-  //   if (DIRENT_ISDIRECTORY(entry->d_type))
-  //   {
+  // This loop will tokenize the directories and filename
+  while (token != NULL)
+  {
+    tokenCount++;
+    token = strtok_r(NULL, "/", &savePtr);
 
-  //   }
-  //   else
-  //   {
+    dirArray[tokenCount] = token;
+    dirOffset[tokenCount] = (token - fullFileNamePath);
+    syslog(1, "==>> token:'%s' at:%p, tokenCount:%d, dirArray%s, offset:%d\n",
+              token, token, tokenCount, dirArray[tokenCount], dirOffset[tokenCount]);
+    usleep(50 * 1000);
+  }
 
-  //   }
+  for(int i = 0; i < dnldShared->dnldFNameEleCount - 1; i++)
+  {
+    syslog(1, "=-=>> dirArray:'%s', count:%d\n", dirArray[i], i);
+    usleep(50 * 1000);
+  }
 
+  for(int i = 0; i < dnldShared->dnldFNameEleCount - 1; i++)
+  {
+    // Moving char *fullOffset before the for loop doesn't work but this does?????
+    // WORKS char *fullOffset = (fullFileNamePath + dirOffset[i] - 1);
+    char *fullOffset = (fullFileNamePath + dirOffset[i] - 1);
+    *fullOffset = '/';
+
+    // Restore the '/' characters 1-by-1
+   // *(fullFileNamePath + dirOffset[i]) = 
+    // syslog(1, "--=>> Full Name:'%s' at:%p, count:%d\n", fullFileNamePath, fullFileNamePath, i);
+    // usleep(50 * 1000);
+
+    syslog(1, "--=>> Full Name:'%s' at:%p, count:%d, fullOffset:%s\n", fullFileNamePath, fullFileNamePath, i, fullOffset);
+    usleep(50 * 1000);
+  }
+  
+  free(fullFileNamePath);
   return OK;
 }
+
+  // if(dnldShared->dnldIsRootMeadow0)
+  //   rootDir = HCOM_FILE_MOUNT_POINT_TARGET;
+  // else
+  //   rootDir = HCOM_MMCSD_MOUNT_POINT_TARGET;
+//   // The entire subdir tree is in this string dnldShared->dnldFileAndPathName
+//   if(dnldShared->dnldIsRootMeadow0)
+//     rootDir = HCOM_FILE_MOUNT_POINT_TARGET;
+//   else
+//     rootDir = HCOM_MMCSD_MOUNT_POINT_TARGET;
+
+//   // 1 - find all the directory pointers from the name to simplify the following
+
+//   while ((entry = readdir(dir)) != NULL)
+//   {
+//     if (DIRENT_ISDIRECTORY(entry->d_type))
+//     {
+//       if(strcmp(entry->d_name, token))
+//       {
+//         // This directory level exists, get the next one
+//         token = strtok_r(NULL, "/", &savePtr);
+//         // AT THIS POINT WE NEED TO RECURSE OR INVENT A DIFFERENT SCHEME
+//         continue;
+//       }
+//       else
+//       {
+//         // This directory level must be created and all following
+//         // MAKE THE DIRECTORY TREE FROM HERE DOWN
+//         break;
+
+//       }
+//     }
+//     else
+//     {
+//       syslog(1, "==>> This is not a directory:'%s', \n", token);
+//       continue;
+//     }
+//   }
+
+
+
+//   // Open top most directory
+//   if (!(dir = opendir(rootDir)))
+//   {
+//     hcom_logging_syslog(LOG_ERR, "%s@%d-Could not open:%s as root directory, errno:%d\n",
+//               thisFile, __LINE__, rootDir, errno);
+//     return -errno;
+//   }
+
+//   // Need a modifyable copy
+//   char *fullFileNamePath = malloc(strlen(dnldShared->dnldFileAndPathName));
+//   strcpy(fullFileNamePath, dnldShared->dnldFileAndPathName);
+
+//   char *savePtr;
+//   char *token = strtok_r(fullFileNamePath, "/", &savePtr);
+
+//   // while (token != NULL)
+//   // {
+//   //   syslog(1, "==>> token:'%s', \n", token);
+
+//   //   token = strtok_r(NULL, "/", &savePtr);
+//   // }
+
+//   // Top most directory
+//   entry = readdir(dir);
+
+//   while ((entry = readdir(dir)) != NULL)
+//   {
+//     if (DIRENT_ISDIRECTORY(entry->d_type))
+//     {
+//       if(strcmp(entry->d_name, token))
+//       {
+//         // This directory level exists, get the next one
+//         token = strtok_r(NULL, "/", &savePtr);
+//         // AT THIS POINT WE NEED TO RECURSE OR INVENT A DIFFERENT SCHEME
+//         continue;
+//       }
+//       else
+//       {
+//         // This directory level must be created and all following
+//         // MAKE THE DIRECTORY TREE FROM HERE DOWN
+//         break;
+
+//       }
+//     }
+//     else
+//     {
+//       syslog(1, "==>> This is not a directory:'%s', \n", token);
+//       continue;
+//     }
+//   }
+
+// free(fullFileNamePath);
+// closedir(dir);
+
+// return OK;
+// }
 
 // (--) REPLACE RECURSIVE WITH NON_RECURSIVE VERSION!!
 // (--) KEEPING TILL NEW VERSION AVAILABLE SINCE THIS ONE WORKS

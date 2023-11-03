@@ -70,10 +70,13 @@
 #  define MAX(a,b) (((a) > (b)) ? (a) : (b))
 #endif
 
-// Partition Id may be postpended to /meadow (i.e /meadow0)
-// Note:The following string must fit into 1/2 of the buffer whose size is
-// defined by HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH
+#ifdef CONFIG_MTD_PARTITION
+#define HCOM_FILE_MOUNT_POINT_TARGET "/meadow0"
+#define HCOM_MMCSD_MOUNT_POINT_TARGET "/mmcsd0"
+#else
 #define HCOM_FILE_MOUNT_POINT_TARGET "/meadow"
+#define HCOM_MMCSD_MOUNT_POINT_TARGET "/mmcsd0"
+#endif
 
 // Partitioning changes will effect the following
 #ifdef CONFIG_MTD_PARTITION

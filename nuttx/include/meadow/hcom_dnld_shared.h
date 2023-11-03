@@ -65,7 +65,7 @@ struct hcom_dnld_shared_s
   uint32_t dnldCalcFileCrc;         // CRC calculated over while receiving
   uint32_t dnldInitFileSize;        // File size based on received CLI data
   uint32_t dnldCalcFileSize;        // This size calculated while receiving
-  uint32_t dnldSubdirDepth;         // Number of subdirectories
+  uint32_t dnldFNameEleCount;       // Number of elements in pathname
   bool     dnldIsRootMeadow0;       // True='/meadow0' False='/mmcsd0'
 
   int dnldFileFD;                   // For file write persisted fd
@@ -84,6 +84,5 @@ typedef struct hcom_dnld_shared_s hcom_dnld_shared_t;
 int hcom_host_watchdog_initialize(hcom_dnld_shared_t *dnldShared);
 void hcom_host_watchdog_stopping(void);
 int hcom_host_watchdog_check_execute_if_expired(void);
-int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared);
 
 #endif  // __INCLUDE_HCOM_DOWNLOAD_SHARED__H
