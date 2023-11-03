@@ -80,6 +80,7 @@
 #include <sys/ioctl.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/fs/dirent.h>
+#include <syslog.h>
 
 #if defined (CONFIG_DIR_MGMT_TESTS)
 #pragma message "(--) dir_mgmt_tests.c"
@@ -339,24 +340,35 @@ int hcom_file_dir_mgmt_build_pathname_save(hcom_dnld_shared_t *dnldShared,
 // being added
 int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
 {
-  struct dirent *entry;
+  int ret;
+  struct stat statBuf;
+  struct stat *pStatBuf;
+  char *savePtr;
+  char *token;
   char *delimiterOffset;
+  uint32_t tokenCount;
+  int dirLevel;
   int dirOffset[dnldShared->dnldFNameEleCount];
-  
+
+  pStatBuf = &statBuf;
+
   // Allocate a modifiable version of the string
   char *fullFileNamePath = malloc(strlen(dnldShared->dnldFileAndPathName));
   strcpy(fullFileNamePath, dnldShared->dnldFileAndPathName);
 
-  syslog(1, "==>> Starting path:'%s', total depth:%lu\n",
-            fullFileNamePath, dnldShared->dnldFNameEleCount);
-  usleep(50 * 1000);
+  // syslog(1, "-->> %s@%d-Starting path:'%s', total depth:%lu\n",
+  //           thisFile, __LINE__, fullFileNamePath, dnldShared->dnldFNameEleCount);
+  // usleep(50 * 1000);
 
-  uint32_t tokenCount = 0;
-  char *savePtr;
-  char *token = strtok_r(fullFileNamePath, "/", &savePtr);
+  token = strtok_r(fullFileNamePath, "/", &savePtr);
   dirOffset[0] = 0;
+  tokenCount = 0;
 
-  // This loop will tokenize the directories and filename
+  // This loop will tokenize the directories and filename. We don't really
+  // care about the tokens, we want the side-effect of this operation which
+  // removes the tokens from the original pathname and replaces them with
+  // nulls. This allows us to find the offsets of theses "gaps" and then
+  // rebuild the directory path one element at a time.
   while (token != NULL)
   {
     tokenCount++;
@@ -365,35 +377,112 @@ int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
   }
 
   // This loop will modify fullFileNamePath, adding 1 element on each pass
-  for(int i = 0; i < dnldShared->dnldFNameEleCount - 1; i++)
+  for(dirLevel = 0; dirLevel < dnldShared->dnldFNameEleCount - 1; dirLevel++)
   {
-    delimiterOffset = fullFileNamePath + dirOffset[i];
+    delimiterOffset = fullFileNamePath + dirOffset[dirLevel];
 
-    if(i == 0)
+    if(dirLevel != 0)
     {
-      // No delimiter to restore at the beginning 
-      syslog(1, "--=>> Full Name:'%s' at:%p, count:%d, delimiterOffset:'%s'\n",
-          fullFileNamePath, fullFileNamePath, i, delimiterOffset);
-      usleep(50 * 1000);
-    }
-    else
-    {
-      // Restore delimiter for next element
+      // Restore the token ()'/') for next element
       *(delimiterOffset - 1) = '/';
 
-      syslog(1, "--=>> Full Name:'%s' at:%p, count:%d, delimiterOffset:'%s'\n",
-          fullFileNamePath, fullFileNamePath, i, delimiterOffset - 1);
-      usleep(50 * 1000);
+      // syslog(1, "-->> %s@%d-Full Name:'%s', count:%d, delimiterOffset:'%s'\n",
+      //     thisFile, __LINE__, fullFileNamePath, dirLevel, delimiterOffset - 1);
+      // usleep(50 * 1000);
+    }
+    // else
+    // {
+    //   // At the start there's no delimiter to restore. If this level doesn't exist
+    //   // we are in trouble.
+    //   syslog(LOG_ERR, "-->> %s@%d-ERROR: Beginning path doesn't exist! (Full Name:'%s', count:%d, delimiterOffset:'%s')\n",
+    //       thisFile, __LINE__, fullFileNamePath, dirLevel, delimiterOffset);
+    //   usleep(50 * 1000);
+    // }
+
+    ret = stat(fullFileNamePath, pStatBuf);
+    if(ret < 0)
+    {
+      if(errno == ENOENT)
+      {
+        // syslog(1, "-->> %s@%d-File doesn't exist, (errno:%d), so, we'll create '%s\n",
+        //           thisFile, __LINE__, errno, fullFileNamePath);
+
+        // Make the missing directory
+        ret = mkdir(fullFileNamePath, 0777);
+        if(ret < 0)
+        {
+          syslog(LOG_ERR, "%s@%d-mkdir of '%s' failed with, ret:%d, errno:%d\n",
+                    thisFile, __LINE__, fullFileNamePath, ret, errno);
+          return ret;
+        }
+        syslog(1, "%s@%d-Directory created\n", thisFile, __LINE__);
+
+        // Don't move to next directory, evaluate this new one, the move on.
+        dirLevel--;
+        continue;   // Try again now that the directory exists
+      }
+      else
+      {
+        syslog(1, "%s@%d-Some error, errno:%d\n", thisFile, __LINE__, errno);
+      }
+      return ret;
     }
 
-    // use 'fullFileNamePath' for testing
+    syslog(1, "-->> %s@%d-stat() returned NO error.\n", thisFile, __LINE__);
+    usleep(20 * 1000);
+
+    if (S_ISREG(pStatBuf->st_mode))
+      {
+        syslog(1, "\ttype        : File\n");
+      }
+    else if (S_ISDIR(pStatBuf->st_mode))
+      {
+        syslog(1, "\ttype        : Directory\n");
+      }
+    else if (S_ISCHR(pStatBuf->st_mode))
+      {
+        syslog(1, "\ttype        : Character driver\n");
+      }
+    else if (S_ISBLK(pStatBuf->st_mode))
+      {
+        syslog(1, "\ttype        : Block driver\n");
+      }
+    else if (S_ISMQ(pStatBuf->st_mode))
+      {
+        syslog(1, "\ttype        : Message queue\n");
+      }
+    else if (S_ISSEM(pStatBuf->st_mode))
+      {
+        syslog(1, "\ttype        : Named semaphore\n");
+      }
+    else if (S_ISSHM(pStatBuf->st_mode))
+      {
+        syslog(1, "\ttype        : Shared memory\n");
+      }
+    else if (S_ISSOCK(pStatBuf->st_mode))
+      {
+        syslog(1, "\ttype        : Socket\n");
+      }
+    else if (S_ISMTD(pStatBuf->st_mode))
+      {
+        syslog(1, "\ttype        : Named MTD driver\n");
+      }
+    else if (S_ISLNK(pStatBuf->st_mode))
+      {
+        syslog(1, "\ttype        : Symbolic link\n");
+      }
+    else
+      {
+        syslog(1, "\ttype        : Unknown\n");
+      }
+
+    syslog(1, "\tsize        : %d (bytes)\n",  pStatBuf->st_size);
+    syslog(1, "\tblock size  : %d (bytes)\n",  pStatBuf->st_blksize);
+    syslog(1, "\tsize        : %d (blocks)\n", pStatBuf->st_blocks);
+    syslog(1, "\taccess time : %d\n", pStatBuf->st_atime);
+    syslog(1, "\tmodify time : %d\n", pStatBuf->st_mtime);
+    syslog(1, "\tchange time : %d\n", pStatBuf->st_ctime);
   }
-
-
-
-
-
-
 
   free(fullFileNamePath);
 
@@ -401,103 +490,7 @@ int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
   return OK;
 }
 
-  // if(dnldShared->dnldIsRootMeadow0)
-  //   rootDir = HCOMMONO_MEADOW_EXECUTABLE_PARTITION_NAME_FILE_MOUNT_POINT_TARGET;
-  // else
-  //   rootDir = HCOM_MMCSD_MOUNT_POINT_TARGET;
-//   // The entire subdir tree is in this string dnldShared->dnldFileAndPathName
-//   if(dnldShared->dnldIsRootMeadow0)
-//     rootDir = MONO_MEADOW_EXECUTABLE_PARTITION_NAME;
-//   else
-//     rootDir = HCOM_MMCSD_MOUNT_POINT_TARGET;
-
-//   // 1 - find all the directory pointers from the name to simplify the following
-
-//   while ((entry = readdir(dir)) != NULL)
-//   {
-//     if (DIRENT_ISDIRECTORY(entry->d_type))
-//     {
-//       if(strcmp(entry->d_name, token))
-//       {
-//         // This directory level exists, get the next one
-//         token = strtok_r(NULL, "/", &savePtr);
-//         // AT THIS POINT WE NEED TO RECURSE OR INVENT A DIFFERENT SCHEME
-//         continue;
-//       }
-//       else
-//       {
-//         // This directory level must be created and all following
-//         // MAKE THE DIRECTORY TREE FROM HERE DOWN
-//         break;
-
-//       }
-//     }
-//     else
-//     {
-//       syslog(1, "==>> This is not a directory:'%s', \n", token);
-//       continue;
-//     }
-//   }
-
-
-
-//   // Open top most directory
-//   if (!(dir = opendir(rootDir)))
-//   {
-//     hcom_logging_syslog(LOG_ERR, "%s@%d-Could not open:%s as root directory, errno:%d\n",
-//               thisFile, __LINE__, rootDir, errno);
-//     return -errno;
-//   }
-
-//   // Need a modifyable copy
-//   char *fullFileNamePath = malloc(strlen(dnldShared->dnldFileAndPathName));
-//   strcpy(fullFileNamePath, dnldShared->dnldFileAndPathName);
-
-//   char *savePtr;
-//   char *token = strtok_r(fullFileNamePath, "/", &savePtr);
-
-//   // while (token != NULL)
-//   // {
-//   //   syslog(1, "==>> token:'%s', \n", token);
-
-//   //   token = strtok_r(NULL, "/", &savePtr);
-//   // }
-
-//   // Top most directory
-//   entry = readdir(dir);
-
-//   while ((entry = readdir(dir)) != NULL)
-//   {
-//     if (DIRENT_ISDIRECTORY(entry->d_type))
-//     {
-//       if(strcmp(entry->d_name, token))
-//       {
-//         // This directory level exists, get the next one
-//         token = strtok_r(NULL, "/", &savePtr);
-//         // AT THIS POINT WE NEED TO RECURSE OR INVENT A DIFFERENT SCHEME
-//         continue;
-//       }
-//       else
-//       {
-//         // This directory level must be created and all following
-//         // MAKE THE DIRECTORY TREE FROM HERE DOWN
-//         break;
-
-//       }
-//     }
-//     else
-//     {
-//       syslog(1, "==>> This is not a directory:'%s', \n", token);
-//       continue;
-//     }
-//   }
-
-// free(fullFileNamePath);
-// closedir(dir);
-
-// return OK;
-// }
-
+//===========================================================================
 // (--) REPLACE RECURSIVE WITH NON_RECURSIVE VERSION!!
 // (--) KEEPING TILL NEW VERSION AVAILABLE SINCE THIS ONE WORKS
 //===========================================================================
@@ -535,12 +528,12 @@ int hcom_file_dir_mgmt_read_nested_directories(const char *rootDir,
       snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
               "%*s%s/\n", indent, "", entry->d_name);
               
-#if HCOM_FILE_DIR_OUTPUT_TO_SYSLOG > 0
+// #if HCOM_FILE_DIR_OUTPUT_TO_SYSLOG > 0
       syslog(2, hostMsg);
-#else
-     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
-                0, hostMsg, thisFile, __LINE__);
-#endif
+// #else
+//      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
+//                 0, hostMsg, thisFile, __LINE__);
+// #endif
       if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
         continue;
 
@@ -562,12 +555,12 @@ int hcom_file_dir_mgmt_read_nested_directories(const char *rootDir,
       else {entryType = "????";}
       snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
               "%*s%s [%s]\n", indent, "", entry->d_name, entryType);
-#if HCOM_FILE_DIR_OUTPUT_TO_SYSLOG > 0
+// #if HCOM_FILE_DIR_OUTPUT_TO_SYSLOG > 0
       syslog(2, hostMsg);
-#else
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
-                0, hostMsg, thisFile, __LINE__);
-#endif
+// #else
+//       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
+//                 0, hostMsg, thisFile, __LINE__);
+// #endif
     }
 #endif
 
