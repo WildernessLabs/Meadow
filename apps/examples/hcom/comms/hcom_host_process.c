@@ -157,16 +157,16 @@ int hcom_host_process_setup()
 static int hcom_file_dir_mgmt_free_file_info(hcom_dnld_shared_t *dnldShared)
 {
   // Free any string memory allocations
-  if(dnldShared->dnldOrigFileName != NULL)
+  if(dnldShared->dnldOrigPathName != NULL)
   {
-    free(dnldShared->dnldOrigFileName);
-    dnldShared->dnldOrigFileName = NULL;
+    free(dnldShared->dnldOrigPathName);
+    dnldShared->dnldOrigPathName = NULL;
   }
     
-  if(dnldShared->dnldFileAndPathName != NULL)
+  if(dnldShared->dnldFullPathName != NULL)
   {
-    free(dnldShared->dnldFileAndPathName);
-    dnldShared->dnldFileAndPathName = NULL;
+    free(dnldShared->dnldFullPathName);
+    dnldShared->dnldFullPathName = NULL;
   }
 
   memset(dnldShared, 0, sizeof(hcom_dnld_shared_t));
@@ -258,7 +258,7 @@ static int hcom_host_process_init_write_or_del(const HcomProtoHdrMsg_t *hdrMsg,
   {
     // If there are subdirectories, the number of elements will be > 2 since
     // this is a count of the number of elements
-    if(dnldShared->dnldFNameEleCount > 2)
+    if(dnldShared->dnldPathNameEleCount > 2)
     {
       ret = hcom_file_dir_mgmt_check_and_add_subdir(dnldShared);
       if(ret < 0)

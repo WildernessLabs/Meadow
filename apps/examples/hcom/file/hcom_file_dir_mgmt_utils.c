@@ -172,15 +172,8 @@ static int hcom_file_dir_mgmt_categorize_pathname(const char *pathName,
   if(memchr(pathName, '/', strLen) == NULL)
   {
     // No '/' in file name, this is like original file naming scheme
-    *pathNameElements = 1;
-syslog(1, "----> %s@%d-Token count:%lu for %s\n", thisFile, __LINE__, *pathNameElements, pathName);
-    return pathnameOriginal;    // 101
-  }
-  else if (strLen < MEADOW_FILE_SUBDIR_PREPEND_SDCARD_LEN)
-  {
-    // 100
-syslog(1, "----> %s@%d-Token count:%lu for %s\n", thisFile, __LINE__, *pathNameElements, pathName);
-    return pathnameInvalid;          // Too short 
+    *pathNameElements = 2;        // Includes the /meadow0 element
+    return pathnameOriginal;      // 101
   }
   else if(memcmp(MEADOW_FILE_SUBDIR_PREPEND_MEADOW_STR,
               pathName, MEADOW_FILE_SUBDIR_PREPEND_MEADOW_LEN) == 0)
@@ -190,8 +183,6 @@ syslog(1, "----> %s@%d-Token count:%lu for %s\n", thisFile, __LINE__, *pathNameE
         return pathnameInvalid;
   
     *pathNameElements = find_pathname_element_count(pathName, strLen);;
-syslog(1, "----> %s@%d-Element count:%lu for %s\n", thisFile, __LINE__, *pathNameElements, pathName);
-
     return pathnameFullMeadow;    // 102
   }
   // (--) MUST TEST IF SD-Card ENABLED
@@ -203,7 +194,6 @@ syslog(1, "----> %s@%d-Element count:%lu for %s\n", thisFile, __LINE__, *pathNam
         return pathnameInvalid;
 
     *pathNameElements = find_pathname_element_count(pathName, strLen);
-
     return pathnameFullMmcsd;    // 103
   }
   else
@@ -226,18 +216,18 @@ int hcom_file_dir_mgmt_build_pathname_save(hcom_dnld_shared_t *dnldShared,
   _dnldShared = dnldShared;
 
     // Allocated + space for '/0'
-  dnldShared->dnldOrigFileName = malloc(fileNameLength + 1);
-  if(dnldShared->dnldOrigFileName == NULL)
+  dnldShared->dnldOrigPathName = malloc(fileNameLength + 1);
+  if(dnldShared->dnldOrigPathName == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
     return -ENOMEM;
   }
 
   // Continue to populate shared download struct with file name information
-  memcpy(dnldShared->dnldOrigFileName, fileMsg->fileInfo.fileName,
+  memcpy(dnldShared->dnldOrigPathName, fileMsg->fileInfo.fileName,
             fileNameLength);
   // Make into C string
-  dnldShared->dnldOrigFileName[fileNameLength] = '\0';
+  dnldShared->dnldOrigPathName[fileNameLength] = '\0';
 
   // There are 3 valid file name formats.
   // 1. A simple file name, with just a file name and nothing else.
@@ -246,11 +236,11 @@ int hcom_file_dir_mgmt_build_pathname_save(hcom_dnld_shared_t *dnldShared,
   // This call will catergorize as one of the above or error. In the case of
   // a file within subdirectories, it provides the number of subdirectories.
   // This is used to further catergorize the request. 
-  catType = hcom_file_dir_mgmt_categorize_pathname(dnldShared->dnldOrigFileName,
+  catType = hcom_file_dir_mgmt_categorize_pathname(dnldShared->dnldOrigPathName,
             fileNameLength, &pathNameElements);
 
   // Save sub-directory depth for whoever may want it
-  dnldShared->dnldFNameEleCount = pathNameElements;
+  dnldShared->dnldPathNameEleCount = pathNameElements;
   
 // (--) SOME DIAGNOSTIC CODE
   char diagText[32];
@@ -277,13 +267,13 @@ int hcom_file_dir_mgmt_build_pathname_save(hcom_dnld_shared_t *dnldShared,
   }
 
   syslog(1, "===> Valid format, file '%s'. It is categorized as %d (%s), pathNameElements:%lu\n",
-            dnldShared->dnldOrigFileName, catType, diagText, pathNameElements);
+            dnldShared->dnldOrigPathName, catType, diagText, pathNameElements);
 // (--) SOME DIAGNOSTIC CODE
 
   if(catType == pathnameInvalid)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-file name '%s' is invalid\n",
-              thisFile, __LINE__, dnldShared->dnldOrigFileName);
+              thisFile, __LINE__, dnldShared->dnldOrigPathName);
 
     // (--) Need to send a host message here
     return -EINVAL;   // Bad argument
@@ -294,25 +284,25 @@ int hcom_file_dir_mgmt_build_pathname_save(hcom_dnld_shared_t *dnldShared,
   if(catType == pathnameOriginal)
   {
     // Build the full path plus file name string (e.g. /meadow0/filename.ext)
-    dnldFileAndPathLen = strlen(dnldShared->dnldOrigFileName) + \
+    dnldFileAndPathLen = strlen(dnldShared->dnldOrigPathName) + \
               strlen(HCOM_FILE_MOUNT_POINT_TARGET) + 3; // Room for '/', partition Id, NULL
 
-    dnldShared->dnldFileAndPathName = malloc(dnldFileAndPathLen + 1);
-    if(dnldShared->dnldFileAndPathName == NULL)
+    dnldShared->dnldFullPathName = malloc(dnldFileAndPathLen + 1);
+    if(dnldShared->dnldFullPathName == NULL)
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
       return -ENOMEM;
     }
 
 #ifdef CONFIG_MTD_PARTITION
-    snprintf_chk(dnldShared->dnldFileAndPathName, dnldFileAndPathLen, "%s%d/%s",
+    snprintf_chk(dnldShared->dnldFullPathName, dnldFileAndPathLen, "%s%d/%s",
                               HCOM_FILE_MOUNT_POINT_TARGET,
                               dnldShared->dnldFilePartId,
-                              dnldShared->dnldOrigFileName);
+                              dnldShared->dnldOrigPathName);
 #else
-    snprintf_chk(dnldShared->dnldFileAndPathName, dnldFileAndPathLen, "%s/%s",
+    snprintf_chk(dnldShared->dnldFullPathName, dnldFileAndPathLen, "%s/%s",
                               HCOM_FILE_MOUNT_POINT_TARGET,
-                              dnldShared->dnldOrigFileName);
+                              dnldShared->dnldOrigPathName);
 #endif
   }
   else
@@ -321,19 +311,19 @@ int hcom_file_dir_mgmt_build_pathname_save(hcom_dnld_shared_t *dnldShared,
     // Since the entire path must be provide by the host message, we'll
     // allocate the same size buffer as originally provided for the full name.
     // This should take care of both '/meadow0/' and '/mmcsd0/' files.
-    dnldShared->dnldFileAndPathName = malloc(fileNameLength + 1);
-    if(dnldShared->dnldFileAndPathName == NULL)
+    dnldShared->dnldFullPathName = malloc(fileNameLength + 1);
+    if(dnldShared->dnldFullPathName == NULL)
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
       return -ENOMEM;
     }
 
     // Just copy the name, null and all.
-    strcpy(dnldShared->dnldFileAndPathName, dnldShared->dnldOrigFileName);
+    strcpy(dnldShared->dnldFullPathName, dnldShared->dnldOrigPathName);
   }
 
   syslog(1, "===> %s@%d-Full download file name:'%s' with %lu elements\n",
-            __FILE__, __LINE__, dnldShared->dnldFileAndPathName, pathNameElements);
+            __FILE__, __LINE__, dnldShared->dnldFullPathName, pathNameElements);
   usleep(20 * 1000);
 
   return OK;
@@ -352,16 +342,16 @@ int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
   char *delimiterOffset;
   uint32_t tokenCount;
   int dirLevel;
-  int dirOffset[dnldShared->dnldFNameEleCount];
+  int dirOffset[dnldShared->dnldPathNameEleCount];
 
   pStatBuf = &statBuf;
 
   // Allocate a modifiable version of the string
-  char *fullFileNamePath = malloc(strlen(dnldShared->dnldFileAndPathName));
-  strcpy(fullFileNamePath, dnldShared->dnldFileAndPathName);
+  char *fullFileNamePath = malloc(strlen(dnldShared->dnldFullPathName));
+  strcpy(fullFileNamePath, dnldShared->dnldFullPathName);
 
   // syslog(1, "-->> %s@%d-Starting path:'%s', total depth:%lu\n",
-  //           thisFile, __LINE__, fullFileNamePath, dnldShared->dnldFNameEleCount);
+  //           thisFile, __LINE__, fullFileNamePath, dnldShared->dnldPathNameEleCount);
   // usleep(50 * 1000);
 
   token = strtok_r(fullFileNamePath, "/", &savePtr);
@@ -384,7 +374,7 @@ int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
   // As each element is added stat will determine if this element exist. if
   // not it will be created.
   // The number of directories is 1 less than the number of elements.
-  for(dirLevel = 0; dirLevel < dnldShared->dnldFNameEleCount - 1; dirLevel++)
+  for(dirLevel = 0; dirLevel < dnldShared->dnldPathNameEleCount - 1; dirLevel++)
   {
     delimiterOffset = fullFileNamePath + dirOffset[dirLevel];
 

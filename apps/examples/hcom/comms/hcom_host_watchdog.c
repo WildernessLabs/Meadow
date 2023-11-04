@@ -121,7 +121,7 @@ void hcom_host_watchdog_cleanup_wdog_timeout()
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-close failed for '%s', ret:%d, errno:%d\n",
-             thisFile, __LINE__, _dnldShared->dnldOrigFileName, ret, get_errno());
+             thisFile, __LINE__, _dnldShared->dnldOrigPathName, ret, get_errno());
   }
 
   // Delete the partially downloaded file
@@ -129,20 +129,20 @@ void hcom_host_watchdog_cleanup_wdog_timeout()
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-delete failed for '%s', ret:%d, errno:%d\n",
-             thisFile, __LINE__, _dnldShared->dnldOrigFileName, ret, get_errno());
+             thisFile, __LINE__, _dnldShared->dnldOrigPathName, ret, get_errno());
   }
 
   // Clear the receive data buffer queue
   if(! hcom_host_enq_deq_clear_buffer())
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-download failed, clearing buff failed '%s'\n",
-             thisFile, __LINE__, _dnldShared->dnldOrigFileName);
+             thisFile, __LINE__, _dnldShared->dnldOrigPathName);
   }
 
   // Tell CLI to restart the download
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-        "File '%s' download failed, resend", _dnldShared->dnldOrigFileName);
+        "File '%s' download failed, resend", _dnldShared->dnldOrigPathName);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_DNLD_FAIL_RESEND, 0, hostMsg,
         thisFile, __LINE__);
 

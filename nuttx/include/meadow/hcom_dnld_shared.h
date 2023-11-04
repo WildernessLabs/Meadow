@@ -61,20 +61,20 @@ struct hcom_dnld_shared_s
   int dnldCurrentState;             // Tracks the state of the download
 
   // These are completely managed by file handling code
-  uint32_t dnldInitFileCrc;         // CRC that was received from CLI
-  uint32_t dnldCalcFileCrc;         // CRC calculated over while receiving
-  uint32_t dnldInitFileSize;        // File size based on received CLI data
-  uint32_t dnldCalcFileSize;        // This size calculated while receiving
-  uint32_t dnldFNameEleCount;       // Number of elements in pathname
-  bool     dnldIsRootMeadow0;       // True='/meadow0' False='/mmcsd0'
+  uint32_t dnldInitFileCrc;           // CRC that was received from CLI
+  uint32_t dnldCalcFileCrc;           // CRC calculated over while receiving
+  uint32_t dnldInitFileSize;          // File size based on received CLI data
+  uint32_t dnldCalcFileSize;          // This size calculated while receiving
+  uint32_t dnldPathNameEleCount;      // Number of elements in pathname
+  bool     dnldIsRootMeadow0;         // True='/meadow0' False='/mmcsd0'
 
-  int dnldFileFD;                   // For file write persisted fd
-  int dnldPercentSent;              // Used to calculate the % completed
+  int dnldFileFD;                     // For file write persisted fd
+  int dnldPercentSent;                // Used to calculate the % completed
   // Set by processing and used by file handling (This is always 1)
-  uint32_t dnldFilePartId;          // File partition from CLI
+  uint32_t dnldFilePartId;            // File partition from CLI
   // These are allocated and may be exactly the same string
-  char *dnldOrigFileName;           // File name as provided by CLI
-  char *dnldFileAndPathName;        // Full file name (e.g. /meadow0/file.txt)
+  char *dnldOrigPathName;             // File name as provided by CLI
+  char *dnldFullPathName;             // Full file name (e.g. /meadow0/file.txt)
 };
 typedef struct hcom_dnld_shared_s hcom_dnld_shared_t;
 

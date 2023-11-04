@@ -126,7 +126,7 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
   // Log some diagnostic information
   hcom_logging_syslog(LOG_INFO, "%s@%d-Meadow downloading file (FileLen:%d, Crc:0x%08x, Name:%s)\n",
           thisFile, __LINE__, dnldShared->dnldInitFileSize,
-          dnldShared->dnldInitFileCrc, dnldShared->dnldOrigFileName);
+          dnldShared->dnldInitFileCrc, dnldShared->dnldOrigPathName);
 
   // Open the file in F7 file system
   ret = hcom_file_write_open_active_file(dnldShared);
@@ -160,7 +160,7 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
     // Notify CLI that something when wrong with opening the file
     snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
           "File '%s' Init for download failed because %s",
-          dnldShared->dnldOrigFileName, errorCause);
+          dnldShared->dnldOrigPathName, errorCause);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL,
           0, hostMsg, thisFile, __LINE__);
   }
@@ -248,11 +248,11 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
   {
     // Error
     hcom_logging_syslog(LOG_ERR, "%s@%d-Write of %s failed:%d seq:%d\n",
-             thisFile, __LINE__, dnldShared->dnldOrigFileName, ret, seqNumb);
+             thisFile, __LINE__, dnldShared->dnldOrigPathName, ret, seqNumb);
 
     // Notify host
     snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
-              "Write of '%s', seq %d failed", dnldShared->dnldOrigFileName, seqNumb);
+              "Write of '%s', seq %d failed", dnldShared->dnldOrigPathName, seqNumb);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
             thisFile, __LINE__);
 
@@ -298,7 +298,7 @@ void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-File %s close failed:%d\n",
-              thisFile, __LINE__, dnldShared->dnldOrigFileName, ret);
+              thisFile, __LINE__, dnldShared->dnldOrigPathName, ret);
     // Continue even with error
   }
 
@@ -306,7 +306,7 @@ void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
   uint32_t blockSizeKB; // Required by function call but not used
   int detectError = OK;
 
-  uint32_t actualFileCrc = hcom_file_misc_calc_crc_for_file(dnldShared->dnldFileAndPathName,
+  uint32_t actualFileCrc = hcom_file_misc_calc_crc_for_file(dnldShared->dnldFullPathName,
                 &fileSize, &blockSizeKB, &detectError);
 
   // Report to host
@@ -317,7 +317,7 @@ void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
 
     snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
             "Download of '%s' state unknown due to checksum calulation fault:%d",
-            dnldShared->dnldOrigFileName, detectError);
+            dnldShared->dnldOrigPathName, detectError);
     msgToSend = hostMsg;
     requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
   }
@@ -330,7 +330,7 @@ void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
     {
       snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
           "Download of '%s' success (checksums calculated:0x%08X, expected:0x%08X)",
-          dnldShared->dnldOrigFileName, dnldShared->dnldCalcFileCrc,
+          dnldShared->dnldOrigPathName, dnldShared->dnldCalcFileCrc,
           dnldShared->dnldInitFileCrc);
 
       msgToSend = hostMsg;
@@ -343,7 +343,7 @@ void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
       {
         snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
                 "Download of '%s' failed due to checksum mismatch, f/s read:0x%08X, dnld calc:0x%08X, sender:0x%08X",
-                dnldShared->dnldOrigFileName, actualFileCrc,
+                dnldShared->dnldOrigPathName, actualFileCrc,
                 dnldShared->dnldCalcFileCrc, dnldShared->dnldInitFileCrc);
         msgToSend = hostMsg;
         requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
@@ -352,7 +352,7 @@ void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
       {
         snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
                 "Download of '%s' failed due to file size mismatch calculated:%d, sender:%d",
-                dnldShared->dnldOrigFileName, dnldShared->dnldCalcFileSize,
+                dnldShared->dnldOrigPathName, dnldShared->dnldCalcFileSize,
                 dnldShared->dnldInitFileSize);
         msgToSend = hostMsg;
         requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
