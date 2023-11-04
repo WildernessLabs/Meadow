@@ -90,6 +90,7 @@
 #define HCOM_TINY_HOST_STRING_BUFF_LENGTH 64        // automatic variable
 #define HCOM_SHORT_HOST_STRING_BUFF_LENGTH 128      // automatic variable
 #define HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH 144  // automatic variable
+#define HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH 512   // allocate
 #define HCOM_MAX_HOST_STRING_BUFF_LENGTH 2048       // allocate
 // PATH_MAX is defined by Nuttx in limits.h. It's 256 or less
 #define HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH ((PATH_MAX * 2) + 2) // allocate

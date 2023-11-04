@@ -285,6 +285,8 @@ int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId)
 
 // ==============================================================
 // THIS IS AN UNDOCUMENTED FEATURE CALLABLE from Developer4 userData:1234
+// The above statement is no longer true. This feature is being used by some
+// part of CLI, unsure of the usage
 int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData)
 {
   // Changing "/" to "meadow0" will only show meadow files

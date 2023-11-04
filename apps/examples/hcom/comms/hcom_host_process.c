@@ -252,12 +252,12 @@ static int hcom_host_process_init_write_or_del(const HcomProtoHdrMsg_t *hdrMsg,
     return ret;
   }
 
-  // For the Meadow file system download start, need to do extra
-  // initialization
+  // For the Meadow file system download start, need to do extra initialization
   if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
       requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME)
   {
-    // If there are subdirectories, the number of elements will be > 2
+    // If there are subdirectories, the number of elements will be > 2 since
+    // this is a count of the number of elements
     if(dnldShared->dnldFNameEleCount > 2)
     {
       ret = hcom_file_dir_mgmt_check_and_add_subdir(dnldShared);

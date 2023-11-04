@@ -85,6 +85,7 @@ int hcom_file_upld_proc_setup()
 // send back to the CLI. This message contains the first part of a file's
 // data. However, the maximum number of bytes is fixed by
 // HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN, which is defined in hcom_protocol.h.
+// This file may no longer be necessary
 //==========================================================================
 void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize, uint32_t partitionId)
@@ -138,7 +139,7 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
     return;
   }
   
-  snprintf_chk(fileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", 
+  snprintf_chk(fileName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s",
                 fullMountPtName, fileNameBuffer);
   free(fileNameBuffer);
   free(fullMountPtName);

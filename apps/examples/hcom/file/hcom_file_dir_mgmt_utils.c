@@ -49,7 +49,7 @@
 // 5. Reads from a non-existing directory will return an error.
 // 6. There should be an nesting limit for directories. The initial limit is 6.
 // 7. When HCOM deletes a file if the directory is now empty, it will be automatically deleted.
-// 8. Al file writes or reads for the SD-Card must begin with '/mmcsd0/filename'.
+// 8. All file writes or reads for the SD-Card must begin with '/mmcsd0/filename'.
 //    No legacy support as #1.
 // 9. Relative directories and the like are not supported.
 
@@ -98,10 +98,10 @@
 
 enum hcom_file_dir_mgmt_type_e
 {
-  fnameInvalid = 100,     // Illegal format provided
-  fnameOriginal = 101,    // No '/' found
-  fnameMeadowFull = 102,  // Starts '/meadow0/'
-  fnameMmcsdFull = 103    // Starts '/mmcsd0/'
+  pathnameInvalid = 100,     // Illegal format provided
+  pathnameOriginal = 101,    // No '/' found
+  pathnameFullMeadow = 102,  // Starts '/meadow0/'
+  pathnameFullMmcsd = 103    // Starts '/mmcsd0/'
 };
 
 /****************************************************************************
@@ -128,38 +128,39 @@ static int hcom_file_dir_mgmt_read_nested_directories(const char *rootDir,
 
 //============================================================================
 // This function will return the depth of subdirectories in the file name.
-static uint32_t find_filename_subdir_depth(const char *fileName, size_t strLen)
+static uint32_t find_pathname_element_count(const char *pathName, size_t strLen)
 {
   // Allocate a modifiable version of the string for tokenizing
-  char *fileNameTemp = malloc(strLen + 1);
-  strcpy(fileNameTemp, fileName);
+  char *pathNameTemp = malloc(strLen + 1);
+  strcpy(pathNameTemp, pathName);
 
   // Count the number of '/' characters to give an indication of the subdir
   // depth
-  uint32_t tokenCount = 0;
+  uint32_t elementCount = 0;
   char *savePtr;
-  char *token = strtok_r(fileNameTemp, "/", &savePtr);
+  char *token = strtok_r(pathNameTemp, "/", &savePtr);
 
   while (token != NULL)
   {
-    tokenCount++;
-    // syslog(1, "==>> token: '%s', tokenCount:\n", token, tokenCount);
+    elementCount++;
+    // syslog(1, "==>> token: '%s', elementCount:\n", token, elementCount);
     token = strtok_r(NULL, "/", &savePtr);
   }
 
-  free(fileNameTemp);
+  free(pathNameTemp);
 
   // The number of elements is 1 more than the number of '/' characters
-  return tokenCount + 1;
+syslog(1, "----> %s@%d-Token count:%lu for %s\n", thisFile, __LINE__, elementCount, pathName);
+  return elementCount;
 }
 
 //============================================================================
-// This function will check the received filename and categorize it so the
-// remaining steps will know what they are dealing with
-static int hcom_file_dir_mgmt_categorize_filename(const char *fileName,
-          size_t strLen, uint32_t *fileNameElements)
+// This function will check the received path/file name and categorize it
+// so the remaining steps will know what they are dealing with.
+static int hcom_file_dir_mgmt_categorize_pathname(const char *pathName,
+          size_t strLen, uint32_t *pathNameElements)
 {
-  *fileNameElements = 0;
+  *pathNameElements = 0;
   
   // Valid and invalid file names
   // 'filename', '/meadow0/filename', '/meadow0/dir1/dir2/filename'
@@ -168,42 +169,46 @@ static int hcom_file_dir_mgmt_categorize_filename(const char *fileName,
   // /dirname/filename/ - missing leading '/meadow0'
 
   // Is this a bare filename (i.e. no '/')
-  if(memchr(fileName, '/', strLen) == NULL)
+  if(memchr(pathName, '/', strLen) == NULL)
   {
-    // No '/' in file name, this is like original naming scheme
-    return fnameOriginal;    // 101
+    // No '/' in file name, this is like original file naming scheme
+    *pathNameElements = 1;
+syslog(1, "----> %s@%d-Token count:%lu for %s\n", thisFile, __LINE__, *pathNameElements, pathName);
+    return pathnameOriginal;    // 101
   }
   else if (strLen < MEADOW_FILE_SUBDIR_PREPEND_SDCARD_LEN)
   {
     // 100
-    return fnameInvalid;          // Too short 
+syslog(1, "----> %s@%d-Token count:%lu for %s\n", thisFile, __LINE__, *pathNameElements, pathName);
+    return pathnameInvalid;          // Too short 
   }
   else if(memcmp(MEADOW_FILE_SUBDIR_PREPEND_MEADOW_STR,
-              fileName, MEADOW_FILE_SUBDIR_PREPEND_MEADOW_LEN) == 0)
+              pathName, MEADOW_FILE_SUBDIR_PREPEND_MEADOW_LEN) == 0)
   {
     // '/meadow0/' found, but can't end in '/', must have file name
-    if(fileName[strLen-1] == '/')
-        return fnameInvalid;
-    
-    *fileNameElements = find_filename_subdir_depth(fileName, strLen);
+    if(pathName[strLen-1] == '/')
+        return pathnameInvalid;
+  
+    *pathNameElements = find_pathname_element_count(pathName, strLen);;
+syslog(1, "----> %s@%d-Element count:%lu for %s\n", thisFile, __LINE__, *pathNameElements, pathName);
 
-    return fnameMeadowFull;    // 102
+    return pathnameFullMeadow;    // 102
   }
   // (--) MUST TEST IF SD-Card ENABLED
   else if(memcmp(MEADOW_FILE_SUBDIR_PREPEND_SDCARD_STR,
-              fileName, MEADOW_FILE_SUBDIR_PREPEND_SDCARD_LEN) == 0)
+              pathName, MEADOW_FILE_SUBDIR_PREPEND_SDCARD_LEN) == 0)
   {
     // '/mmcsd0/' found, but can't end in '/', must have file name
-    if(fileName[strLen-1] == '/')
-        return fnameInvalid;
+    if(pathName[strLen-1] == '/')
+        return pathnameInvalid;
 
-    *fileNameElements = find_filename_subdir_depth(fileName, strLen);
+    *pathNameElements = find_pathname_element_count(pathName, strLen);
 
-    return fnameMmcsdFull;    // 103
+    return pathnameFullMmcsd;    // 103
   }
   else
   {
-    return fnameInvalid;    // 100
+    return pathnameInvalid;    // 100
   }
 }
 
@@ -215,7 +220,7 @@ int hcom_file_dir_mgmt_build_pathname_save(hcom_dnld_shared_t *dnldShared,
           HcomProtoFileMsg_t *fileMsg, size_t fileNameLength)
 {
   int catType;
-  uint32_t fileNameElements;
+  uint32_t pathNameElements = 12345678;
   size_t dnldFileAndPathLen;
   
   _dnldShared = dnldShared;
@@ -241,39 +246,41 @@ int hcom_file_dir_mgmt_build_pathname_save(hcom_dnld_shared_t *dnldShared,
   // This call will catergorize as one of the above or error. In the case of
   // a file within subdirectories, it provides the number of subdirectories.
   // This is used to further catergorize the request. 
-  catType = hcom_file_dir_mgmt_categorize_filename(dnldShared->dnldOrigFileName,
-            fileNameLength, &fileNameElements);
-  dnldShared->dnldFNameEleCount = fileNameElements;
+  catType = hcom_file_dir_mgmt_categorize_pathname(dnldShared->dnldOrigFileName,
+            fileNameLength, &pathNameElements);
+
+  // Save sub-directory depth for whoever may want it
+  dnldShared->dnldFNameEleCount = pathNameElements;
   
 // (--) SOME DIAGNOSTIC CODE
-  char diagFNameType[32];
+  char diagText[32];
   switch (catType)
   {
-  case fnameInvalid:
-    strcpy(diagFNameType, "fnameInvalid - bad filename");
+  case pathnameInvalid:
+    strcpy(diagText, "pathnameInvalid - bad filename");
     break;
-  case fnameOriginal:
+  case pathnameOriginal:
     dnldShared->dnldIsRootMeadow0 = true;
-    strcpy(diagFNameType, "fnameOriginal-no '/'");
+    strcpy(diagText, "pathnameOriginal-no '/'");
     break;
-  case fnameMeadowFull:
+  case pathnameFullMeadow:
     dnldShared->dnldIsRootMeadow0 = true;
-    strcpy(diagFNameType, "fnameMeadowFull ('/meadow0/')");
+    strcpy(diagText, "pathnameFullMeadow ('/meadow0/')");
     break;
-  case fnameMmcsdFull:
+  case pathnameFullMmcsd:
     dnldShared->dnldIsRootMeadow0 = false;
-    strcpy(diagFNameType, "fnameMmcsdFull ('/mmcsd0/')");
+    strcpy(diagText, "pathnameFullMmcsd ('/mmcsd0/')");
     break;
   default:
-    strcpy(diagFNameType, "default?");
+    strcpy(diagText, "default?");
     break;
   }
 
-  syslog(1, "===> Valid format, file '%s'. It is categorized as %d (%s), fileNameElements:%lu\n",
-            dnldShared->dnldOrigFileName, catType, diagFNameType, fileNameElements);
+  syslog(1, "===> Valid format, file '%s'. It is categorized as %d (%s), pathNameElements:%lu\n",
+            dnldShared->dnldOrigFileName, catType, diagText, pathNameElements);
 // (--) SOME DIAGNOSTIC CODE
 
-  if(catType == fnameInvalid)
+  if(catType == pathnameInvalid)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-file name '%s' is invalid\n",
               thisFile, __LINE__, dnldShared->dnldOrigFileName);
@@ -282,14 +289,11 @@ int hcom_file_dir_mgmt_build_pathname_save(hcom_dnld_shared_t *dnldShared,
     return -EINVAL;   // Bad argument
   }
 
-  // Save sub-directory depth for whoever may want it
-  dnldShared->dnldFNameEleCount = fileNameElements;
-
   // A file name based on the original naming convention needs
   // to have '/meadow0/' prepended to the filename so it can be used.
-  if(catType == fnameOriginal)
+  if(catType == pathnameOriginal)
   {
-    // Build the full path plus file name string (e.g. /meadow0/FileName.ext)
+    // Build the full path plus file name string (e.g. /meadow0/filename.ext)
     dnldFileAndPathLen = strlen(dnldShared->dnldOrigFileName) + \
               strlen(HCOM_FILE_MOUNT_POINT_TARGET) + 3; // Room for '/', partition Id, NULL
 
@@ -328,8 +332,8 @@ int hcom_file_dir_mgmt_build_pathname_save(hcom_dnld_shared_t *dnldShared,
     strcpy(dnldShared->dnldFileAndPathName, dnldShared->dnldOrigFileName);
   }
 
-  syslog(1, "===> %s@%d-Full download file name:'%s' with %lu subdirectories\n",
-            __FILE__, __LINE__, dnldShared->dnldFileAndPathName, fileNameElements);
+  syslog(1, "===> %s@%d-Full download file name:'%s' with %lu elements\n",
+            __FILE__, __LINE__, dnldShared->dnldFileAndPathName, pathNameElements);
   usleep(20 * 1000);
 
   return OK;
@@ -376,7 +380,10 @@ int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
     dirOffset[tokenCount] = (token - fullFileNamePath);
   }
 
-  // This loop will modify fullFileNamePath, adding 1 element on each pass
+  // This loop will modify fullFileNamePath, adding 1 element on each pass.
+  // As each element is added stat will determine if this element exist. if
+  // not it will be created.
+  // The number of directories is 1 less than the number of elements.
   for(dirLevel = 0; dirLevel < dnldShared->dnldFNameEleCount - 1; dirLevel++)
   {
     delimiterOffset = fullFileNamePath + dirOffset[dirLevel];
@@ -407,6 +414,9 @@ int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
         // syslog(1, "-->> %s@%d-File doesn't exist, (errno:%d), so, we'll create '%s\n",
         //           thisFile, __LINE__, errno, fullFileNamePath);
 
+        // 0644 owner has read and write permission, group and others read
+        // 0777 everyone has read write and execute permission.
+
         // Make the missing directory
         ret = mkdir(fullFileNamePath, 0777);
         if(ret < 0)
@@ -428,60 +438,60 @@ int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
       return ret;
     }
 
-    syslog(1, "-->> %s@%d-stat() returned NO error.\n", thisFile, __LINE__);
-    usleep(20 * 1000);
+    // syslog(1, "-->> %s@%d-stat() returned NO error for '%s'\n", thisFile, __LINE__, fullFileNamePath);
+    // usleep(20 * 1000);
 
-    if (S_ISREG(pStatBuf->st_mode))
-      {
-        syslog(1, "\ttype        : File\n");
-      }
-    else if (S_ISDIR(pStatBuf->st_mode))
-      {
-        syslog(1, "\ttype        : Directory\n");
-      }
-    else if (S_ISCHR(pStatBuf->st_mode))
-      {
-        syslog(1, "\ttype        : Character driver\n");
-      }
-    else if (S_ISBLK(pStatBuf->st_mode))
-      {
-        syslog(1, "\ttype        : Block driver\n");
-      }
-    else if (S_ISMQ(pStatBuf->st_mode))
-      {
-        syslog(1, "\ttype        : Message queue\n");
-      }
-    else if (S_ISSEM(pStatBuf->st_mode))
-      {
-        syslog(1, "\ttype        : Named semaphore\n");
-      }
-    else if (S_ISSHM(pStatBuf->st_mode))
-      {
-        syslog(1, "\ttype        : Shared memory\n");
-      }
-    else if (S_ISSOCK(pStatBuf->st_mode))
-      {
-        syslog(1, "\ttype        : Socket\n");
-      }
-    else if (S_ISMTD(pStatBuf->st_mode))
-      {
-        syslog(1, "\ttype        : Named MTD driver\n");
-      }
-    else if (S_ISLNK(pStatBuf->st_mode))
-      {
-        syslog(1, "\ttype        : Symbolic link\n");
-      }
-    else
-      {
-        syslog(1, "\ttype        : Unknown\n");
-      }
+    // if (S_ISREG(pStatBuf->st_mode))
+    //   {
+    //     syslog(1, "\ttype        : File\n");
+    //   }
+    // else if (S_ISDIR(pStatBuf->st_mode))
+    //   {
+    //     syslog(1, "\ttype        : Directory\n");
+    //   }
+    // else if (S_ISCHR(pStatBuf->st_mode))
+    //   {
+    //     syslog(1, "\ttype        : Character driver\n");
+    //   }
+    // else if (S_ISBLK(pStatBuf->st_mode))
+    //   {
+    //     syslog(1, "\ttype        : Block driver\n");
+    //   }
+    // else if (S_ISMQ(pStatBuf->st_mode))
+    //   {
+    //     syslog(1, "\ttype        : Message queue\n");
+    //   }
+    // else if (S_ISSEM(pStatBuf->st_mode))
+    //   {
+    //     syslog(1, "\ttype        : Named semaphore\n");
+    //   }
+    // else if (S_ISSHM(pStatBuf->st_mode))
+    //   {
+    //     syslog(1, "\ttype        : Shared memory\n");
+    //   }
+    // else if (S_ISSOCK(pStatBuf->st_mode))
+    //   {
+    //     syslog(1, "\ttype        : Socket\n");
+    //   }
+    // else if (S_ISMTD(pStatBuf->st_mode))
+    //   {
+    //     syslog(1, "\ttype        : Named MTD driver\n");
+    //   }
+    // else if (S_ISLNK(pStatBuf->st_mode))
+    //   {
+    //     syslog(1, "\ttype        : Symbolic link\n");
+    //   }
+    // else
+    //   {
+    //     syslog(1, "\ttype        : Unknown\n");
+    //   }
 
-    syslog(1, "\tsize        : %d (bytes)\n",  pStatBuf->st_size);
-    syslog(1, "\tblock size  : %d (bytes)\n",  pStatBuf->st_blksize);
-    syslog(1, "\tsize        : %d (blocks)\n", pStatBuf->st_blocks);
-    syslog(1, "\taccess time : %d\n", pStatBuf->st_atime);
-    syslog(1, "\tmodify time : %d\n", pStatBuf->st_mtime);
-    syslog(1, "\tchange time : %d\n", pStatBuf->st_ctime);
+    // syslog(1, "\tsize        : %d (bytes)\n",  pStatBuf->st_size);
+    // syslog(1, "\tblock size  : %d (bytes)\n",  pStatBuf->st_blksize);
+    // syslog(1, "\tsize        : %d (blocks)\n", pStatBuf->st_blocks);
+    // syslog(1, "\taccess time : %d\n", pStatBuf->st_atime);
+    // syslog(1, "\tmodify time : %d\n", pStatBuf->st_mtime);
+    // syslog(1, "\tchange time : %d\n", pStatBuf->st_ctime);
   }
 
   free(fullFileNamePath);
@@ -534,6 +544,7 @@ int hcom_file_dir_mgmt_read_nested_directories(const char *rootDir,
 //      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
 //                 0, hostMsg, thisFile, __LINE__);
 // #endif
+
       if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
         continue;
 
