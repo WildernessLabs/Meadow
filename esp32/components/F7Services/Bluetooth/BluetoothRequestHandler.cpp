@@ -165,7 +165,7 @@ void BluetoothRequestHandler::DispatchRequest(Message *request)
 {
     TRACE_MESSAGE("DispatchRequest: Enter");
 
-    TRACE_MESSAGE("BT Message: function %u", (unsigned int) request->Function);
+    TRACE_MESSAGE("BT Message: function %i", request->Function);
 
     xEventGroupClearBits(_xBtEventGroup, BT_READY_BIT);
     switch (request->Function)
@@ -186,7 +186,7 @@ void BluetoothRequestHandler::DispatchRequest(Message *request)
                 vPortFree(request->Payload);
                 request->Payload = NULL; // we're re-using the message.  We free this, but we *must* null it, else the receiver when we send back will try to free it again
 
-                TRACE_MESSAGE("Server wrote %u bytes to 0x%04hx", (unsigned int) ds->SetDataLength, ds->Handle);
+                TRACE_MESSAGE("Server wrote %i bytes to 0x%04x", ds->SetDataLength, ds->Handle);
 
                 // update the local
                 _manager.SetCurrentValueForAttributeHandle(ds->Handle, ds->SetData, ds->SetDataLength);
@@ -205,7 +205,7 @@ void BluetoothRequestHandler::DispatchRequest(Message *request)
             TeardownStack(request);
             break;
         default:
-            TRACE_MESSAGE("Unknown Bluetooth message received, function %u", (unsigned int) request->Function);
+            TRACE_MESSAGE("Unknown Bluetooth message received, function %d", request->Function);
             if (request->Payload != NULL)
             {
                 TRACE_HEX_BUFFER(request->Payload, request->PayloadLength);
@@ -238,7 +238,7 @@ void BluetoothRequestHandler::DispatchRequest(Message *request)
  */
 void BluetoothRequestHandler::EventHandlerHelper(esp_event_base_t eventBase, int32_t eventId, void *eventData)
 {
-    TRACE_MESSAGE("EventHandlerHelper: Enter with base %s and id 0x%x", eventBase, (unsigned int) eventId);
+    TRACE_MESSAGE("EventHandlerHelper: Enter with base %s and id 0x%x", eventBase, eventId);
 
     TRACE_MESSAGE("EventHandlerHelper: Exit");
 }
@@ -429,7 +429,7 @@ void BluetoothRequestHandler::OnDataWriteRequest(uint16_t handle, uint8_t* data,
 
 void BluetoothRequestHandler::CreateAttributeGraph(Message *msg)
 {
-    TRACE_MESSAGE("CreateAttributeGraph. payload len = %u", (unsigned int) msg->PayloadLength);
+    TRACE_MESSAGE("CreateAttributeGraph. payload len = %i", msg->PayloadLength);
 
     Esp32Messaging::BTStackConfig *config = Encoders::ExtractBTStackConfig(msg->Payload);
     vPortFree(msg->Payload);
@@ -676,7 +676,7 @@ void BluetoothRequestHandler::GAPEventHandler(esp_gap_ble_cb_event_t event, esp_
             /* The app will receive this evt when the IO has DisplayYesNO capability and the peer device IO also has DisplayYesNo capability.
             show the passkey number to the user to confirm it with the number displayed by peer device. */
             esp_ble_confirm_reply(param->ble_security.ble_req.bd_addr, true);
-            TRACE_MESSAGE("ESP_GAP_BLE_NC_REQ_EVT, the passkey Notify number: %u", (unsigned int) param->ble_security.key_notif.passkey);
+            TRACE_MESSAGE("ESP_GAP_BLE_NC_REQ_EVT, the passkey Notify number:%d", param->ble_security.key_notif.passkey);
             break;
         case ESP_GAP_BLE_SEC_REQ_EVT: // 10
             // security request
@@ -685,7 +685,7 @@ void BluetoothRequestHandler::GAPEventHandler(esp_gap_ble_cb_event_t event, esp_
         case ESP_GAP_BLE_PASSKEY_NOTIF_EVT: // 11
             ///the app will receive this evt when the IO  has Output capability and the peer device IO has Input capability.
             ///show the passkey number to the user to input it in the peer device.
-            TRACE_MESSAGE("The passkey Notify number: %u", (unsigned int) param->ble_security.key_notif.passkey);
+            TRACE_MESSAGE("The passkey Notify number:%d", param->ble_security.key_notif.passkey);
             break;
         case ESP_GAP_BLE_KEY_EVT: // 9
             //shows the ble key info share with peer device to the user.

@@ -63,14 +63,12 @@ ThreadPool::ThreadPool(uint32_t numberOfThreads) : ThreadPool()
         throw new ThreadPoolException("Cannot create semaphore for ThreadPool.");
     }
 
-    for (unsigned int index = 0; index < _threadPoolSize; index++)
+    for (uint32_t index = 0; index < _threadPoolSize; index++)
     {
-        const unsigned int THREAD_NAME_LENGTH = 20;
-        char *name = static_cast<char *>(pvPortMalloc(THREAD_NAME_LENGTH));
+        char *name = static_cast<char *>(pvPortMalloc(15));
         if (name != NULL)
         {
-            bzero(name, THREAD_NAME_LENGTH);
-            snprintf(name, THREAD_NAME_LENGTH, "Thread-%02u", index);
+            snprintf(name, 15, "Thread-%02u", index);
             _threads[index] = new Thread(name, ThreadPool::ThreadCompleted);;
             if (_threads[index])
             {

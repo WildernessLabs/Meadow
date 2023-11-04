@@ -15,16 +15,8 @@
 #include "esp_event.h"
 // #include "esp_ota_ops.h"
 #include "esp_wifi.h"
-//
-//  ADC 4.2.
-//
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
-//
-//  IDF 5.1 headers for ADC - requires port of BatteryLevel method.
-//
-// #include "esp_adc/adc_oneshot.h"
-// #include "esp_adc/adc_cali.h"
 #include "esp_sleep.h"
 #include <string.h>
 #include <stdlib.h>
@@ -741,7 +733,7 @@ void SystemRequestHandler::DispatchRequest(Message *request)
             _fileSystem->DeleteFile(request);
             break;
         default:
-            TRACE_MESSAGE("DispatchRequest: Unknown System message received, function 0x%x", (unsigned int) request->Function);
+            TRACE_MESSAGE("DispatchRequest: Unknown System message received, function 0x%x", request->Function);
             if (request->Payload != NULL)
             {
                 TRACE_HEX_BUFFER(request->Payload, request->PayloadLength);
