@@ -4,7 +4,6 @@
 #include "driver/gpio.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
-#include "esp_mac.h"
 #include "esp_event.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -353,7 +352,7 @@ uint32_t WiFiRequestHandler::GetMaximumRetryCount()
  */
 StatusCodes::StatusCodes WiFiRequestHandler::SetMaximumRetryCount(uint32_t value)
 {
-    TRACE_MESSAGE("WiFiRequestHandler::SetMaximumRetryCount: %u", (unsigned int) value);
+    TRACE_MESSAGE("WiFiRequestHandler::SetMaximumRetryCount: %d", value);
     _maximumRetryCount = value;
     return(StatusCodes::CompletedOk);
 }
@@ -1022,7 +1021,7 @@ void WiFiRequestHandler::EventHandlerHelper(esp_event_base_t eventBase, int32_t 
                 TRACE_MESSAGE("EventHandlerHelper: WIFI_EVENT_AP_PROBEREQRECVED");
                 break;
             default:
-                TRACE_MESSAGE("EventHandlerHelper: Unhandled WiFi Event ID %d", (int) eventId);
+                TRACE_MESSAGE("EventHandlerHelper: Unhandled WiFi Event ID %d", eventId);
                 break;
         }
     }
@@ -1056,7 +1055,7 @@ void WiFiRequestHandler::EventHandlerHelper(esp_event_base_t eventBase, int32_t 
                     TRACE_MESSAGE("EventHandlerHelper: IP_EVENT_PPP_LOST_IP");
                     break;
                 default:
-                    TRACE_MESSAGE("EventHandlerHelper: Unhandled IP Event ID %d", (int) eventId);
+                    TRACE_MESSAGE("EventHandlerHelper: Unhandled IP Event ID %d", eventId);
                     break;
             }
         }
@@ -1218,7 +1217,7 @@ void WiFiRequestHandler::DispatchRequest(Message *request)
             xEventGroupSetBits(_xWiFiEventGroup, WIFI_READY_FOR_NEXT_COMMAND_BIT);
             break;
         default:
-            TRACE_MESSAGE("DispatchRequest: Unknown WiFi message received, function %u", (unsigned int)request->Function);
+            TRACE_MESSAGE("DispatchRequest: Unknown WiFi message received, function %d", request->Function);
             if ((request->Payload != NULL) && (request->PayloadLength > 0))
             {
                 TRACE_HEX_BUFFER(request->Payload, request->PayloadLength);
@@ -1428,7 +1427,7 @@ StatusCodes::StatusCodes WiFiRequestHandler::ConnectToAccessPoint(const Esp32Mes
     char *password = accessPointInformation->Password;
 
     TRACE_MESSAGE("ConnectToAccessPoint: Access point %s, password '%s'", accessPointInformation->NetworkName, password == nullptr ? "" : password);
-    TRACE_MESSAGE("IP information, IP: 0x%08x, subnet: 0x%08x, gateway 0x%08x", (unsigned int) accessPointInformation->IpAddress, (unsigned int) accessPointInformation->SubnetMask, (unsigned int) accessPointInformation->Gateway);
+    TRACE_MESSAGE("IP information, IP: 0x%08x, subnet: 0x%08x, gateway 0x%08x", accessPointInformation->IpAddress, accessPointInformation->SubnetMask, accessPointInformation->Gateway);
 
     StatusCodes::StatusCodes result = StatusCodes::CompletedOk;
 
@@ -1521,7 +1520,7 @@ StatusCodes::StatusCodes WiFiRequestHandler::ConnectToAccessPoint(const Esp32Mes
             }
         }
     }
-    TRACE_MESSAGE("%s: result %d", __func__, (int) result);
+    TRACE_MESSAGE("%s: result %d", __func__, result);
     return(result);
 }
 
@@ -1565,7 +1564,7 @@ void WiFiRequestHandler::ConnectToAccessPoint(Message *message)
     {
         memcpy(static_cast<void *>(data.Ssid), static_cast<void *>(_disconnectData.ssid), _disconnectData.ssid_len);
         memcpy(static_cast<void *>(data.Bssid), static_cast<void *>(_disconnectData.bssid), sizeof(data.Bssid));
-        TRACE_MESSAGE("Failed to connect to access point, code: %dhh", _disconnectData.reason);
+        TRACE_MESSAGE("Failed to connect to access point, code: %d", _disconnectData.reason);
         data.Reason = _disconnectData.reason;
         ClearIpAndDisconnectData();
         _lastIdfErrorCode = ESP_OK;
@@ -1905,19 +1904,16 @@ void WiFiRequestHandler::StationGotIpEvent(ip_event_got_ip_t *eventData)
 void WiFiRequestHandler::StationStartedEvent()
 {
     TRACE_MESSAGE("StationStartedEvent: Enter");
-    if (_stationNetIfHandle)
+    _lastIdfErrorCode = tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, SystemRequestHandler::GetDeviceName());
+    if (_lastIdfErrorCode != ESP_OK)
     {
-        _lastIdfErrorCode = esp_netif_set_hostname(_stationNetIfHandle, SystemRequestHandler::GetDeviceName());
-        if (_lastIdfErrorCode != ESP_OK)
-        {
-            xEventGroupClearBits(_xWiFiEventGroup, WIFI_INTERFACE_STARTED_BIT | WIFI_INTERFACE_STARTING_BIT | WIFI_CONNECTING_BIT);
-            xEventGroupSetBits(_xWiFiEventGroup, WIFI_ERROR_BIT);
-        }
-        else
-        {
-            xEventGroupClearBits(_xWiFiEventGroup, WIFI_INTERFACE_STARTING_BIT | WIFI_ERROR_BIT);
-            xEventGroupSetBits(_xWiFiEventGroup, WIFI_INTERFACE_STARTED_BIT);
-        }
+        xEventGroupClearBits(_xWiFiEventGroup, WIFI_INTERFACE_STARTED_BIT | WIFI_INTERFACE_STARTING_BIT | WIFI_CONNECTING_BIT);
+        xEventGroupSetBits(_xWiFiEventGroup, WIFI_ERROR_BIT);
+    }
+    else
+    {
+        xEventGroupClearBits(_xWiFiEventGroup, WIFI_INTERFACE_STARTING_BIT | WIFI_ERROR_BIT);
+        xEventGroupSetBits(_xWiFiEventGroup, WIFI_INTERFACE_STARTED_BIT);
     }
     TRACE_MESSAGE("StationStartedEvent: Exit");
 }
