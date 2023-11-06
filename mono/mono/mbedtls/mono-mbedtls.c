@@ -3344,13 +3344,10 @@ int mono_mbedtls_init ()
 
         if ( ( ret = mbedtls_x509_crt_parse_file( clicert, client_cert_path ) ) != 0 ) {
             printf( " failed to parse client certificate %d\n\n", ret);
+            fclose( client_cert_file );
             goto error;
         }
-        fclose(client_cert_file);
-    } 
-    else
-    {
-        client_cert_path = NULL;
+        fclose( client_cert_file );
     }
 
     FILE *private_key_file = fopen( private_key_path, "r" );
@@ -3361,13 +3358,10 @@ int mono_mbedtls_init ()
 
         if ( ( ret = mbedtls_pk_parse_keyfile( pkey, private_key_path, NULL, mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 ) {
             printf( " failed to parse private key %d\n\n", ret );
+            fclose( private_key_file );
             goto error;
         }
         fclose( private_key_file );
-    }
-    else
-    {
-        private_key_path = NULL;
     }
 
     if( ( ret = mbedtls_ssl_config_defaults( &conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT ) ) != 0 )
@@ -3472,6 +3466,9 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
     return new_ctx;
 
 error:
+    if (new_ctx) {
+        g_free (new_ctx);
+    }
     if (ssl) {
         mbedtls_ssl_free (ssl);
         g_free (ssl);
@@ -3511,13 +3508,19 @@ exit:
     return ret;
 }
 
-void mono_mbedtls_close (MonoMbedTlsContext * ctx)
+void mono_mbedtls_close(MonoMbedTlsContext *ctx)
 {
-    mbedtls_ssl_free (ctx->mbedtls_ctx);
-    g_free (ctx->mbedtls_ctx);
-    mbedtls_net_free (ctx->mbedtls_fd);
-    g_free (ctx->mbedtls_fd);
-    g_free (ctx);
+    if (ctx->mbedtls_ctx) {
+        mbedtls_ssl_free(ctx->mbedtls_ctx);
+        g_free(ctx->mbedtls_ctx);
+    }
+
+    if (ctx->mbedtls_fd) {
+        mbedtls_net_free(ctx->mbedtls_fd);
+        g_free(ctx->mbedtls_fd);
+    }
+
+    g_free(ctx);
     return;
 }
 

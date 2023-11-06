@@ -61,24 +61,45 @@ namespace Mono.MbedTls
 				throw new IOException($"TLS initialization failed with error code: {initResult}");
 		}
 
-		public MbedTlsContext (MNS.MobileAuthenticatedStream mas_stream, MNS.MonoSslAuthenticationOptions options, SafeHandle socket_handle, NetworkStream network_stream)
-			: base (mas_stream, options)
+		public MbedTlsContext(MNS.MobileAuthenticatedStream mas_stream, MNS.MonoSslAuthenticationOptions options, SafeHandle socket_handle, NetworkStream network_stream)
+			: base(mas_stream, options)
 		{
+			if (socket_handle == null || socket_handle.IsInvalid)
+			{
+				throw new ArgumentException("Invalid socket handle");
+			}
+
 			this.socket_handle = socket_handle;
-			socket_handle.DangerousAddRef (ref socket_release);
-			if (!socket_release)
-				throw new IOException ("Could not add a reference to underlying socket");
-			IntPtr mono_fd = socket_handle.DangerousGetHandle ();
-			//create I/O buffers and give the to mbedTLS
-			read_buf = Marshal.AllocHGlobal (buffer_size);
-			write_buf = Marshal.AllocHGlobal (buffer_size);
-			string hostname = network_stream._streamSocket.hostname;
+			socket_handle.DangerousAddRef(ref socket_release);
 
-			native_context = mono_mbedtls_connect (mono_fd, read_buf, write_buf, hostname);
+			try
+			{
+				if (!socket_release)
+				{
+					throw new IOException("Could not add a reference to the underlying socket");
+				}
 
-			if (native_context == IntPtr.Zero)
-				throw new IOException ("TLS initialization or handshake failed");
-			isAuthenticated = true;
+				IntPtr mono_fd = socket_handle.DangerousGetHandle();
+				//create I/O buffers and give them to mbedTLS
+				read_buf = Marshal.AllocHGlobal(buffer_size);
+				write_buf = Marshal.AllocHGlobal(buffer_size);
+				string hostname = network_stream._streamSocket.hostname;
+
+				native_context = mono_mbedtls_connect(mono_fd, read_buf, write_buf, hostname);
+
+				if (native_context == IntPtr.Zero)
+				{
+					throw new IOException("TLS initialization or handshake failed");
+				}
+
+				isAuthenticated = true;
+			}
+			catch (Exception ex)
+			{
+				// Handle exceptions if necessary
+				Dispose(); // Ensure proper cleanup in case of failure
+				throw ex;
+			}
 		}
 
 		public override void StartHandshake ()
@@ -185,26 +206,44 @@ namespace Mono.MbedTls
 			return true;
 		}
 
-		protected override void Dispose (bool disposing)
+		protected override void Dispose(bool disposing)
 		{
 			if (disposed)
 				return;
-			try {
-				mono_mbedtls_close (native_context);
+
+			try
+			{
+				if (native_context != IntPtr.Zero)
+				{
+					mono_mbedtls_close(native_context);
+					native_context = IntPtr.Zero; // Set the native context to null after closing
+				}
 			}
-			finally {
+			finally
+			{
 				disposed = true;
-				if (socket_release)
+
+				if (socket_release && socket_handle != null && !socket_handle.IsClosed)
+				{
 					socket_handle.DangerousRelease();
-				var tmp = read_buf;
-				read_buf = IntPtr.Zero;
-				Marshal.FreeHGlobal (tmp);
-				tmp = write_buf;
-				write_buf = IntPtr.Zero;
-				Marshal.FreeHGlobal (tmp);
-				base.Dispose (disposing);
+				}
+
+				if (read_buf != IntPtr.Zero)
+				{
+					Marshal.FreeHGlobal(read_buf);
+					read_buf = IntPtr.Zero;
+				}
+
+				if (write_buf != IntPtr.Zero)
+				{
+					Marshal.FreeHGlobal(write_buf);
+					write_buf = IntPtr.Zero;
+				}
+
+				base.Dispose(disposing);
 			}
 		}
+
 	}
 
 }
