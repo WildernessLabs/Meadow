@@ -56,8 +56,8 @@ extern uint16_t g_current_hcom_protocol_version;
 // COBS needs a specific delimiter. Zero seems to be traditional.
 #define HCOM_PROTOCOL_COBS_ENCODING_DELIMITER_VALUE (0x00)
 
-// What sequence number is used to identify a non-data message?
-#define HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER (0)
+// What sequence number is used to identify a non-data, command message?
+#define HCOM_PROTOCOL_COMMAND_TYPE_SEQUENCE_NUMBER (0)
 
 // Note: while the MD5 hash is 128-bits (16-bytes), it is 32 character
 // hex string from ESP32

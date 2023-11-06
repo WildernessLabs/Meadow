@@ -41,6 +41,7 @@
 //--------------------------------------------------------------------
 
 #define HCOM_FILE_DNLD_STM32F7_WDOG_TIME (3)
+#define HCOM_FILE_DNLD_MAX_DIR_DEPTH (6)
 
 // This enum defines the current processing state of the download code for a
 // specific download session. It is also used for file delete.
@@ -48,17 +49,26 @@
 // May decide to add ESP32 enum here too
 enum hcom_download_stm32f7_packet_state
 {
-  HcomStm32F7DnldStateNone = 0,
-  HcomStm32F7DnldStateStarting = 1,
-  HcomStm32F7DnldStateFileXfer = 2,
+  // The Invalid state indicates that there is no valid information in the
+  // hcom_dnld_shared_s structure.
+  HcomStm32F7DnldStateInvalid  = 0,
+  HcomStm32F7DnldStateNone     = 1,
+  HcomStm32F7DnldStateStarting = 2,
+  HcomStm32F7DnldStateFileXfer = 3,
 };
 
-// May need to add ESP32 info to struct
+enum hcom_download_dir_type_identifier
+{
+  HcomDnldDirTypeUnknown = 0,
+  HcomDnldDirTypeMeadow0 = 1,
+  HcomDnldDirTypeMmcsd0  = 2,
+};
+
 // This struct is memset to zero by processing during initialization
 struct hcom_dnld_shared_s
 {
   // Set by process and maintained during download by file handling
-  int dnldCurrentState;             // Tracks the state of the download
+  int dnldCurrentState;               // Tracks the state of the download
 
   // These are completely managed by file handling code
   uint32_t dnldInitFileCrc;           // CRC that was received from CLI
@@ -66,7 +76,6 @@ struct hcom_dnld_shared_s
   uint32_t dnldInitFileSize;          // File size based on received CLI data
   uint32_t dnldCalcFileSize;          // This size calculated while receiving
   uint32_t dnldPathNameEleCount;      // Number of elements in pathname
-  bool     dnldIsRootMeadow0;         // True='/meadow0' False='/mmcsd0'
 
   int dnldFileFD;                     // For file write persisted fd
   int dnldPercentSent;                // Used to calculate the % completed

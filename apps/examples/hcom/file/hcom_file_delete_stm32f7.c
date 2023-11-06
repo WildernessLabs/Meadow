@@ -83,13 +83,14 @@ int hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShare
   uint16_t hostMsgType;
 
   // Memory for text message to host
-  char *hostMsg = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
+  char *hostMsg = malloc(HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
   if(hostMsg == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
     return -ENOMEM;
   }
 
+  // Delete the specified file
   ret = unlink(dnldShared->dnldFullPathName);
   if (ret < 0)
   {
@@ -129,14 +130,14 @@ int hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShare
     hcom_logging_syslog(LOG_ERR, "%s@%d-Errno:%d (%s) failed to delete:'%s'\n",
         thisFile, __LINE__, get_errno(), errorCause, dnldShared->dnldFullPathName);
 
-    snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
           "Meadow failed to delete '%s' - %s",
           dnldShared->dnldFullPathName, errorCause);
   }
   else
   {
     hostMsgType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
-    snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
           "Meadow successfully deleted '%s'",
           dnldShared->dnldFullPathName);
 

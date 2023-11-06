@@ -188,7 +188,7 @@ int hcom_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
   int ret = OK;
 
   // These are always the same values plus 1 unused field
-  hdrMsg->stdHeader.seqNumber = HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER;
+  hdrMsg->stdHeader.seqNumber = HCOM_PROTOCOL_COMMAND_TYPE_SEQUENCE_NUMBER;
   hdrMsg->stdHeader.version = g_current_hcom_protocol_version;
   hdrMsg->stdHeader.extraData = 0;
 
@@ -380,7 +380,7 @@ void hcom_host_send_build_msg_header(uint16_t requestType,
         uint16_t extraData, uint32_t userData, uint8_t *xmitBuffer)
 {
   HcomProtoHdrMsg_t *hdrMsg = (HcomProtoHdrMsg_t *)xmitBuffer;
-  hdrMsg->stdHeader.seqNumber = HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER;
+  hdrMsg->stdHeader.seqNumber = HCOM_PROTOCOL_COMMAND_TYPE_SEQUENCE_NUMBER;
   hdrMsg->stdHeader.version = g_current_hcom_protocol_version;
   hdrMsg->stdHeader.rqstType = requestType;
   hdrMsg->stdHeader.extraData = extraData;

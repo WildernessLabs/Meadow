@@ -68,7 +68,7 @@ static void hcom_host_watchdog_cleanup_wdog_timeout(void);
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// Called from hcom_host_process.c
+// Called from hcom_host_preprocess.c
 int hcom_host_watchdog_initialize(hcom_dnld_shared_t *dnldShared)
 {
   // Need this to provide file name on failure.
@@ -146,7 +146,7 @@ void hcom_host_watchdog_cleanup_wdog_timeout()
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_DNLD_FAIL_RESEND, 0, hostMsg,
         thisFile, __LINE__);
 
-  // Setting the download state to inactive allows future downloads.
+  // Setting the download state to none allows future downloads.
   _dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
   
   return ret;

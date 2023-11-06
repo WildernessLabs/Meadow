@@ -96,12 +96,12 @@
 #define MEADOW_FILE_SUBDIR_PREPEND_SDCARD_STR   ("/mmcsd0/")
 #define MEADOW_FILE_SUBDIR_PREPEND_SDCARD_LEN   (8)
 
-enum hcom_file_dir_mgmt_type_e
+enum hcom_file_dir_mgmt_msg_type_e
 {
-  pathnameInvalid = 100,     // Illegal format provided
-  pathnameOriginal = 101,    // No '/' found
-  pathnameFullMeadow = 102,  // Starts '/meadow0/'
-  pathnameFullMmcsd = 103    // Starts '/mmcsd0/'
+  pathnameInvalid     = 0,    // Illegal format provided
+  pathnameOriginal    = 1,    // No '/' found
+  pathnameFullMeadow  = 2,    // Starts '/meadow0/'
+  pathnameFullMmcsd   = 3     // Starts '/mmcsd0/'
 };
 
 /****************************************************************************
@@ -125,8 +125,6 @@ static int hcom_file_dir_mgmt_read_nested_directories(const char *rootDir,
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-
-//============================================================================
 // This function will return the depth of subdirectories in the file name.
 static uint32_t find_pathname_element_count(const char *pathName, size_t strLen)
 {
@@ -135,7 +133,7 @@ static uint32_t find_pathname_element_count(const char *pathName, size_t strLen)
   strcpy(pathNameTemp, pathName);
 
   // Count the number of '/' characters to give an indication of the subdir
-  // depth
+  // count
   uint32_t elementCount = 0;
   char *savePtr;
   char *token = strtok_r(pathNameTemp, "/", &savePtr);
@@ -150,30 +148,29 @@ static uint32_t find_pathname_element_count(const char *pathName, size_t strLen)
   free(pathNameTemp);
 
   // The number of elements is 1 more than the number of '/' characters
-syslog(1, "----> %s@%d-Token count:%lu for %s\n", thisFile, __LINE__, elementCount, pathName);
+// syslog(1, "----> %s@%d-Token count:%lu for %s\n", thisFile, __LINE__, elementCount, pathName);
   return elementCount;
 }
 
 //============================================================================
 // This function will check the received path/file name and categorize it
 // so the remaining steps will know what they are dealing with.
+// Valid and invalid file names
+// 'filename', '/meadow0/filename', '/meadow0/dir1/dir2/filename'
+// These are illegal formats:
+// '/filename' - has leading '/'
+// /dirname/filename/ - missing leading '/meadow0'
 static int hcom_file_dir_mgmt_categorize_pathname(const char *pathName,
           size_t strLen, uint32_t *pathNameElements)
 {
   *pathNameElements = 0;
-  
-  // Valid and invalid file names
-  // 'filename', '/meadow0/filename', '/meadow0/dir1/dir2/filename'
-  // These are illegal formats:
-  // '/filename' - has leading '/'
-  // /dirname/filename/ - missing leading '/meadow0'
 
   // Is this a bare filename (i.e. no '/')
   if(memchr(pathName, '/', strLen) == NULL)
   {
     // No '/' in file name, this is like original file naming scheme
     *pathNameElements = 2;        // Includes the /meadow0 element
-    return pathnameOriginal;      // 101
+    return pathnameOriginal;
   }
   else if(memcmp(MEADOW_FILE_SUBDIR_PREPEND_MEADOW_STR,
               pathName, MEADOW_FILE_SUBDIR_PREPEND_MEADOW_LEN) == 0)
@@ -183,7 +180,7 @@ static int hcom_file_dir_mgmt_categorize_pathname(const char *pathName,
         return pathnameInvalid;
   
     *pathNameElements = find_pathname_element_count(pathName, strLen);;
-    return pathnameFullMeadow;    // 102
+    return pathnameFullMeadow;
   }
   // (--) MUST TEST IF SD-Card ENABLED
   else if(memcmp(MEADOW_FILE_SUBDIR_PREPEND_SDCARD_STR,
@@ -194,28 +191,29 @@ static int hcom_file_dir_mgmt_categorize_pathname(const char *pathName,
         return pathnameInvalid;
 
     *pathNameElements = find_pathname_element_count(pathName, strLen);
-    return pathnameFullMmcsd;    // 103
+    return pathnameFullMmcsd;
   }
   else
   {
-    return pathnameInvalid;    // 100
+    return pathnameInvalid;
   }
 }
 
 /****************************************************************************
  * Public Functions
  ***************************************************************************/
-// File name processing
-int hcom_file_dir_mgmt_build_pathname_save(hcom_dnld_shared_t *dnldShared,
+// File name processing. This is the entry point for all downloads, deletes
+// etc.
+int hcom_file_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
           HcomProtoFileMsg_t *fileMsg, size_t fileNameLength)
 {
   int catType;
-  uint32_t pathNameElements = 12345678;
+  uint32_t pathNameElements;
   size_t dnldFileAndPathLen;
   
   _dnldShared = dnldShared;
 
-    // Allocated + space for '/0'
+  // Allocated + space for '/0'
   dnldShared->dnldOrigPathName = malloc(fileNameLength + 1);
   if(dnldShared->dnldOrigPathName == NULL)
   {
@@ -234,56 +232,42 @@ int hcom_file_dir_mgmt_build_pathname_save(hcom_dnld_shared_t *dnldShared,
   // 2. A file beginning with '/meadow0/'
   // 3. A file beginning with '/mmcsd0/'
   // This call will catergorize as one of the above or error. In the case of
-  // a file within subdirectories, it provides the number of subdirectories.
-  // This is used to further catergorize the request. 
+  // a file within subdirectories, it will be considered a subdirectory as
+  // there's no way via text to tell the difference. It must be assumed that
+  // the final '/' signifies the start of the file name.
+  // This is used to further catergorize the request.
   catType = hcom_file_dir_mgmt_categorize_pathname(dnldShared->dnldOrigPathName,
             fileNameLength, &pathNameElements);
-
-  // Save sub-directory depth for whoever may want it
-  dnldShared->dnldPathNameEleCount = pathNameElements;
-  
-// (--) SOME DIAGNOSTIC CODE
-  char diagText[32];
-  switch (catType)
-  {
-  case pathnameInvalid:
-    strcpy(diagText, "pathnameInvalid - bad filename");
-    break;
-  case pathnameOriginal:
-    dnldShared->dnldIsRootMeadow0 = true;
-    strcpy(diagText, "pathnameOriginal-no '/'");
-    break;
-  case pathnameFullMeadow:
-    dnldShared->dnldIsRootMeadow0 = true;
-    strcpy(diagText, "pathnameFullMeadow ('/meadow0/')");
-    break;
-  case pathnameFullMmcsd:
-    dnldShared->dnldIsRootMeadow0 = false;
-    strcpy(diagText, "pathnameFullMmcsd ('/mmcsd0/')");
-    break;
-  default:
-    strcpy(diagText, "default?");
-    break;
-  }
-
-  syslog(1, "===> Valid format, file '%s'. It is categorized as %d (%s), pathNameElements:%lu\n",
-            dnldShared->dnldOrigPathName, catType, diagText, pathNameElements);
-// (--) SOME DIAGNOSTIC CODE
-
   if(catType == pathnameInvalid)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-file name '%s' is invalid\n",
               thisFile, __LINE__, dnldShared->dnldOrigPathName);
 
-    // (--) Need to send a host message here
+    // (--) Need to send a host message. What about Concluded message?
     return -EINVAL;   // Bad argument
   }
 
-  // A file name based on the original naming convention needs
-  // to have '/meadow0/' prepended to the filename so it can be used.
+  // The number of elements includes all levels. However, the maximum number
+  // of subdirectries doesn't include the '/meadow0' device. Therefore, we
+  // subtract 2 from the total number of elements.
+  if((pathNameElements - 2) > HCOM_FILE_DNLD_MAX_DIR_DEPTH)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-subdirectories: max is %lu, found %lu\n",
+              thisFile, __LINE__, HCOM_FILE_DNLD_MAX_DIR_DEPTH, pathNameElements - 2);
+
+    // (--) send message to the host. What about Concluded message?
+    return -EINVAL;
+  }
+
+  // Save sub-directory depth
+  dnldShared->dnldPathNameEleCount = pathNameElements;
+
+  // Establish the full file name.
   if(catType == pathnameOriginal)
   {
-    // Build the full path plus file name string (e.g. /meadow0/filename.ext)
+    // A file name based on the original naming convention needs
+    // to have '/meadow0/' prepended to the filename
+    // (e.g. /meadow0/filename.ext).
     dnldFileAndPathLen = strlen(dnldShared->dnldOrigPathName) + \
               strlen(HCOM_FILE_MOUNT_POINT_TARGET) + 3; // Room for '/', partition Id, NULL
 
@@ -307,10 +291,9 @@ int hcom_file_dir_mgmt_build_pathname_save(hcom_dnld_shared_t *dnldShared,
   }
   else
   {
-    // (--) CHANCE TO REFACTOR??? SINCE THE SAME NAME IS IN 2 PLACES IN STRUCT
     // Since the entire path must be provide by the host message, we'll
     // allocate the same size buffer as originally provided for the full name.
-    // This should take care of both '/meadow0/' and '/mmcsd0/' files.
+    // This should take care of all file entries.
     dnldShared->dnldFullPathName = malloc(fileNameLength + 1);
     if(dnldShared->dnldFullPathName == NULL)
     {
@@ -370,10 +353,11 @@ int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
     dirOffset[tokenCount] = (token - fullFileNamePath);
   }
 
-  // This loop will modify fullFileNamePath, adding 1 element on each pass.
-  // As each element is added stat will determine if this element exist. if
-  // not it will be created.
-  // The number of directories is 1 less than the number of elements.
+  // fullFileNamePath now contains all the subdirectory elements as C strings.
+  // This loop will add 1 '/' element on each pass to eventually reconstruct
+  // the entire path. As each element is added, stat() will determine if this
+  // element exist. if not it will be created.
+  // The number of directories is 1 less than the number of elements, so we -1.
   for(dirLevel = 0; dirLevel < dnldShared->dnldPathNameEleCount - 1; dirLevel++)
   {
     delimiterOffset = fullFileNamePath + dirOffset[dirLevel];
@@ -382,32 +366,16 @@ int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
     {
       // Restore the token ()'/') for next element
       *(delimiterOffset - 1) = '/';
-
-      // syslog(1, "-->> %s@%d-Full Name:'%s', count:%d, delimiterOffset:'%s'\n",
-      //     thisFile, __LINE__, fullFileNamePath, dirLevel, delimiterOffset - 1);
-      // usleep(50 * 1000);
     }
-    // else
-    // {
-    //   // At the start there's no delimiter to restore. If this level doesn't exist
-    //   // we are in trouble.
-    //   syslog(LOG_ERR, "-->> %s@%d-ERROR: Beginning path doesn't exist! (Full Name:'%s', count:%d, delimiterOffset:'%s')\n",
-    //       thisFile, __LINE__, fullFileNamePath, dirLevel, delimiterOffset);
-    //   usleep(50 * 1000);
-    // }
 
     ret = stat(fullFileNamePath, pStatBuf);
     if(ret < 0)
     {
       if(errno == ENOENT)
       {
-        // syslog(1, "-->> %s@%d-File doesn't exist, (errno:%d), so, we'll create '%s\n",
-        //           thisFile, __LINE__, errno, fullFileNamePath);
-
+        // Make the missing directory
         // 0644 owner has read and write permission, group and others read
         // 0777 everyone has read write and execute permission.
-
-        // Make the missing directory
         ret = mkdir(fullFileNamePath, 0777);
         if(ret < 0)
         {
@@ -416,72 +384,25 @@ int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
           return ret;
         }
         syslog(1, "%s@%d-Directory created\n", thisFile, __LINE__);
-
-        // Don't move to next directory, evaluate this new one, the move on.
+   
+        // Don't move to next directory, re-evaluate this new one
         dirLevel--;
-        continue;   // Try again now that the directory exists
+        continue;
       }
       else
       {
         syslog(1, "%s@%d-Some error, errno:%d\n", thisFile, __LINE__, errno);
       }
+
+      if (! S_ISDIR(pStatBuf->st_mode))
+      {
+        // All entries must be a directory, if not, it's an error
+        // (--) Send a message to host. What about Concluded message?
+        return -ENOTDIR;
+      }
+
       return ret;
     }
-
-    // syslog(1, "-->> %s@%d-stat() returned NO error for '%s'\n", thisFile, __LINE__, fullFileNamePath);
-    // usleep(20 * 1000);
-
-    // if (S_ISREG(pStatBuf->st_mode))
-    //   {
-    //     syslog(1, "\ttype        : File\n");
-    //   }
-    // else if (S_ISDIR(pStatBuf->st_mode))
-    //   {
-    //     syslog(1, "\ttype        : Directory\n");
-    //   }
-    // else if (S_ISCHR(pStatBuf->st_mode))
-    //   {
-    //     syslog(1, "\ttype        : Character driver\n");
-    //   }
-    // else if (S_ISBLK(pStatBuf->st_mode))
-    //   {
-    //     syslog(1, "\ttype        : Block driver\n");
-    //   }
-    // else if (S_ISMQ(pStatBuf->st_mode))
-    //   {
-    //     syslog(1, "\ttype        : Message queue\n");
-    //   }
-    // else if (S_ISSEM(pStatBuf->st_mode))
-    //   {
-    //     syslog(1, "\ttype        : Named semaphore\n");
-    //   }
-    // else if (S_ISSHM(pStatBuf->st_mode))
-    //   {
-    //     syslog(1, "\ttype        : Shared memory\n");
-    //   }
-    // else if (S_ISSOCK(pStatBuf->st_mode))
-    //   {
-    //     syslog(1, "\ttype        : Socket\n");
-    //   }
-    // else if (S_ISMTD(pStatBuf->st_mode))
-    //   {
-    //     syslog(1, "\ttype        : Named MTD driver\n");
-    //   }
-    // else if (S_ISLNK(pStatBuf->st_mode))
-    //   {
-    //     syslog(1, "\ttype        : Symbolic link\n");
-    //   }
-    // else
-    //   {
-    //     syslog(1, "\ttype        : Unknown\n");
-    //   }
-
-    // syslog(1, "\tsize        : %d (bytes)\n",  pStatBuf->st_size);
-    // syslog(1, "\tblock size  : %d (bytes)\n",  pStatBuf->st_blksize);
-    // syslog(1, "\tsize        : %d (blocks)\n", pStatBuf->st_blocks);
-    // syslog(1, "\taccess time : %d\n", pStatBuf->st_atime);
-    // syslog(1, "\tmodify time : %d\n", pStatBuf->st_mtime);
-    // syslog(1, "\tchange time : %d\n", pStatBuf->st_ctime);
   }
 
   free(fullFileNamePath);
@@ -491,10 +412,10 @@ int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
 }
 
 //===========================================================================
-// (--) REPLACE RECURSIVE WITH NON_RECURSIVE VERSION!!
-// (--) KEEPING TILL NEW VERSION AVAILABLE SINCE THIS ONE WORKS
+// THIS RECURSIVE CODE IS ONLY FOR DIAGNOSTICS! KEEPING SINCE IT WORKS.
+// Call using 'meadow set developer -d 13 -v 2'
 //===========================================================================
-// Note: Use "/" as the rootDir to show all files and directories etc.
+// Note: Using "/" as the rootDir would show all files and directories etc.
 int hcom_file_dir_mgmt_read_nested_directories_start(const char *rootDir)
 {
   // Keep these larger objects off the stack of the recursive function
@@ -524,16 +445,8 @@ int hcom_file_dir_mgmt_read_nested_directories(const char *rootDir,
     {
       if(strcmp(entry->d_name, "proc") == 0)
         return OK; // ignore procfs information
-
-      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-              "%*s%s/\n", indent, "", entry->d_name);
               
-// #if HCOM_FILE_DIR_OUTPUT_TO_SYSLOG > 0
-      syslog(2, hostMsg);
-// #else
-//      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
-//                 0, hostMsg, thisFile, __LINE__);
-// #endif
+      syslog(2, "%*s%s/\n", indent, "", entry->d_name);
 
       if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
         continue;
@@ -554,14 +467,9 @@ int hcom_file_dir_mgmt_read_nested_directories(const char *rootDir,
       else if(DIRENT_ISBLK(entry->d_type)) {entryType = "block";}
       else if(DIRENT_ISLINK(entry->d_type)) {entryType = "link";}
       else {entryType = "????";}
-      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-              "%*s%s [%s]\n", indent, "", entry->d_name, entryType);
-// #if HCOM_FILE_DIR_OUTPUT_TO_SYSLOG > 0
-      syslog(2, hostMsg);
-// #else
-//       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
-//                 0, hostMsg, thisFile, __LINE__);
-// #endif
+
+      syslog(2, "%*s%s [%s]\n", indent, "", entry->d_name, entryType);
+
     }
 #endif
 

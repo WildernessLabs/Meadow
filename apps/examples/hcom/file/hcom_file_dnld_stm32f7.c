@@ -163,6 +163,8 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
           dnldShared->dnldOrigPathName, errorCause);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL,
           0, hostMsg, thisFile, __LINE__);
+
+    return ret;
   }
   else
   {
@@ -271,7 +273,7 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
 
 //=======================================================================================
 // Process the end of transfer message from CLI.
-void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
+int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
 {
   int ret;
   char* hostMsg = NULL;
@@ -285,7 +287,7 @@ void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
     return -ENOMEM;
   }
 
-  hcom_logging_syslog(LOG_NOTICE, "End of file write\n");
+  hcom_logging_syslog(LOG_NOTICE, "End of file write received\n");
 
   if(dnldShared->dnldCurrentState != HcomStm32F7DnldStateFileXfer)
   {
@@ -376,4 +378,6 @@ void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
            dnldShared->dnldCalcFileCrc);
 #endif
   dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+
+  return OK;
 }

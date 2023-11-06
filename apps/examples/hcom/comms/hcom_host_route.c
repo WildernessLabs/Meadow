@@ -45,6 +45,11 @@
 #if defined (CONFIG_HCOM_ESP32_COMMS)
 #include "../esp32/hcom_esp32_comms.h"
 #endif
+
+#if defined (CONFIG_DIR_MGMT_TESTS)
+#pragma message "(--) hcom_host_route.c"
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -92,7 +97,8 @@ int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
 
  switch (requestType)
   {
-    // Start file transfer handles Meadow 
+    // Start file transfer handles Meadow. The End file transfer will send the
+    // Concluded message, unless there's an error then it will be sent here
     case HCOM_MDOW_REQUEST_START_FILE_TRANSFER:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       ret = hcom_file_dnld_stm32f7_file_begin(hdrMsg, dnldShared);
@@ -100,9 +106,9 @@ int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
 
     // End file transfer handles Meadow
     // Notice that the Start file transfer provided the 'Accepted' message to
-    // CLI end file transfer provides the 'Concluded' message
+    // CLI end file transfer provides the 'Concluded' message, even on error.
     case HCOM_MDOW_REQUEST_END_FILE_TRANSFER:
-      hcom_file_dnld_stm32f7_file_end(dnldShared);
+      ret = hcom_file_dnld_stm32f7_file_end(dnldShared);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
@@ -248,7 +254,7 @@ int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
       // 2. CLI sends data.....
       // 3. CLI sends the file end
     case HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END:
-      hcom_file_dnld_stm32f7_file_end(dnldShared);
+      ret = hcom_file_dnld_stm32f7_file_end(dnldShared);
       // Next copy the file to flash area, this must be done on the nuttx
       // side. This will take several seconds because it first erases the
       // flash area and then copies the file.
@@ -256,6 +262,7 @@ int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
       hcom_via_nx_forward_cli_cmd_to_nx(HCOM_MDOW_REQUEST_MONO_FLASH, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
+
     // -------------------------------------------------------
 
     case HCOM_MDOW_REQUEST_MONO_RUN_STATE:
