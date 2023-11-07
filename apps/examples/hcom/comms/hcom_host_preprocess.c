@@ -249,6 +249,8 @@ static int hcom_host_process_init_write_or_del(const HcomProtoHdrMsg_t *hdrMsg,
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Eval pathname, errno:%d, ret:%d\n",
               thisFile, __LINE__, errno, ret);
+
+    // Messages to CLI user already sent
     return ret;
   }
 
@@ -384,7 +386,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       usleep(100 * 1000);
 #endif
 
-    // Test for earlier stm32f7 download error
+    // Data Packet - test for stm32f7 download error for Start or Data
     if(dnldShared->dnldCurrentState == HcomStm32F7DnldStateInvalid)
     {
       // Let CLI user know the problem
@@ -393,6 +395,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
 
       hcom_logging_syslog(LOG_ERR, "%s@%d-Download Data received but no active download\n",
                 thisFile, __LINE__);
+
       return -EOWNERDEAD;      // There must have been a previous error
     }
 
@@ -481,8 +484,9 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME ||
       requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME)
       {
-        // Caller expects a Concluded message.
-        hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+        // Caller expects a Concluded message for these messages
+        hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+                  thisFile, __LINE__);
       }
   }
 
@@ -531,6 +535,10 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
               "'End' command received, but no active download", thisFile, __LINE__);
 
       hcom_logging_syslog(LOG_ERR, "%s@%d-Download End request but no active download.\n",
+                thisFile, __LINE__);
+
+      // Caller expects a Concluded message for End message.
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
                 thisFile, __LINE__);
 
       return -EOWNERDEAD;      // There must have been a previous error

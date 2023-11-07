@@ -133,7 +133,7 @@ static uint32_t find_pathname_element_count(const char *pathName, size_t strLen)
   strcpy(pathNameTemp, pathName);
 
   // Count the number of '/' characters to give an indication of the subdir
-  // count
+  // depth
   uint32_t elementCount = 0;
   char *savePtr;
   char *token = strtok_r(pathNameTemp, "/", &savePtr);
@@ -141,14 +141,11 @@ static uint32_t find_pathname_element_count(const char *pathName, size_t strLen)
   while (token != NULL)
   {
     elementCount++;
-    // syslog(1, "==>> token: '%s', elementCount:\n", token, elementCount);
     token = strtok_r(NULL, "/", &savePtr);
   }
 
   free(pathNameTemp);
 
-  // The number of elements is 1 more than the number of '/' characters
-// syslog(1, "----> %s@%d-Token count:%lu for %s\n", thisFile, __LINE__, elementCount, pathName);
   return elementCount;
 }
 
@@ -243,7 +240,13 @@ int hcom_file_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
     hcom_logging_syslog(LOG_ERR, "%s@%d-file name '%s' is invalid\n",
               thisFile, __LINE__, dnldShared->dnldOrigPathName);
 
-    // (--) Need to send a host message. What about Concluded message?
+    char *hostMsg = malloc(HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH);
+    snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
+            "Path name '%s' is invalid\n", dnldShared->dnldOrigPathName);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
+            hostMsg, thisFile, __LINE__);
+    free(hostMsg);
+
     return -EINVAL;   // Bad argument
   }
 
@@ -255,7 +258,14 @@ int hcom_file_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
     hcom_logging_syslog(LOG_ERR, "%s@%d-subdirectories: max is %lu, found %lu\n",
               thisFile, __LINE__, HCOM_FILE_DNLD_MAX_DIR_DEPTH, pathNameElements - 2);
 
-    // (--) send message to the host. What about Concluded message?
+    char *hostMsg = malloc(HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH);
+    snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
+            "Subdirectory depth: maximum:%lu. requested:%lu\n",
+            HCOM_FILE_DNLD_MAX_DIR_DEPTH, pathNameElements - 2);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
+            hostMsg, thisFile, __LINE__);
+    free(hostMsg);
+
     return -EINVAL;
   }
 
@@ -381,6 +391,16 @@ int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
         {
           syslog(LOG_ERR, "%s@%d-mkdir of '%s' failed with, ret:%d, errno:%d\n",
                     thisFile, __LINE__, fullFileNamePath, ret, errno);
+
+          char *hostMsg = malloc(HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH);
+          snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
+                  "Create directory '%s' failed, ret:%d, errno:%d\n",
+                  fullFileNamePath, ret, errno);
+          hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
+                  hostMsg, thisFile, __LINE__);
+          free(hostMsg);
+          free(fullFileNamePath);
+
           return ret;
         }
         syslog(1, "%s@%d-Directory created\n", thisFile, __LINE__);
@@ -391,13 +411,20 @@ int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
       }
       else
       {
-        syslog(1, "%s@%d-Some error, errno:%d\n", thisFile, __LINE__, errno);
+        syslog(1, "%s@%d-Error from stat() call, errno:%d\n", thisFile, __LINE__, errno);
       }
 
       if (! S_ISDIR(pStatBuf->st_mode))
       {
         // All entries must be a directory, if not, it's an error
-        // (--) Send a message to host. What about Concluded message?
+        char *hostMsg = malloc(HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH);
+        snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
+                "Pathname '%s' is invalid, last element not a directory\n",
+                 fullFileNamePath);
+        hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
+                hostMsg, thisFile, __LINE__);
+        free(hostMsg);
+        free(fullFileNamePath);
         return -ENOTDIR;
       }
 
@@ -407,7 +434,6 @@ int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
 
   free(fullFileNamePath);
 
-  syslog(1, "--=>> ---TESTING FINISHED---\n");
   return OK;
 }
 
