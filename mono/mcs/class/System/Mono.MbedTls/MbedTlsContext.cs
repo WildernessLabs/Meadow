@@ -38,6 +38,9 @@ namespace Mono.MbedTls
 		[DllImport("mbedtls", EntryPoint = "mono_mbedtls_close")]
 		internal static extern int mono_mbedtls_close(IntPtr ctx);
 
+		[DllImport("mbedtls", EntryPoint = "mono_mbedtls_init")]
+		internal static extern int mono_mbedtls_init();
+
 		//Managed resources
 		SafeHandle socket_handle;
 		bool socket_release;
@@ -50,6 +53,13 @@ namespace Mono.MbedTls
 		bool disposed;
 
 		const int buffer_size = 4096;
+
+		static MbedTlsContext ()
+		{
+			int initResult = mono_mbedtls_init();
+			if (initResult != 0)
+				throw new IOException($"TLS initialization failed with error code: {initResult}");
+		}
 
 		public MbedTlsContext (MNS.MobileAuthenticatedStream mas_stream, MNS.MonoSslAuthenticationOptions options, SafeHandle socket_handle, NetworkStream network_stream)
 			: base (mas_stream, options)
