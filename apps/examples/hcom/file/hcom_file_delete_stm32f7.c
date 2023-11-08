@@ -80,7 +80,6 @@ int hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared)
 int hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShared)
 {
   int ret;
-  uint16_t hostMsgType;
 
   // Memory for text message to host
   char *hostMsg = malloc(HCOM_SHORT_HOST_STRING_BUFF_LENGTH);

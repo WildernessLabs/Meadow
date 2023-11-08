@@ -213,24 +213,24 @@ typedef struct HcomProtoFSInfoMsg_s HcomProtoFInfoMsg_t;
 //--------------------------------------------------------------------
 // This contains the information needed to initiate downloading a file into
 // the STM32F7 primary file system or the ESP32's internal file system
-struct HcomProtoEspFileInfoMsg_s
-{
-  // This is the only thing in a header only message
-  HcomProtoStdHeader_t stdHeader;
+// struct HcomProtoEspFileInfoMsg_s
+// {
+//   // This is the only thing in a header only message
+//   HcomProtoStdHeader_t stdHeader;
 
-  // Additional information relate to file downloads/uploads
-  uint32_t fileSize;
+//   // Additional information relate to file downloads/uploads
+//   uint32_t fileSize;
 
-  // File flash address (used only by ESP32)
-  uint32_t fileFlashAddr;
+//   // File flash address (used only by ESP32)
+//   uint32_t fileFlashAddr;
 
-  // The MD5 Hash is 32 char hex string (used only by ESP32)
-  char fileMD5Hash[HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH];
+//   // The MD5 Hash is 32 char hex string (used only by ESP32)
+//   char fileMD5Hash[HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH];
 
-} __attribute__((packed));
+// } __attribute__((packed));
 
-typedef struct HcomProtoEspFileInfoMsg_s HcomProtoEspFileInfoMsg_t;
-#define HCOM_PROTOCOL_FS_REC_MSG_LENGTH (sizeof(HcomProtoEspFileInfoMsg_t))
+// typedef struct HcomProtoEspFileInfoMsg_s HcomProtoEspFileInfoMsg_t;
+// #define HCOM_PROTOCOL_ESP_REC_MSG_LENGTH (sizeof(HcomProtoEspFileInfoMsg_t))
 
 //--------------------------------------------------------------------
 // Header plus Text Info
@@ -240,7 +240,7 @@ struct HcomProtoTextMsg_s
   HcomProtoStdHeader_t stdHeader;
 
   // Some 'simple' messages containing string information.
-  char textData[0];
+  char textData[0];   // This can be path name
 
 } __attribute__((packed));
 

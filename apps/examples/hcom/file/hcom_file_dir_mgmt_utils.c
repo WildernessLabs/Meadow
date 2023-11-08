@@ -150,15 +150,15 @@ static uint32_t find_pathname_element_count(const char *pathName, size_t strLen)
 }
 
 //============================================================================
-// This function will check the received path/file name and categorize it
-// so the remaining steps will know what they are dealing with.
-// Valid and invalid file names
+// This function will check the received path/file name and categorize it and
+// determine if the format is correct. This way the remaining steps will know
+// what they are dealing with. Valid and invalid file names are:
 // 'filename', '/meadow0/filename', '/meadow0/dir1/dir2/filename'
 // These are illegal formats:
 // '/filename' - has leading '/'
 // /dirname/filename/ - missing leading '/meadow0'
 static int hcom_file_dir_mgmt_categorize_pathname(const char *pathName,
-          size_t strLen, uint32_t *pathNameElements)
+          size_t strLen, uint32_t *pathNameElements, bool isFileDownload)
 {
   *pathNameElements = 0;
 
@@ -166,26 +166,45 @@ static int hcom_file_dir_mgmt_categorize_pathname(const char *pathName,
   if(memchr(pathName, '/', strLen) == NULL)
   {
     // No '/' in file name, this is like original file naming scheme
-    *pathNameElements = 2;        // Includes the /meadow0 element
+    *pathNameElements = 2;        // Includes /meadow0 to be added soon
     return pathnameOriginal;
   }
   else if(memcmp(MEADOW_FILE_SUBDIR_PREPEND_MEADOW_STR,
               pathName, MEADOW_FILE_SUBDIR_PREPEND_MEADOW_LEN) == 0)
   {
-    // '/meadow0/' found, but can't end in '/', must have file name
-    if(pathName[strLen-1] == '/')
-        return pathnameInvalid;
-  
-    *pathNameElements = find_pathname_element_count(pathName, strLen);;
+    // '/meadow0/' found. If this is for file download it cannot end in '/',
+    // it must end with a file name. However, if this being called for a file
+    // list it must end in '/'.
+    if(isFileDownload)
+    {
+      if(pathName[strLen-1] == '/')
+          return pathnameInvalid;
+    }
+    else
+    {
+      if(pathName[strLen-1] != '/')
+          return pathnameInvalid;
+    }
+
+    *pathNameElements = find_pathname_element_count(pathName, strLen);
     return pathnameFullMeadow;
   }
-  // (--) MUST TEST IF SD-Card ENABLED
+  // (--) MUST TEST IF SD-Card ENABLED BEFORE MAKING THIS TEST
   else if(memcmp(MEADOW_FILE_SUBDIR_PREPEND_SDCARD_STR,
               pathName, MEADOW_FILE_SUBDIR_PREPEND_SDCARD_LEN) == 0)
   {
-    // '/mmcsd0/' found, but can't end in '/', must have file name
-    if(pathName[strLen-1] == '/')
-        return pathnameInvalid;
+    // '/mmcsd0/' found, but can't end in '/', must have file name, unless this
+    // being called for a file list in which case it must end in '/'.
+    if(isFileDownload)
+    {
+      if(pathName[strLen-1] == '/')
+          return pathnameInvalid;
+    }
+    else
+    {
+      if(pathName[strLen-1] != '/')
+          return pathnameInvalid;
+    }
 
     *pathNameElements = find_pathname_element_count(pathName, strLen);
     return pathnameFullMmcsd;
@@ -202,15 +221,18 @@ static int hcom_file_dir_mgmt_categorize_pathname(const char *pathName,
 // File name processing. This is the entry point for all downloads, deletes
 // etc.
 int hcom_file_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
-          HcomProtoFileMsg_t *fileMsg, size_t fileNameLength)
+          char *pathNameStr, size_t fileNameLength, bool isFileDownload)
 {
   int catType;
   uint32_t pathNameElements;
   size_t dnldFileAndPathLen;
   
+  // Only need on first call....
   _dnldShared = dnldShared;
 
-  // Allocated + space for '/0'
+syslog(1, "-----> Allocating %d bytes of memory, pathName '%s'\n", fileNameLength + 1, pathNameStr);
+
+  // Allocated + space for string terminating NULL
   dnldShared->dnldOrigPathName = malloc(fileNameLength + 1);
   if(dnldShared->dnldOrigPathName == NULL)
   {
@@ -219,10 +241,7 @@ int hcom_file_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
   }
 
   // Continue to populate shared download struct with file name information
-  memcpy(dnldShared->dnldOrigPathName, fileMsg->fileInfo.fileName,
-            fileNameLength);
-  // Make into C string
-  dnldShared->dnldOrigPathName[fileNameLength] = '\0';
+  strcpy(dnldShared->dnldOrigPathName, pathNameStr);
 
   // There are 3 valid file name formats.
   // 1. A simple file name, with just a file name and nothing else.
@@ -234,10 +253,10 @@ int hcom_file_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
   // the final '/' signifies the start of the file name.
   // This is used to further catergorize the request.
   catType = hcom_file_dir_mgmt_categorize_pathname(dnldShared->dnldOrigPathName,
-            fileNameLength, &pathNameElements);
+            fileNameLength, &pathNameElements, isFileDownload);
   if(catType == pathnameInvalid)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-file name '%s' is invalid\n",
+    hcom_logging_syslog(LOG_ERR, "%s@%d-pathname '%s' is invalid\n",
               thisFile, __LINE__, dnldShared->dnldOrigPathName);
 
     char *hostMsg = malloc(HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH);
@@ -250,18 +269,16 @@ int hcom_file_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
     return -EINVAL;   // Bad argument
   }
 
-  // The number of elements includes all levels. However, the maximum number
-  // of subdirectries doesn't include the '/meadow0' device. Therefore, we
-  // subtract 2 from the total number of elements.
-  if((pathNameElements - 2) > HCOM_FILE_DNLD_MAX_DIR_DEPTH)
+  // The number of elements includes all levels.
+  if(pathNameElements > HCOM_FILE_DNLD_MAX_NUMB_ELEMENTS)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-subdirectories: max is %lu, found %lu\n",
-              thisFile, __LINE__, HCOM_FILE_DNLD_MAX_DIR_DEPTH, pathNameElements - 2);
+              thisFile, __LINE__, HCOM_FILE_DNLD_MAX_NUMB_ELEMENTS, pathNameElements - 2);
 
     char *hostMsg = malloc(HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH);
     snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
-            "Subdirectory depth: maximum:%lu. requested:%lu\n",
-            HCOM_FILE_DNLD_MAX_DIR_DEPTH, pathNameElements - 2);
+            "Path Names are limited to a maximum:%lu elements, requested:%lu\n",
+            HCOM_FILE_DNLD_MAX_NUMB_ELEMENTS, pathNameElements);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
             hostMsg, thisFile, __LINE__);
     free(hostMsg);
@@ -269,10 +286,10 @@ int hcom_file_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
     return -EINVAL;
   }
 
-  // Save sub-directory depth
+  // Save number of elements in pathname
   dnldShared->dnldPathNameEleCount = pathNameElements;
 
-  // Establish the full file name.
+  // Establish the full file name if original format provided.
   if(catType == pathnameOriginal)
   {
     // A file name based on the original naming convention needs
@@ -302,8 +319,8 @@ int hcom_file_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
   else
   {
     // Since the entire path must be provide by the host message, we'll
-    // allocate the same size buffer as originally provided for the full name.
-    // This should take care of all file entries.
+    // allocate the same size buffer as originally string provided for the
+    // full name.
     dnldShared->dnldFullPathName = malloc(fileNameLength + 1);
     if(dnldShared->dnldFullPathName == NULL)
     {
@@ -315,7 +332,7 @@ int hcom_file_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
     strcpy(dnldShared->dnldFullPathName, dnldShared->dnldOrigPathName);
   }
 
-  syslog(1, "===> %s@%d-Full download file name:'%s' with %lu elements\n",
+  syslog(1, "===> %s@%d-Full pathName:'%s' with %lu elements\n",
             __FILE__, __LINE__, dnldShared->dnldFullPathName, pathNameElements);
   usleep(20 * 1000);
 
@@ -472,7 +489,7 @@ int hcom_file_dir_mgmt_read_nested_directories(const char *rootDir,
       if(strcmp(entry->d_name, "proc") == 0)
         return OK; // ignore procfs information
               
-      syslog(2, "%*s%s/\n", indent, "", entry->d_name);
+      syslog(2, "%*s%s/\n", indent, "|", entry->d_name);
 
       if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
         continue;
@@ -494,7 +511,7 @@ int hcom_file_dir_mgmt_read_nested_directories(const char *rootDir,
       else if(DIRENT_ISLINK(entry->d_type)) {entryType = "link";}
       else {entryType = "????";}
 
-      syslog(2, "%*s%s [%s]\n", indent, "", entry->d_name, entryType);
+      syslog(2, "%*s%s [%s]\n", indent, "|", entry->d_name, entryType);
 
     }
 #endif

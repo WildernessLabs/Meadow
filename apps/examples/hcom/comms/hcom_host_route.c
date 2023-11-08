@@ -163,7 +163,7 @@ int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
 
     case HCOM_MDOW_REQUEST_LIST_PARTITION_FILES:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_lists_files_in_partition(userData);
+      hcom_file_lists_files_in_system(userData, hdrMsg, dnldShared);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 

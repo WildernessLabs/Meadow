@@ -198,6 +198,60 @@ static bool hcom_host_process_is_stm32f7_dnld_active(hcom_dnld_shared_t *dnldSha
 }
 
 //==========================================================================
+// This function will take the information from the list request and save it
+// in the hcom_dnld_shared_t structure.
+static int hcom_host_process_init_file_list(const HcomProtoHdrMsg_t *hdrMsg,
+            const size_t packetSize, const uint32_t userData,
+            const uint16_t requestType, hcom_dnld_shared_t *dnldShared)
+{
+// (new)
+  int ret;
+  char *pathName;
+
+  syslog(1, "-----> %s@%d-Entered\n", thisFile, __LINE__);
+  usleep(20 * 1000);
+
+  // Clear the entire struct containing all information.
+  memset(dnldShared, 0, sizeof(hcom_dnld_shared_t));
+
+  // Start populating the shared download fields
+#ifdef CONFIG_MTD_PARTITION    // This is a nuttx configuration
+  dnldShared->dnldFilePartId = userData;
+#else
+  dnldShared->dnldFilePartId = 0;    // Ignore any other partition value
+#endif
+
+  HcomProtoTextMsg_t *textMsg = (HcomProtoTextMsg_t *)hdrMsg;
+  size_t fileNameLength = packetSize - HCOM_PROTOCOL_TEXT_MSG_LENGTH;
+  // (--) TEST MALLOC RETURN???
+  pathName = malloc(fileNameLength + 1);
+  memcpy(pathName, textMsg->textData, fileNameLength);
+  pathName[fileNameLength] = '\0';  // Make into C string
+
+  syslog(1, "-----> %s@%d-fileNameLength:%d, packetSize:%d, pathName '%s'\n",
+            thisFile, __LINE__, fileNameLength, packetSize, pathName);
+  usleep(20 * 1000);
+
+  // Do work to test and/or construct the proper full file name
+  // Note: This call may allocate memory, therefore, this must be considered
+  // this memory after this point.
+  ret = hcom_file_dir_mgmt_eval_build_pathname(dnldShared, pathName,
+            fileNameLength, false);
+  if(ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Eval pathname, errno:%d, ret:%d\n",
+              thisFile, __LINE__, errno, ret);
+  }
+  
+  syslog(1, "-----> %s@%d-returned from hcom_file_dir_mgmt_eval_build_pathname call\n",
+            thisFile, __LINE__);
+  usleep(20 * 1000);
+
+  free(pathName);
+  return ret;
+}
+
+//==========================================================================
 // This function consolidates a lot of the needed processing for file download
 // and file delete into a single function instead of being spread all over
 // the code base.
@@ -206,7 +260,8 @@ static int hcom_host_process_init_write_or_del(const HcomProtoHdrMsg_t *hdrMsg,
             const uint16_t requestType, hcom_dnld_shared_t *dnldShared)
 {
   int ret;
-  
+  char *pathName;
+
   // Verify that mono has been disabled, if not don't allow download
   if(hcom_mono_ctrl_is_mono_enabled())
   {
@@ -225,8 +280,7 @@ static int hcom_host_process_init_write_or_del(const HcomProtoHdrMsg_t *hdrMsg,
     return -EPERM;    // Operation not permitted
   }
 
-  // Clear the entire struct containing all download/delete and state
-  // information.
+  // Clear the entire struct containing all information.
   memset(dnldShared, 0, sizeof(hcom_dnld_shared_t));
 
   // Start populating the shared download fields
@@ -237,20 +291,28 @@ static int hcom_host_process_init_write_or_del(const HcomProtoHdrMsg_t *hdrMsg,
 #endif
 
   HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
-
   size_t fileNameLength = packetSize - HCOM_PROTOCOL_FILE_MSG_LENGTH;
+  // (--) TEST MALLOC RETURN???
+  pathName = malloc(fileNameLength + 1);
+  memcpy(pathName, fileMsg->fileInfo.fileName, fileNameLength);
+  pathName[fileNameLength] = '\0';  // Make into C string
 
-  // Do work to test and/or construct the proper full file name
+  syslog(1, "-----> fileNameLength:%d, packetSize:%d, pathName '%s'\n",
+            fileNameLength, packetSize, pathName);
+
+  // Do work to test and/or populate struct
   //
   // Note: This call may allocate memory, therefore, this must be considered
   // this memory after this point.
-  ret = hcom_file_dir_mgmt_eval_build_pathname(dnldShared, fileMsg, fileNameLength);
+  ret = hcom_file_dir_mgmt_eval_build_pathname(dnldShared, pathName,
+            fileNameLength, true);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Eval pathname, errno:%d, ret:%d\n",
               thisFile, __LINE__, errno, ret);
 
-    // Messages to CLI user already sent
+    // Messages to CLI already sent
+    free(pathName);
     return ret;
   }
 
@@ -267,7 +329,7 @@ static int hcom_host_process_init_write_or_del(const HcomProtoHdrMsg_t *hdrMsg,
       {
         hcom_logging_syslog(LOG_ERR, "%s@%d-Checking subdir errno:%d, ret:%d\n",
                   thisFile, __LINE__, errno, ret);
-
+        free(pathName);
         return ret;
       }
     }
@@ -278,6 +340,7 @@ static int hcom_host_process_init_write_or_del(const HcomProtoHdrMsg_t *hdrMsg,
       hcom_logging_syslog(LOG_ERR, "%s@%d-Timer init errno:%d, ret:%d\n",
                 thisFile, __LINE__, errno, ret);
 
+      free(pathName);
       return ret;
     }
 
@@ -288,11 +351,11 @@ static int hcom_host_process_init_write_or_del(const HcomProtoHdrMsg_t *hdrMsg,
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set errno:%d, ret:%d\n",
                 thisFile, __LINE__, errno, ret);
-
-      return ret;
     }
   }
-  return OK;
+
+  free(pathName);
+  return ret;
 }
 
 //==========================================================================
@@ -309,7 +372,6 @@ int hcom_host_process_run_loop()
     ret = hcom_host_enq_deq_dequeue_packet(_packet_dest_buf, &packetLength);
     if(ret < 0)
     {
-      // Error processing, cleanup allocated memory
       if(ret == -ETIME)
       {
         // Watchdog timeout waiting for data
@@ -380,7 +442,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
   // Test to determine if this is a data packet or a command
   if (hcomDataMsg->seqNumber != HCOM_PROTOCOL_COMMAND_TYPE_SEQUENCE_NUMBER)
   {
-    // This must be a data message
+    // This must be a Data packet and not a command message
 #if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
       hcom_diag_decode_data_packet_type(decodedSize);
       usleep(100 * 1000);
@@ -440,8 +502,8 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
   }
 
   //----------------------------------------------------------------------
-  // Since sequence number is 0, must be a command (non-data packet). And
-  // these always have the full HCOM header.
+  // Since sequence number is 0, must be a command (non-data packet) message.
+  // And these always have the full HCOM header.
   // Note: Adding the full header to data packets has been planned for a while.
   const HcomProtoHdrMsg_t *hdrMsg = (HcomProtoHdrMsg_t *) decodedPacket;
 
@@ -481,10 +543,11 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
 
     // An error from these won't send a Concluded message, must be done here.
     if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
-      requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME ||
-      requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME)
+       requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME ||
+       requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME)
       {
-        // Caller expects a Concluded message for these messages
+        // Caller expects a Concluded message for these messages, even for
+        // a wrong CLI protocol version.
         hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
                   thisFile, __LINE__);
       }
@@ -497,13 +560,33 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
     hcom_file_dir_mgmt_free_file_info(dnldShared);
   }
 
-  //---------------------------------------------------------------
+  // This allows the file list to include a subdirectory
+  if(requestType == HCOM_MDOW_REQUEST_LIST_PARTITION_FILES)
+  {
+    syslog(1, "-----> Calling hcom_host_process_init_file_list\n");
+    usleep(20 * 1000);
+
+    // Need to get the string associated with this message. It could be empty
+    // or include 1 or more subdirectories, from which a file list is to be
+    // generated.
+    ret = hcom_host_process_init_file_list(hdrMsg, decodedSize, userData,
+            requestType, dnldShared);
+    if(ret < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Init file list errno:%d, ret:%d\n",
+                thisFile, __LINE__, errno, ret);
+
+      hcom_file_dir_mgmt_free_file_info(dnldShared);
+      return ret;   // On error exit
+    }
+  }
+
   // For downloading/deleting files we need more file related information
   // and we need this information persisted until the file has been received. 
   // This is done here so it doesn't needed to be done in multiple places.
-  if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
-     requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME ||
-     requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME)
+  else if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
+          requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME ||
+          requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME)
   {
     // Starting a file transfer or delete needs special pre-processing
     // before being routed to the various write and delete functions.
@@ -524,6 +607,8 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       return ret;   // On error exit
     }
   }
+
+  // End of file download
   else if(requestType == HCOM_MDOW_REQUEST_END_FILE_TRANSFER ||
           requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END)
   {
@@ -559,6 +644,9 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
   //-------------------------------------------------------------------
   // There are a few command type handlers that report errors. Specifically,
   // those dealing with file download and delete.
+  syslog(1, "-----> Will Route Command. Element count:%lu\n", dnldShared->dnldPathNameEleCount);
+  usleep(20 * 1000);
+
   ret = hcom_host_route_request_by_cmd_type(hdrMsg, decodedSize, userData,
             requestType, dnldShared);
   if(ret < 0)

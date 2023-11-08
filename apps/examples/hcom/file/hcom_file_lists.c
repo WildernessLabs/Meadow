@@ -60,12 +60,102 @@ static char *thisFile = __FILE__;
  ****************************************************************************/
 static int hcom_file_lists_all_dev_dir_and_files(const char *name, int indent, uint32_t userData);
 
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
+static int hcom_file_lists_files_in_partition_subdir(const HcomProtoHdrMsg_t *hdrMsg,
+          hcom_dnld_shared_t *dnldShared);
+static int hcom_file_lists_files_in_partition(uint32_t partitionId);
+
+//====================================================================
+// (--) NEW MODIFIED VERSION. CAN IT REPLACE ORIGINAL?
+int hcom_file_lists_files_in_partition_subdir(const HcomProtoHdrMsg_t *hdrMsg,
+          hcom_dnld_shared_t *dnldShared)
+{
+  int fileCount = 0;
+
+  syslog(1, "-----> %s@%d-Entered list of files pathName %s\n",
+            thisFile, __LINE__, dnldShared->dnldFullPathName);
+  usleep(20 * 1000);
+
+  char *fileFoundName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(fileFoundName == NULL)
+  {
+    // free(fullMountPtName);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
+
+  DIR *dirp;
+  struct dirent *direntry;
+
+  // Tell CLI to output a header for the file list
+  hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_LIST_HEADER, 0, thisFile, __LINE__);
+
+  syslog(1, "-----> %s@%d-Opening directory %s for list of files\n",
+            thisFile, __LINE__, dnldShared->dnldFullPathName);
+  usleep(20 * 1000);
+
+  // Open the directory
+  dirp = opendir(dnldShared->dnldFullPathName);
+  if ( !dirp )
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-opendir(\"%s\") errno:%d\n",
+              thisFile, __LINE__, dnldShared->dnldFullPathName, errno);
+    return -1;
+  }
+
+  while((direntry = readdir(dirp)) != NULL)
+  {
+    if(DIRENT_ISFILE(direntry->d_type))
+    {
+      fileCount++;
+
+      // Get the next file name
+#ifdef CONFIG_MTD_PARTITION
+      hcom_logging_syslog(LOG_INFO, "%s@%d-Found file '%s' in part:%d\n",
+                thisFile, __LINE__, direntry->d_name,
+                dnldShared->dnldFilePartId);
+#else
+      hcom_logging_syslog(LOG_INFO, "%s@%d-Found file '%s'\n",
+                thisFile, __LINE__, direntry->d_name);
+#endif
+
+      snprintf_chk(fileFoundName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
+                "%s/%s", dnldShared->dnldFullPathName, direntry->d_name);
+
+      // Give this file to CLI
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
+                fileFoundName, thisFile, __LINE__);
+    }
+  }
+
+  if(fileCount == 0)
+  {
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
+                  "No files found", thisFile, __LINE__);
+  }
+  else
+  {
+    char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+              "A total of %d file%s found", fileCount, fileCount == 1 ? "" : "s");
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
+                  hostMsg, thisFile, __LINE__);
+  }
+
+  closedir(dirp);
+
+  free(fileFoundName);
+
+  return OK;
+}
+
+//============================================================================
 int hcom_file_lists_files_in_partition(uint32_t partitionId)
 {
   int fileCount = 0;
+
+  syslog(1, "-----> %s@%d-Opening ORIGINAL list of files\n",
+            thisFile, __LINE__);
+  usleep(20 * 1000);
 
   char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   if(fullMountPtName == NULL)
@@ -153,9 +243,25 @@ int hcom_file_lists_files_in_partition(uint32_t partitionId)
   return OK;
 }
 
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+// This function simply routes the call to one of 2 options depending on if
+// it is a download or file list request
+int hcom_file_lists_files_in_system(uint32_t partitionId,
+          const HcomProtoHdrMsg_t *hdrMsg, hcom_dnld_shared_t *dnldShared)
+{
+  syslog(1, "-----> Routing List Files. Element count:%lu\n", dnldShared->dnldPathNameEleCount);
+  usleep(20 * 1000);
+  if(dnldShared->dnldPathNameEleCount > 1)
+    hcom_file_lists_files_in_partition_subdir(hdrMsg, dnldShared);
+  else
+    hcom_file_lists_files_in_partition(partitionId);
+}
+
 //=====================================================================
-// (--) This will need to be modified to work with subdirectories
-// It will need to Start at '/meadow0' and proceeds downward.
+// (--) This needs to be modified to work with subdirectories???
 //
 int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId)
 {
@@ -284,7 +390,7 @@ int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId)
 }
 
 // ==============================================================
-// THIS IS AN UNDOCUMENTED FEATURE CALLABLE from Developer4 userData:1234
+// THIS IS AN UNDOCUMENTED FEATURE
 // The above statement is no longer true. This feature is being used by some
 // part of CLI, unsure of the usage
 int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData)
@@ -292,6 +398,7 @@ int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData)
   // Changing "/" to "meadow0" will only show meadow files
   return hcom_file_lists_all_dev_dir_and_files("/", 0, userData);
 }
+
 //----------------------------------------------
 // NOTE - Recursive function
 int hcom_file_lists_all_dev_dir_and_files(const char *name, int indent, uint32_t userData)

@@ -240,7 +240,9 @@ int hcom_file_write_close_active_file(hcom_dnld_shared_t *dnldShared);
 
 // -----------------------------------------------
 // File listing functions
-int hcom_file_lists_files_in_partition(uint32_t partitionId);
+int hcom_file_lists_files_in_system(uint32_t partitionId,
+        const HcomProtoHdrMsg_t *hdrMsg, hcom_dnld_shared_t *dnldShared);
+
 int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId);
 int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData);
 
@@ -248,7 +250,7 @@ int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData);
 // File directory functions
 int hcom_file_dir_mgmt_read_nested_directories_start(const char *rootDir);
 int hcom_file_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
-          HcomProtoFileMsg_t *fileMsg, size_t fileNameLength);
+          char *pathNameStr, size_t fileNameLength, bool isFileDownload);
 int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared);
 
 // -----------------------------------------------
