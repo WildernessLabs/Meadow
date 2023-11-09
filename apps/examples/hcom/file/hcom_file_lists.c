@@ -102,7 +102,11 @@ int hcom_file_lists_all_files_in_directory(uint32_t partitionId,
     return -1;
   }
 
-// ONLY SHOW meadow0 IF DOING SUBDIRECTORY SEARCH
+  // For file list, there's no file name just path so, 0 elements is the
+  // default. Anything greater we should include in the returned list.
+  bool useFullPath = true;
+  if(dnldShared->dnldPathNameEleCount == 0)
+    useFullPath = false;
 
   while((direntry = readdir(dirp)) != NULL)
   {
@@ -125,7 +129,7 @@ int hcom_file_lists_all_files_in_directory(uint32_t partitionId,
             return -ENOMEM;
           }
 
-          // Build full name, path and file, for CRC call
+          // Build full path and file, for CRC call
           snprintf_chk(completeNameBuf, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s",
                     dnldShared->dnldFullPathName, direntry->d_name);
 
@@ -145,10 +149,11 @@ int hcom_file_lists_all_files_in_directory(uint32_t partitionId,
           totalSizeOfFiles += fileSize;
           totalFlashSizeKB += blockSizeKB;
 
-          // Send this file's information to the host
+          // Send this file's information to CLI
           snprintf_chk(fileFoundName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
                     "%s%s [0x%08x] %d KB (%u bytes)",
-                    dnldShared->dnldFullPathName, direntry->d_name,
+                    useFullPath ? dnldShared->dnldFullPathName : "",
+                    direntry->d_name,
                     crcChecksum, blockSizeKB, fileSize);
 
           hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
@@ -156,7 +161,8 @@ int hcom_file_lists_all_files_in_directory(uint32_t partitionId,
 
           hcom_logging_syslog(LOG_INFO, "%s@%d-%s%s checksum:0x%08x, %d KB (%u bytes)\n",
                     thisFile, __LINE__,
-                    dnldShared->dnldFullPathName, direntry->d_name,
+                  useFullPath ? dnldShared->dnldFullPathName : "",
+                    direntry->d_name,
                     crcChecksum, blockSizeKB, fileSize);
 
           free(completeNameBuf);
@@ -166,7 +172,9 @@ int hcom_file_lists_all_files_in_directory(uint32_t partitionId,
       {
         // Get the file name and size
         snprintf_chk(fileFoundName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
-                  "%s%s", dnldShared->dnldFullPathName, direntry->d_name);
+                  "%s%s",
+                  useFullPath ? dnldShared->dnldFullPathName : "",
+                  direntry->d_name);
 
         // Send to file to CLI
         hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
@@ -174,7 +182,8 @@ int hcom_file_lists_all_files_in_directory(uint32_t partitionId,
 
         hcom_logging_syslog(LOG_INFO, "%s@%d-%s%s\n",
                   thisFile, __LINE__,
-                  dnldShared->dnldFullPathName, direntry->d_name);
+                  useFullPath ? dnldShared->dnldFullPathName : "",
+                  direntry->d_name);
       }
     }
   }

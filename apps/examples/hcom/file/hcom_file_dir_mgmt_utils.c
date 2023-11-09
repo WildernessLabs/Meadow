@@ -157,6 +157,7 @@ static uint32_t find_pathname_element_count(const char *pathName, size_t strLen)
 // These are illegal formats:
 // '/filename' - has leading '/'
 // /dirname/filename/ - missing leading '/meadow0'
+// isFileDownload true = download, false = file list only has path
 static int hcom_file_dir_mgmt_categorize_pathname(const char *pathName,
           size_t strLen, uint32_t *pathNameElements, bool isFileDownload)
 {
@@ -165,8 +166,13 @@ static int hcom_file_dir_mgmt_categorize_pathname(const char *pathName,
   // Is this a bare filename (i.e. no '/')
   if(memchr(pathName, '/', strLen) == NULL)
   {
-    // No '/' in file name, this is like original file naming scheme
-    *pathNameElements = 2;        // Includes /meadow0 to be added soon
+    // No '/' in file name, this is like original file naming scheme for
+    // download
+    if(isFileDownload)
+      *pathNameElements = 2;  // Includes /meadow0 to be added soon
+    else
+      *pathNameElements = 0;  // For file list there's no file name
+    
     return pathnameOriginal;
   }
   else if(memcmp(MEADOW_FILE_SUBDIR_PREPEND_MEADOW_STR,
