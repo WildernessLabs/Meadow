@@ -240,8 +240,9 @@ int hcom_file_write_close_active_file(hcom_dnld_shared_t *dnldShared);
 
 // -----------------------------------------------
 // File listing functions
-int hcom_file_lists_files_in_system(uint32_t partitionId,
-        const HcomProtoHdrMsg_t *hdrMsg, hcom_dnld_shared_t *dnldShared);
+int hcom_file_lists_all_files_in_directory(uint32_t partitionId,
+        const HcomProtoHdrMsg_t *hdrMsg, hcom_dnld_shared_t *dnldShared,
+        bool isCrcNeeded);
 
 int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId);
 int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData);

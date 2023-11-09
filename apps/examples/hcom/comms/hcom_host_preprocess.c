@@ -297,8 +297,8 @@ static int hcom_host_process_init_write_or_del(const HcomProtoHdrMsg_t *hdrMsg,
   memcpy(pathName, fileMsg->fileInfo.fileName, fileNameLength);
   pathName[fileNameLength] = '\0';  // Make into C string
 
-  syslog(1, "-----> fileNameLength:%d, packetSize:%d, pathName '%s'\n",
-            fileNameLength, packetSize, pathName);
+  syslog(1, "-----> %s@%d-fileNameLength:%d, packetSize:%d, pathName '%s'\n",
+            thisFile, __LINE__, packetSize, pathName);
 
   // Do work to test and/or populate struct
   //
@@ -541,7 +541,8 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       return -ENOTSUP;
     }
 
-    // An error from these won't send a Concluded message, must be done here.
+    // A wrong protocol version error won't send the Concluded message, from
+    // these message types, must be done here.
     if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
        requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME ||
        requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME)
@@ -560,15 +561,17 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
     hcom_file_dir_mgmt_free_file_info(dnldShared);
   }
 
-  // This allows the file list to include a subdirectory
-  if(requestType == HCOM_MDOW_REQUEST_LIST_PARTITION_FILES)
+  // This allows the file list processing to include a subdirectories
+  if(requestType == HCOM_MDOW_REQUEST_LIST_PARTITION_FILES ||
+     requestType == HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC)
   {
-    syslog(1, "-----> Calling hcom_host_process_init_file_list\n");
+    syslog(1, "-----> %s@%d-Calling hcom_host_process_init_file_list\n",
+              thisFile, __LINE__);
     usleep(20 * 1000);
 
-    // Need to get the string associated with this message. It could be empty
-    // or include 1 or more subdirectories, from which a file list is to be
-    // generated.
+    // Need to get the information associated with these messages. It could
+    // be empty or include 1 or more subdirectories, from which a file list
+    // is to be generated.
     ret = hcom_host_process_init_file_list(hdrMsg, decodedSize, userData,
             requestType, dnldShared);
     if(ret < 0)
@@ -588,6 +591,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
           requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME ||
           requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME)
   {
+    // (--) Any unused parameters in following call?
     // Starting a file transfer or delete needs special pre-processing
     // before being routed to the various write and delete functions.
     ret = hcom_host_process_init_write_or_del(hdrMsg, decodedSize, userData,
@@ -638,15 +642,16 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
                 thisFile, __LINE__, errno, ret);
     }
   }
+  
+  // There are a few command type handlers that report errors. Specifically,
+  // those dealing with file download and delete.
+  syslog(1, "----->  %s@%d-Will Route Command. Element count:%lu\n",
+            thisFile, __LINE__, dnldShared->dnldPathNameEleCount);
+  usleep(20 * 1000);
 
   //-------------------------------------------------------------------
   // All command types are routed to processing code by this call.
   //-------------------------------------------------------------------
-  // There are a few command type handlers that report errors. Specifically,
-  // those dealing with file download and delete.
-  syslog(1, "-----> Will Route Command. Element count:%lu\n", dnldShared->dnldPathNameEleCount);
-  usleep(20 * 1000);
-
   ret = hcom_host_route_request_by_cmd_type(hdrMsg, decodedSize, userData,
             requestType, dnldShared);
   if(ret < 0)

@@ -230,7 +230,8 @@ int hcom_file_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
   // Only need on first call....
   _dnldShared = dnldShared;
 
-syslog(1, "-----> Allocating %d bytes of memory, pathName '%s'\n", fileNameLength + 1, pathNameStr);
+syslog(1, "-----> %s@%d-Allocating %d bytes of memory, pathName '%s'\n",
+          thisFile, __LINE__, fileNameLength + 1, pathNameStr);
 
   // Allocated + space for string terminating NULL
   dnldShared->dnldOrigPathName = malloc(fileNameLength + 1);
