@@ -224,8 +224,7 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
         const size_t packetSize, uint32_t partitionId);
 void hcom_file_upld_proc_start_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
         const size_t packetSize, uint32_t partitionId);
-void hcom_file_upld_proc_begin_file_uploading(const HcomProtoHdrMsg_t *hdrMsg,
-        const size_t packetSize, uint32_t partitionId);
+void hcom_file_upld_proc_begin_file_uploading(void);
 void hcom_file_upld_proc_abort_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
         const size_t packetSize, uint32_t partitionId);
 

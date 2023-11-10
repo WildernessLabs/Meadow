@@ -105,13 +105,14 @@ static uint32_t _numbGpioActive;
 enum
 {
   unknown           = 0,
-  configure1Gpio    = 1,    // Config 1 GPIO
-  configure8Gpio    = 2,    // Config 8 GPIOs
-  configure16Gpio   = 3,    // Config 16 GPIOs
-  readGpioAnaOnce   = 4,
-  readTempBatOnce   = 5,
-  readGpioAnaOften  = 6,
-  readTempBatOften  = 7,
+  configure0Gpio    = 1,    // Config 1 GPIO
+  configure1Gpio    = 2,    // Config 1 GPIO
+  configure8Gpio    = 3,    // Config 8 GPIOs
+  configure16Gpio   = 4,    // Config 16 GPIOs
+  readGpioAnaOnce   = 5,
+  readTempBatOnce   = 6,
+  readGpioAnaOften  = 7,
+  readTempBatOften  = 8,
 };
 
 /************************************************************************************
@@ -141,13 +142,19 @@ void meadow_kt_adc_tests(uint32_t userData)
   
   switch(userData)
   {
+    case configure0Gpio:
+      // Initialize test code
+      syslog(2, "--------------- configure-0-Gpio ---------------\n");usleep(20 * 1000);
+      adc_test_initialize(0);
+      _numbGpioActive = 0;
+      break;
+
     case configure1Gpio:
       // Initialize test code
       syslog(2, "--------------- configure-1-Gpio ---------------\n");usleep(20 * 1000);
       adc_test_initialize(1);
       _numbGpioActive = 1;
       break;
-
     case configure8Gpio:
       // Initialize test code
       syslog(2, "--------------- configure-8-Gpio ---------------\n");usleep(20 * 1000);

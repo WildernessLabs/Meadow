@@ -316,7 +316,7 @@ int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
       break;
 
     case HCOM_MDOW_REQUEST_UPLOAD_START_DATA_SEND:
-      hcom_file_upld_proc_begin_file_uploading(hdrMsg, packetSize, userData);
+      hcom_file_upld_proc_begin_file_uploading();
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 

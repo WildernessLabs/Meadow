@@ -516,7 +516,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
   usleep(100 * 1000);
 #endif
 
-  // Pull out important values
+  // Pull out important command related values
   userData = hdrMsg->stdHeader.userData;
   requestType = hdrMsg->stdHeader.rqstType;
 
@@ -557,6 +557,34 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
                   thisFile, __LINE__);
       }
   }
+
+  // Most message need on additonal processing. However, those requiring file
+  // location information do. We'll isolate these and forward the others
+//   if()
+//   {
+// requestType == HCOM_MDOW_REQUEST_END_FILE_TRANSFER
+// requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END
+// requestType == HCOM_MDOW_REQUEST_LIST_PARTITION_FILES
+// requestType == HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC
+// requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER
+// requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME
+// requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME
+
+// HCOM_MDOW_REQUEST_UPLOAD_FILE_INIT
+// HCOM_MDOW_REQUEST_UPLOAD_START_DATA_SEND
+// HCOM_MDOW_REQUEST_UPLOAD_ABORT_DATA_SEND
+
+//   }
+  
+  ret = hcom_host_route_request_by_cmd_type(hdrMsg, decodedSize, userData,
+            requestType, dnldShared);
+  if(ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Request Type:%u errno:%d, ret:%d\n",
+              thisFile, __LINE__, requestType, errno, ret);
+  }
+  return ret;
+
 
   // Remove any remaining memory unless this is the file download end message
   if(requestType != HCOM_MDOW_REQUEST_END_FILE_TRANSFER &&

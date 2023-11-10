@@ -87,6 +87,9 @@ int hcom_file_upld_proc_setup()
 // HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN, which is defined in hcom_protocol.h.
 // This file may no longer be necessary
 //==========================================================================
+
+// (--) This needs to use the consistent file information
+
 void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize, uint32_t partitionId)
 {
@@ -228,6 +231,9 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
 // 3. Send a 1-n  data messages that contain the files contents
 // 4. Send a file end message so the CLI can close the file and verify it
 //=============================================================
+
+// (--) This needs to be refactored to use consistent file data too
+
 void hcom_file_upld_proc_start_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize, uint32_t partitionId)
 {
@@ -432,8 +438,7 @@ void hcom_file_upld_proc_start_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
 // This function is called after the CLI has a chance to process an above
 // success. This will upload all the files data and send the end message.
 //==================================================================
-void hcom_file_upld_proc_begin_file_uploading(const HcomProtoHdrMsg_t *hdrMsg,
-          const size_t packetSize, uint32_t partitionId)
+void hcom_file_upld_proc_begin_file_uploading()
 {
   int ret;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];   // 128 bytes
