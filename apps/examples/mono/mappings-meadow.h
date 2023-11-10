@@ -24,7 +24,8 @@ extern int meadow_idle_monitor_get_value(void);
 extern int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount, double *userDataBuf);
 extern int meadow_adc_read_values(void);
 extern int meadow_adc_read_temp_vbat(double *batteryVoltage, double *temperatureValue);
-
+extern int meadow_read_file_total_free_flash_size(uint32_t *totalBytes,  uint32_t *freeBytes);
+extern int statfs(FAR const char *path, FAR struct statfs *buf);
 int shim_open_void(char *pathname, int flags);
 
 MonoDlMapping meadow_mappings[] = {
@@ -51,6 +52,7 @@ MonoDlMapping meadow_mappings[] = {
        { "sigsuspend", sigsuspend },
        { "sigtimedwait", sigtimedwait },
        { "sigwaitinfo", sigwaitinfo },
+       { "statfs", statfs },
        { "getpid", getpid},
        { "mq_close", mq_close },
        { "mq_getattr", mq_getattr },
@@ -77,7 +79,10 @@ MonoDlMapping meadow_mappings[] = {
        { "meadow_idle_monitor_get_value", meadow_idle_monitor_get_value },
        { "meadow_get_cell_at_cmds_output", meadow_get_cell_at_cmds_output},
        { "meadow_cell_change_state", meadow_cell_change_state},
-
+       { "meadow_adc_configure", meadow_adc_configure},
+       { "meadow_adc_read_values", meadow_adc_read_values},
+       { "meadow_adc_read_temp_vbat", meadow_adc_read_temp_vbat},
+       { "meadow_read_file_total_free_flash_size", meadow_read_file_total_free_flash_size},
 
 //       { "poll", poll },
 
