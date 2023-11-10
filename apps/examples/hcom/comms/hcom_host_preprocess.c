@@ -208,9 +208,6 @@ static int hcom_host_process_init_file_list(const HcomProtoHdrMsg_t *hdrMsg,
   int ret;
   char *pathName;
 
-  syslog(1, "-----> %s@%d-Entered\n", thisFile, __LINE__);
-  usleep(20 * 1000);
-
   // Clear the entire struct containing all information.
   memset(dnldShared, 0, sizeof(hcom_dnld_shared_t));
 
@@ -222,30 +219,32 @@ static int hcom_host_process_init_file_list(const HcomProtoHdrMsg_t *hdrMsg,
 #endif
 
   HcomProtoTextMsg_t *textMsg = (HcomProtoTextMsg_t *)hdrMsg;
-  size_t fileNameLength = packetSize - HCOM_PROTOCOL_TEXT_MSG_LENGTH;
-  // (--) TEST MALLOC RETURN???
-  pathName = malloc(fileNameLength + 1);
-  memcpy(pathName, textMsg->textData, fileNameLength);
-  pathName[fileNameLength] = '\0';  // Make into C string
+  size_t pathNameLength = packetSize - HCOM_PROTOCOL_TEXT_MSG_LENGTH;
+  pathName = malloc(pathNameLength + 1);
+  if (pathName == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-allocation failed\n",
+              thisFile, __LINE__);
+    return -ENOMEM;
+  }
 
-  syslog(1, "-----> %s@%d-fileNameLength:%d, packetSize:%d, pathName '%s'\n",
-            thisFile, __LINE__, fileNameLength, packetSize, pathName);
+  memcpy(pathName, textMsg->textData, pathNameLength);
+  pathName[pathNameLength] = '\0';  // Make into C string
+
+  syslog(1, "-----> %s@%d-pathNameLength:%d, packetSize:%d, pathName '%s'\n",
+            thisFile, __LINE__, pathNameLength, packetSize, pathName);
   usleep(20 * 1000);
 
   // Do work to test and/or construct the proper full file name
   // Note: This call may allocate memory, therefore, this must be considered
   // this memory after this point.
   ret = hcom_file_dir_mgmt_eval_build_pathname(dnldShared, pathName,
-            fileNameLength, false);
+            pathNameLength, false);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Eval pathname, errno:%d, ret:%d\n",
               thisFile, __LINE__, errno, ret);
   }
-  
-  syslog(1, "-----> %s@%d-returned from hcom_file_dir_mgmt_eval_build_pathname call\n",
-            thisFile, __LINE__);
-  usleep(20 * 1000);
 
   free(pathName);
   return ret;
@@ -291,13 +290,18 @@ static int hcom_host_process_init_write_or_del(const HcomProtoHdrMsg_t *hdrMsg,
 #endif
 
   HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
-  size_t fileNameLength = packetSize - HCOM_PROTOCOL_FILE_MSG_LENGTH;
-  // (--) TEST MALLOC RETURN???
-  pathName = malloc(fileNameLength + 1);
-  memcpy(pathName, fileMsg->fileInfo.fileName, fileNameLength);
-  pathName[fileNameLength] = '\0';  // Make into C string
+  size_t pathNameLength = packetSize - HCOM_PROTOCOL_FILE_MSG_LENGTH;
+  pathName = malloc(pathNameLength + 1);
+  if (pathName == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-allocation failed\n",
+              thisFile, __LINE__);
+    return -ENOMEM;
+  }
+  memcpy(pathName, fileMsg->fileInfo.fileName, pathNameLength);
+  pathName[pathNameLength] = '\0';  // Make into C string
 
-  syslog(1, "-----> %s@%d-fileNameLength:%d, packetSize:%d, pathName '%s'\n",
+  syslog(1, "-----> %s@%d-pathNameLength:%d, packetSize:%d, pathName '%s'\n",
             thisFile, __LINE__, packetSize, pathName);
 
   // Do work to test and/or populate struct
@@ -305,7 +309,7 @@ static int hcom_host_process_init_write_or_del(const HcomProtoHdrMsg_t *hdrMsg,
   // Note: This call may allocate memory, therefore, this must be considered
   // this memory after this point.
   ret = hcom_file_dir_mgmt_eval_build_pathname(dnldShared, pathName,
-            fileNameLength, true);
+            pathNameLength, true);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Eval pathname, errno:%d, ret:%d\n",
@@ -565,10 +569,6 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
   if(requestType == HCOM_MDOW_REQUEST_LIST_PARTITION_FILES ||
      requestType == HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC)
   {
-    syslog(1, "-----> %s@%d-Calling hcom_host_process_init_file_list\n",
-              thisFile, __LINE__);
-    usleep(20 * 1000);
-
     // Need to get the information associated with these messages. It could
     // be empty or include 1 or more subdirectories, from which a file list
     // is to be generated.
@@ -591,7 +591,6 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
           requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME ||
           requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME)
   {
-    // (--) Any unused parameters in following call?
     // Starting a file transfer or delete needs special pre-processing
     // before being routed to the various write and delete functions.
     ret = hcom_host_process_init_write_or_del(hdrMsg, decodedSize, userData,
@@ -642,16 +641,12 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
                 thisFile, __LINE__, errno, ret);
     }
   }
-  
-  // There are a few command type handlers that report errors. Specifically,
-  // those dealing with file download and delete.
-  syslog(1, "----->  %s@%d-Will Route Command. Element count:%lu\n",
-            thisFile, __LINE__, dnldShared->dnldPathNameEleCount);
-  usleep(20 * 1000);
 
   //-------------------------------------------------------------------
   // All command types are routed to processing code by this call.
   //-------------------------------------------------------------------
+  // There are only a few command type handlers that report errors.
+  // Specifically, those dealing with file download and delete.
   ret = hcom_host_route_request_by_cmd_type(hdrMsg, decodedSize, userData,
             requestType, dnldShared);
   if(ret < 0)

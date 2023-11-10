@@ -80,7 +80,7 @@ void meadow_dir_mgmt_tests(uint32_t userData)
   uint32_t freeBytes;
   uint32_t usedBytes;
 
-  syslog(1, "Directory management received 'set developer -d 13 -v %lu'\n", userData);
+  syslog(2, "Directory management received 'set developer -d 13 -v %lu'\n", userData);
   usleep(20 * 1000);
 
   switch (userData)
@@ -90,12 +90,12 @@ void meadow_dir_mgmt_tests(uint32_t userData)
       ret = meadow_read_file_total_free_flash_size(&totalBytes, &freeBytes);
       if(ret < 0)
       {
-        syslog(1, "Error: calling meadow_read_file_total_free_flash_size(), ret:%d, errno:%d\n",
+        syslog(2, "Error: calling meadow_read_file_total_free_flash_size(), ret:%d, errno:%d\n",
                   ret, errno);
         return;
       }
       usedBytes = totalBytes - freeBytes;
-      syslog(1, "--> Total bytes:%lu (%luMb), Free bytes:%lu (%luMb), Used bytes (calculated):%lu (%luMb)\n",
+      syslog(2, "--> Total bytes:%lu (%luMb), Free bytes:%lu (%luMb), Used bytes (calculated):%lu (%luMb)\n",
                 totalBytes, totalBytes/(1024*1024),
                 freeBytes, freeBytes/(1024*1024),
                 usedBytes, usedBytes/(1024*1024));

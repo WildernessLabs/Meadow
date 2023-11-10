@@ -75,10 +75,6 @@ int hcom_file_lists_all_files_in_directory(uint32_t partitionId,
   off_t totalSizeOfFiles;
   uint32_t totalFlashSizeKB;
 
-  syslog(1, "-----> %s@%d-Entered list of files pathName %s\n",
-            thisFile, __LINE__, dnldShared->dnldFullPathName);
-  usleep(20 * 1000);
-
   char *fileFoundName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   if(fileFoundName == NULL)
   {
@@ -88,10 +84,6 @@ int hcom_file_lists_all_files_in_directory(uint32_t partitionId,
 
   // Tell CLI to output a header for the file list
   hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_LIST_HEADER, 0, thisFile, __LINE__);
-
-  syslog(1, "-----> %s@%d-Opening directory %s for list of files\n",
-            thisFile, __LINE__, dnldShared->dnldFullPathName);
-  usleep(20 * 1000);
 
   // Open the directory
   dirp = opendir(dnldShared->dnldFullPathName);

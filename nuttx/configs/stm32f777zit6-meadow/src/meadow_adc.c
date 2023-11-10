@@ -254,33 +254,33 @@ static void meadow_adc_dma_isr(DMA_HANDLE handle, uint8_t status,
 #if defined CONFIG_ADC_TESTS
   if(status == 0)
   {
-    syslog(1, "DMA ISR No Interrupts\n");
+    syslog(2, "DMA ISR No Interrupts\n");
     return;
   }
   // Bit 0: Stream FIFO error interrupt flag
   if((status & DMA_STREAM_FEIF_BIT) != 0)
   {
-    syslog(1, "DMA ISR reason:FIFO error\n");
+    syslog(2, "DMA ISR reason:FIFO error\n");
   }
 
   // Bit 2: Stream direct mode error interrupt flag
   if((status & DMA_STREAM_DMEIF_BIT) != 0)
   {
-    syslog(1, "DMA ISR reason:direct mode error\n");
+    syslog(2, "DMA ISR reason:direct mode error\n");
   }
 
   // Bit 3: Stream Transfer Error flag
   if((status & DMA_STREAM_TEIF_BIT) != 0)
   {
     // CTEIF
-    syslog(1, "DMA ISR reason:Transfer Error\n");
+    syslog(2, "DMA ISR reason:Transfer Error\n");
   }
   
   //------------------------------------------------------
   // Stream Half Transfer flag
   if((status & DMA_STREAM_HTIF_BIT) != 0)
   {
-    // syslog(1, "DMA ISR reason:Half Transfer\n");
+    // syslog(2, "DMA ISR reason:Half Transfer\n");
   }
 #endif
 
@@ -289,7 +289,7 @@ static void meadow_adc_dma_isr(DMA_HANDLE handle, uint8_t status,
   if((status & DMA_STREAM_TCIF_BIT) != 0)
   {
 #if defined CONFIG_ADC_TESTS
-    syslog(1, "DMA ISR reason:Transfer Complete\n");
+    syslog(2, "DMA ISR reason:Transfer Complete\n");
 #endif
 
     // The following test code toggles a GPIO output to cause an ADC analog
@@ -317,7 +317,7 @@ static void meadow_adc_dma_isr(DMA_HANDLE handle, uint8_t status,
       else
         _previousA00High = true;    // Was Low, now high
 
-      // syslog(1, "DMA:Transfer complete - setting GPIO LOW\n");
+      // syslog(2, "DMA:Transfer complete - setting GPIO LOW\n");
       stm32_gpiowrite(ADC_TEST_PIN_CCM_D03_PB8, false);
     }
     else
@@ -328,7 +328,7 @@ static void meadow_adc_dma_isr(DMA_HANDLE handle, uint8_t status,
       else
          _previousA00High = false;   // Was high, now low
 
-      // syslog(1, "DMA:Transfer complete - setting GPIO HIGH\n");
+      // syslog(2, "DMA:Transfer complete - setting GPIO HIGH\n");
       stm32_gpiowrite(ADC_TEST_PIN_CCM_D03_PB8, true);
    }
 #endif
@@ -381,13 +381,13 @@ static int meadow_adc_conversion_isr(int irq, FAR void *context,
 #if defined CONFIG_ADC_TESTS
   if(adcStatusReg == 0)
   {
-    syslog(1, "-- ADC ISR-NO Interrupts --\n");
+    syslog(2, "-- ADC ISR-NO Interrupts --\n");
     return OK;
   }
 
   if ((adcStatusReg & ADC_SR_AWD) != 0)
   {
-    syslog(1, "-- ADC ISR-WatchDog --\n");
+    syslog(2, "-- ADC ISR-WatchDog --\n");
   }
 
   if ((adcStatusReg & ADC_SR_OVR) != 0)
@@ -402,14 +402,14 @@ static int meadow_adc_conversion_isr(int irq, FAR void *context,
     //    This is ADC
     // 3. Trigger the ADC to start the conversion (below)
     //    This is ADC
-    syslog(1, "-- ADC ISR-Over Run --\n");
+    syslog(2, "-- ADC ISR-Over Run --\n");
   }
 
   // End of conversion
   // With DMA there is no End Of Conversion
   if ((adcStatusReg & ADC_SR_EOC) != 0)
   {
-    syslog(1, "-- ADC ISR-End of Conversion --\n");
+    syslog(2, "-- ADC ISR-End of Conversion --\n");
   }
 #endif
 
@@ -443,26 +443,26 @@ static void meadow_adc_buffer_takesem(sem_t *semaphore)
 // Only for TESTING
 static void adc_test_display_basic_adc_regs(uint32_t baseADCAddr)
 {
-  syslog(1, "SR:  0x%08x CR1:  0x%08x CR2:  0x%08x\n",
+  syslog(2, "SR:  0x%08x CR1:  0x%08x CR2:  0x%08x\n",
         getreg32(baseADCAddr + STM32_ADC_SR_OFFSET),
         getreg32(baseADCAddr + STM32_ADC_CR1_OFFSET),
         getreg32(baseADCAddr + STM32_ADC_CR2_OFFSET));
 
-  syslog(1, "SQR1: 0x%08x SQR2: 0x%08x SQR3: 0x%08x\n",
+  syslog(2, "SQR1: 0x%08x SQR2: 0x%08x SQR3: 0x%08x\n",
         getreg32(baseADCAddr + STM32_ADC_SQR1_OFFSET),
         getreg32(baseADCAddr + STM32_ADC_SQR2_OFFSET),
         getreg32(baseADCAddr + STM32_ADC_SQR3_OFFSET));
 
-  syslog(1, "CCR:  0x%08x\n", getreg32(STM32_ADC_CCR));
+  syslog(2, "CCR:  0x%08x\n", getreg32(STM32_ADC_CCR));
 }
 
 static void adc_test_display_basic_dma_regs(void)
 {
-  syslog(1, "S0CR:  0x%08x  S0NDTR: 0x%08x\n",
+  syslog(2, "S0CR:  0x%08x  S0NDTR: 0x%08x\n",
         getreg32(STM32_DMA2_S0CR),
         getreg32(STM32_DMA2_S0NDTR));
 
-  syslog(1, "S0PAR: 0x%08x  S0M0AR: 0x%08x S0M1AR: 0x%08x\n",
+  syslog(2, "S0PAR: 0x%08x  S0M0AR: 0x%08x S0M1AR: 0x%08x\n",
         getreg32(STM32_DMA2_S0PAR),
         getreg32(STM32_DMA2_S0M0AR),
         getreg32(STM32_DMA2_S0M1AR));
@@ -948,7 +948,7 @@ int meadow_adc_hardware_initialize(void)
   int ret;
 
 #if defined CONFIG_ADC_TESTS
-  syslog(1, "Entered meadow_adc_hardware_initialize()\n");
+  syslog(2, "Entered meadow_adc_hardware_initialize()\n");
 #endif
 
   if(_hardwareConfigDone)
@@ -995,7 +995,7 @@ int meadow_adc_hardware_initialize(void)
   }
 
 #if defined CONFIG_ADC_TESTS
-  // syslog(1, "Post hardware configuration register values:\n");
+  // syslog(2, "Post hardware configuration register values:\n");
   // adc_test_display_basic_adc_regs(STM32_ADC1_BASE);
   // adc_test_display_basic_dma_regs();
 #endif
@@ -1071,7 +1071,7 @@ int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
   uint32_t mapOff = 0;
 
 #if defined CONFIG_ADC_TESTS
-  syslog(1, "Entry meadow_adc_configure() gpioCount:%lu, resultBuffer:%p\n",
+  syslog(2, "Entry meadow_adc_configure() gpioCount:%lu, resultBuffer:%p\n",
             gpioCount, resultBuffer);
   adc_test_display_basic_adc_regs(STM32_ADC1_BASE);
   adc_test_display_basic_dma_regs();
@@ -1079,7 +1079,7 @@ int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
 
   if(resultBuffer == NULL)
   {
-    syslog(1, "%s@%d-resultBuffer is NULL\n",
+    syslog(LOG_ERR, "%s@%d-resultBuffer is NULL\n",
               __FILE__, __LINE__);
     return -EINVAL;   // Invalid argument
   }
@@ -1156,7 +1156,7 @@ int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
   _isMeadowAdcInitialized = true;
 
 #if defined CONFIG_ADC_TESTS
-  syslog(1, "Exit meadow_adc_configure()\n");
+  syslog(2, "Exit meadow_adc_configure()\n");
   adc_test_display_basic_adc_regs(STM32_ADC1_BASE);
   adc_test_display_basic_dma_regs();
 #endif

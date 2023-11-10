@@ -87,7 +87,7 @@ void meadow_kt_quick_misc_tests(uint32_t userData)
 {
   static bool firstTime = true;
 
-  syslog(1, "Quick and Misc tests received 'set developer -d 12 -v %lu'\n", userData);
+  syslog(2, "Quick and Misc tests received 'set developer -d 12 -v %lu'\n", userData);
 
   switch(userData)
   {
@@ -99,7 +99,7 @@ void meadow_kt_quick_misc_tests(uint32_t userData)
       }
       else
       {
-        syslog(1, "Only first time\n");
+        syslog(2, "Only first time\n");
       }
       break;
     
@@ -110,7 +110,7 @@ void meadow_kt_quick_misc_tests(uint32_t userData)
       break;
 
     default:
-      syslog(1, "Undefined test for meadow_kt_quick_misc_tests, userData:%lu\n", userData);
+      syslog(2, "Undefined test for meadow_kt_quick_misc_tests, userData:%lu\n", userData);
       break;
   }
 }

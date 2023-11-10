@@ -70,6 +70,9 @@
 #  define MAX(a,b) (((a) > (b)) ? (a) : (b))
 #endif
 
+// New 09Nov23 while adding subdirectories
+#define HCOM_MEADOW0_PATH_NAME_PREFIX "/meadow0"
+
 #define HCOM_FILE_MOUNT_POINT_TARGET "/meadow"
 
 // Partitioning changes will effect the following

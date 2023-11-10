@@ -200,7 +200,7 @@ void hcom_nx_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t
 {
   if ((_syslogMask & LOG_MASK(msgPriority)) == 0)
   {
-    syslog(1, "diag print buffer exited, priority too low.\n");
+    syslog(2, "diag print buffer exited, priority too low.\n");
     return;
   }
 

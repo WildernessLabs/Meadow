@@ -40,32 +40,18 @@
 // directory and the CLI just sends the bare file name and it is assumed that
 // the file is to be written to the /meadow0/ device.
 //
-// The following rules will be implemented.
-// 1. All reads or writes sent with just a bare file name will default to using meadow0/ device.
-//    The intent is to support the existing CLI behavior, without changes.
+// The following rules will be followed
+// 1. All reads or writes sent with just a bare file name will default to using /meadow0/.
+//    The intent is to support the existing CLIv1 behavior, without changes.
 // 2. Files prepended with a single '/' (e.g. /filename) will considered an error.
-// 3. Files prepended with /dir are an error, must prepend with /meadow0/dir/file name.
-// 4. For writing files, if the directory or directory tree does not exist, it will be created.
+// 3. Files downloaded to subdirectory must be in this format '/meadow0/dir/filename'.
+// 4. For writing files, if the directory or directories don't exist, they will be created.
 // 5. Reads from a non-existing directory will return an error.
-// 6. There should be an nesting limit for directories. The initial limit is 6.
-// 7. When HCOM deletes a file if the directory is now empty, it will be automatically deleted.
+// 6. There is a nesting limit for directories of 6.
+// 7. When a file is delete all lower directories will be deleted.
 // 8. All file writes or reads for the SD-Card must begin with '/mmcsd0/filename'.
-//    No legacy support as #1.
-// 9. Relative directories and the like are not supported.
+// 9. No relative directory support.
 
-// ctacke
-// 1. Agreed, no leading '/' would be "legacy" and just mean /meadow0/ is pre-pended
-// 2. this feels a bit confusing.  Why not force the client to always use an
-//    absolute path (e.g. /meadow0/foo or /mmcsd0/bar)? That would keep things
-//    clean for other attached devices or partitions in the future
-// 3. See #2.  Put the work on the client to keep it straight
-// 4. :+1:
-// 5. :+1:
-// 6. With the store name, that is really only 3, which seems light - can we do 6?
-// 7. You mean only when it becomes empty through an HCOM delete, yes?  If so :+1:
-// 8. See #2. if we require the absolute name it addresses this
-// 9. :+1:
-// 10. We will need a way to query directories - right now we can only get file lists
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -90,12 +76,13 @@
 
 #define HCOM_FILE_DIR_OUTPUT_TO_SYSLOG (1)
 
-// The following deal with subdirectory support
+// The following deal with testing subdirectory support
 #define MEADOW_FILE_SUBDIR_PREPEND_MEADOW_STR   ("/meadow0/")
 #define MEADOW_FILE_SUBDIR_PREPEND_MEADOW_LEN   (9)
 #define MEADOW_FILE_SUBDIR_PREPEND_SDCARD_STR   ("/mmcsd0/")
 #define MEADOW_FILE_SUBDIR_PREPEND_SDCARD_LEN   (8)
 
+// This enum is used to classify CLI requests
 enum hcom_file_dir_mgmt_msg_type_e
 {
   pathnameInvalid     = 0,    // Illegal format provided
@@ -236,9 +223,6 @@ int hcom_file_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
   // Only need on first call....
   _dnldShared = dnldShared;
 
-syslog(1, "-----> %s@%d-Allocating %d bytes of memory, pathName '%s'\n",
-          thisFile, __LINE__, fileNameLength + 1, pathNameStr);
-
   // Allocated + space for string terminating NULL
   dnldShared->dnldOrigPathName = malloc(fileNameLength + 1);
   if(dnldShared->dnldOrigPathName == NULL)
@@ -296,7 +280,7 @@ syslog(1, "-----> %s@%d-Allocating %d bytes of memory, pathName '%s'\n",
   // Save number of elements in pathname
   dnldShared->dnldPathNameEleCount = pathNameElements;
 
-  // Establish the full file name if original format provided.
+  // Establish the full path name if original format provided.
   if(catType == pathnameOriginal)
   {
     // A file name based on the original naming convention needs
@@ -367,10 +351,6 @@ int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
   char *fullFileNamePath = malloc(strlen(dnldShared->dnldFullPathName));
   strcpy(fullFileNamePath, dnldShared->dnldFullPathName);
 
-  // syslog(1, "-->> %s@%d-Starting path:'%s', total depth:%lu\n",
-  //           thisFile, __LINE__, fullFileNamePath, dnldShared->dnldPathNameEleCount);
-  // usleep(50 * 1000);
-
   token = strtok_r(fullFileNamePath, "/", &savePtr);
   dirOffset[0] = 0;
   tokenCount = 0;
@@ -405,6 +385,7 @@ int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
     ret = stat(fullFileNamePath, pStatBuf);
     if(ret < 0)
     {
+      // No Entry?
       if(errno == ENOENT)
       {
         // Make the missing directory
@@ -427,15 +408,16 @@ int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
 
           return ret;
         }
-        syslog(1, "%s@%d-Directory created\n", thisFile, __LINE__);
    
-        // Don't move to next directory, re-evaluate this new one
+        // Don't move to next directory, re-evaluate this new one, then move
+        // forward.
         dirLevel--;
         continue;
       }
       else
       {
-        syslog(1, "%s@%d-Error from stat() call, errno:%d\n", thisFile, __LINE__, errno);
+        syslog(LOG_ERR, "%s@%d-Error from stat() call, ret:%d, errno:%d\n",
+                  thisFile, __LINE__, ret, errno);
       }
 
       if (! S_ISDIR(pStatBuf->st_mode))
