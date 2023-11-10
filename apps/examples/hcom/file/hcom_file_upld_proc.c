@@ -232,7 +232,9 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
 // 4. Send a file end message so the CLI can close the file and verify it
 //=============================================================
 
-// (--) This needs to be refactored to use consistent file data too
+// (-upload-) FUTURE This needs to be refactored to use consistent file data too. If so
+// consider return OK or error from this call. All that is really needed is
+// int hcom_file_upld_proc_start_file_upload(hcom_dnld_shared_t *dnldShared)
 
 void hcom_file_upld_proc_start_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize, uint32_t partitionId)

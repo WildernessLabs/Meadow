@@ -144,9 +144,10 @@ static uint32_t find_pathname_element_count(const char *pathName, size_t strLen)
 // These are illegal formats:
 // '/filename' - has leading '/'
 // /dirname/filename/ - missing leading '/meadow0'
-// isFileDownload true = download, false = file list only has path
+// expectFileName true = pathname no ending '/', false = ending '/' needed
 static int hcom_file_dir_mgmt_categorize_pathname(const char *pathName,
-          size_t strLen, uint32_t *pathNameElements, bool isFileDownload)
+          size_t strLen, uint32_t *pathNameElements,
+          bool expectFileName)
 {
   *pathNameElements = 0;
 
@@ -155,7 +156,7 @@ static int hcom_file_dir_mgmt_categorize_pathname(const char *pathName,
   {
     // No '/' in file name, this is like original file naming scheme for
     // download
-    if(isFileDownload)
+    if(expectFileName)
       *pathNameElements = 2;  // Includes /meadow0 to be added soon
     else
       *pathNameElements = 0;  // For file list there's no file name
@@ -168,7 +169,7 @@ static int hcom_file_dir_mgmt_categorize_pathname(const char *pathName,
     // '/meadow0/' found. If this is for file download it cannot end in '/',
     // it must end with a file name. However, if this being called for a file
     // list it must end in '/'.
-    if(isFileDownload)
+    if(expectFileName)
     {
       if(pathName[strLen-1] == '/')
           return pathnameInvalid;
@@ -188,7 +189,7 @@ static int hcom_file_dir_mgmt_categorize_pathname(const char *pathName,
   {
     // '/mmcsd0/' found, but can't end in '/', must have file name, unless this
     // being called for a file list in which case it must end in '/'.
-    if(isFileDownload)
+    if(expectFileName)
     {
       if(pathName[strLen-1] == '/')
           return pathnameInvalid;
@@ -208,19 +209,18 @@ static int hcom_file_dir_mgmt_categorize_pathname(const char *pathName,
   }
 }
 
-/****************************************************************************
- * Public Functions
- ***************************************************************************/
+//=====================================================================
 // File name processing. This is the entry point for all downloads, deletes
 // etc.
-int hcom_file_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
-          char *pathNameStr, size_t fileNameLength, bool isFileDownload)
+static int hcom_file_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
+          char *pathNameStr, size_t fileNameLength,
+          bool expectFileName)
 {
   int catType;
   uint32_t pathNameElements;
   size_t dnldFileAndPathLen;
   
-  // Only need on first call....
+  // Make sure shared version available
   _dnldShared = dnldShared;
 
   // Allocated + space for string terminating NULL
@@ -244,7 +244,7 @@ int hcom_file_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
   // the final '/' signifies the start of the file name.
   // This is used to further catergorize the request.
   catType = hcom_file_dir_mgmt_categorize_pathname(dnldShared->dnldOrigPathName,
-            fileNameLength, &pathNameElements, isFileDownload);
+            fileNameLength, &pathNameElements, expectFileName);
   if(catType == pathnameInvalid)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-pathname '%s' is invalid\n",
@@ -329,6 +329,78 @@ int hcom_file_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
 
   return OK;
 }
+
+/****************************************************************************
+ * Public Functions
+ ***************************************************************************/
+// This public function will take the information from the request and save it
+// in the hcom_dnld_shared_t structure.
+int hcom_host_process_init_hcom_dnld_share(hcom_dnld_shared_t *dnldShared,
+          const HcomProtoHdrMsg_t *hdrMsg, const size_t packetSize,
+          bool isFileMsgType, bool expectFileName)
+{
+  int ret;
+  char *pathName;
+  size_t pathNameLength;
+
+  // Clear the entire struct containing all information.
+  memset(dnldShared, 0, sizeof(hcom_dnld_shared_t));
+
+  // Start populating the shared download fields
+  dnldShared->dnldFilePartId = 0;    // It's always 0
+
+  if(isFileMsgType)
+  {
+    pathNameLength = packetSize - HCOM_PROTOCOL_FILE_MSG_LENGTH;
+  }
+  else
+  {
+    pathNameLength = packetSize - HCOM_PROTOCOL_TEXT_MSG_LENGTH;
+  }
+  
+  pathName = malloc(pathNameLength + 1);
+  if (pathName == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-allocation failed\n",
+              thisFile, __LINE__);
+
+    return -ENOMEM;
+  }
+
+  if(isFileMsgType)
+  {
+    HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
+    memcpy(pathName, fileMsg->fileInfo.fileName, pathNameLength);
+  }
+  else
+  {
+    HcomProtoTextMsg_t *textMsg = (HcomProtoTextMsg_t *)hdrMsg;
+    memcpy(pathName, textMsg->textData, pathNameLength);
+  }
+
+  pathName[pathNameLength] = '\0';  // Make into C string
+
+  syslog(1, "-----> %s@%d-pathNameLength:%d, packetSize:%d, pathName '%s'\n",
+            thisFile, __LINE__, pathNameLength, packetSize, pathName);
+  usleep(20 * 1000);
+
+  // Construct the proper full file name for 
+  // Note: This call should allocate memory, therefore, this must be considered
+  // this memory after this point.
+  // Note: isFileMsgType is only true based for a few request types. There are only
+  // 3 for stm32f7 and for 1 ESP32 ();
+  ret = hcom_file_dir_mgmt_eval_build_pathname(dnldShared, pathName,
+            pathNameLength, expectFileName);
+  if(ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Eval pathname, errno:%d, ret:%d\n",
+              thisFile, __LINE__, errno, ret);
+  }
+
+  free(pathName);
+  return ret;
+}
+
 
 //===========================================================================
 // This function will add any missing directories needed to write the file

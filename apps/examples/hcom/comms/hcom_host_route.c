@@ -310,7 +310,11 @@ int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
 
     case HCOM_MDOW_REQUEST_UPLOAD_FILE_INIT:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      // (-upload-) FUTURE SIGNATURE CAN CHANGE TO
+      // hcom_file_upld_proc_start_file_upload(hcom_dnld_shared_t *dnldShared);
+
       hcom_file_upld_proc_start_file_upload(hdrMsg, packetSize, userData);
+      
       // After data sent the HCOM_HOST_REQUEST_TEXT_CONCLUDED message will be sent
       // by HCOM_MDOW_REQUEST_UPLOAD_START_DATA_SEND case.
       break;

@@ -197,6 +197,23 @@ static bool hcom_host_process_is_stm32f7_dnld_active(hcom_dnld_shared_t *dnldSha
          (dnldShared->dnldCurrentState == HcomStm32F7DnldStateFileXfer));
 }
 
+// //==========================================================================
+// // THIS IS NOT ACTIVE BUT, HOPEFULLY WILL BE SOON (11NOV23)
+// // This function will take the information from the upload request and save it
+// // in the hcom_dnld_shared_t structure.
+// static int hcom_host_process_init_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
+//             const size_t packetSize, const uint32_t userData,
+//             const uint16_t requestType, hcom_dnld_shared_t *dnldShared)
+// {
+//   syslog(1, "-----> %s@%d-Entered\n", thisFile, __LINE__);
+//   usleep(20 * 1000);
+
+//   // Initialize the shared struct
+// // (--) Notice the false, true which should be correct for this call
+//   return hcom_host_process_init_hcom_dnld_share(dnldShared, hdrMsg,
+//             packetSize, false, true);
+// }
+
 //==========================================================================
 // This function will take the information from the list request and save it
 // in the hcom_dnld_shared_t structure.
@@ -204,50 +221,10 @@ static int hcom_host_process_init_file_list(const HcomProtoHdrMsg_t *hdrMsg,
             const size_t packetSize, const uint32_t userData,
             const uint16_t requestType, hcom_dnld_shared_t *dnldShared)
 {
-// (new)
-  int ret;
-  char *pathName;
 
-  // Clear the entire struct containing all information.
-  memset(dnldShared, 0, sizeof(hcom_dnld_shared_t));
-
-  // Start populating the shared download fields
-#ifdef CONFIG_MTD_PARTITION    // This is a nuttx configuration
-  dnldShared->dnldFilePartId = userData;
-#else
-  dnldShared->dnldFilePartId = 0;    // Ignore any other partition value
-#endif
-
-  HcomProtoTextMsg_t *textMsg = (HcomProtoTextMsg_t *)hdrMsg;
-  size_t pathNameLength = packetSize - HCOM_PROTOCOL_TEXT_MSG_LENGTH;
-  pathName = malloc(pathNameLength + 1);
-  if (pathName == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-allocation failed\n",
-              thisFile, __LINE__);
-    return -ENOMEM;
-  }
-
-  memcpy(pathName, textMsg->textData, pathNameLength);
-  pathName[pathNameLength] = '\0';  // Make into C string
-
-  syslog(1, "-----> %s@%d-pathNameLength:%d, packetSize:%d, pathName '%s'\n",
-            thisFile, __LINE__, pathNameLength, packetSize, pathName);
-  usleep(20 * 1000);
-
-  // Do work to test and/or construct the proper full file name
-  // Note: This call may allocate memory, therefore, this must be considered
-  // this memory after this point.
-  ret = hcom_file_dir_mgmt_eval_build_pathname(dnldShared, pathName,
-            pathNameLength, false);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Eval pathname, errno:%d, ret:%d\n",
-              thisFile, __LINE__, errno, ret);
-  }
-
-  free(pathName);
-  return ret;
+  // Initialize the shared struct
+  return hcom_host_process_init_hcom_dnld_share(dnldShared, hdrMsg,
+            packetSize, false, false);
 }
 
 //==========================================================================
@@ -279,45 +256,12 @@ static int hcom_host_process_init_write_or_del(const HcomProtoHdrMsg_t *hdrMsg,
     return -EPERM;    // Operation not permitted
   }
 
-  // Clear the entire struct containing all information.
-  memset(dnldShared, 0, sizeof(hcom_dnld_shared_t));
-
-  // Start populating the shared download fields
-#ifdef CONFIG_MTD_PARTITION    // This is a nuttx configuration
-  dnldShared->dnldFilePartId = userData;
-#else
-  dnldShared->dnldFilePartId = 0;    // Ignore any other partition value
-#endif
-
-  HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
-  size_t pathNameLength = packetSize - HCOM_PROTOCOL_FILE_MSG_LENGTH;
-  pathName = malloc(pathNameLength + 1);
-  if (pathName == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-allocation failed\n",
-              thisFile, __LINE__);
-    return -ENOMEM;
-  }
-  memcpy(pathName, fileMsg->fileInfo.fileName, pathNameLength);
-  pathName[pathNameLength] = '\0';  // Make into C string
-
-  syslog(1, "-----> %s@%d-pathNameLength:%d, packetSize:%d, pathName '%s'\n",
-            thisFile, __LINE__, packetSize, pathName);
-
-  // Do work to test and/or populate struct
-  //
-  // Note: This call may allocate memory, therefore, this must be considered
-  // this memory after this point.
-  ret = hcom_file_dir_mgmt_eval_build_pathname(dnldShared, pathName,
-            pathNameLength, true);
+  // Initialize the shared struct
+  ret = hcom_host_process_init_hcom_dnld_share(dnldShared, hdrMsg,
+            packetSize, true, true);
   if(ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Eval pathname, errno:%d, ret:%d\n",
-              thisFile, __LINE__, errno, ret);
-
-    // Messages to CLI already sent
-    free(pathName);
-    return ret;
+    return ret;    // Error already reported via syslog
   }
 
   // For the Meadow file system download start, need to do extra initialization
@@ -558,6 +502,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       }
   }
 
+// (--) FUTURE
   // Most message need on additonal processing. However, those requiring file
   // location information do. We'll isolate these and forward the others
 //   if()
@@ -573,18 +518,19 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
 // HCOM_MDOW_REQUEST_UPLOAD_FILE_INIT
 // HCOM_MDOW_REQUEST_UPLOAD_START_DATA_SEND
 // HCOM_MDOW_REQUEST_UPLOAD_ABORT_DATA_SEND
-
 //   }
-  
-  ret = hcom_host_route_request_by_cmd_type(hdrMsg, decodedSize, userData,
-            requestType, dnldShared);
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Request Type:%u errno:%d, ret:%d\n",
-              thisFile, __LINE__, requestType, errno, ret);
-  }
-  return ret;
 
+// (--) FUTURE
+// Filter out the requestTypes needing special processing so this can be
+// called here
+  // ret = hcom_host_route_request_by_cmd_type(hdrMsg, decodedSize, userData,
+  //           requestType, dnldShared);
+  // if(ret < 0)
+  // {
+  //   hcom_logging_syslog(LOG_ERR, "%s@%d-Request Type:%u errno:%d, ret:%d\n",
+  //             thisFile, __LINE__, requestType, errno, ret);
+  // }
+  // return ret;
 
   // Remove any remaining memory unless this is the file download end message
   if(requestType != HCOM_MDOW_REQUEST_END_FILE_TRANSFER &&
@@ -611,6 +557,20 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       return ret;   // On error exit
     }
   }
+  // else if(requestType == HCOM_MDOW_REQUEST_UPLOAD_FILE_INIT)
+  // {
+  //   // Upload initialization
+  //   ret = hcom_host_process_init_file_upload(hdrMsg, decodedSize, userData,
+  //           requestType, dnldShared);
+  //   if(ret < 0)
+  //   {
+  //     hcom_logging_syslog(LOG_ERR, "%s@%d-Init file list errno:%d, ret:%d\n",
+  //               thisFile, __LINE__, errno, ret);
+
+  //     hcom_file_dir_mgmt_free_file_info(dnldShared);
+  //     return ret;   // On error exit
+  //   }
+  // }
 
   // For downloading/deleting files we need more file related information
   // and we need this information persisted until the file has been received. 
@@ -671,7 +631,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
   }
 
   //-------------------------------------------------------------------
-  // All command types are routed to processing code by this call.
+  // File related command types are routed here.
   //-------------------------------------------------------------------
   // There are only a few command type handlers that report errors.
   // Specifically, those dealing with file download and delete.
