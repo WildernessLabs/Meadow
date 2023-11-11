@@ -197,36 +197,6 @@ static bool hcom_host_process_is_stm32f7_dnld_active(hcom_dnld_shared_t *dnldSha
          (dnldShared->dnldCurrentState == HcomStm32F7DnldStateFileXfer));
 }
 
-// //==========================================================================
-// // THIS IS NOT ACTIVE BUT, HOPEFULLY WILL BE SOON (11NOV23)
-// // This function will take the information from the upload request and save it
-// // in the hcom_dnld_shared_t structure.
-// static int hcom_host_process_init_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
-//             const size_t packetSize, const uint32_t userData,
-//             const uint16_t requestType, hcom_dnld_shared_t *dnldShared)
-// {
-//   syslog(1, "-----> %s@%d-Entered\n", thisFile, __LINE__);
-//   usleep(20 * 1000);
-
-//   // Initialize the shared struct
-// // (--) Notice the false, true which should be correct for this call
-//   return hcom_host_process_init_hcom_dnld_share(dnldShared, hdrMsg,
-//             packetSize, false, true);
-// }
-
-//==========================================================================
-// This function will take the information from the list request and save it
-// in the hcom_dnld_shared_t structure.
-static int hcom_host_process_init_file_list(const HcomProtoHdrMsg_t *hdrMsg,
-            const size_t packetSize, const uint32_t userData,
-            const uint16_t requestType, hcom_dnld_shared_t *dnldShared)
-{
-
-  // Initialize the shared struct
-  return hcom_host_process_init_hcom_dnld_share(dnldShared, hdrMsg,
-            packetSize, false, false);
-}
-
 //==========================================================================
 // This function consolidates a lot of the needed processing for file download
 // and file delete into a single function instead of being spread all over
@@ -502,36 +472,6 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       }
   }
 
-// (--) FUTURE
-  // Most message need on additonal processing. However, those requiring file
-  // location information do. We'll isolate these and forward the others
-//   if()
-//   {
-// requestType == HCOM_MDOW_REQUEST_END_FILE_TRANSFER
-// requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END
-// requestType == HCOM_MDOW_REQUEST_LIST_PARTITION_FILES
-// requestType == HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC
-// requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER
-// requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME
-// requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME
-
-// HCOM_MDOW_REQUEST_UPLOAD_FILE_INIT
-// HCOM_MDOW_REQUEST_UPLOAD_START_DATA_SEND
-// HCOM_MDOW_REQUEST_UPLOAD_ABORT_DATA_SEND
-//   }
-
-// (--) FUTURE
-// Filter out the requestTypes needing special processing so this can be
-// called here
-  // ret = hcom_host_route_request_by_cmd_type(hdrMsg, decodedSize, userData,
-  //           requestType, dnldShared);
-  // if(ret < 0)
-  // {
-  //   hcom_logging_syslog(LOG_ERR, "%s@%d-Request Type:%u errno:%d, ret:%d\n",
-  //             thisFile, __LINE__, requestType, errno, ret);
-  // }
-  // return ret;
-
   // Remove any remaining memory unless this is the file download end message
   if(requestType != HCOM_MDOW_REQUEST_END_FILE_TRANSFER &&
      requestType != HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END)
@@ -543,11 +483,11 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
   if(requestType == HCOM_MDOW_REQUEST_LIST_PARTITION_FILES ||
      requestType == HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC)
   {
-    // Need to get the information associated with these messages. It could
-    // be empty or include 1 or more subdirectories, from which a file list
-    // is to be generated.
-    ret = hcom_host_process_init_file_list(hdrMsg, decodedSize, userData,
-            requestType, dnldShared);
+    // Need to get the information associated with these list requests. It
+    // could be empty or include 1 or more subdirectories, from which a file
+    // list is to be generated.
+    ret = hcom_host_process_init_hcom_dnld_share(dnldShared, hdrMsg,
+            decodedSize, false, false);
     if(ret < 0)
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-Init file list errno:%d, ret:%d\n",
@@ -631,7 +571,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
   }
 
   //-------------------------------------------------------------------
-  // File related command types are routed here.
+  // All command request types are routed here
   //-------------------------------------------------------------------
   // There are only a few command type handlers that report errors.
   // Specifically, those dealing with file download and delete.

@@ -47,10 +47,9 @@
 // 3. Files downloaded to subdirectory must be in this format '/meadow0/dir/filename'.
 // 4. For writing files, if the directory or directories don't exist, they will be created.
 // 5. Reads from a non-existing directory will return an error.
-// 6. There is a nesting limit for directories of 6.
-// 7. When a file is delete all lower directories will be deleted.
-// 8. All file writes or reads for the SD-Card must begin with '/mmcsd0/filename'.
-// 9. No relative directory support.
+// 6. There is a nesting limit for directories of 6, not counting /meadow0.
+// 7. When a file is delete all lower, empty directories will be deleted.
+// 8. All file writes or reads for the SD-Card must begin with /mmcsd0/.
 
 /****************************************************************************
  * Included Files
