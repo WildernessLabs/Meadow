@@ -178,9 +178,9 @@ int hcom_host_send_low_power_notification(bool lpStart)
 //
 // The caller uses one of the structs defined in
 // /nuttx/include/meadow/hcom_protocol.h. Any of those containing the
-// HcomProtoStdHeader_t type (e.g. HcomProtoTextMsg_t, HcomProtoHdrMsg_t,
+// HcomProtoStdHdr_t type (e.g. HcomProtoTextMsg_t, HcomProtoHdrMsg_t,
 // HcomProtoBinMsg_t, etc.) can be used. The caller populates the proper struct
-// fields and downcasts the type to a HcomProtoStdHeader_t and passes this as
+// fields and downcasts the type to a HcomProtoStdHdr_t and passes this as
 // 'hdrMsg' to this function.
 int hcom_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
           size_t totalMsgLen, char *sourceFileName, int sourceLineNumber)

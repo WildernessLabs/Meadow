@@ -79,7 +79,7 @@ struct hcom_dnld_shared_s
   uint32_t dnldCalcFileSize;          // This size calculated while receiving
   uint32_t dnldPathNameEleCount;      // Number of elements in pathname
 
-  int dnldFileFD;                     // For file write persisted fd
+  int dnldFileFD;                     // For persisting fd
   int dnldPercentSent;                // Used to calculate the % completed
   // Set by processing and used by file handling (This is always 1)
   uint32_t dnldFilePartId;            // File partition from CLI
@@ -89,7 +89,7 @@ struct hcom_dnld_shared_s
 };
 typedef struct hcom_dnld_shared_s hcom_dnld_shared_t;
 
-// int hcom_file_dir_mgmt_free_file_info(hcom_dnld_shared_t *dnldShared);
+int hcom_file_dir_mgmt_free_file_info(hcom_dnld_shared_t *dnldShared);
 
 // The watchdog has a close relationship with hcom CLI message process
 int hcom_host_watchdog_initialize(hcom_dnld_shared_t *dnldShared);

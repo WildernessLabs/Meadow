@@ -154,8 +154,22 @@ int hcom_host_process_setup()
 // Free any memory in struct hcom_dnld_shared_s.
 // The intent is any function can call this and be assured that all the
 // internally allocated memory is freed.
-static int hcom_file_dir_mgmt_free_file_info(hcom_dnld_shared_t *dnldShared)
+int hcom_file_dir_mgmt_free_file_info(hcom_dnld_shared_t *dnldShared)
 {
+  int ret;
+
+  if(dnldShared->dnldFileFD > 0)
+  {
+    ret = close(dnldShared->dnldFileFD);
+    if (ret < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Close of nldShared->dnldFileFD, ret:%d, errno %d\n",
+              thisFile, __LINE__, ret, errno);
+    }
+  }
+
+  dnldShared->dnldFileFD = -1;
+
   // Free any string memory allocations
   if(dnldShared->dnldOrigPathName != NULL)
   {
@@ -201,12 +215,11 @@ static bool hcom_host_process_is_stm32f7_dnld_active(hcom_dnld_shared_t *dnldSha
 // This function consolidates a lot of the needed processing for file download
 // and file delete into a single function instead of being spread all over
 // the code base.
-static int hcom_host_process_init_write_or_del(const HcomProtoHdrMsg_t *hdrMsg,
-            const size_t packetSize, const uint32_t userData,
-            const uint16_t requestType, hcom_dnld_shared_t *dnldShared)
+static int hcom_host_process_init_write_or_del(hcom_dnld_shared_t *dnldShared,
+          const HcomProtoHdrMsg_t *hdrMsg, const size_t packetSize,
+          const uint16_t requestType)
 {
   int ret;
-  char *pathName;
 
   // Verify that mono has been disabled, if not don't allow download
   if(hcom_mono_ctrl_is_mono_enabled())
@@ -247,7 +260,6 @@ static int hcom_host_process_init_write_or_del(const HcomProtoHdrMsg_t *hdrMsg,
       {
         hcom_logging_syslog(LOG_ERR, "%s@%d-Checking subdir errno:%d, ret:%d\n",
                   thisFile, __LINE__, errno, ret);
-        free(pathName);
         return ret;
       }
     }
@@ -258,7 +270,6 @@ static int hcom_host_process_init_write_or_del(const HcomProtoHdrMsg_t *hdrMsg,
       hcom_logging_syslog(LOG_ERR, "%s@%d-Timer init errno:%d, ret:%d\n",
                 thisFile, __LINE__, errno, ret);
 
-      free(pathName);
       return ret;
     }
 
@@ -272,7 +283,6 @@ static int hcom_host_process_init_write_or_del(const HcomProtoHdrMsg_t *hdrMsg,
     }
   }
 
-  free(pathName);
   return ret;
 }
 
@@ -464,17 +474,19 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
     if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
        requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME ||
        requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME)
-      {
-        // Caller expects a Concluded message for these messages, even for
-        // a wrong CLI protocol version.
-        hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
-                  thisFile, __LINE__);
-      }
+    {
+      // Caller expects a Concluded message for these messages, even for
+      // a wrong CLI protocol version.
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+                thisFile, __LINE__);
+    }
   }
 
-  // Remove any remaining memory unless this is the file download end message
+  // Remove any remaining memory unless this is a message where the file
+  // information must be persisted during this functions execution.
   if(requestType != HCOM_MDOW_REQUEST_END_FILE_TRANSFER &&
-     requestType != HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END)
+     requestType != HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END &&
+     requestType != HCOM_MDOW_REQUEST_UPLOAD_START_DATA_SEND)
   {
     hcom_file_dir_mgmt_free_file_info(dnldShared);
   }
@@ -497,21 +509,20 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       return ret;   // On error exit
     }
   }
-  // else if(requestType == HCOM_MDOW_REQUEST_UPLOAD_FILE_INIT)
-  // {
-  //   // Upload initialization
-  //   ret = hcom_host_process_init_file_upload(hdrMsg, decodedSize, userData,
-  //           requestType, dnldShared);
-  //   if(ret < 0)
-  //   {
-  //     hcom_logging_syslog(LOG_ERR, "%s@%d-Init file list errno:%d, ret:%d\n",
-  //               thisFile, __LINE__, errno, ret);
+  // Upload initialization
+  else if(requestType == HCOM_MDOW_REQUEST_UPLOAD_FILE_INIT)
+  {
+    ret = hcom_host_process_init_hcom_dnld_share(dnldShared, hdrMsg,
+            decodedSize, false, true);
+    if(ret < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Init file list errno:%d, ret:%d\n",
+                thisFile, __LINE__, errno, ret);
 
-  //     hcom_file_dir_mgmt_free_file_info(dnldShared);
-  //     return ret;   // On error exit
-  //   }
-  // }
-
+      hcom_file_dir_mgmt_free_file_info(dnldShared);
+      return ret;   // On error exit
+    }
+  }
   // For downloading/deleting files we need more file related information
   // and we need this information persisted until the file has been received. 
   // This is done here so it doesn't needed to be done in multiple places.
@@ -521,8 +532,8 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
   {
     // Starting a file transfer or delete needs special pre-processing
     // before being routed to the various write and delete functions.
-    ret = hcom_host_process_init_write_or_del(hdrMsg, decodedSize, userData,
-            requestType, dnldShared);
+    ret = hcom_host_process_init_write_or_del(dnldShared, hdrMsg,
+          decodedSize, requestType);
     if(ret < 0)
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-Init write/delete errno:%d, ret:%d\n",
@@ -538,7 +549,6 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       return ret;   // On error exit
     }
   }
-
   // End of file download
   else if(requestType == HCOM_MDOW_REQUEST_END_FILE_TRANSFER ||
           requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END)
@@ -579,8 +589,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
             requestType, dnldShared);
   if(ret < 0)
   {
-    // These may have allocated memory, if they fail, we need to free the
-    // memory.
+    // If execution failed, these may have allocated memory
     if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
        requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME ||
        requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME)
