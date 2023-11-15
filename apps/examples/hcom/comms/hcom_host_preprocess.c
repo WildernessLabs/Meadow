@@ -154,7 +154,7 @@ int hcom_host_process_setup()
 // Free any memory in struct hcom_dnld_shared_s.
 // The intent is any function can call this and be assured that all the
 // internally allocated memory is freed.
-int hcom_file_dir_mgmt_free_file_info(hcom_dnld_shared_t *dnldShared)
+int hcom_dir_mgmt_free_file_info(hcom_dnld_shared_t *dnldShared)
 {
   int ret;
 
@@ -198,7 +198,7 @@ void hcom_host_process_shutdown()
   free(_decode_dest_buf);
   free(_packet_dest_buf);
 
-  hcom_file_dir_mgmt_free_file_info(_DnldShared);
+  hcom_dir_mgmt_free_file_info(_DnldShared);
 }
 
 //==========================================================================
@@ -255,7 +255,7 @@ static int hcom_host_process_init_write_or_del(hcom_dnld_shared_t *dnldShared,
     // this is a count of the number of elements
     if(dnldShared->dnldPathNameEleCount > 2)
     {
-      ret = hcom_file_dir_mgmt_check_and_add_subdir(dnldShared);
+      ret = hcom_dir_mgmt_check_and_add_subdir(dnldShared);
       if(ret < 0)
       {
         hcom_logging_syslog(LOG_ERR, "%s@%d-Checking subdir errno:%d, ret:%d\n",
@@ -307,7 +307,7 @@ int hcom_host_process_run_loop()
                   thisFile, __LINE__);
 
         // If any download/delete state information, delete it
-        hcom_file_dir_mgmt_free_file_info(_DnldShared);
+        hcom_dir_mgmt_free_file_info(_DnldShared);
       }
       else
       {
@@ -342,7 +342,7 @@ int hcom_host_process_run_loop()
       }
 
       // If any download/delete state information, delete it
-      hcom_file_dir_mgmt_free_file_info(_DnldShared);
+      hcom_dir_mgmt_free_file_info(_DnldShared);
     }
   }
 
@@ -488,7 +488,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
      requestType != HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END &&
      requestType != HCOM_MDOW_REQUEST_UPLOAD_START_DATA_SEND)
   {
-    hcom_file_dir_mgmt_free_file_info(dnldShared);
+    hcom_dir_mgmt_free_file_info(dnldShared);
   }
 
   // This allows the file list processing to include a subdirectories
@@ -505,7 +505,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       hcom_logging_syslog(LOG_ERR, "%s@%d-Init file list errno:%d, ret:%d\n",
                 thisFile, __LINE__, errno, ret);
 
-      hcom_file_dir_mgmt_free_file_info(dnldShared);
+      hcom_dir_mgmt_free_file_info(dnldShared);
       return ret;   // On error exit
     }
   }
@@ -519,7 +519,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       hcom_logging_syslog(LOG_ERR, "%s@%d-Init file list errno:%d, ret:%d\n",
                 thisFile, __LINE__, errno, ret);
 
-      hcom_file_dir_mgmt_free_file_info(dnldShared);
+      hcom_dir_mgmt_free_file_info(dnldShared);
       return ret;   // On error exit
     }
   }
@@ -539,7 +539,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       hcom_logging_syslog(LOG_ERR, "%s@%d-Init write/delete errno:%d, ret:%d\n",
                 thisFile, __LINE__, errno, ret);
 
-      hcom_file_dir_mgmt_free_file_info(dnldShared);
+      hcom_dir_mgmt_free_file_info(dnldShared);
 
       // These request types need a Concluded message. Why? Because in the
       // normal case the End message will do this. But, on an error the End
@@ -594,7 +594,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
        requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME ||
        requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME)
     {
-      hcom_file_dir_mgmt_free_file_info(dnldShared);
+      hcom_dir_mgmt_free_file_info(dnldShared);
     }
 
     hcom_logging_syslog(LOG_ERR, "%s@%d-Request Type:%u errno:%d, ret:%d\n",

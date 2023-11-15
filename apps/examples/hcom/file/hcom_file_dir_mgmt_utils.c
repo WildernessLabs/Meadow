@@ -1,5 +1,5 @@
 /****************************************************************************
- * \apps\examples\hcom\file\hcom_file_dir_mgmt_utils.c
+ * \apps\examples\hcom\file\hcom_dir_mgmt_utils.c
  * 
  *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -59,6 +59,7 @@
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_dnld_shared.h>
+#include <meadow/meadow_os.h>
 
 #include <sys/mount.h>
 #include <sys/stat.h>
@@ -68,12 +69,15 @@
 #include <syslog.h>
 
 #if defined (CONFIG_DIR_MGMT_TESTS)
-#pragma message "(--) dir_mgmt_tests.c"
+#pragma message "(--) dir_mgmt_utils.c"
 #endif
 
 #pragma GCC optimize("O0")    // Prevent compiler from changing the code
 
 #define HCOM_FILE_DIR_OUTPUT_TO_SYSLOG (1)
+
+// 8 elements in path will allow up to 6 subdirectories
+#define HCOM_FILE_DNLD_MAX_NUMB_ELEMENTS (8)
 
 // The following deal with testing subdirectory support
 #define MEADOW_FILE_SUBDIR_PREPEND_MEADOW_STR   ("/meadow0/")
@@ -82,7 +86,7 @@
 #define MEADOW_FILE_SUBDIR_PREPEND_SDCARD_LEN   (8)
 
 // This enum is used to classify CLI requests
-enum hcom_file_dir_mgmt_msg_type_e
+enum hcom_dir_mgmt_msg_type_e
 {
   pathnameInvalid     = 0,    // Illegal format provided
   pathnameOriginal    = 1,    // No '/' found
@@ -101,7 +105,7 @@ static hcom_dnld_shared_t *_dnldShared;
  * Private Function Prototypes
  ****************************************************************************/
 
-static int hcom_file_dir_mgmt_read_nested_directories(const char *rootDir,
+static int hcom_dir_mgmt_read_nested_directories(const char *rootDir,
           char *hostMsg, struct dirent *entry, int indent);
 
 /****************************************************************************
@@ -144,7 +148,7 @@ static uint32_t find_pathname_element_count(const char *pathName, size_t strLen)
 // '/filename' - has leading '/'
 // /dirname/filename/ - missing leading '/meadow0'
 // endExpectFileName: true = pathname no ending '/', false = ending '/' needed
-static int hcom_file_dir_mgmt_categorize_pathname(const char *pathName,
+static int hcom_dir_mgmt_categorize_pathname(const char *pathName,
           size_t strLen, uint32_t *pathNameElements,
           bool endExpectFileName)
 {
@@ -182,36 +186,38 @@ static int hcom_file_dir_mgmt_categorize_pathname(const char *pathName,
     *pathNameElements = find_pathname_element_count(pathName, strLen);
     return pathnameFullMeadow;
   }
-  // (--) MUST TEST IF SD-Card ENABLED BEFORE MAKING THIS TEST
+#if defined (CONFIG_STM32F7_SDMMC2)
   else if(memcmp(MEADOW_FILE_SUBDIR_PREPEND_SDCARD_STR,
               pathName, MEADOW_FILE_SUBDIR_PREPEND_SDCARD_LEN) == 0)
   {
-    // '/mmcsd0/' found, but can't end in '/', must have file name, unless this
-    // being called for a file list in which case it must end in '/'.
-    if(endExpectFileName)
+    meadow_configuration_t *config = meadow_os_deep_copy_config();
+    if (config->sd_storage_supported)
     {
-      if(pathName[strLen-1] == '/')
-          return pathnameInvalid;
-    }
-    else
-    {
-      if(pathName[strLen-1] != '/')
-          return pathnameInvalid;
-    }
+      // '/mmcsd0/' found, but can't end in '/', must have file name, unless this
+      // being called for a file list, in which case it must end in '/'.
+      if(endExpectFileName)
+      {
+        if(pathName[strLen-1] == '/')
+            return pathnameInvalid;
+      }
+      else
+      {
+        if(pathName[strLen-1] != '/')
+            return pathnameInvalid;
+      }
 
-    *pathNameElements = find_pathname_element_count(pathName, strLen);
-    return pathnameFullMmcsd;
+      *pathNameElements = find_pathname_element_count(pathName, strLen);
+      return pathnameFullMmcsd;
+    }
   }
-  else
-  {
-    return pathnameInvalid;
-  }
+#endif
+  return pathnameInvalid;
 }
 
 //=====================================================================
 // File name processing. This is the entry point for all downloads, deletes
 // etc.
-static int hcom_file_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
+static int hcom_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
           char *pathNameStr, size_t fileNameLength,
           bool endExpectFileName)
 {
@@ -242,7 +248,7 @@ static int hcom_file_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared
   // there's no way via text to tell the difference. It must be assumed that
   // the final '/' signifies the start of the file name.
   // This is used to further catergorize the request.
-  catType = hcom_file_dir_mgmt_categorize_pathname(dnldShared->dnldOrigPathName,
+  catType = hcom_dir_mgmt_categorize_pathname(dnldShared->dnldOrigPathName,
             fileNameLength, &pathNameElements, endExpectFileName);
   if(catType == pathnameInvalid)
   {
@@ -286,7 +292,7 @@ static int hcom_file_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared
     // to have '/meadow0/' prepended to the filename
     // (e.g. /meadow0/filename.ext).
     dnldFileAndPathLen = strlen(dnldShared->dnldOrigPathName) + \
-              strlen(HCOM_FILE_MOUNT_POINT_TARGET) + 3; // Room for '/', partition Id, NULL
+              strlen(HCOM_MEADOW0_PATH_NAME_PREFIX) + 2; // Room for '/' + NULL
 
     dnldShared->dnldFullPathName = malloc(dnldFileAndPathLen + 1);
     if(dnldShared->dnldFullPathName == NULL)
@@ -295,22 +301,15 @@ static int hcom_file_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared
       return -ENOMEM;
     }
 
-#ifdef CONFIG_MTD_PARTITION
-    snprintf_chk(dnldShared->dnldFullPathName, dnldFileAndPathLen, "%s%d/%s",
-                              HCOM_FILE_MOUNT_POINT_TARGET,
-                              dnldShared->dnldFilePartId,
-                              dnldShared->dnldOrigPathName);
-#else
     snprintf_chk(dnldShared->dnldFullPathName, dnldFileAndPathLen, "%s/%s",
-                              HCOM_FILE_MOUNT_POINT_TARGET,
+                              HCOM_MEADOW0_PATH_NAME_PREFIX,
                               dnldShared->dnldOrigPathName);
-#endif
   }
   else
   {
     // Since the entire path must be provide by the host message, we'll
-    // allocate the same size buffer as originally string provided for the
-    // full name.
+    // allocate the same size buffer as the originally string provided for the
+    // full path name.
     dnldShared->dnldFullPathName = malloc(fileNameLength + 1);
     if(dnldShared->dnldFullPathName == NULL)
     {
@@ -384,7 +383,7 @@ int hcom_host_process_init_hcom_dnld_share(hcom_dnld_shared_t *dnldShared,
   // this memory after this point.
   // Note: isFileMsgType is only true based for a few request types. There are only
   // 3 for stm32f7 and for 1 ESP32 ();
-  ret = hcom_file_dir_mgmt_eval_build_pathname(dnldShared, pathName,
+  ret = hcom_dir_mgmt_eval_build_pathname(dnldShared, pathName,
             pathNameLength, endExpectFileName);
   if(ret < 0)
   {
@@ -400,7 +399,7 @@ int hcom_host_process_init_hcom_dnld_share(hcom_dnld_shared_t *dnldShared,
 //===========================================================================
 // This function will add any missing directories needed to write the file
 // being added
-int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
+int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
 {
   int ret;
   struct stat statBuf;
@@ -510,23 +509,185 @@ int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
   return OK;
 }
 
+//===================================================================
+// This function prints the path as a header and all the file found in it
+static void hcom_dir_mgmt_print_directory_files(DIR *dir[],
+          int dirLevel, char *currentPath)
+{
+  struct dirent *entry;
+  bool filesFound = false;
+  int fileCount = 0;
+  
+  while ((entry = readdir(dir[dirLevel])) != NULL)
+  {
+    if (DIRENT_ISFILE(entry->d_type))
+    {
+      // Found a file
+      if(!filesFound)
+      {
+        // Print the directory path as a header
+        syslog(2, "\n");
+        syslog(2, "Directory:%s\n", currentPath);
+        filesFound = true;
+      }
+
+      // Print file information
+      syslog(2, "  %s\n", entry->d_name);
+      fileCount++;
+    }
+  }
+
+  // Line if we printed files
+  if(filesFound)
+  {
+    syslog(2, "----------%d File(s) (L:%d)----------\n",
+              fileCount, dirLevel);
+  }
+#if 1
+  else
+  {
+    syslog(2, "Directory:%s [Empty]\n", currentPath);
+  }
+#endif
+
+  // Return to the start of directory and look for deeper directories
+  rewinddir(dir[dirLevel]);
+}
+
+//===================================================================
+// This function modifies the currentPath to follow the structure of the
+// file system. Once begun this function only call code to print the directory
+// and file information
+static int hcom_dir_mgmt_find_next_directory(DIR *dir[],
+          int dirLevel, char *currentPath)
+{
+  struct dirent *entry;
+  int dirStartLvl = dirLevel;
+
+  // Initialize the following loop
+  dir[dirLevel] = opendir(currentPath);
+  if(dir[dirLevel] == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-opendir failed, errno:%d, Path:'%s'\n",
+              thisFile, __LINE__, errno, currentPath);
+    usleep(20 * 1000);
+    return -errno;
+  }
+
+  // Print files from starting directory
+  hcom_dir_mgmt_print_directory_files(dir, dirLevel, currentPath);
+
+  while(true)
+  {
+    // Search for directories in currentPath, which may change multiple times
+    // while this loop executes, but always deeper in to subdirectories. On
+    // leaving this loop (no more directories) we will move the directory up
+    // 1 level.
+    while ((entry = readdir(dir[dirLevel])) != NULL)
+    {
+      if (DIRENT_ISDIRECTORY(entry->d_type))
+      {
+        // Ignore these directories, we only care about named directories
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+          continue;
+
+        // Update the currentPath to include the just found child directory
+        strcat(currentPath, "/");
+        strcat(currentPath, entry->d_name);
+
+        dirLevel++;
+        if(dirLevel > HCOM_FILE_DNLD_MAX_NUMB_ELEMENTS - 1)
+        {
+          syslog(LOG_ERR, "%s@%d-Dir level too deep, Path:'%s', Level:%d\n",
+                    thisFile, __LINE__, currentPath, dirLevel);
+          return -ETOOMANYREFS;
+        }
+
+        // Open deeper child directory
+        dir[dirLevel] = opendir(currentPath);
+        if(dir[dirLevel] == NULL)
+        {
+          syslog(LOG_ERR, "%s@%d-opendir failed, errno:%d, Path:'%s'\n",
+                    thisFile, __LINE__, errno, currentPath);
+          usleep(20 * 1000);
+          return -errno;
+        }
+
+        // Opens the directory at currentPath and prints all the files found
+        // there (if there are any)
+        hcom_dir_mgmt_print_directory_files(dir, dirLevel, currentPath);
+      }
+    }
+
+    // We reached the bottom of this directory branch
+    closedir(dir[dirLevel]);
+
+    // Remove child subdirectory from currentPath
+    char *lastShash = strrchr(currentPath, '/');
+    *lastShash = '\0';
+
+    dirLevel--;      // Back up a parent directory level
+
+    // Is the level now below our starting level (finished?)
+    if((dirStartLvl - 1) == dirLevel)
+    {
+      break;      // Break out of loop as we are done
+    }
+  }
+
+  return OK;
+}
+
+//===================================================================
+// Public
+int hcom_dir_mgmt_print_files_and_directories(const char *initialDir)
+{
+  int ret;
+  int dirLevel = 0;
+  DIR *dir[HCOM_FILE_DNLD_MAX_NUMB_ELEMENTS];
+  
+  if(initialDir == NULL || strlen(initialDir) < 1 || initialDir[0] != '/')
+  {
+    syslog(LOG_ERR, "%s@%d-InitialDir was invalid\n", thisFile, __LINE__);
+    return -EINVAL;
+  }
+
+  // Room for nesting of directories. This memory is used by called
+  // functions which add to and remove from the path.
+  char *currentPath = malloc(512);
+  strcpy(currentPath, initialDir);
+
+  ret = hcom_dir_mgmt_find_next_directory(dir, dirLevel, currentPath);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Listing files failed, ret:%d, errno:%d\n",
+              thisFile, __LINE__, ret, errno);
+    usleep(20 * 1000);
+    return -errno;
+  }
+
+  free(currentPath);
+
+  return OK;
+}
+
 //===========================================================================
 // THIS RECURSIVE CODE IS ONLY FOR DIAGNOSTICS! KEEPING SINCE IT WORKS.
-// Call using 'meadow set developer -d 13 -v 2'
+// Call using 'meadow set developer -d 13 -v n'
 //===========================================================================
 // Note: Using "/" as the rootDir would show all files and directories etc.
-int hcom_file_dir_mgmt_read_nested_directories_start(const char *rootDir)
+int hcom_dir_mgmt_read_nested_directories_start(const char *rootDir)
 {
   // Keep these larger objects off the stack of the recursive function
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   struct dirent *entry = NULL;
 
-  return hcom_file_dir_mgmt_read_nested_directories(rootDir, hostMsg, entry, 0);
+  return hcom_dir_mgmt_read_nested_directories(rootDir, hostMsg, entry, 0);
 }
 
 //--------------------------------------------------------------------------
 // NOTE - Recursive function, is not public
-int hcom_file_dir_mgmt_read_nested_directories(const char *rootDir,
+int hcom_dir_mgmt_read_nested_directories(const char *rootDir,
             char *hostMsg, struct dirent *entry, int indent)
 {
   DIR *dir;
@@ -545,7 +706,7 @@ int hcom_file_dir_mgmt_read_nested_directories(const char *rootDir,
       if(strcmp(entry->d_name, "proc") == 0)
         return OK; // ignore procfs information
               
-      syslog(2, "%*s%s/\n", indent, "|", entry->d_name);
+      syslog(2, "%*s%s/\n", indent, "", entry->d_name);
 
       if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
         continue;
@@ -554,7 +715,7 @@ int hcom_file_dir_mgmt_read_nested_directories(const char *rootDir,
       snprintf_chk(path, sizeof(path), "%s/%s", rootDir, entry->d_name);
 
       // Recursion is here since directory
-      hcom_file_dir_mgmt_read_nested_directories(path, hostMsg, entry, indent + 1);
+      hcom_dir_mgmt_read_nested_directories(path, hostMsg, entry, indent + 1);
     }
 #if 1     // Show everything not just directories
     else
@@ -562,17 +723,18 @@ int hcom_file_dir_mgmt_read_nested_directories(const char *rootDir,
       // All non-directory types
       char *entryType;
       if(DIRENT_ISFILE(entry->d_type)) {entryType = "file";}
-      else if(DIRENT_ISCHR(entry->d_type)) {entryType = "char";}
-      else if(DIRENT_ISBLK(entry->d_type)) {entryType = "block";}
-      else if(DIRENT_ISLINK(entry->d_type)) {entryType = "link";}
-      else {entryType = "????";}
+      // else if(DIRENT_ISCHR(entry->d_type)) {entryType = "char";}
+      // else if(DIRENT_ISBLK(entry->d_type)) {entryType = "block";}
+      // else if(DIRENT_ISLINK(entry->d_type)) {entryType = "link";}
+      // else {entryType = "????";}
 
-      syslog(2, "%*s%s [%s]\n", indent, "|", entry->d_name, entryType);
+      syslog(2, "%*s%s [%s]\n", indent, "", entry->d_name, entryType);
 
     }
 #endif
 
   }
+  syslog(2, "\n");
 
   closedir(dir);
   return OK;

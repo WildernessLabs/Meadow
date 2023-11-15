@@ -88,7 +88,7 @@ int hcom_file_upld_proc_setup()
 
 // (--) I'm pretty sure, this function is never used
 void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
-          const size_t packetSize, uint32_t partitionId)
+          const size_t packetSize)
 {
   int ret;
   int fd;
@@ -97,10 +97,6 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
   
   HcomProtoTextMsg_t *textMsg = (HcomProtoTextMsg_t *)hdrMsg;
 
-#ifndef CONFIG_MTD_PARTITION
-  partitionId = 0;    // Ignore any other partition value if no partitioning
-#endif
-
   // How long must the file name be
   size_t fileNameLen = packetSize - HCOM_PROTOCOL_TEXT_MSG_START_OFF;
 
@@ -108,7 +104,8 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
   fileNameBuffer = malloc(fileNameLen + 1);
   if(fileNameBuffer == NULL)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n",
+              thisFile, __LINE__);
     return;
   }
   memset(fileNameBuffer, 0, fileNameLen + 1);
@@ -118,22 +115,20 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
   char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   if(fullMountPtName == NULL)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", 
+              thisFile, __LINE__);
     free(fileNameBuffer);
     return;
   }
 
-#ifdef CONFIG_MTD_PARTITION
-  snprintf_chk(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d",
-            HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
-#else
-  strncpy(fullMountPtName, HCOM_FILE_MOUNT_POINT_TARGET, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-#endif
+  strncpy(fullMountPtName, HCOM_MEADOW0_PATH_NAME_PREFIX,
+            HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
 
   fileName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
   if(fileName == NULL)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n",
+              thisFile, __LINE__);
     free(fileNameBuffer);
     free(fullMountPtName);
     return;
@@ -266,14 +261,14 @@ int hcom_file_upld_proc_start_file_upload(hcom_dnld_shared_t *dnldShared)
     hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_UPLOAD_FAIL, 0,
               thisFile, __LINE__);
 
-    hcom_file_dir_mgmt_free_file_info(dnldShared);
+    hcom_dir_mgmt_free_file_info(dnldShared);
 
     return -errno;
   }
 
   int detectError;
   uint32_t blockSizeKB;   // Required for call but not used
-  size_t fileSize;
+  off_t fileSize;
 
   // Calculate the CRC checksum
   crc32Checksum = hcom_file_misc_calc_crc_for_file_fd(dnldShared->dnldFileFD,
@@ -294,7 +289,7 @@ int hcom_file_upld_proc_start_file_upload(hcom_dnld_shared_t *dnldShared)
     hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_UPLOAD_FAIL, 0,
               thisFile, __LINE__);
 
-    hcom_file_dir_mgmt_free_file_info(dnldShared);
+    hcom_dir_mgmt_free_file_info(dnldShared);
 
     return -errno;
   }
@@ -303,8 +298,7 @@ int hcom_file_upld_proc_start_file_upload(hcom_dnld_shared_t *dnldShared)
   size_t totalMsgLength;
   HcomProtoFileMsg_t *fileMsg;
   
-  // (--) HCOM_PROTOCOL_FILE_MSG_LENGTH
-  fileMsg = (HcomProtoFileMsg_t *)malloc(g_current_hcom_maximum_packet_size);
+  fileMsg = (HcomProtoFileMsg_t *)malloc(HCOM_PROTOCOL_FILE_MSG_LENGTH);
   if(fileMsg == NULL)
   {
     snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
@@ -319,7 +313,7 @@ int hcom_file_upld_proc_start_file_upload(hcom_dnld_shared_t *dnldShared)
     hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_UPLOAD_FAIL, 0,
               thisFile, __LINE__);
 
-    hcom_file_dir_mgmt_free_file_info(dnldShared);
+    hcom_dir_mgmt_free_file_info(dnldShared);
 
     return -errno;
   }
@@ -391,13 +385,13 @@ int hcom_file_upld_proc_begin_file_uploading(hcom_dnld_shared_t *dnldShared)
             thisFile, __LINE__);
 
     _uploadAction = HcomUpldActionNone;
-    hcom_file_dir_mgmt_free_file_info(dnldShared);
+    hcom_dir_mgmt_free_file_info(dnldShared);
     return ret;
   }
 
   // Finished with file upload, cleanup
   _uploadAction = HcomUpldActionNone;
-  hcom_file_dir_mgmt_free_file_info(dnldShared);
+  hcom_dir_mgmt_free_file_info(dnldShared);
 
   return OK;
 }

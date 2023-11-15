@@ -83,6 +83,7 @@ int mint_config_interrupt(struct mint_gpio_int_config* cfg);    // This is a dup
 /************************************************************************************
  * Public Functions
  ************************************************************************************/
+// set developer -d 10 come here
 void meadow_kt_quick_misc_tests(uint32_t userData)
 {
   static bool firstTime = true;

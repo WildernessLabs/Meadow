@@ -328,6 +328,7 @@ static int hcom_nx_sdcard_fsync_file(void)
 }
 
 //===================================================================
+// 'set developer -d 7' for these tests
 // Route the test to the correct destination
 int meadow_kt_sd_card_tests(uint32_t userData)
 {

@@ -42,9 +42,6 @@
 
 #define HCOM_FILE_DNLD_STM32F7_WDOG_TIME (3)
 
-// 8 will allow up to 6 subdirectories
-#define HCOM_FILE_DNLD_MAX_NUMB_ELEMENTS (8)
-
 // This enum defines the current processing state of the download code for a
 // specific download session. It is also used for file delete.
 // It is not used for ESP32 download, only external file system.
@@ -89,7 +86,7 @@ struct hcom_dnld_shared_s
 };
 typedef struct hcom_dnld_shared_s hcom_dnld_shared_t;
 
-int hcom_file_dir_mgmt_free_file_info(hcom_dnld_shared_t *dnldShared);
+int hcom_dir_mgmt_free_file_info(hcom_dnld_shared_t *dnldShared);
 
 // The watchdog has a close relationship with hcom CLI message process
 int hcom_host_watchdog_initialize(hcom_dnld_shared_t *dnldShared);

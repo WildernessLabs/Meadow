@@ -102,15 +102,35 @@ void meadow_dir_mgmt_tests(uint32_t userData)
       break;
 
   case 2:
-    hcom_file_dir_mgmt_read_nested_directories_start("/meadow0");
+    hcom_dir_mgmt_read_nested_directories_start("/meadow0");
     break;
 
   case 3:
-    hcom_file_dir_mgmt_read_nested_directories_start("/mmcsd0");
+    hcom_dir_mgmt_read_nested_directories_start("/mmcsd0");
     break;
 
   case 4:
-    hcom_file_dir_mgmt_read_nested_directories_start("/");
+    hcom_dir_mgmt_read_nested_directories_start("/");
+    break;
+
+  case 5:
+    hcom_dir_mgmt_read_nested_directories_start("");
+    break;
+
+  case 6:
+    hcom_dir_mgmt_print_files_and_directories("/meadow0");
+    break;
+
+  case 7:
+    hcom_dir_mgmt_print_files_and_directories("/");
+    break;
+
+  case 8:       // Illegal
+    hcom_dir_mgmt_print_files_and_directories("");
+    break;
+
+  case 9:       // Illegal
+    hcom_dir_mgmt_print_files_and_directories(NULL);
     break;
 
   default:

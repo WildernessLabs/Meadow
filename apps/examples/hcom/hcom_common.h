@@ -221,7 +221,7 @@ void hcom_file_dnld_esp32_file_end(uint32_t user_data);
 // Execute Request for uploading a file
 int hcom_file_upld_proc_setup(void);
 void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
-        const size_t packetSize, uint32_t partitionId);
+        const size_t packetSize);
 int hcom_file_upld_proc_start_file_upload(hcom_dnld_shared_t *dnldShared);
 int hcom_file_upld_proc_begin_file_uploading(hcom_dnld_shared_t *dnldShared);
 void hcom_file_upld_proc_abort_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
@@ -247,11 +247,12 @@ int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData);
 
 // -----------------------------------------------
 // File directory functions
-int hcom_file_dir_mgmt_read_nested_directories_start(const char *rootDir);
+int hcom_dir_mgmt_print_files_and_directories(const char *initialDir);
+int hcom_dir_mgmt_read_nested_directories_start(const char *rootDir);
 int hcom_host_process_init_hcom_dnld_share(hcom_dnld_shared_t *dnldShared,
           const HcomProtoHdrMsg_t *hdrMsg, const size_t packetSize,
           bool isFileMsgType, bool endExpectFileName);
-int hcom_file_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared);
+int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared);
 
 // -----------------------------------------------
 // File download misc functions
