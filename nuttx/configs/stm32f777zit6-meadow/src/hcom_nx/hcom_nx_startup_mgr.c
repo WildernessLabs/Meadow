@@ -119,6 +119,31 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 
   //
+  //  This version of the OS is designed to kill the contents of the flash
+  //  so it will remove Mono and any files from the flash memory and is meant
+  //  to be used for recovering from fatal errors.
+  //
+  uint32_t blueLed = 0x00040c00;
+  ret = stm32_configgpio(blueLed);
+  stm32_gpiowrite(blueLed, false);
+
+  //
+  //  Do the bulk erase of the flash memory.
+  //
+  ret = mtd->ioctl(mtd, MTDIOC_BULKERASE, 0);
+
+  //
+  //  Flash the Blue LED to indicate that the operation has completed.
+  //
+  while (1)
+  {
+    stm32_gpiowrite(blueLed, true);
+    sleep(1);
+    stm32_gpiowrite(blueLed, false);
+    sleep(1);
+  }
+
+  //
   //  Prepare the logging system and clear the log file.
   //
   meadow_logging_init_os_logging();
