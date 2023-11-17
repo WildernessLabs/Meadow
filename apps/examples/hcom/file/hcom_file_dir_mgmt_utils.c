@@ -263,15 +263,18 @@ static int hcom_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
   }
 
   // The number of elements includes all levels.
-  if(pathNameElements > HCOM_FILE_DNLD_MAX_NUMB_ELEMENTS)
+  if(pathNameElements > HCOM_FILE_DNLD_MAX_NUMB_DIR_ELEMENTS)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-subdirectories: max is %lu, found %lu\n",
-              thisFile, __LINE__, HCOM_FILE_DNLD_MAX_NUMB_ELEMENTS, pathNameElements - 2);
+              thisFile, __LINE__,
+              HCOM_FILE_DNLD_MAX_NUMB_USER_SUBDIRS,
+              pathNameElements - HCOM_FILE_DNLD_MANDATORY_DIR_ELEMENTS);
 
     char *hostMsg = malloc(HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH);
     snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
-            "Path Names are limited to a maximum:%lu elements, requested:%lu\n",
-            HCOM_FILE_DNLD_MAX_NUMB_ELEMENTS, pathNameElements);
+            "Path Names are limited to a maximum:%lu user defined subdirectories, requested:%lu\n",
+            HCOM_FILE_DNLD_MAX_NUMB_USER_SUBDIRS,
+            pathNameElements - HCOM_FILE_DNLD_MANDATORY_DIR_ELEMENTS);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
             hostMsg, thisFile, __LINE__);
     free(hostMsg);

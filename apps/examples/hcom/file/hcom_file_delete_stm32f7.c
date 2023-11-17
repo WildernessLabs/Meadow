@@ -119,34 +119,36 @@ int hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShare
       break;
     }
 
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Error-failed to delete:'%s' %s, errno:%d\n",
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Error-failed to delete:'%s' %s (errno:%d)\n",
         thisFile, __LINE__, dnldShared->dnldFullPathName, errorCause, get_errno());
 
     // Message to host PC
     snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-          "Meadow failed to delete file '%s'. %s",
+          "Meadow failed to delete file '%s', %s",
           dnldShared->dnldFullPathName, errorCause);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, thisFile, __LINE__);
 
     free(errorCause);
     free(hostMsg);
-    
+
     // Concluded message will be sent by caller
     return ret;
   }
-#if defined (CONFIG_DIR_MGMT_TESTS)
+  else
   {
-    syslog(2, "%s@%d-File:'%s' deleted, ret:%d, errno:%d\n",
-          thisFile, __LINE__, dnldShared->dnldFullPathName, ret, errno);
-  }
+#if defined (CONFIG_DIR_MGMT_TESTS)
+    syslog(2, "%s@%d-File:'%s' deleted\n",
+          thisFile, __LINE__, dnldShared->dnldFullPathName);
 #endif
+  }
 
-  // Once the file has been deleted we must delete any related empty
+  // Once the file has been deleted we must delete any parent, empty
   // subdirectories.
   // An element count of 2 means there will be no subdirectories.
   if(dnldShared->dnldPathNameEleCount > 2)
   {
-    uint32_t dirDepth = dnldShared->dnldPathNameEleCount - 2;
+    uint32_t dirDepth = dnldShared->dnldPathNameEleCount - \
+              HCOM_FILE_DNLD_MANDATORY_DIR_ELEMENTS;
     char *pathNameTemp = malloc(strlen(dnldShared->dnldFullPathName) + 1);
     strcpy(pathNameTemp, dnldShared->dnldFullPathName);
 
@@ -158,23 +160,20 @@ int hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShare
       // Replace last '/' with NULL
       *slashPtr = '\0';
 
-#if defined (CONFIG_DIR_MGMT_TESTS)
-      syslog(2, "Attempting to delete:%s/n", pathNameTemp);
-#endif
-
       ret = rmdir(pathNameTemp);
       if(ret < 0)
       {
         // Have we reached the end of empty directories?
         // Note: ENOTEMPTY in the NuttX errno.h file is 90 but rmdir returned
         //  39. I was only able to reconcile this by locating the littlefs
-        //  header file, lfs.h which used 39 for not empty. I tried to
+        //  header file, lfs.h. Here 'not empty' id defined as 39. I tried to
         //  reference this header at nuttx/fs/littlefs/lfs.h but the compiler
-        //  couldn't find it because it's on the Nuttx side and this code is on
-        //  the apps side.
+        //  couldn't find it because it's on the Nuttx side and this code is
+        //  on the apps side.
         //  Realizing that the Nuttx Rebase may well fix the problem, I decided
         //  to define it here.
 #define LITTLEFS_VERSION_OF_ENOTEMPTY (39)
+
         // If an attempt to delete a directory failed, because wasn't empty,
         // this is not an error. It means we are finished removing empty
         // directories.
@@ -184,21 +183,26 @@ int hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShare
                     thisFile, __LINE__, pathNameTemp, ret, errno);
           ret = -errno;
         }
-#if 1
         else
         {
-          syslog(2, "%s@%d-Directory '%s' is not empty, ret:%d, errno:%d\n",
-                    thisFile, __LINE__, pathNameTemp, ret, errno);
-        }
+#if defined (CONFIG_DIR_MGMT_TESTS)
+          syslog(2, "%s@%d-FYI-Directory '%s' not empty\n",
+                    thisFile, __LINE__, pathNameTemp);
 #endif
+          // Directory empty is not an error and a file delete failure has
+          // already been reported.
+          ret = OK;
+        }
         break;    // Leave directory delete loop
-      }
-      else
-      {
-        dnldShared->dnldPathNameEleCount--;
       }
 
       // Prep for next loop
+      dnldShared->dnldPathNameEleCount--;
+#if defined (CONFIG_DIR_MGMT_TESTS)
+      syslog(2, "%s@%d-Path Name:'%s' last element removed, elements left:%lu.\n",
+                thisFile, __LINE__, pathNameTemp,
+                dnldShared->dnldPathNameEleCount);
+#endif
       slashPtr = strrchr(pathNameTemp, '/');
       dirDepth--;
     }

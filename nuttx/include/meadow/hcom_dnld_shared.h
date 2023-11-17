@@ -43,7 +43,11 @@
 #define HCOM_FILE_DNLD_STM32F7_WDOG_TIME (3)
 
 // 8 elements in path will allow up to 6 subdirectories
-#define HCOM_FILE_DNLD_MAX_NUMB_ELEMENTS (8)
+// '/meadow0/filename' considered 2 mandatory elements
+#define HCOM_FILE_DNLD_MAX_NUMB_DIR_ELEMENTS (8)
+#define HCOM_FILE_DNLD_MANDATORY_DIR_ELEMENTS (2)
+#define HCOM_FILE_DNLD_MAX_NUMB_USER_SUBDIRS \
+  (HCOM_FILE_DNLD_MAX_NUMB_DIR_ELEMENTS-HCOM_FILE_DNLD_MANDATORY_DIR_ELEMENTS)
 
 // This enum defines the current processing state of the download code for a
 // specific download session. It is also used for file delete.
