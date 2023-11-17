@@ -120,6 +120,7 @@ int psock_socket(int domain, int type, int protocol, FAR struct socket *psock)
   if(config == NULL)
   {
     syslog(LOG_ERR, "In %s() meadow_configuration_t is NULL\n", __FILE__);
+    hcom_nx_config_unlock();
     return -ENETDOWN;
   }
 
