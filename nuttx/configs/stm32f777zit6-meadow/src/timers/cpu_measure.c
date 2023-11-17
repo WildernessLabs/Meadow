@@ -178,7 +178,7 @@ int meadow_timer_cpu_measure_init(int timerNumber)
   ret = irq_attach(STM32_IRQ_TIM6, meadow_timer_cpu_measure_isr, NULL);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-irq_attach failed:%d, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-irq_attach failed, ret:%d, errno:%d\n",
           __FILE__, __LINE__, ret, errno);
     return ret;
   }

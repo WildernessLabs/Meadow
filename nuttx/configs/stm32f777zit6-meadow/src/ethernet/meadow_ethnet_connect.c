@@ -466,7 +466,7 @@ int meadow_eth_conn_establish_connection(struct dhcp_info_s *dhcp_info,
     ret = meadow_eth_utils_set_ipv4_mask(MEADOW_ETHMAC_DEVICENAME, &addr);
     if (ret < 0)
     {
-      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_ipv4_mask() failed:%d, errno:%d\n",
+      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_ipv4_mask() failed, ret:%d, errno:%d\n",
              thisFile, __LINE__, ret, errno);
       return -errno;
     }
@@ -476,7 +476,7 @@ int meadow_eth_conn_establish_connection(struct dhcp_info_s *dhcp_info,
     ret = meadow_eth_utils_set_router(MEADOW_ETHMAC_DEVICENAME, &addr);
     if (ret < 0)
     {
-      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_router() failed:%d, errno:%d\n",
+      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_router() failed, ret:%d, errno:%d\n",
              thisFile, __LINE__, ret, errno);
       return -errno;
     }

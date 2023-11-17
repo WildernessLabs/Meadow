@@ -387,8 +387,8 @@ int hcom_host_process_init_hcom_dnld_share(hcom_dnld_shared_t *dnldShared,
             pathNameLength, endExpectFileName);
   if(ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Eval pathname, errno:%d, ret:%d\n",
-              thisFile, __LINE__, errno, ret);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Eval pathname, ret:%d, errno:%d\n",
+              thisFile, __LINE__, ret, errno);
   }
 
   free(pathName);

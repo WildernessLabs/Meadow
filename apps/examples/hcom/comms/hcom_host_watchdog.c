@@ -235,13 +235,15 @@ int hcom_host_watchdog_dnld_timer_delete()
   ret = hcom_host_watchdog_dnld_timer_set_delay(0);
   if(ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set delay = 0, errno:%d, ret:%d\n", thisFile, __LINE__, errno, ret);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set delay = 0, ret:%d, errno:%d\n",
+              thisFile, __LINE__, ret, errno);
   }
 
   ret = timer_delete(_processWdogTimerId);
   if(ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Timer delete errno:%d, ret:%d\n", thisFile, __LINE__, errno, ret);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Timer delete, ret:%d, errno:%d\n",
+              thisFile, __LINE__, ret, errno);
   }
 
   return ret;

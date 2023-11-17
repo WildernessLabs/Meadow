@@ -57,6 +57,7 @@
 #include <nuttx/fs/fs.h>
 #include <nuttx/fs/dirent.h>
 
+#define HCOM_DIR_MGMT_TST_SHOW_FULL_FILE_STATUS (0)
 
 /****************************************************************************
  * Private Data
@@ -66,8 +67,6 @@ static char *thisFile = __FILE__;
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-#define HCOM_DIR_MGMT_TST_SHOW_FULL_FILE_STATUS (0)
-
 static int hcom_dir_mgmt_tst_log_directories_files(const char *initialDir);
 
 #if HCOM_DIR_MGMT_TST_SHOW_FULL_FILE_STATUS > 0
@@ -191,15 +190,21 @@ static void hcom_dir_mgmt_print_directory_files(DIR *dir[],
 
 //===================================================================
 // This function modifies the currentPath to follow the structure of the
-// file system. Once begun this function only call code to print the directory
-// and file information
-static int hcom_dir_mgmt_find_next_directory(DIR *dir[],
-          int dirLevel, char *currentPath)
+// file system. Once begun this function only calls to print the directory
+// and file information.
+static int hcom_dir_mgmt_find_next_directory(const char *initialDir)
 {
+  int dirLevel = 0;
+  int dirEndLevel = dirLevel;
+  DIR *dir[HCOM_FILE_DNLD_MAX_NUMB_DIR_ELEMENTS];
   struct dirent *entry;
-  int dirStartLvl = dirLevel;
+  char *currentPath = malloc(1024);  // malloc size is a guess!!!
 
-  // Initialize the following loop
+  // This code manages currentPath and dirlevel as it moves up and down within
+  // the directory structure.
+  strcpy(currentPath, initialDir);
+
+  // Open the initial directory entry and place it in the array
   dir[dirLevel] = opendir(currentPath);
   if(dir[dirLevel] == NULL)
   {
@@ -215,8 +220,8 @@ static int hcom_dir_mgmt_find_next_directory(DIR *dir[],
   {
     // Search for directories in currentPath, which may change multiple times
     // while this loop executes, but always deeper in to subdirectories. On
-    // leaving this loop (no more directories) we will move the directory up
-    // 1 level.
+    // leaving this loop (no more directories on this branch) we will move the
+    // directory up 1 level to it's original parent.
     while ((entry = readdir(dir[dirLevel])) != NULL)
     {
       if (DIRENT_ISDIRECTORY(entry->d_type))
@@ -239,8 +244,8 @@ static int hcom_dir_mgmt_find_next_directory(DIR *dir[],
           return -errno;
         }
 
-        // Opens the directory at currentPath and prints all the files found
-        // there (if there are any).
+        // Reads the directory at currentPath/dirLevel and prints all the
+        // files found there (if there are any).
         hcom_dir_mgmt_print_directory_files(dir, dirLevel, currentPath);
       }
 #if 0
@@ -262,7 +267,7 @@ static int hcom_dir_mgmt_find_next_directory(DIR *dir[],
     closedir(dir[dirLevel]);
 
     // Is the level equal to our starting level (i.e. are we finished?)
-    if(dirStartLvl == dirLevel)
+    if(dirEndLevel == dirLevel)
     {
       break;      // Break out of loop as we are done
     }
@@ -275,17 +280,16 @@ static int hcom_dir_mgmt_find_next_directory(DIR *dir[],
     dirLevel--;
   }
 
+  free(currentPath);
   return OK;
 }
 
 //===================================================================
-// Public - This is only diagnostic in nature, used to verify that the
-// subdirectory modifications were correct.
+// This is diagnostic, used to verify that the subdirectory
+// modifications were correct.
 int hcom_dir_mgmt_tst_log_directories_files(const char *initialDir)
 {
   int ret;
-  int dirLevel = 0;
-  DIR *dir[HCOM_FILE_DNLD_MAX_NUMB_ELEMENTS];
   
   if(initialDir == NULL || strlen(initialDir) < 1 || initialDir[0] != '/')
   {
@@ -293,21 +297,14 @@ int hcom_dir_mgmt_tst_log_directories_files(const char *initialDir)
     return -EINVAL;
   }
 
-  // Room for nesting of directories. This memory is used by this function to
-  // manage the current path as it changes up or down within the directory
-  // structure.
-  char *currentPath = malloc(512);
-  strcpy(currentPath, initialDir);
-
-  ret = hcom_dir_mgmt_find_next_directory(dir, dirLevel, currentPath);
+  // Do the heavy lifting
+  ret = hcom_dir_mgmt_find_next_directory(initialDir);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Listing files failed, ret:%d, errno:%d\n",
               thisFile, __LINE__, ret, errno);
     return -errno;
   }
-
-  free(currentPath);
 
   return OK;
 }
@@ -369,7 +366,7 @@ static int hcom_dir_mgmt_tst_recurse_nested_directories(const char *rootDir,
 
 //===========================================================================
 // THIS RECURSIVE CODE IS FOR DIAGNOSTICS, KEEPING SINCE IT WORKS.
-// Call using 'meadow set developer -d 13 -v n'
+// Used to confirm the above is correct
 //===========================================================================
 // Note: Using "/" as the rootDir would show all files and directories etc.
 static int hcom_dir_mgmt_tst_recurse_nested_directories_start(const char *rootDir)

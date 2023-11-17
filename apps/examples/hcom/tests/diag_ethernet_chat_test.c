@@ -275,7 +275,8 @@ FAR void *diag_ethernet_chat_thread(FAR void *arg)
     ret = echo_message_to_sender(acceptsd, buffer, nbytesread);
     if(ret < 0)
     {
-      syslog(LOG_ERR, "Chat Server:Attempt to send failed:0x%08x, errno:%d\n", ret, errno);
+      syslog(LOG_ERR, "Chat Server:Attempt to send failed:0x%08x, errno:%d\n",
+                ret, errno);
       
       if(ret == -ETHERNET_CHAT_MAGIC_ERROR_NUMB)
         goto errout_with_acceptsd;

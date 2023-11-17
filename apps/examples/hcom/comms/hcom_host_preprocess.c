@@ -258,8 +258,8 @@ static int hcom_host_process_init_write_or_del(hcom_dnld_shared_t *dnldShared,
       ret = hcom_dir_mgmt_check_and_add_subdir(dnldShared);
       if(ret < 0)
       {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-Checking subdir errno:%d, ret:%d\n",
-                  thisFile, __LINE__, errno, ret);
+        hcom_logging_syslog(LOG_ERR, "%s@%d-Checking subdir, ret:%d, errno:%d\n",
+                  thisFile, __LINE__, ret, errno);
         return ret;
       }
     }
@@ -267,8 +267,8 @@ static int hcom_host_process_init_write_or_del(hcom_dnld_shared_t *dnldShared,
     ret = hcom_host_watchdog_dnld_timer_initialize();
     if(ret < 0)
     {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-Timer init errno:%d, ret:%d\n",
-                thisFile, __LINE__, errno, ret);
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Timer init, ret:%d, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
 
       return ret;
     }
@@ -278,8 +278,8 @@ static int hcom_host_process_init_write_or_del(hcom_dnld_shared_t *dnldShared,
     ret = hcom_host_watchdog_dnld_timer_set_delay(HCOM_FILE_DNLD_STM32F7_WDOG_TIME);
     if(ret < 0)
     {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set errno:%d, ret:%d\n",
-                thisFile, __LINE__, errno, ret);
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set, ret:%d, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
     }
   }
 
@@ -361,7 +361,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
   uint32_t userData;
 
   // All messages contain a sequence number field. The sequence number
-  // determines if this packet is a command or data.
+  // determines if the packet is a command or data.
   HcomProtoDataMsg_t *hcomDataMsg = (HcomProtoDataMsg_t *) decodedPacket;
 
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Data seq:%d, len:%d\n",
@@ -379,14 +379,14 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
     // Data Packet - test for stm32f7 download error for Start or Data
     if(dnldShared->dnldCurrentState == HcomStm32F7DnldStateInvalid)
     {
-      // Let CLI user know the problem
+      // There must have been a previous error, let CLI user know
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
-              "Download Data received, but no active download", thisFile, __LINE__);
+              "No active download, but data received", thisFile, __LINE__);
 
-      hcom_logging_syslog(LOG_ERR, "%s@%d-Download Data received but no active download\n",
+      hcom_logging_syslog(LOG_ERR, "%s@%d-No active download, but 'File Data' received\n",
                 thisFile, __LINE__);
 
-      return -EOWNERDEAD;      // There must have been a previous error
+      return -EOWNERDEAD;  // There must have been a previous error
     }
 
     // Must be a Data Packet (download) because sequence number != 0.
@@ -394,12 +394,12 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
     // ESP32?
     if(hcom_host_process_is_stm32f7_dnld_active(dnldShared))
     {
-      // Keep resetting the watchdog here on every packet
+      // Keep resetting the watchdog here on every data packet
       ret = hcom_host_watchdog_dnld_timer_set_delay(HCOM_FILE_DNLD_STM32F7_WDOG_TIME);
       if(ret < 0)
       {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set errno:%d, ret:%d\n",
-                  thisFile, __LINE__, errno, ret);
+        hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set, ret:%d, errno:%d\n",
+                  thisFile, __LINE__, ret, errno);
         return ret;
       }
 
@@ -408,8 +408,8 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
                 dnldShared);
       if(ret < 0)
       {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-Receving data errno:%d, ret:%d\n",
-                  thisFile, __LINE__, errno, ret);
+        hcom_logging_syslog(LOG_ERR, "%s@%d-Receving data, ret:%d, errno:%d\n",
+                  thisFile, __LINE__, ret, errno);
         return ret;
       }
     }
@@ -444,6 +444,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
   userData = hdrMsg->stdHeader.userData;
   requestType = hdrMsg->stdHeader.rqstType;
 
+  // Verify protocol version
   if(hdrMsg->stdHeader.version < HCOM_PROTOCOL_PREFERRED_VERSION_NUMBER)
   {
     char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
@@ -502,8 +503,8 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
             decodedSize, false, false);
     if(ret < 0)
     {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-Init file list errno:%d, ret:%d\n",
-                thisFile, __LINE__, errno, ret);
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Init file list, ret:%d, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
 
       hcom_dir_mgmt_free_file_info(dnldShared);
       return ret;   // On error exit
@@ -516,8 +517,8 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
             decodedSize, false, true);
     if(ret < 0)
     {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-Init file list errno:%d, ret:%d\n",
-                thisFile, __LINE__, errno, ret);
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Init file list, ret:%d, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
 
       hcom_dir_mgmt_free_file_info(dnldShared);
       return ret;   // On error exit
@@ -536,8 +537,8 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
           decodedSize, requestType);
     if(ret < 0)
     {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-Init write/delete errno:%d, ret:%d\n",
-                thisFile, __LINE__, errno, ret);
+      hcom_logging_syslog(LOG_ERR, "%s@%d-File write/delete, ret:%d, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
 
       hcom_dir_mgmt_free_file_info(dnldShared);
 
@@ -556,18 +557,19 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
     // Did an earlier error occur? Looks like CLI sent ending message anyway.
     if(dnldShared->dnldCurrentState == HcomStm32F7DnldStateInvalid)
     {
-      // Let CLI know there's a problem
+      // There must have been a previous error, let CLI know
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
               "'End' command received, but no active download", thisFile, __LINE__);
 
-      hcom_logging_syslog(LOG_ERR, "%s@%d-Download End request but no active download.\n",
+      hcom_logging_syslog(LOG_ERR,
+                "%s@%d-No active download, but 'Download End' received\n",
                 thisFile, __LINE__);
 
       // Caller expects a Concluded message for End message.
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
                 thisFile, __LINE__);
 
-      return -EOWNERDEAD;      // There must have been a previous error
+      return -EOWNERDEAD;
     }
 
     // Since we're about to finish the data download, stop and delete
@@ -575,8 +577,8 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
     ret = hcom_host_watchdog_dnld_timer_delete();
     if(ret < 0)
     {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-Timer delete errno:%d, ret:%d\n",
-                thisFile, __LINE__, errno, ret);
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Timer delete, ret:%d, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
     }
   }
 
