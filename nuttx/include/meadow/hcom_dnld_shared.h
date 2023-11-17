@@ -42,6 +42,9 @@
 
 #define HCOM_FILE_DNLD_STM32F7_WDOG_TIME (3)
 
+// 8 elements in path will allow up to 6 subdirectories
+#define HCOM_FILE_DNLD_MAX_NUMB_ELEMENTS (8)
+
 // This enum defines the current processing state of the download code for a
 // specific download session. It is also used for file delete.
 // It is not used for ESP32 download, only external file system.

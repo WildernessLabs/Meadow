@@ -597,8 +597,8 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       hcom_dir_mgmt_free_file_info(dnldShared);
     }
 
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Request Type:%u errno:%d, ret:%d\n",
-              thisFile, __LINE__, requestType, errno, ret);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Request Type:%u, ret:%d, errno:%d\n",
+              thisFile, __LINE__, requestType, ret, errno);
   }
 
   return OK;

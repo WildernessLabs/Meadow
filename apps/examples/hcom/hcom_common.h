@@ -247,8 +247,6 @@ int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData);
 
 // -----------------------------------------------
 // File directory functions
-int hcom_dir_mgmt_print_files_and_directories(const char *initialDir);
-int hcom_dir_mgmt_read_nested_directories_start(const char *rootDir);
 int hcom_host_process_init_hcom_dnld_share(hcom_dnld_shared_t *dnldShared,
           const HcomProtoHdrMsg_t *hdrMsg, const size_t packetSize,
           bool isFileMsgType, bool endExpectFileName);

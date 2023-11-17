@@ -94,11 +94,6 @@ int hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShare
   if (ret < 0)
   {
     char *errorCause = malloc(HCOM_TINY_HOST_STRING_BUFF_LENGTH);
-
-    hcom_logging_syslog(LOG_ERR, "%s@%d-unlink %s, errno %d\n",
-             thisFile, __LINE__, dnldShared->dnldFullPathName,
-             get_errno());
-
     ret = -get_errno();
     switch(ret)
     {
@@ -124,8 +119,8 @@ int hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShare
       break;
     }
 
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Error-failed to delete:'%s', errno:%d (%s)\n",
-        thisFile, __LINE__, get_errno(), errorCause, dnldShared->dnldFullPathName);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Error-failed to delete:'%s' %s, errno:%d\n",
+        thisFile, __LINE__, dnldShared->dnldFullPathName, errorCause, get_errno());
 
     // Message to host PC
     snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
@@ -139,51 +134,76 @@ int hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShare
     // Concluded message will be sent by caller
     return ret;
   }
+#if defined (CONFIG_DIR_MGMT_TESTS)
+  {
+    syslog(2, "%s@%d-File:'%s' deleted, ret:%d, errno:%d\n",
+          thisFile, __LINE__, dnldShared->dnldFullPathName, ret, errno);
+  }
+#endif
 
   // Once the file has been deleted we must delete any related empty
   // subdirectories.
-  // An element count of 2 means there are no subdirectories.
+  // An element count of 2 means there will be no subdirectories.
   if(dnldShared->dnldPathNameEleCount > 2)
   {
     uint32_t dirDepth = dnldShared->dnldPathNameEleCount - 2;
-    char *pathNameTemp = malloc(strlen(dnldShared->dnldFullPathName));
+    char *pathNameTemp = malloc(strlen(dnldShared->dnldFullPathName) + 1);
     strcpy(pathNameTemp, dnldShared->dnldFullPathName);
 
-    // We'll move from the last directory to the first.
+    // We'll remove the deepest directory to the first.
     // Find the last '/' which should be the end of the string
     char *slashPtr = strrchr(pathNameTemp, '/');
-
     while(slashPtr != NULL && dirDepth > 0)
     {
       // Replace last '/' with NULL
       *slashPtr = '\0';
 
+#if defined (CONFIG_DIR_MGMT_TESTS)
+      syslog(2, "Attempting to delete:%s/n", pathNameTemp);
+#endif
+
       ret = rmdir(pathNameTemp);
       if(ret < 0)
       {
         // Have we reached the end of empty directories?
-        // Note: ENOTEMPTY in the NuttX errno.h file is 90 but rmdir returns
-        //  -39. I was only able to reconcile this by locating the littlefs header
-        //  file, lfs.h. I tried to reference this header at
-        //  nuttx/fs/littlefs/lfs.h but the compiler couldn't find it.
+        // Note: ENOTEMPTY in the NuttX errno.h file is 90 but rmdir returned
+        //  39. I was only able to reconcile this by locating the littlefs
+        //  header file, lfs.h which used 39 for not empty. I tried to
+        //  reference this header at nuttx/fs/littlefs/lfs.h but the compiler
+        //  couldn't find it because it's on the Nuttx side and this code is on
+        //  the apps side.
         //  Realizing that the Nuttx Rebase may well fix the problem, I decided
         //  to define it here.
-#define LITTLEFS_VERSION_OF_ENOTEMPTY (-39)
-        // If an attempt to delete a directory failed because wasn't empty.
-        // This is not an error, it just means we are finished removing empty
+#define LITTLEFS_VERSION_OF_ENOTEMPTY (39)
+        // If an attempt to delete a directory failed, because wasn't empty,
+        // this is not an error. It means we are finished removing empty
         // directories.
         if(errno != LITTLEFS_VERSION_OF_ENOTEMPTY)
         {
           syslog(LOG_ERR, "%s@%d-ERROR deleting directory '%s', ret:%d, errno:%d\n",
                     thisFile, __LINE__, pathNameTemp, ret, errno);
+          ret = -errno;
         }
+#if 1
+        else
+        {
+          syslog(2, "%s@%d-Directory '%s' is not empty, ret:%d, errno:%d\n",
+                    thisFile, __LINE__, pathNameTemp, ret, errno);
+        }
+#endif
         break;    // Leave directory delete loop
+      }
+      else
+      {
+        dnldShared->dnldPathNameEleCount--;
       }
 
       // Prep for next loop
       slashPtr = strrchr(pathNameTemp, '/');
       dirDepth--;
     }
+
+    free(pathNameTemp);
   }
 
   // Send text message to host.
