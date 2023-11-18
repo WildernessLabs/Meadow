@@ -85,10 +85,12 @@
 // This enum is used to classify CLI requests
 enum hcom_dir_mgmt_msg_type_e
 {
-  pathnameInvalid     = 0,    // Illegal format provided
-  pathnameOriginal    = 1,    // No '/' found
-  pathnameFullMeadow  = 2,    // Starts '/meadow0/'
-  pathnameFullMmcsd   = 3     // Starts '/mmcsd0/'
+  pathnameInvalid         = 0,    // Illegal format provided
+  pathnameInvalidNoSlash  = 1,    // No '/' not found but wanted
+  pathnameInvalidSlash    = 2,    // '/' found but not wanted
+  pathnameOriginal        = 3,    // No '/' found
+  pathnameFullMeadow      = 4,    // Starts '/meadow0/'
+  pathnameFullMmcsd       = 5     // Starts '/mmcsd0/'
 };
 
 /****************************************************************************
@@ -169,12 +171,12 @@ static int hcom_dir_mgmt_categorize_pathname(const char *pathName,
     if(endExpectFileName)
     {
       if(pathName[strLen-1] == '/')
-          return pathnameInvalid;
+          return pathnameInvalidSlash;
     }
     else
     {
       if(pathName[strLen-1] != '/')
-          return pathnameInvalid;
+          return pathnameInvalidNoSlash;
     }
 
     *pathNameElements = find_pathname_element_count(pathName, strLen);
@@ -192,12 +194,12 @@ static int hcom_dir_mgmt_categorize_pathname(const char *pathName,
       if(endExpectFileName)
       {
         if(pathName[strLen-1] == '/')
-            return pathnameInvalid;
+            return pathnameInvalidSlash;
       }
       else
       {
         if(pathName[strLen-1] != '/')
-            return pathnameInvalid;
+            return pathnameInvalidNoSlash;
       }
 
       *pathNameElements = find_pathname_element_count(pathName, strLen);
@@ -237,17 +239,14 @@ static int hcom_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
   strcpy(dnldShared->dnldOrigPathName, pathNameStr);
 
   // There are 3 valid file name formats.
-  // 1. A simple file name, with just a file name and nothing else.
+  // 1. A simple file name, with just a file name, nothing else.
   // 2. A file beginning with '/meadow0/'
   // 3. A file beginning with '/mmcsd0/'
-  // This call will catergorize as one of the above or error. In the case of
-  // a file within subdirectories, it will be considered a subdirectory as
-  // there's no way via text to tell the difference. It must be assumed that
-  // the final '/' signifies the start of the file name.
-  // This is used to further catergorize the request.
+  // This call will catergorize as one of the above or error. It is assumes
+  // that the final '/' signifies the start of the file name.
   catType = hcom_dir_mgmt_categorize_pathname(dnldShared->dnldOrigPathName,
             fileNameLength, &pathNameElements, endExpectFileName);
-  if(catType == pathnameInvalid)
+  if(catType == pathnameInvalid )
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-pathname '%s' is invalid\n",
               thisFile, __LINE__, dnldShared->dnldOrigPathName);
@@ -257,22 +256,41 @@ static int hcom_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
             "Path name '%s' is invalid\n", dnldShared->dnldOrigPathName);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
             hostMsg, thisFile, __LINE__);
-    free(hostMsg);
 
+    free(hostMsg);
+    return -EINVAL;   // Bad argument
+  }
+
+  if(catType == pathnameInvalidNoSlash || catType == pathnameInvalidSlash)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-pathname '%s' invalid, %s ending '/'\n",
+              thisFile, __LINE__, dnldShared->dnldOrigPathName,
+              catType==pathnameInvalidSlash ? "has" : "missing");
+
+    char *hostMsg = malloc(HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH);
+    snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
+            "Path name '%s' is invalid, %s ending '/'\n",
+            dnldShared->dnldOrigPathName,
+            catType==pathnameInvalidSlash ? "has" : "missing");
+
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
+            hostMsg, thisFile, __LINE__);
+
+    free(hostMsg);
     return -EINVAL;   // Bad argument
   }
 
   // The number of elements includes all levels.
   if(pathNameElements > HCOM_FILE_DNLD_MAX_NUMB_DIR_ELEMENTS)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-subdirectories: max is %lu, found %lu\n",
+    hcom_logging_syslog(LOG_ERR, "%s@%d-subdirectories limited to %lu, found %lu\n",
               thisFile, __LINE__,
               HCOM_FILE_DNLD_MAX_NUMB_USER_SUBDIRS,
               pathNameElements - HCOM_FILE_DNLD_MANDATORY_DIR_ELEMENTS);
 
     char *hostMsg = malloc(HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH);
     snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
-            "Path Names are limited to a maximum:%lu user defined subdirectories, requested:%lu\n",
+            "Subdirectories limited to %lu, request contained %lu\n",
             HCOM_FILE_DNLD_MAX_NUMB_USER_SUBDIRS,
             pathNameElements - HCOM_FILE_DNLD_MANDATORY_DIR_ELEMENTS);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
@@ -285,7 +303,7 @@ static int hcom_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
   // Save number of elements in pathname
   dnldShared->dnldPathNameEleCount = pathNameElements;
 
-  // Establish the full path name if original format provided.
+  // Establish the full path name from the format provided
   if(catType == pathnameOriginal)
   {
     // A file name based on the original naming convention needs
@@ -307,9 +325,8 @@ static int hcom_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
   }
   else
   {
-    // Since the entire path must be provide by the host message, we'll
-    // allocate the same size buffer as the originally string provided for the
-    // full path name.
+    // Since the entire path must have been provide by the host message, we'll
+    // allocate the same size buffer as the originally path name.
     dnldShared->dnldFullPathName = malloc(fileNameLength + 1);
     if(dnldShared->dnldFullPathName == NULL)
     {
@@ -317,7 +334,7 @@ static int hcom_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
       return -ENOMEM;
     }
 
-    // Just copy the name, null and all.
+    // Copy the name, null and all.
     strcpy(dnldShared->dnldFullPathName, dnldShared->dnldOrigPathName);
   }
 
@@ -329,10 +346,14 @@ static int hcom_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
  ***************************************************************************/
 // This public function will take the information from the request and save it
 // in the hcom_dnld_shared_t structure.
-// The isFileMsgType determines if the received messages is based on using
-// HcomProtoFileMsg_t or HcomProtoTextMsg_t.
-// The endExpectFileName is if the CLI provided pathname information end with a
-//   'dir/filename' or '.../directory/'
+//
+// The 'isFileMsgType' bool determines if the received messages used the
+// HcomProtoFileMsg_t or HcomProtoTextMsg_t struct to send the path name.
+// The 'endExpectFileName' bool determines if the CLI provided pathname
+// information ending in 'dir/filename' or '.../directory/'. Both are legal.
+// It depents on the type of request. A list request has no file name, and
+// it's last character must be '/'. Where a file download must end in a file
+// name, so doesn't end with '/'.
 int hcom_host_process_init_hcom_dnld_share(hcom_dnld_shared_t *dnldShared,
           const HcomProtoHdrMsg_t *hdrMsg, const size_t packetSize,
           bool isFileMsgType, bool endExpectFileName)

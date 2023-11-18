@@ -98,6 +98,9 @@ int hcom_file_lists_all_files_in_directory(const HcomProtoHdrMsg_t *hdrMsg,
   if(dnldShared->dnldPathNameEleCount == 0)
     useFullPath = false;
 
+  totalSizeOfFiles = 0;
+  totalFlashSizeKB = 0;
+
   while((direntry = readdir(dirp)) != NULL)
   {
     if(DIRENT_ISFILE(direntry->d_type))
@@ -107,9 +110,6 @@ int hcom_file_lists_all_files_in_directory(const HcomProtoHdrMsg_t *hdrMsg,
       // CRC or No CRC?
       if(isCrcNeeded)
       {
-        totalSizeOfFiles = 0;
-        totalFlashSizeKB = 0;
-
         if(DIRENT_ISFILE(direntry->d_type))
         {
           char *completeNameBuf = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
@@ -151,7 +151,7 @@ int hcom_file_lists_all_files_in_directory(const HcomProtoHdrMsg_t *hdrMsg,
 
           hcom_logging_syslog(LOG_INFO, "%s@%d-%s%s checksum:0x%08x, %d KB (%u bytes)\n",
                     thisFile, __LINE__,
-                  useFullPath ? dnldShared->dnldFullPathName : "",
+                    useFullPath ? dnldShared->dnldFullPathName : "",
                     direntry->d_name,
                     crcChecksum, blockSizeKB, fileSize);
 

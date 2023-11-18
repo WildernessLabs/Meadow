@@ -137,7 +137,7 @@ int hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShare
   else
   {
 #if defined (CONFIG_DIR_MGMT_TESTS)
-    syslog(2, "%s@%d-File:'%s' deleted\n",
+    syslog(2, "%s@%d-DIAG-File:'%s' deleted\n",
           thisFile, __LINE__, dnldShared->dnldFullPathName);
 #endif
   }
@@ -186,7 +186,7 @@ int hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShare
         else
         {
 #if defined (CONFIG_DIR_MGMT_TESTS)
-          syslog(2, "%s@%d-FYI-Directory '%s' not empty\n",
+          syslog(2, "%s@%d-DIAG-Directory '%s' not empty\n",
                     thisFile, __LINE__, pathNameTemp);
 #endif
           // Directory empty is not an error and a file delete failure has
@@ -199,7 +199,7 @@ int hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShare
       // Prep for next loop
       dnldShared->dnldPathNameEleCount--;
 #if defined (CONFIG_DIR_MGMT_TESTS)
-      syslog(2, "%s@%d-Path Name:'%s' last element removed, elements left:%lu.\n",
+      syslog(2, "%s@%d-DIAG-Path Name:'%s' last element removed, elements left:%lu.\n",
                 thisFile, __LINE__, pathNameTemp,
                 dnldShared->dnldPathNameEleCount);
 #endif
