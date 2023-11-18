@@ -64,10 +64,8 @@ static int hcom_file_lists_all_dev_dir_and_files(const char *name, int indent, u
  * Public Functions
  ****************************************************************************/
 // This single function handles file list with and without CRC checksum.
-int hcom_file_lists_all_files_in_directory(uint32_t partitionId,
-          const HcomProtoHdrMsg_t *hdrMsg,
-          hcom_dnld_shared_t *dnldShared,
-          bool isCrcNeeded)
+int hcom_file_lists_all_files_in_directory(const HcomProtoHdrMsg_t *hdrMsg,
+          hcom_dnld_shared_t *dnldShared, bool isCrcNeeded)
 {
   int fileCount = 0;
   DIR *dirp;

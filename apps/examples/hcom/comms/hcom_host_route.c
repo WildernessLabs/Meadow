@@ -163,13 +163,13 @@ int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
 
     case HCOM_MDOW_REQUEST_LIST_PARTITION_FILES:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_lists_all_files_in_directory(userData, hdrMsg, dnldShared, false);
+      hcom_file_lists_all_files_in_directory(hdrMsg, dnldShared, false);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_lists_all_files_in_directory(userData, hdrMsg, dnldShared, true);
+      hcom_file_lists_all_files_in_directory(hdrMsg, dnldShared, true);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
