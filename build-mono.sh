@@ -103,7 +103,6 @@ CONFIGURE="./configure
     --disable-executables
     --enable-small-config
     --disable-support-build
-    --enable-cooperative-suspend
     --enable-interpreter
     --enable-nls=no
     --enable-mbedtls=yes
