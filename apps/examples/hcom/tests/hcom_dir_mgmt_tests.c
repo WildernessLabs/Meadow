@@ -69,20 +69,19 @@ static char *thisFile = __FILE__;
  ****************************************************************************/
 static int hcom_dir_mgmt_tst_log_directories_files(const char *initialDir);
 
-#if HCOM_DIR_MGMT_TST_SHOW_FULL_FILE_STATUS > 0
 //===================================================================
 // Debug code. If needed use this function with the following debug code
-static void hcom_dir_mgmt_find_file_status(char *path)
+static off_t hcom_dir_mgmt_find_file_status(char *path)
 {
   int ret;
   struct stat statBuf;
-
   ret = stat(path, &statBuf);
   if (ret < 0)
   {
     syslog(2, "stat call error. ret:%d, errno:%d\n", ret, errno);
-    return;
+    return -1;
   }
+#if HCOM_DIR_MGMT_TST_SHOW_FULL_FILE_STATUS > 0
   
   syslog(2, "Reported by stat:\n");
 
@@ -115,10 +114,17 @@ static void hcom_dir_mgmt_find_file_status(char *path)
   syslog(2, "access time : %d\n",          statBuf.st_atime);
   syslog(2, "modify time : %d\n",          statBuf.st_mtime);
   syslog(2, "change time : %d\n",          statBuf.st_ctime);
+#endif
 
+#if HCOM_DIR_MGMT_TST_SHOW_FULL_FILE_STATUS > 0
   struct statfs buf;
   ret = statfs(path, &buf);
-  if (ret == 0)
+  if (ret < 0)
+  {
+    syslog(2, "ERROR statfs(%s) failed with errno=%d\n", path, errno);
+    return -1;
+  }
+  else
   {
     // LITTLEFS_SUPER_MAGIC = 0x0a732923
     syslog(2, "Reported by statfs:\n");
@@ -131,13 +137,10 @@ static void hcom_dir_mgmt_find_file_status(char *path)
     syslog(2, "Free file nodes   : %d\n",  buf.f_ffree);
     syslog(2, "File name length  : %d\n",  buf.f_namelen);
   }
-  else
-  {
-    syslog(2, "show_statfs: ERROR statfs(%s) failed with errno=%d\n",
-            path, errno);
-  }
-}
 #endif
+
+  return statBuf.st_size;
+}
 
 //===================================================================
 // This function prints the path as a directory header and all the file found
@@ -148,7 +151,7 @@ static void hcom_dir_mgmt_print_directory_files(DIR *dir[],
   struct dirent *entry;
   bool filesFound = false;
   int fileCount = 0;
-  
+
   while ((entry = readdir(dir[dirLevel])) != NULL)
   {
     if (DIRENT_ISFILE(entry->d_type))
@@ -162,11 +165,17 @@ static void hcom_dir_mgmt_print_directory_files(DIR *dir[],
         filesFound = true;
       }
 
-      // Print file information
-      syslog(2, "  %s\n", entry->d_name);
-#if HCOM_DIR_MGMT_TST_SHOW_FULL_FILE_STATUS > 0
-      hcom_dir_mgmt_find_file_status(currentPath);
-#endif
+      // Print file with file size
+      char * fullFileName = malloc(512);
+      size_t cPathLen = strlen(currentPath);
+      memcpy(fullFileName, currentPath, cPathLen);
+      fullFileName[cPathLen] = '\0';
+      strcat(fullFileName, "/");
+      strcat(fullFileName, entry->d_name);
+      off_t fsize = hcom_dir_mgmt_find_file_status(fullFileName);
+      free(fullFileName);
+
+      syslog(2, "  %s [%ld bytes]\n", entry->d_name, fsize);
       fileCount++;
     }
   }

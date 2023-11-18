@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\file\hcom_file_upld_proc.c
  * 
- *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2021-2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,10 @@
 #include <meadow/hcom_shared_common.h>
 
 #include <nuttx/arch.h>
+
+#if defined (CONFIG_DIR_MGMT_TESTS)
+#pragma message "(--) hcom_file_upld_proc.c"
+#endif
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -226,7 +230,13 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
 //=============================================================
 int hcom_file_upld_proc_start_file_upload(hcom_dnld_shared_t *dnldShared)
 {
+  int detectError;
+  uint32_t blockSizeKB;   // Required for call but not used
   uint32_t crc32Checksum = 0;
+  off_t fileSize;
+  size_t totalMsgLength;
+  size_t activeFileNameLen;  
+  HcomProtoFileMsg_t *fileMsg;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];   // 128 bytes
 
   _uploadAction = HcomUpldActionNone;
@@ -266,10 +276,6 @@ int hcom_file_upld_proc_start_file_upload(hcom_dnld_shared_t *dnldShared)
     return -errno;
   }
 
-  int detectError;
-  uint32_t blockSizeKB;   // Required for call but not used
-  off_t fileSize;
-
   // Calculate the CRC checksum
   crc32Checksum = hcom_file_misc_calc_crc_for_file_fd(dnldShared->dnldFileFD,
           dnldShared->dnldFullPathName,
@@ -295,10 +301,13 @@ int hcom_file_upld_proc_start_file_upload(hcom_dnld_shared_t *dnldShared)
   }
 
   // Report to the host upload success thus far and wait for a response
-  size_t totalMsgLength;
-  HcomProtoFileMsg_t *fileMsg;
+  activeFileNameLen = strlen(dnldShared->dnldFullPathName) + 1;
+  totalMsgLength = activeFileNameLen + HCOM_PROTOCOL_FILE_MSG_LENGTH;
+
+  // syslog(2, "%s@%d-start_file_upload, from FS fileSize:%ld, totalMsgLength:%lu, fileNameLen:%lu\n",
+  //         thisFile, __LINE__, fileSize, totalMsgLength, activeFileNameLen); usleep(20 * 1000);
   
-  fileMsg = (HcomProtoFileMsg_t *)malloc(HCOM_PROTOCOL_FILE_MSG_LENGTH);
+  fileMsg = (HcomProtoFileMsg_t *)malloc(totalMsgLength);
   if(fileMsg == NULL)
   {
     snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
@@ -324,17 +333,11 @@ int hcom_file_upld_proc_start_file_upload(hcom_dnld_shared_t *dnldShared)
   fileMsg->stdHeader.rqstType = HCOM_HOST_REQUEST_INIT_UPLOAD_OKAY;
 
   // Copy the file name to the end of the message structure
-  size_t activeFileNameLen = strlen(dnldShared->dnldFullPathName) + 1;
   memcpy(fileMsg->fileInfo.fileName, dnldShared->dnldFullPathName,
             activeFileNameLen);
 
-  totalMsgLength = activeFileNameLen + HCOM_PROTOCOL_FILE_MSG_LENGTH;
-
   // syslog(2, "Up---> File CRC is:0x%08x, filesize:%lu, filename:'%s'. Sending 'Init upload OK' to HOST\n",
   //           crc32Checksum, fileSize, fileMsg->fileInfo.fileName);
-
-  hcom_diag_print_buffer((uint8_t*)fileMsg, HCOM_PROTOCOL_FILE_MSG_LENGTH, 1);
-usleep(20 * 1000);
 
   // This message contains what the host needs to start receiving a file
   hcom_host_send_std_msg_data((HcomProtoHdrMsg_t *)fileMsg,
