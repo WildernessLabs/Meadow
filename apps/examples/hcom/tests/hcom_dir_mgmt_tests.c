@@ -159,13 +159,15 @@ static void hcom_dir_mgmt_print_directory_files(DIR *dir[],
       // Found a file
       if(!filesFound)
       {
-        // Skip a line and print this directory path as a header to the files
+        // Skip a line and print this directory path as a header before the
+        // first file is printed
         syslog(2, "\n");
         syslog(2, "Directory:%s\n", currentPath);
         filesFound = true;
       }
 
-      // Print file with file size
+      // Print file name with file size
+      // At this point currentPath doesn't contain the file name
       char * fullFileName = malloc(512);
       size_t cPathLen = strlen(currentPath);
       memcpy(fullFileName, currentPath, cPathLen);
@@ -186,12 +188,10 @@ static void hcom_dir_mgmt_print_directory_files(DIR *dir[],
     syslog(2, "----------%d Total File(s) (Level:%d)----------\n",
               fileCount, dirLevel);
   }
-#if 1
   else
   {
     syslog(2, "Empty directory:%s\n", currentPath);
   }
-#endif
 
   // Return to the start of directory and look for deeper directories
   rewinddir(dir[dirLevel]);
@@ -204,27 +204,35 @@ static void hcom_dir_mgmt_print_directory_files(DIR *dir[],
 static int hcom_dir_mgmt_find_next_directory(const char *initialDir)
 {
   int dirLevel = 0;
-  int dirEndLevel = dirLevel;
+  int dirEndLevel;
   DIR *dir[HCOM_FILE_DNLD_MAX_NUMB_DIR_ELEMENTS];
   struct dirent *entry;
-  char *currentPath = malloc(1024);  // malloc size is a guess!!!
+  char *currentPath = malloc(1024);  // malloc size is a guess
+  bool showAll = false;
 
-  // This code manages currentPath and dirlevel as it moves up and down within
-  // the directory structure.
+  // Single '/'? If so, show all the data and types.
+  if(strlen(initialDir) == 1)
+  {
+    showAll = true;
+  }
+
+  dirEndLevel = dirLevel;
   strcpy(currentPath, initialDir);
 
   // Open the initial directory entry and place it in the array
   dir[dirLevel] = opendir(currentPath);
   if(dir[dirLevel] == NULL)
   {
-    syslog(LOG_ERR, "%s@%d-opendir failed, errno:%d, Path:'%s'\n",
-              thisFile, __LINE__, errno, currentPath);
+    syslog(LOG_ERR, "%s@%d-opendir failed, errno:%d, Path:'%s', dir level:%d\n",
+              thisFile, __LINE__, errno, currentPath, dirLevel);
     return -errno;
   }
 
   // Print files from starting directory
   hcom_dir_mgmt_print_directory_files(dir, dirLevel, currentPath);
 
+  // Manage currentPath and dirlevel as it moves up and down within
+  // the directory structure.
   while(true)
   {
     // Search for directories in currentPath, which may change multiple times
@@ -240,7 +248,13 @@ static int hcom_dir_mgmt_find_next_directory(const char *initialDir)
           continue;
 
         // Update the currentPath to include the just found child directory
-        strcat(currentPath, "/");
+        // If the only character is '/' we are at the root directory and don't
+        // want to add another '/'.
+        if(!(strlen(currentPath) == 1 && currentPath[0] == '/'))
+        {
+          strcat(currentPath, "/");
+        }
+
         strcat(currentPath, entry->d_name);
         dirLevel++;
 
@@ -248,8 +262,8 @@ static int hcom_dir_mgmt_find_next_directory(const char *initialDir)
         dir[dirLevel] = opendir(currentPath);
         if(dir[dirLevel] == NULL)
         {
-          syslog(LOG_ERR, "%s@%d-opendir failed, errno:%d, Path:'%s'\n",
-                    thisFile, __LINE__, errno, currentPath);
+          syslog(LOG_ERR, "%s@%d-opendir failed, errno:%d, Path:'%s', dir level:%d\n",
+                    thisFile, __LINE__, errno, currentPath, dirLevel);
           return -errno;
         }
 
@@ -257,19 +271,19 @@ static int hcom_dir_mgmt_find_next_directory(const char *initialDir)
         // files found there (if there are any).
         hcom_dir_mgmt_print_directory_files(dir, dirLevel, currentPath);
       }
-#if 0
-      else
+      else if(showAll)
       {
+        // All non-file types if starting at root directory
         char *entryType;
-        if(DIRENT_ISFILE(entry->d_type)) {entryType = "file";}
-        else if(DIRENT_ISCHR(entry->d_type)) {entryType = "char";}
-        else if(DIRENT_ISBLK(entry->d_type)) {entryType = "block";}
-        else if(DIRENT_ISLINK(entry->d_type)) {entryType = "link";}
-        else {entryType = "????";}
-        syslog(2, "%s@%d-At:'%s', %s type found, named:%s\n",
-                  thisFile, __LINE__, currentPath, entryType, entry->d_name);
+        if(! (DIRENT_ISFILE(entry->d_type)))
+        {
+          if(DIRENT_ISCHR(entry->d_type)) {entryType = "char";}
+          else if(DIRENT_ISBLK(entry->d_type)) {entryType = "block";}
+          else if(DIRENT_ISLINK(entry->d_type)) {entryType = "link";}
+          else {entryType = "????";}
+          syslog(2, "%s/%s [%s]\n", currentPath, entry->d_name, entryType);
+        }
       }
-#endif
     }
 
     // We reached the bottom of this directory branch
@@ -294,8 +308,8 @@ static int hcom_dir_mgmt_find_next_directory(const char *initialDir)
 }
 
 //===================================================================
-// This is diagnostic, used to verify that the subdirectory
-// modifications were correct.
+// This is the entry point for the non-recursive version. It was used to
+// verify that the subdirectory additions were correctly done.
 int hcom_dir_mgmt_tst_log_directories_files(const char *initialDir)
 {
   int ret;
@@ -319,7 +333,7 @@ int hcom_dir_mgmt_tst_log_directories_files(const char *initialDir)
 }
 
 //--------------------------------------------------------------------------
-// NOTE - Recursive function, is not public
+// NOTE - Recursive function
 static int hcom_dir_mgmt_tst_recurse_nested_directories(const char *rootDir,
             char *hostMsg, struct dirent *entry, int indent)
 {
@@ -374,8 +388,8 @@ static int hcom_dir_mgmt_tst_recurse_nested_directories(const char *rootDir,
 }
 
 //===========================================================================
-// THIS RECURSIVE CODE IS FOR DIAGNOSTICS, KEEPING SINCE IT WORKS.
-// Used to confirm the above is correct
+// THIS RECURSIVE CODE IS FOR DIAGNOSTICS
+// Used to confirm the above non recursive is correct
 //===========================================================================
 // Note: Using "/" as the rootDir would show all files and directories etc.
 static int hcom_dir_mgmt_tst_recurse_nested_directories_start(const char *rootDir)
@@ -448,14 +462,22 @@ void meadow_dir_mgmt_tests(uint32_t userData)
     break;
 
   case 8:
+    hcom_dir_mgmt_tst_log_directories_files("/sdcard");
+    break;
+
+  case 9:
     hcom_dir_mgmt_tst_log_directories_files("/");
     break;
 
-  case 9:       // Illegal
-    hcom_dir_mgmt_tst_log_directories_files("");
+  case 10:
+    hcom_dir_mgmt_tst_log_directories_files("/dev");
     break;
 
-  case 10:       // Illegal
+  case 11:       // Illegal
+    hcom_dir_mgmt_tst_log_directories_files("");
+
+    break;
+  case 12:       // Illegal
     hcom_dir_mgmt_tst_log_directories_files(NULL);
     break;
 
