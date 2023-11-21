@@ -88,6 +88,8 @@
 #define MONO_MEADOW_EXECUTABLE_APP_EXE "/meadow/Meadow.dll"
 #endif
 
+#define MEADOW_SDCARD_MOUNT_POINT_NAME  "/sdcard"
+
 #define HCOM_NX_FS_MONO_RAW_PARTITION_SIZE 0x300000 // 3MB
 #define HCOM_NX_FS_OTA_RESERVED_SPACE 0x200000 // 2MB reserved space for updates
 #define HCOM_NX_FS_NUTTX_UPDATE_SIZE 0x1C0000   // (2MB - 256KB)

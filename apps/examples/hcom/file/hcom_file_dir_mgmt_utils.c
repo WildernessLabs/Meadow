@@ -49,7 +49,7 @@
 // 5. Reads from a non-existing directory will return an error.
 // 6. There is a nesting limit for directories of 6, not counting /meadow0.
 // 7. When a file is delete all lower, empty directories will be deleted.
-// 8. All file writes or reads for the SD-Card must begin with /mmcsd0/.
+// 8. All file writes or reads for the SD-Card must begin with /sdcard/.
 
 /****************************************************************************
  * Included Files
@@ -79,7 +79,7 @@
 // The following deal with testing subdirectory support
 #define MEADOW_FILE_SUBDIR_PREPEND_MEADOW_STR   ("/meadow0/")
 #define MEADOW_FILE_SUBDIR_PREPEND_MEADOW_LEN   (9)
-#define MEADOW_FILE_SUBDIR_PREPEND_SDCARD_STR   ("/mmcsd0/")
+#define MEADOW_FILE_SUBDIR_PREPEND_SDCARD_STR   ("/sdcard/")
 #define MEADOW_FILE_SUBDIR_PREPEND_SDCARD_LEN   (8)
 
 // This enum is used to classify CLI requests
@@ -90,7 +90,7 @@ enum hcom_dir_mgmt_msg_type_e
   pathnameInvalidSlash    = 2,    // '/' found but not wanted
   pathnameOriginal        = 3,    // No '/' found
   pathnameFullMeadow      = 4,    // Starts '/meadow0/'
-  pathnameFullMmcsd       = 5     // Starts '/mmcsd0/'
+  pathnameFullMmcsd       = 5     // Starts '/sdcard/'
 };
 
 /****************************************************************************
@@ -189,7 +189,7 @@ static int hcom_dir_mgmt_categorize_pathname(const char *pathName,
     meadow_configuration_t *config = meadow_os_deep_copy_config();
     if (config->sd_storage_supported)
     {
-      // '/mmcsd0/' found, but can't end in '/', must have file name, unless this
+      // '/sdcard/' found, but can't end in '/', must have file name, unless this
       // being called for a file list, in which case it must end in '/'.
       if(endExpectFileName)
       {
@@ -241,7 +241,7 @@ static int hcom_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
   // There are 3 valid file name formats.
   // 1. A simple file name, with just a file name, nothing else.
   // 2. A file beginning with '/meadow0/'
-  // 3. A file beginning with '/mmcsd0/'
+  // 3. A file beginning with '/sdcard/'
   // This call will catergorize as one of the above or error. It is assumes
   // that the final '/' signifies the start of the file name.
   catType = hcom_dir_mgmt_categorize_pathname(dnldShared->dnldOrigPathName,

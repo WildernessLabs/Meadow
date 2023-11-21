@@ -443,7 +443,7 @@ void meadow_dir_mgmt_tests(uint32_t userData)
     break;
 
   case 3:
-    hcom_dir_mgmt_tst_recurse_nested_directories_start("/mmcsd0");
+    hcom_dir_mgmt_tst_recurse_nested_directories_start("/sdcard");
     break;
 
   case 4:
