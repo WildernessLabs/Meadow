@@ -190,6 +190,7 @@ static void hcom_dir_mgmt_print_directory_files(DIR *dir[],
   }
   else
   {
+    syslog(2, "\n");
     syslog(2, "Empty directory:%s\n", currentPath);
   }
 
@@ -431,7 +432,7 @@ void meadow_dir_mgmt_tests(uint32_t userData)
         return;
       }
       usedBytes = totalBytes - freeBytes;
-      syslog(2, "--> Total bytes:%lu (%luMb), Free bytes:%lu (%luMb), Used bytes (calculated):%lu (%luMb)\n",
+      syslog(2, "Total bytes:%lu (%luMb), Free bytes:%lu (%luMb), Used bytes (calculated):%lu (%luMb)\n",
                 totalBytes, totalBytes/(1024*1024),
                 freeBytes, freeBytes/(1024*1024),
                 usedBytes, usedBytes/(1024*1024));
