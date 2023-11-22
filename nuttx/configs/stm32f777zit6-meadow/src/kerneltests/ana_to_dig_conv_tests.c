@@ -105,7 +105,7 @@ static uint32_t _numbGpioActive;
 enum
 {
   unknown           = 0,
-  configure0Gpio    = 1,    // Config 1 GPIO
+  configure0Gpio    = 1,    // Config 0 GPIOs
   configure1Gpio    = 2,    // Config 1 GPIO
   configure8Gpio    = 3,    // Config 8 GPIOs
   configure16Gpio   = 4,    // Config 16 GPIOs

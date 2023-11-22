@@ -98,19 +98,23 @@ int hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShare
     switch(ret)
     {
       case -ENOENT: // No such file or directory
-      strcpy(errorCause, "No such file");
+      strncpy(errorCause, "No such file",
+                HCOM_TINY_HOST_STRING_BUFF_LENGTH);
       break;
 
       case -EEXIST: // File already open
-      strcpy(errorCause, "Another file is being processed");
+      strncpy(errorCause, "Another file is being processed",
+                HCOM_TINY_HOST_STRING_BUFF_LENGTH);
       break;
       
       case -ENAMETOOLONG: // File name too long
-      strcpy(errorCause, "File name too long");
+      strncpy(errorCause, "File name too long",
+                HCOM_TINY_HOST_STRING_BUFF_LENGTH);
       break;
 
       case -EMFILE: // Too many files open
-      strcpy(errorCause, "Too many files open");
+      strncpy(errorCause, "Too many files open",
+                HCOM_TINY_HOST_STRING_BUFF_LENGTH);
       break;
 
       default:  // different error

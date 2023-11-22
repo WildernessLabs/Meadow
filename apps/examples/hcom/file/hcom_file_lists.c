@@ -89,6 +89,7 @@ int hcom_file_lists_all_files_in_directory(const HcomProtoHdrMsg_t *hdrMsg,
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-opendir(\"%s\") errno:%d\n",
               thisFile, __LINE__, dnldShared->dnldFullPathName, errno);
+    free(fileFoundName);
     return -1;
   }
 
@@ -116,6 +117,7 @@ int hcom_file_lists_all_files_in_directory(const HcomProtoHdrMsg_t *hdrMsg,
           if(completeNameBuf == NULL)
           {
             hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+            free(fileFoundName);
             return -ENOMEM;
           }
 
@@ -133,6 +135,9 @@ int hcom_file_lists_all_files_in_directory(const HcomProtoHdrMsg_t *hdrMsg,
           {
             hcom_logging_syslog(LOG_ERR, "%s@%d-Error in Checksum calculation,err:%d\n",
                       thisFile, __LINE__, detectError);
+            
+            free(completeNameBuf);
+            free(fileFoundName);
             return detectError;
           }
         

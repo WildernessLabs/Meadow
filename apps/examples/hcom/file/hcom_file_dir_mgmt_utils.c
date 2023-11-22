@@ -144,9 +144,9 @@ static uint32_t find_pathname_element_count(const char *pathName, size_t strLen)
 // '/filename' - has leading '/'
 // /dirname/filename/ - missing leading '/meadow0'
 // endExpectFileName: true = pathname no ending '/', false = ending '/' needed
-static int hcom_dir_mgmt_categorize_pathname(const char *pathName,
-          size_t strLen, uint32_t *pathNameElements,
-          bool endExpectFileName)
+static enum hcom_dir_mgmt_msg_type_e hcom_dir_mgmt_categorize_pathname(
+          const char *pathName, size_t strLen,
+          uint32_t *pathNameElements, bool endExpectFileName)
 {
   *pathNameElements = 0;
 
@@ -252,6 +252,13 @@ static int hcom_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
               thisFile, __LINE__, dnldShared->dnldOrigPathName);
 
     char *hostMsg = malloc(HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH);
+    if(hostMsg == NULL)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n",
+                thisFile, __LINE__);
+      return -ENOMEM;   // No Memory
+    }
+    
     snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
             "Path name '%s' is invalid\n", dnldShared->dnldOrigPathName);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
@@ -268,6 +275,12 @@ static int hcom_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
               catType==pathnameInvalidSlash ? "has" : "missing");
 
     char *hostMsg = malloc(HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH);
+    if(hostMsg == NULL)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n",
+                thisFile, __LINE__);
+      return -ENOMEM;   // No Memory
+    }
     snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
             "Path name '%s' is invalid, %s ending '/'\n",
             dnldShared->dnldOrigPathName,
@@ -289,6 +302,13 @@ static int hcom_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
               pathNameElements - HCOM_FILE_DNLD_MANDATORY_DIR_ELEMENTS);
 
     char *hostMsg = malloc(HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH);
+    if(hostMsg == NULL)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n",
+                thisFile, __LINE__);
+      return -ENOMEM;   // No Memory
+    }
+
     snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
             "Subdirectories limited to %lu, request contained %lu\n",
             HCOM_FILE_DNLD_MAX_NUMB_USER_SUBDIRS,
@@ -296,7 +316,6 @@ static int hcom_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
             hostMsg, thisFile, __LINE__);
     free(hostMsg);
-
     return -EINVAL;
   }
 
@@ -436,6 +455,13 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
 
   // Allocate a modifiable version of the string
   char *fullFileNamePath = malloc(strlen(dnldShared->dnldFullPathName));
+  if(fullFileNamePath == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n",
+              thisFile, __LINE__);
+    return -ENOMEM;
+  }
+
   strcpy(fullFileNamePath, dnldShared->dnldFullPathName);
 
   token = strtok_r(fullFileNamePath, "/", &savePtr);
@@ -454,10 +480,11 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
     dirOffset[tokenCount] = (token - fullFileNamePath);
   }
 
-  // fullFileNamePath now contains all the subdirectory elements as C strings.
-  // This loop will add 1 '/' element on each pass to eventually reconstruct
-  // the entire path. As each element is added, stat() will determine if this
-  // element exist. if not it will be created.
+  // fullFileNamePath now contains all the subdirectory elements as NULL
+  // separated C strings.
+  // This loop will replace 1 NULL with a '/' on each pass to eventually
+  // reconstruct the entire path. As each element is added, stat() will
+  // determine if this element exist. if not it will be created.
   // The number of directories is 1 less than the number of elements, so we -1.
   for(dirLevel = 0; dirLevel < dnldShared->dnldPathNameEleCount - 1; dirLevel++)
   {
@@ -485,6 +512,14 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
                     thisFile, __LINE__, fullFileNamePath, ret, errno);
 
           char *hostMsg = malloc(HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH);
+          if(hostMsg == NULL)
+          {
+            hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n",
+                      thisFile, __LINE__);
+            free(fullFileNamePath);
+            return -ENOMEM;
+          }
+
           snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
                   "Create directory '%s' failed, ret:%d, errno:%d\n",
                   fullFileNamePath, ret, errno);
@@ -511,6 +546,15 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
       {
         // All entries must be a directory, if not, it's an error
         char *hostMsg = malloc(HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH);
+        if(hostMsg == NULL)
+        {
+          hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n",
+                    thisFile, __LINE__);
+          free(hostMsg);
+          free(fullFileNamePath);
+          return -ENOMEM;
+        }
+
         snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
                 "Pathname '%s' is invalid, last element not a directory\n",
                  fullFileNamePath);
@@ -521,11 +565,11 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
         return -ENOTDIR;
       }
 
+      free(fullFileNamePath);
       return ret;
     }
   }
 
   free(fullFileNamePath);
-
   return OK;
 }

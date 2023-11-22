@@ -57,8 +57,8 @@ static char *thisFile = __FILE__;
 
 static bool _shutting_down;
 
-// The following are allocated at startup
-static hcom_dnld_shared_t *_DnldShared;
+// The following are allocated at startup and continue for the life of Meadow
+static hcom_dnld_shared_t *_dnldShared;
 static uint8_t *_packet_dest_buf = NULL;
 static uint8_t *_decode_dest_buf = NULL;
 
@@ -95,26 +95,34 @@ int hcom_host_process_setup()
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Decoded allocation failed\n",
               thisFile, __LINE__);
+    free(_packet_dest_buf);
     return -ENOMEM;
   }
 
   // One time allocation for the download shared structure
-  _DnldShared = malloc(sizeof(hcom_dnld_shared_t));
-  if (_decode_dest_buf == NULL)
+  _dnldShared = malloc(sizeof(hcom_dnld_shared_t));
+  if (_dnldShared == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Download shared allocation failed\n",
               thisFile, __LINE__);
+
+    free(_packet_dest_buf);
+    free(_decode_dest_buf);
     return -ENOMEM;
   }
 
-  memset(_DnldShared, 0, sizeof(hcom_dnld_shared_t));
+  memset(_dnldShared, 0, sizeof(hcom_dnld_shared_t));
 
   // The watchdog needs access to the download shared structure
-  ret = hcom_host_watchdog_initialize(_DnldShared);
+  ret = hcom_host_watchdog_initialize(_dnldShared);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Watchdog init failed:%d\n",
               thisFile, __LINE__, ret);
+
+    free(_packet_dest_buf);
+    free(_decode_dest_buf);
+    free(_dnldShared);
     return -ENOEXEC;    // May be better error code....
   }
 
@@ -137,8 +145,13 @@ int hcom_host_process_setup()
   ret = sigprocmask(SIG_UNBLOCK, &set, NULL);
   if (ret != OK)
   {
+    
     hcom_logging_syslog(LOG_ERR, "%s@%d-sigprocmask() failed:%d\n",
               thisFile, __LINE__, ret);
+              
+    free(_packet_dest_buf);
+    free(_decode_dest_buf);
+    free(_dnldShared);
     return -EPERM;
   }
 
@@ -146,7 +159,10 @@ int hcom_host_process_setup()
   // call will never return.
   ret = hcom_host_process_run_loop();
  
-  // This return is only reached on shutddown
+  // This return should only reached on shutddown.
+  free(_packet_dest_buf);
+  free(_decode_dest_buf);
+  free(_dnldShared);
   return ret;
 }
 
@@ -198,7 +214,7 @@ void hcom_host_process_shutdown()
   free(_decode_dest_buf);
   free(_packet_dest_buf);
 
-  hcom_dir_mgmt_free_file_info(_DnldShared);
+  hcom_dir_mgmt_free_file_info(_dnldShared);
 }
 
 //==========================================================================
@@ -307,7 +323,7 @@ int hcom_host_process_run_loop()
                   thisFile, __LINE__);
 
         // If any download/delete state information, delete it
-        hcom_dir_mgmt_free_file_info(_DnldShared);
+        hcom_dir_mgmt_free_file_info(_dnldShared);
       }
       else
       {
@@ -325,7 +341,7 @@ int hcom_host_process_run_loop()
       continue;
 
     // Do initial processing of packet
-    ret = hcom_host_preprocess_packet(_DnldShared, _decode_dest_buf,
+    ret = hcom_host_preprocess_packet(_dnldShared, _decode_dest_buf,
               decodedPacketSize);
     if (ret < 0)
     {
@@ -342,7 +358,7 @@ int hcom_host_process_run_loop()
       }
 
       // If any download/delete state information, delete it
-      hcom_dir_mgmt_free_file_info(_DnldShared);
+      hcom_dir_mgmt_free_file_info(_dnldShared);
     }
   }
 
