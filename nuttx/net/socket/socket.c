@@ -116,7 +116,7 @@ int psock_socket(int domain, int type, int protocol, FAR struct socket *psock)
 
   hcom_nx_config_lock();
   meadow_configuration_t *config = hcom_nx_config_get_pointer();
-  uint32_t interface_type = -1;
+  uint32_t interface_type = 0xffffffff;
   // This config == NULL test is necessary, without it, the first call here
   // will lock Nuttx, as if the linker has optimized the above code away.
   if (config == NULL)
