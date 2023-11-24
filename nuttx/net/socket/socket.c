@@ -113,21 +113,33 @@ int psock_socket(int domain, int type, int protocol, FAR struct socket *psock)
 #endif
 
 #ifdef CONFIG_NET_USRSOCK
+
   hcom_nx_config_lock();
   meadow_configuration_t *config = hcom_nx_config_get_pointer();
+  uint32_t interface_type = 0xffffffff;
   // This config == NULL test is necessary, without it, the first call here
   // will lock Nuttx, as if the linker has optimized the above code away.
-  if(config == NULL)
-  {
-    syslog(LOG_ERR, "In %s() meadow_configuration_t is NULL\n", __FILE__);
-    return -ENETDOWN;
-  }
+  if (config == NULL)
+    {
+      syslog(LOG_ERR, "In %s() meadow_configuration_t is NULL\n", __FILE__);
+      ret = -ENETDOWN;
+    }
+  else
+    {
+      ret = OK;
+      interface_type = config->default_interface->interface_type;
+    }
+  hcom_nx_config_unlock();
 
-  if(config->default_interface->interface_type == MEADOW_IFT_ESP32)
+  if (ret == -ENETDOWN)
+    {
+      return(ret);
+    }
+
+  if (interface_type == MEADOW_IFT_ESP32)
     {
       if (domain != PF_LOCAL && domain != PF_UNSPEC)
         {
-          hcom_nx_config_unlock();
 
           /* Handle special setup for USRSOCK sockets (user-space networking
           * stack).
@@ -135,35 +147,11 @@ int psock_socket(int domain, int type, int protocol, FAR struct socket *psock)
 
           psock->s_sockif = g_usrsock_sockif;
           return(g_usrsock_sockif->si_setup(psock, protocol));
-
-          //
-          //  TODO: Need to consider how we deal with this on the embedded module
-          //        as it may be connected to a wired ethernet.
-          //
-          // if (ret == -ENETDOWN)
-          //   {
-          //     /* -ENETDOWN means that USRSOCK daemon is not running.  Attempt to
-          //      * open socket with kernel networking stack.
-          //      */
-          //     return(ret);
-          //   }
-          // else
-          //   {
-          //     psock->s_sockif = g_usrsock_sockif;
-
-          //     if (ret < 0)
-          //       {
-          //         return ret;
-          //       }
-
-          //     return ret;
-          //   }
         }
     }
+
 #endif /* CONFIG_NET_USRSOCK */
 
-  hcom_nx_config_unlock();
-  
   /* Get the socket interface */
 
   sockif = net_sockif(domain, type, protocol);
