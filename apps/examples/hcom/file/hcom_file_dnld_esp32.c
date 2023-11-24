@@ -109,7 +109,7 @@ enum hcom_download_esp32_packet_state
 {
   HcomESP32DnldStateNone = 0,
   HcomEsp32DnldStateStarting = 1,
-  HcomESP32DnldStateEsp32FileXfer = 1,
+  HcomESP32DnldStateEsp32FileXfer = 2,
 };
 
 /****************************************************************************
