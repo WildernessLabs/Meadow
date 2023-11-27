@@ -207,7 +207,11 @@ struct interruptPinMap_s
 // This is the list of the GPIOs currently being timed. The entries in this
 // list are very short lived, begin added as soon as the GPIO ISR is called and
 // removed as soon as the glitch or debounce period has elapsed.
-static struct interruptPinMap_s * _allGpiosBeingTimed[MEADOW_INTERRUPT_MAX_SUPPORTED_GPIOS];
+static struct interruptPinMap_s *_allGpiosBeingTimed[MEADOW_INTERRUPT_MAX_SUPPORTED_GPIOS];
+
+// This list keeps the address of all the allocated structures so they can be
+// removed when the GPIO is removed
+static struct interruptPinMap_s *_allConfiguredGpios[MEADOW_INTERRUPT_MAX_SUPPORTED_GPIOS];
 
 // Indicates the total number of GPIOs currently being timed.
 static volatile int _allGpiosBeingTimedCnt = 0;
@@ -799,6 +803,39 @@ void mint_add_to_timed_list_and_incr(struct interruptPinMap_s *gpioInfoAddr)
 }
 
 //===============================================================
+// We need to save the address of all allocated memory so it can be freed
+// when the GPIO is removed.
+static int mint_add_new_gpio_to_allocation_list(
+          struct interruptPinMap_s *gpioInfoAddr)
+{
+  for(int i = 0; i < MEADOW_INTERRUPT_MAX_SUPPORTED_GPIOS; i++)
+  {
+    if(_allConfiguredGpios[i] == NULL)
+    {
+      _allConfiguredGpios[i] = gpioInfoAddr;
+      return OK;
+    }
+  }
+  return -ENOMEM;
+}
+
+//===============================================================
+// When removing a GPIO we must find it's memory so it can be freed
+static struct interruptPinMap_s *mint_free_gpio_in_allocation_list(uint8_t pinId)
+{
+  for(int i = 0; i < MEADOW_INTERRUPT_MAX_SUPPORTED_GPIOS; i++)
+  {
+    // Find the correct allocation
+    if(_allConfiguredGpios[i]->PinId == pinId)
+    {
+      free(_allConfiguredGpios[i]);
+      _allConfiguredGpios[i] = NULL;
+    }
+  }
+  return NULL;
+}
+
+//===============================================================
 // Removes from the timer isr
 void mint_remove_from_timed_list_and_decr(struct interruptPinMap_s *gpioInfoAddr)
 {
@@ -943,7 +980,12 @@ int mint_config_interrupt(struct mint_gpio_int_config* cfg)
   {
     _allGpiosBeingTimedCnt = 0;
     _firstTimeConfig = false;
-    
+
+    for(int i = 0; i < MEADOW_INTERRUPT_MAX_SUPPORTED_GPIOS; i++)
+    {
+      _allConfiguredGpios[i] = NULL;
+    }
+
     DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_A0);    // True while in periodic isr
     DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_A1);    // True while in no delay isr
     DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_A2);    // True while in delay isr
@@ -962,7 +1004,7 @@ int mint_config_interrupt(struct mint_gpio_int_config* cfg)
     ret = mint_config_interrupt_prep_timer(MEADOW_INTERRUPT_STM32F7_TIMER_NUMBER);
     if(ret < 0)
     {
-      syslog(LOG_ERR, "mint-(cfg)---mint_config_interrupt_prep_timer failed\n");
+      syslog(LOG_ERR, "mint-(cfg)-mint_config_interrupt_prep_timer failed, ret:%d\n", ret);
       return ret;
     }
   }
@@ -975,6 +1017,13 @@ int mint_config_interrupt(struct mint_gpio_int_config* cfg)
     return -ENOMEM;
   }
 
+  ret = mint_add_new_gpio_to_allocation_list(gpioInfoAddr);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "mint-(cfg)-mint_add_new_gpio_to_allocation_list, ret:%d\n", ret);
+    return ret;
+  }
+  
   // We must set a few elements in the struct for this configuration
   gpioInfoAddr->PinId = pinDesignation;
 
@@ -1016,7 +1065,7 @@ int mint_config_interrupt_remove(struct mint_gpio_int_config* cfg,
           struct interruptPinMap_s *gpioInfoAddr)
 {
   int ret;
-
+  
   // Disable - remove a GPIO from being monitored
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 0
   syslog(LOG_INFO, "mint-(cfg)-0x%02x (P%c%d)--Removing GPIO\n", gpioInfoAddr->PinId,
@@ -1034,13 +1083,17 @@ int mint_config_interrupt_remove(struct mint_gpio_int_config* cfg,
 
   gpioInfoAddr->CurrentProcessState = mint_state_uncfg;
 
-  // BUG HERE! Meadow_Issue #346
-  // This free is not removing the memory allocated when this GPIO was
-  // originally configured! This memory was only allocated a moment ago
-  // when the call arrived to remove this GPIO.
-  // Probably need to add an list (either fixed size or one that grows) to
-  // hold the memory allocation addresses. On removed request, the list can
-  // be transversed and the matching PinId freed.
+  // This call will free the memory allocated when this GPIO was originally
+  // configured!
+  ret = mint_free_gpio_in_allocation_list(gpioInfoAddr->PinId);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-mint_free_gpio_in_allocation_list returned, ret:%d\n",
+              __FILE__, __LINE__, ret);
+    // Reported error might as well finish removing GPIO
+  }
+  // Free the memory was only allocated a moment ago by the caller to this
+  // function.
   free(gpioInfoAddr);
   return ret;
 }
