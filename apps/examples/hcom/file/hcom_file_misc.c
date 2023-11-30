@@ -108,7 +108,7 @@ uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
   uint8_t *crcReadBuff;
   struct stat fileStatus;
   uint32_t crc32Checksum = 0;
-  
+
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "Opened %s for CRC\n", completeFilePath);
 #endif
@@ -143,7 +143,7 @@ uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
 
   *fileSize = fileStatus.st_size;
   *blockSizeKB = (fileStatus.st_blksize * fileStatus.st_blocks) / 1024;
-   
+
   // Seek to beginning
   off_t offset = lseek(fd, 0, SEEK_SET);
   if (offset == (off_t)-1)
@@ -190,6 +190,7 @@ uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
 #endif
 
   *detectError = OK;
+
   return crc32Checksum;
 }
 

@@ -42,7 +42,7 @@
 
 // Only build if configured
 #if defined(CONFIG_QUICK_MISC_TESTS)
-#warning "(--) Here quick_misc_tests.c"
+#pragma message "(--) quick_misc_tests.c"
 
 #include "stm32_gpio.h"   // stm32_configgpio
 #include "stm32_exti.h"   // STM32_EXTI_PR
@@ -83,11 +83,12 @@ int mint_config_interrupt(struct mint_gpio_int_config* cfg);    // This is a dup
 /************************************************************************************
  * Public Functions
  ************************************************************************************/
+// set developer -d 10 come here
 void meadow_kt_quick_misc_tests(uint32_t userData)
 {
   static bool firstTime = true;
 
-  syslog(1, "Quick and Misc tests received 'set developer -d 12 -v %lu'\n", userData);
+  syslog(2, "Quick and Misc tests received 'set developer -d 12 -v %lu'\n", userData);
 
   switch(userData)
   {
@@ -99,7 +100,7 @@ void meadow_kt_quick_misc_tests(uint32_t userData)
       }
       else
       {
-        syslog(1, "Only first time\n");
+        syslog(2, "Only first time\n");
       }
       break;
     
@@ -110,7 +111,7 @@ void meadow_kt_quick_misc_tests(uint32_t userData)
       break;
 
     default:
-      syslog(1, "Undefined test for meadow_kt_quick_misc_tests, userData:%lu\n", userData);
+      syslog(2, "Undefined test for meadow_kt_quick_misc_tests, userData:%lu\n", userData);
       break;
   }
 }

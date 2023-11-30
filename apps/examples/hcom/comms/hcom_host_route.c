@@ -45,6 +45,11 @@
 #if defined (CONFIG_HCOM_ESP32_COMMS)
 #include "../esp32/hcom_esp32_comms.h"
 #endif
+
+#if defined (CONFIG_DIR_MGMT_TESTS)
+#pragma message "(--) hcom_host_route.c"
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -77,11 +82,14 @@ void hcom_host_route_shutdown()
 }
 
 //========================================================================
-// This function routes the message to the proper processing functions
-void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
+// This function routes the message to the proper processing functions.
+// Most function called are void, a few return 'ret'.
+int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
             const size_t packetSize, const uint32_t userData,
             const uint16_t requestType, hcom_dnld_shared_t *dnldShared)
 {
+  int ret = OK;
+
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "-->Received Meadow command of RqstType:0x%04x\n",
             requestType);
@@ -89,23 +97,24 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
 
  switch (requestType)
   {
-    // Start file transfer handles Meadow 
+    // Start file transfer handles Meadow. The End file transfer will send the
+    // Concluded message, unless there's an error then it will be sent here
     case HCOM_MDOW_REQUEST_START_FILE_TRANSFER:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_dnld_stm32f7_file_begin(hdrMsg, dnldShared);
+      ret = hcom_file_dnld_stm32f7_file_begin(hdrMsg, dnldShared);
       break;
 
     // End file transfer handles Meadow
     // Notice that the Start file transfer provided the 'Accepted' message to
-    // CLI end file transfer provides the 'Concluded' message
+    // CLI end file transfer provides the 'Concluded' message, even on error.
     case HCOM_MDOW_REQUEST_END_FILE_TRANSFER:
-      hcom_file_dnld_stm32f7_file_end(dnldShared);
+      ret = hcom_file_dnld_stm32f7_file_end(dnldShared);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_delete_stm32f7_file_by_name(dnldShared);
+      ret = hcom_file_delete_stm32f7_file_by_name(dnldShared);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
@@ -154,13 +163,13 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
 
     case HCOM_MDOW_REQUEST_LIST_PARTITION_FILES:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_lists_files_in_partition(userData);
+      hcom_file_lists_all_files_in_directory(hdrMsg, dnldShared, false);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_lists_files_and_crc_in_partition(userData);
+      hcom_file_lists_all_files_in_directory(hdrMsg, dnldShared, true);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
@@ -239,13 +248,13 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
     // 1. CLI sends this first
     case HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_dnld_stm32f7_file_begin(hdrMsg, dnldShared);
+      ret = hcom_file_dnld_stm32f7_file_begin(hdrMsg, dnldShared);
       break;
       
       // 2. CLI sends data.....
       // 3. CLI sends the file end
     case HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END:
-      hcom_file_dnld_stm32f7_file_end(dnldShared);
+      ret = hcom_file_dnld_stm32f7_file_end(dnldShared);
       // Next copy the file to flash area, this must be done on the nuttx
       // side. This will take several seconds because it first erases the
       // flash area and then copies the file.
@@ -253,6 +262,7 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
       hcom_via_nx_forward_cli_cmd_to_nx(HCOM_MDOW_REQUEST_MONO_FLASH, userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
+
     // -------------------------------------------------------
 
     case HCOM_MDOW_REQUEST_MONO_RUN_STATE:
@@ -294,19 +304,19 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
 
     case HCOM_MDOW_REQUEST_GET_INITIAL_FILE_BYTES:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_upld_proc_initial_bytes_in_file(hdrMsg, packetSize, userData);
+      hcom_file_upld_proc_initial_bytes_in_file(hdrMsg, packetSize);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_UPLOAD_FILE_INIT:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_file_upld_proc_start_file_upload(hdrMsg, packetSize, userData);
+      ret = hcom_file_upld_proc_start_file_upload(dnldShared);
       // After data sent the HCOM_HOST_REQUEST_TEXT_CONCLUDED message will be sent
       // by HCOM_MDOW_REQUEST_UPLOAD_START_DATA_SEND case.
       break;
 
     case HCOM_MDOW_REQUEST_UPLOAD_START_DATA_SEND:
-      hcom_file_upld_proc_begin_file_uploading(hdrMsg, packetSize, userData);
+      ret = hcom_file_upld_proc_begin_file_uploading(dnldShared);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
@@ -425,4 +435,6 @@ void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
     }
   }
+
+  return ret;
 }

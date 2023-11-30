@@ -63,12 +63,19 @@ char *hcom_diag_find_host_request_type(uint16_t hostRqstType);
  * Public Functions
  ****************************************************************************/
 // Takes a hcom message and outputs a string containing the header information
+void hcom_diag_decode_data_packet_type(decodedSize)
+{
+  syslog(2, "---------- Meadow Data (%d bytes) ----------\n", decodedSize);
+}
+
+// Takes a hcom message and outputs a string containing the header information
 void hcom_diag_decode_recvd_message_type(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize)
 {
+  syslog(2, "-------------- Meadow Received ---------------\n");
+
   uint16_t rqstType = hdrMsg->stdHeader.rqstType;
   char *requestStr = hcom_diag_find_meadow_request_type(rqstType);
-  syslog(2, "------------- Meadow Received ---------------\n");
   syslog(2, "Received '%s' (0x%04x) %u bytes\n", requestStr,
             rqstType, packetSize);
   hcom_diag_print_buffer((const uint8_t *)hdrMsg, packetSize, 1);
