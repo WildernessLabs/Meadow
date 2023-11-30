@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\file\hcom_file_dnld_esp32.c
  * 
- *   Copyright (C) 2019-2022 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019-2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -109,7 +109,7 @@ enum hcom_download_esp32_packet_state
 {
   HcomESP32DnldStateNone = 0,
   HcomEsp32DnldStateStarting = 1,
-  HcomESP32DnldStateEsp32FileXfer = 1,
+  HcomESP32DnldStateEsp32FileXfer = 2,
 };
 
 /****************************************************************************
