@@ -430,7 +430,7 @@ void hcom_via_nx_restore_uart_reconfig(uint32_t uartId)
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s reconfig uart%d, ret:%d, errno:%d\n",
-            thisFile, __LINE__, uartId, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
+            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, uartId, ret, errno);
   }
 }
 

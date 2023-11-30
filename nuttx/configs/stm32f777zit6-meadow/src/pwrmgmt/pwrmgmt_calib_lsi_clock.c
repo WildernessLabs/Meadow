@@ -529,7 +529,7 @@ int pwrmgmt_lsi_init_timer_5_for_measuring(void)
   ret = irq_attach(STM32_IRQ_TIM5, pwrmgmt_lsi_use_isr_lsi_clock, NULL);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-irq_attach failed:%d, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-irq_attach failed, ret:%d, errno:%d\n",
           thisFile, __LINE__, ret, errno);
     return ret;
   }

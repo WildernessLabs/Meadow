@@ -178,9 +178,9 @@ int hcom_host_send_low_power_notification(bool lpStart)
 //
 // The caller uses one of the structs defined in
 // /nuttx/include/meadow/hcom_protocol.h. Any of those containing the
-// HcomProtoStdHeader_t type (e.g. HcomProtoTextMsg_t, HcomProtoHdrMsg_t,
+// HcomProtoStdHdr_t type (e.g. HcomProtoTextMsg_t, HcomProtoHdrMsg_t,
 // HcomProtoBinMsg_t, etc.) can be used. The caller populates the proper struct
-// fields and downcasts the type to a HcomProtoStdHeader_t and passes this as
+// fields and downcasts the type to a HcomProtoStdHdr_t and passes this as
 // 'hdrMsg' to this function.
 int hcom_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
           size_t totalMsgLen, char *sourceFileName, int sourceLineNumber)
@@ -188,7 +188,7 @@ int hcom_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
   int ret = OK;
 
   // These are always the same values plus 1 unused field
-  hdrMsg->stdHeader.seqNumber = HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER;
+  hdrMsg->stdHeader.seqNumber = HCOM_PROTOCOL_COMMAND_TYPE_SEQUENCE_NUMBER;
   hdrMsg->stdHeader.version = g_current_hcom_protocol_version;
   hdrMsg->stdHeader.extraData = 0;
 
@@ -380,7 +380,7 @@ void hcom_host_send_build_msg_header(uint16_t requestType,
         uint16_t extraData, uint32_t userData, uint8_t *xmitBuffer)
 {
   HcomProtoHdrMsg_t *hdrMsg = (HcomProtoHdrMsg_t *)xmitBuffer;
-  hdrMsg->stdHeader.seqNumber = HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER;
+  hdrMsg->stdHeader.seqNumber = HCOM_PROTOCOL_COMMAND_TYPE_SEQUENCE_NUMBER;
   hdrMsg->stdHeader.version = g_current_hcom_protocol_version;
   hdrMsg->stdHeader.rqstType = requestType;
   hdrMsg->stdHeader.extraData = extraData;

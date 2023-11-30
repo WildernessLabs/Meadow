@@ -197,7 +197,7 @@ int meadow_idle_mon_timer_init(uint32_t timerBase)
   ret = irq_attach(STM32_IRQ_TIM6, meadow_idle_mon_isr, NULL);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-irq_attach failed:%d, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-irq_attach failed, ret:%d, errno:%d\n",
           __FILE__, __LINE__, ret, errno);
     return ret;
   }
@@ -218,7 +218,7 @@ int meadow_idle_mon_timer_init(uint32_t timerBase)
   ret = meadow_idle_mon_create_test_thread();
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-meadow_idle_mon_create_test_thread failed:%d, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_idle_mon_create_test_thread failed, ret:%d, errno:%d\n",
           __FILE__, __LINE__, ret, errno);
     return ret;
   }

@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\file\hcom_file_lists.c
  * 
- *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,50 +63,44 @@ static int hcom_file_lists_all_dev_dir_and_files(const char *name, int indent, u
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-int hcom_file_lists_files_in_partition(uint32_t partitionId)
+// This single function handles file list with and without CRC checksum.
+int hcom_file_lists_all_files_in_directory(const HcomProtoHdrMsg_t *hdrMsg,
+          hcom_dnld_shared_t *dnldShared, bool isCrcNeeded)
 {
   int fileCount = 0;
-
-  char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-  if(fullMountPtName == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return -ENOMEM;
-  }
-
-  char *singleFileFound = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-  if(singleFileFound == NULL)
-  {
-    free(fullMountPtName);
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return -ENOMEM;
-  }
-
   DIR *dirp;
   struct dirent *direntry;
+  off_t totalSizeOfFiles;
+  uint32_t totalFlashSizeKB;
+
+  char *fileFoundName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(fileFoundName == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
 
   // Tell CLI to output a header for the file list
   hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_LIST_HEADER, 0, thisFile, __LINE__);
 
-  // Construct file name
-#ifdef CONFIG_MTD_PARTITION
-  snprintf_chk(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d",
-            HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
-#else  
-  strncpy(fullMountPtName, HCOM_FILE_MOUNT_POINT_TARGET, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-
-#endif
-
-  // Open the partition
-  dirp = opendir(fullMountPtName);
+  // Open the directory
+  dirp = opendir(dnldShared->dnldFullPathName);
   if ( !dirp )
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-opendir(\"%s\") errno:%d\n",
-              thisFile, __LINE__, fullMountPtName, errno);
-    free(fullMountPtName);
-    free(singleFileFound);
+              thisFile, __LINE__, dnldShared->dnldFullPathName, errno);
+    free(fileFoundName);
     return -1;
   }
+
+  // For file list, there's no file name just path so, 0 elements is the
+  // default. Anything greater we should include in the returned list.
+  bool useFullPath = true;
+  if(dnldShared->dnldPathNameEleCount == 0)
+    useFullPath = false;
+
+  totalSizeOfFiles = 0;
+  totalFlashSizeKB = 0;
 
   while((direntry = readdir(dirp)) != NULL)
   {
@@ -114,180 +108,136 @@ int hcom_file_lists_files_in_partition(uint32_t partitionId)
     {
       fileCount++;
 
-      // Get the next file name
-#ifdef CONFIG_MTD_PARTITION
-      hcom_logging_syslog(LOG_INFO, "%s@%d-Found file '%s' in part %d\n",
-                thisFile, __LINE__, direntry->d_name, partitionId);
-#else
-      hcom_logging_syslog(LOG_INFO, "%s@%d-Found file '%s'\n",
-                thisFile, __LINE__, direntry->d_name);
-#endif
-
-      snprintf_chk(singleFileFound, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
-                "%s/%s", fullMountPtName, direntry->d_name);
-
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
-                singleFileFound, thisFile, __LINE__);
-    }
-  }
-
-  if(fileCount == 0)
-  {
-    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
-                  "No files found", thisFile, __LINE__);
-  }
-  else
-  {
-    char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-              "A total of %d file%s found", fileCount, fileCount == 1 ? "" : "s");
-    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
-                  hostMsg, thisFile, __LINE__);
-  }
-
-  closedir(dirp);
-
-  free(fullMountPtName);
-  free(singleFileFound);
-
-  return OK;
-}
-
-//=====================================================================
-int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId)
-{
-  int fileCount = 0;
-
-  char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-  if(fullMountPtName == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return -ENOMEM;
-  }
-  
-  char *singleFileFound = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-  if(singleFileFound == NULL)
-  {
-    free(fullMountPtName);
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return -ENOMEM;
-  }
-  
-  char *completeNameBuf = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-  if(completeNameBuf == NULL)
-  {
-    free(fullMountPtName);
-    free(singleFileFound);
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return -ENOMEM;
-  }
-  
-  DIR *dirp;
-  struct dirent *direntry;
-
-  hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_LIST_HEADER, 0, thisFile, __LINE__);
-
-  // Construct file name
-#ifdef CONFIG_MTD_PARTITION
-  snprintf_chk(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d",
-            HCOM_FILE_MOUNT_POINT_TARGET, partitionId);
-#else
-  strcpy(fullMountPtName, HCOM_FILE_MOUNT_POINT_TARGET);
-#endif
-
-  dirp = opendir(fullMountPtName);
-  if ( !dirp )
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-opendir '%s' errno:%d\n",
-            thisFile, __LINE__, fullMountPtName, errno);
-
-    free(fullMountPtName);
-    free(singleFileFound);
-    free(completeNameBuf);
-    return -1;
-  }
-
-  off_t totalSizeOfFiles = 0;
-  uint32_t totalFlashSizeKB = 0;
-
-  while((direntry = readdir(dirp)) != NULL)
-  {
-    if(DIRENT_ISFILE(direntry->d_type))
-    {
-      fileCount++;
-      snprintf_chk(completeNameBuf, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", 
-                fullMountPtName, direntry->d_name);
-      
-      // Find the CRC checksum
-      off_t fileSize;
-      uint32_t blockSizeKB;
-      int detectError;
-      uint32_t crcChecksum = hcom_file_misc_calc_crc_for_file(completeNameBuf,
-                &fileSize, &blockSizeKB, &detectError);
-      if(detectError < 0)
+      // CRC or No CRC?
+      if(isCrcNeeded)
       {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-Error in Checksum calculation,err:%d\n",
-                  thisFile, __LINE__, detectError);
-        return detectError;
+        if(DIRENT_ISFILE(direntry->d_type))
+        {
+          char *completeNameBuf = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+          if(completeNameBuf == NULL)
+          {
+            hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+            free(fileFoundName);
+            return -ENOMEM;
+          }
+
+          // Build full path and file, for CRC call
+          snprintf_chk(completeNameBuf, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s",
+                    dnldShared->dnldFullPathName, direntry->d_name);
+
+          // Find the CRC checksum
+          off_t fileSize;
+          uint32_t blockSizeKB;
+          int detectError;
+          uint32_t crcChecksum = hcom_file_misc_calc_crc_for_file(completeNameBuf,
+                    &fileSize, &blockSizeKB, &detectError);
+          if(detectError < 0)
+          {
+            hcom_logging_syslog(LOG_ERR, "%s@%d-Error in Checksum calculation,err:%d\n",
+                      thisFile, __LINE__, detectError);
+            
+            free(completeNameBuf);
+            free(fileFoundName);
+            return detectError;
+          }
+        
+          totalSizeOfFiles += fileSize;
+          totalFlashSizeKB += blockSizeKB;
+
+          // Send this file's information to CLI
+          snprintf_chk(fileFoundName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
+                    "%s%s [0x%08x] %d KB (%u bytes)",
+                    useFullPath ? dnldShared->dnldFullPathName : "",
+                    direntry->d_name,
+                    crcChecksum, blockSizeKB, fileSize);
+
+          hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
+                        fileFoundName, thisFile, __LINE__);
+
+          hcom_logging_syslog(LOG_INFO, "%s@%d-%s%s checksum:0x%08x, %d KB (%u bytes)\n",
+                    thisFile, __LINE__,
+                    useFullPath ? dnldShared->dnldFullPathName : "",
+                    direntry->d_name,
+                    crcChecksum, blockSizeKB, fileSize);
+
+          free(completeNameBuf);
+        }
       }
-    
-      totalSizeOfFiles += fileSize;
-      totalFlashSizeKB += blockSizeKB;
+      else
+      {
+        // Get the file name and size
+        snprintf_chk(fileFoundName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
+                  "%s%s",
+                  useFullPath ? dnldShared->dnldFullPathName : "",
+                  direntry->d_name);
 
+        // Send to file to CLI
+        hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
+                  fileFoundName, thisFile, __LINE__);
 
-      // Send this file's information to the host
-      snprintf_chk(singleFileFound, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
-                "%s/%s [0x%08x] %d KB (%u bytes)",
-                fullMountPtName, direntry->d_name, crcChecksum, blockSizeKB, fileSize);
-
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
-                    singleFileFound, thisFile, __LINE__);
-
-      hcom_logging_syslog(LOG_INFO, "%s@%d-%s/%s checksum:0x%08x, %d KB (%u bytes)\n",
-                thisFile, __LINE__,
-                fullMountPtName, direntry->d_name,
-                crcChecksum, blockSizeKB, fileSize);
+        hcom_logging_syslog(LOG_INFO, "%s@%d-%s%s\n",
+                  thisFile, __LINE__,
+                  useFullPath ? dnldShared->dnldFullPathName : "",
+                  direntry->d_name);
+      }
     }
   }
 
-  if(fileCount == 0)
+  if(isCrcNeeded)
   {
-    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
-                  "No files found", thisFile, __LINE__);
+    if(fileCount == 0)
+    {
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
+                    "No files found", thisFile, __LINE__);
+    }
+    else
+    {
+      snprintf_chk(fileFoundName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
+            "A total of %d file%s using %d KB (%u bytes)", fileCount,
+            fileCount == 1 ? "" : "s", totalFlashSizeKB, totalSizeOfFiles);
+
+      // Send the totals
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
+                    fileFoundName, thisFile, __LINE__);
+                    
+      hcom_logging_syslog(LOG_INFO, "%s@%d-A total of %d file%s using %d KB (%u bytes)\n",
+                thisFile, __LINE__,
+                fileCount, fileCount == 1 ? "" : "s", totalFlashSizeKB, totalSizeOfFiles);
+    }
   }
   else
   {
-    // Need comma separators for file size? I tried %'d and this didn't work. Here are some DIY ideas:
-    // https://stackoverflow.com/questions/1449805/how-to-format-a-number-from-1123456789-to-1-123-456-789-in-c/24795133#24795133
-    snprintf_chk(singleFileFound, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
-          "A total of %d file%s using %d KB (%u bytes)", fileCount,
-          fileCount == 1 ? "" : "s", totalFlashSizeKB, totalSizeOfFiles);
-
-    // Send the totals
-    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
-                  singleFileFound, thisFile, __LINE__);
-                  
-    hcom_logging_syslog(LOG_INFO, "%s@%d-A total of %d file%s using %d KB (%u bytes)\n",
-              thisFile, __LINE__,
-              fileCount, fileCount == 1 ? "" : "s", totalFlashSizeKB, totalSizeOfFiles);
+    if(fileCount == 0)
+    {
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
+                    "No files found", thisFile, __LINE__);
+    }
+    else
+    {
+      char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
+      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+                "A total of %d file%s found", fileCount, fileCount == 1 ? "" : "s");
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
+                    hostMsg, thisFile, __LINE__);
+    }
   }
 
   closedir(dirp);
 
-  free(fullMountPtName);
-  free(singleFileFound);
-  free(completeNameBuf);
-
+  free(fileFoundName);
   return OK;
 }
 
 // ==============================================================
-// THIS IS AN UNDOCUMENTED FEATURE CALLABLE from Developer4 userData:1234
+// THIS IS AN UNDOCUMENTED FEATURE
+// The above statement is no longer true. This feature is being used by some
+// part of CLI, unsure of the usage
 int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData)
 {
   // Changing "/" to "meadow0" will only show meadow files
   return hcom_file_lists_all_dev_dir_and_files("/", 0, userData);
 }
+
 //----------------------------------------------
 // NOTE - Recursive function
 int hcom_file_lists_all_dev_dir_and_files(const char *name, int indent, uint32_t userData)
