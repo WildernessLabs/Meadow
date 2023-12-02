@@ -197,7 +197,7 @@ static sem_t _injectionDoneSem;
 static bool _hardwareConfigDone;
 static bool _isFirstTimeInitDone = false;
 static bool _isMeadowAdcInitialized;
-static bool _isReinitialization;
+static bool _isReinitialization;    // Was configure called again?
 
 #if MEADOW_ADC_TEST_TOGGLE_ADC_INPUT > 0
 static int _noChangeCnt;
@@ -220,6 +220,7 @@ static int meadow_adc_check_first_func_call(void);
 static int meadow_adc_config_sequence_regs(uint32_t userGpioXferCount, uint8_t *userGpioList);
 static void meadow_adc_initialize(uint16_t *dmaAdcBuf, uint32_t userGpioXferCount);
 static int meadow_adc_read_injected_common(uint16_t *analogIn18, uint16_t *analogIn17);
+static int meadow_adc_free_configuration_resources(void);
 
 /************************************************************************************
  * Private Functions
@@ -1025,7 +1026,8 @@ int meadow_adc_convert_adc_to_voltage(uint16_t adcValue, double *convertedVoltag
 }
 
 //=========================================================
-// One time initialization. This may be called on each configuration.
+// One time initialization. This is called on each configuration. And by both
+// Battery/Vbat and normal ADC initialization.
 int meadow_adc_check_first_func_call()
 {
   if(! _isFirstTimeInitDone)
@@ -1057,12 +1059,41 @@ int meadow_adc_check_first_func_call()
   return OK;
 }
 
+//================================================================
+// This function will free all the resources used by the application
+int meadow_adc_free_configuration_resources()
+{
+  // Are there any resources to free?
+  if(!_isFirstTimeInitDone)
+  {
+    return OK;
+  }
+
+  // Semaphores for GPIO conversion and for Vbat and Temperature
+  sem_destroy(&_gpioDoneSem);
+  sem_destroy(&_injectionDoneSem);
+
+  // An active configuration will have an active DMA handle from Nuttx
+  if(_dmaHandle != NULL)
+  {
+    stm32_dmastop(_dmaHandle);
+    stm32_dmafree(_dmaHandle);
+    _dmaHandle = NULL;
+  }
+
+  _isFirstTimeInitDone = false;
+
+  return OK;
+}
+
 /************************************************************************************
  * Public Functions
  ************************************************************************************/
 // This function can handle as few as 1 GPIO and as many as 16 GPIOs. It is
-// called for GPIO initialization. For VBat and Temperature. Part of the
-// following is done, but not duplicated here.
+// called for GPIO initialization. And if the gpioCount -s 0 it will release
+// any resources that have been claimed by an earlier configuration.
+// For VBat and Temperature values. A part of the configuration is needed for
+// both. This is not duplicated here.
 int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
           double *resultBuffer)
 {
@@ -1077,6 +1108,12 @@ int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
   adc_test_display_basic_dma_regs();
 #endif
 
+  if(gpioCount == 0)
+  {
+    ret = meadow_adc_free_configuration_resources();
+    return ret;
+  }
+  
   if(resultBuffer == NULL)
   {
     syslog(LOG_ERR, "%s@%d-resultBuffer is NULL\n",
@@ -1259,8 +1296,8 @@ int meadow_adc_read_temp_vbat(double *batteryVoltage, double *tempValue)
   if(!_hardwareConfigDone)
   {
     // Hardware not yet configured. This is needed by both temp/vbat and GPIO
-    // ADC but GPIO require more init. So, we'll only do what's needed and
-    // the GPIO specific config will be finish up. Why? because the rest of
+    // ADC but GPIO requires more init. So, we'll only do what's needed and
+    // any GPIO config will be done when needed. Why? because the rest of
     // the init requires information only available from the caller.
     ret = meadow_adc_hardware_initialize();
     if(ret < 0)
