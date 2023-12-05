@@ -906,7 +906,7 @@ static int mint_config_interrupt_prep_timer(int stm32_timer_numb)
   ret = irq_attach(STM32_IRQ_TIM7, mint_isr_periodic, NULL);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-irq_attach failed, ret:%d, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-irq_attach failed:%d, errno:%d\n",
           __FILE__, __LINE__, ret, errno);
     return ret;
   }

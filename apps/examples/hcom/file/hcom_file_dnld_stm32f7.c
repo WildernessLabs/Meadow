@@ -47,10 +47,6 @@
 #include <nuttx/arch.h>
 #include <nuttx/mtd/mtd.h>
 
-#if defined (CONFIG_DIR_MGMT_TESTS)
-#pragma message "(--) hcom_file_dnld_stm32f7.c"
-#endif
-
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -91,19 +87,11 @@ int hcom_file_dnld_stm32f7_setup()
 //==========================================================================
 // Beginning of a file download into the flash file system.
 // Called from hcom_host_route.c. The incomplete file name has been supplied.
-int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
+void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
           hcom_dnld_shared_t *dnldShared)
 {
-  int ret = OK;
-  char *hostMsg = NULL;
-
-  hostMsg = malloc(HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH);
-  if(hostMsg == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return -ENOMEM;
-  }
-
+  int ret;
+  char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
 
 #if (HCOM_RECV_DEBUG_TIMING) > 0 || (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
@@ -126,7 +114,7 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
   // Log some diagnostic information
   hcom_logging_syslog(LOG_INFO, "%s@%d-Meadow downloading file (FileLen:%d, Crc:0x%08x, Name:%s)\n",
           thisFile, __LINE__, dnldShared->dnldInitFileSize,
-          dnldShared->dnldInitFileCrc, dnldShared->dnldOrigPathName);
+          dnldShared->dnldInitFileCrc, dnldShared->dnldOrigFileName);
 
   // Open the file in F7 file system
   ret = hcom_file_write_open_active_file(dnldShared);
@@ -152,19 +140,20 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
       break;
 
       default:  // different error
-      snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH, "Unexpected error:%d");
+      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "Unexpected error:%d");
       errorCause = hostMsg;
       break;
     }
 
     // Notify CLI that something when wrong with opening the file
-    snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
           "File '%s' Init for download failed because %s",
-          dnldShared->dnldOrigPathName, errorCause);
+          dnldShared->dnldOrigFileName, errorCause);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL,
           0, hostMsg, thisFile, __LINE__);
 
-    return ret;
+    // Cleanup after failure
+    hcom_host_process_free_dnld_share_mem();
   }
   else
   {
@@ -174,24 +163,18 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
     // Notify CLI that it's okay to send the file's data now
     hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_OKAY,
               0, thisFile, __LINE__);
-    ret = OK;
   }
-
-  if(hostMsg != NULL)
-    free(hostMsg);
-
-  return ret;
 }
 
 //============================================================================
 // Process a data packet
-int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg,
+void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg,
           const size_t packetSize, hcom_dnld_shared_t *dnldShared)
 {
   int ret;
-  char* hostMsg = NULL;
+  char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
 
-  // Ignore download if it's not expected. Either not begin or an error
+  // Ignore download if it's not expected. Either not begin or error
   if(dnldShared->dnldCurrentState != HcomStm32F7DnldStateFileXfer)
   {
     // Show problem, but only once
@@ -202,7 +185,10 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
       _stateErrShown = true;
     }
 
-    return -ENOTRECOVERABLE;      // State not recoverable
+    // Don't do any processing
+    hcom_host_process_free_dnld_share_mem();
+
+    return;
   }
 
 #if (HCOM_RECV_DEBUG_TIMING) > 0 || (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
@@ -216,13 +202,6 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
     hcom_logging_syslog(LOG_DEBUG, "Sequence %d\n", seqNumb);
 #endif
 
-  hostMsg = malloc(HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH);
-  if(hostMsg == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return -ENOMEM;
-  }
-
   // Compare _xferRecvFullFileSize with _xferCalcFullFileSize and send a message to host
   int percentDone = (dnldShared->dnldCalcFileSize  * 100) / dnldShared->dnldInitFileSize;
   if(percentDone / 10 != dnldShared->dnldPercentSent)
@@ -230,7 +209,7 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
     // 10, 20 etc
     dnldShared->dnldPercentSent = percentDone / 10;
 
-    snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
               "File %d%% downloaded", percentDone);
 
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
@@ -246,52 +225,59 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
   // Actually write the data to the file system
   ret = hcom_file_write_to_active_file(dnldShared, hcomDataMsg->binData,
             binDataLen);
+
+  dnldShared->dnldCalcFileSize += binDataLen;
+
   if (ret < 0)
   {
     // Error
     hcom_logging_syslog(LOG_ERR, "%s@%d-Write of %s failed:%d seq:%d\n",
-             thisFile, __LINE__, dnldShared->dnldOrigPathName, ret, seqNumb);
+             thisFile, __LINE__, dnldShared->dnldOrigFileName, ret, seqNumb);
 
     // Notify host
-    snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
-              "Write of '%s', seq %d failed", dnldShared->dnldOrigPathName, seqNumb);
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+              "Write of '%s', seq %d failed", dnldShared->dnldOrigFileName, seqNumb);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
             thisFile, __LINE__);
 
-    if(hostMsg != NULL)
-      free(hostMsg);
-
-    return ret;
+    hcom_host_process_free_dnld_share_mem();
   }
-
-  dnldShared->dnldCalcFileSize += binDataLen;
-
-    if(hostMsg != NULL)
-      free(hostMsg);
-  return OK;
 }
 
 //=======================================================================================
 // Process the end of transfer message from CLI.
-int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
+void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
 {
   int ret;
-  char* hostMsg = NULL;
+  char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   char *msgToSend;
   uint16_t requestType;
 
-  hostMsg = malloc(HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH);
-  if(hostMsg == NULL)
+  hcom_logging_syslog(LOG_NOTICE, "End of file write\n");
+
+  // Allocate memory for delete
+  char *completeNameBuf = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(completeNameBuf == NULL)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return -ENOMEM;
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n",
+              thisFile, __LINE__);
+    hcom_host_process_free_dnld_share_mem();
+    return;
   }
 
-  hcom_logging_syslog(LOG_NOTICE, "End of file write received\n");
+  char *fullMountPtName = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(fullMountPtName == NULL)
+  {
+    free(completeNameBuf);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n",
+              thisFile, __LINE__);
+    hcom_host_process_free_dnld_share_mem();
+    return;
+  }
 
   if(dnldShared->dnldCurrentState != HcomStm32F7DnldStateFileXfer)
   {
-    hcom_logging_syslog(LOG_WARNING, "%s@%d-Dnld end, unexpected state:%d\n",
+    hcom_logging_syslog(LOG_WARNING, "%s@%d-Dnld end, unexpected state, expected:%d\n",
               thisFile, __LINE__, dnldShared->dnldCurrentState);
     // Continue even with error
   }
@@ -300,16 +286,30 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-File %s close failed:%d\n",
-              thisFile, __LINE__, dnldShared->dnldOrigPathName, ret);
+              thisFile, __LINE__, dnldShared->dnldOrigFileName, ret);
     // Continue even with error
   }
+
+  // Construct file name
+#ifdef CONFIG_MTD_PARTITION
+  snprintf_chk(fullMountPtName, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s%d",
+            HCOM_FILE_MOUNT_POINT_TARGET, dnldShared->dnldFilePartId);
+#else
+  strcpy(fullMountPtName, HCOM_FILE_MOUNT_POINT_TARGET);
+#endif
+
+  snprintf_chk(completeNameBuf, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s", 
+            fullMountPtName, dnldShared->dnldOrigFileName);
 
   off_t fileSize;       // Required by function call but not used
   uint32_t blockSizeKB; // Required by function call but not used
   int detectError = OK;
 
-  uint32_t actualFileCrc = hcom_file_misc_calc_crc_for_file(dnldShared->dnldFullPathName,
+  uint32_t actualFileCrc = hcom_file_misc_calc_crc_for_file(completeNameBuf,
                 &fileSize, &blockSizeKB, &detectError);
+
+  free(completeNameBuf);
+  free(fullMountPtName);
 
   // Report to host
   if(detectError < 0)
@@ -317,9 +317,9 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
     hcom_logging_syslog(LOG_ERR, "%s@%d-Error in Checksum calculation err:%d\n",
               thisFile, __LINE__, detectError);
 
-    snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
             "Download of '%s' state unknown due to checksum calulation fault:%d",
-            dnldShared->dnldOrigPathName, detectError);
+            dnldShared->dnldOrigFileName, detectError);
     msgToSend = hostMsg;
     requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
   }
@@ -330,9 +330,9 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
               dnldShared->dnldCalcFileCrc == actualFileCrc &&
               dnldShared->dnldCalcFileSize == dnldShared->dnldInitFileSize)
     {
-      snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
+      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
           "Download of '%s' success (checksums calculated:0x%08X, expected:0x%08X)",
-          dnldShared->dnldOrigPathName, dnldShared->dnldCalcFileCrc,
+          dnldShared->dnldOrigFileName, dnldShared->dnldCalcFileCrc,
           dnldShared->dnldInitFileCrc);
 
       msgToSend = hostMsg;
@@ -343,18 +343,18 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
       if (dnldShared->dnldCalcFileCrc != dnldShared->dnldInitFileCrc ||
           dnldShared->dnldCalcFileCrc != actualFileCrc)
       {
-        snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
+        snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
                 "Download of '%s' failed due to checksum mismatch, f/s read:0x%08X, dnld calc:0x%08X, sender:0x%08X",
-                dnldShared->dnldOrigPathName, actualFileCrc,
+                dnldShared->dnldOrigFileName, actualFileCrc,
                 dnldShared->dnldCalcFileCrc, dnldShared->dnldInitFileCrc);
         msgToSend = hostMsg;
         requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
       }
       else
       {
-        snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
+        snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
                 "Download of '%s' failed due to file size mismatch calculated:%d, sender:%d",
-                dnldShared->dnldOrigPathName, dnldShared->dnldCalcFileSize,
+                dnldShared->dnldOrigFileName, dnldShared->dnldCalcFileSize,
                 dnldShared->dnldInitFileSize);
         msgToSend = hostMsg;
         requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
@@ -368,16 +368,14 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
   // Send text message to host
   hcom_host_send_simple_string_msg(requestType, 0, msgToSend, thisFile, __LINE__);
 
-  if(hostMsg != NULL)
-    free(hostMsg);
-
 #if HCOM_RECV_DEBUG_TIMING > 0
   _dbgReceptionEndedAt = hcom_utils_get_current_time64_ns();
   hcom_logging_syslog(LOG_INFO, "%s@%d-File transfer %d packets, took %llu mSec, CalcFileCRC:0x%08x\n",
            thisFile, __LINE__, _dbgNumbPacketsRecvd, ((_dbgReceptionEndedAt - _dbgReceptionBeganAt) / 1000000),
            dnldShared->dnldCalcFileCrc);
 #endif
+
   dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
 
-  return OK;
+  hcom_host_process_free_dnld_share_mem();
 }

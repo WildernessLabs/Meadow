@@ -64,7 +64,7 @@ static host_com_cir_buffer_t *_hcom_cbuf;
  * Private Function Prototypes
  ****************************************************************************/
 
-static int hcom_host_enq_deq_wait_for_work(void);
+int hcom_host_enq_deq_wait_for_work(void);
 
 /****************************************************************************
  * Public Functions
@@ -203,12 +203,11 @@ int hcom_host_enq_deq_enqueue_rcvd_data(uint8_t recvBuff[], const ssize_t recvBy
 }
 
 //====================================================================
-// Proc calls here to get the next message.
-// Note: during sem_wait a signal will wake up this thread.
+// TODO: during sem_wait a signal will wake up this thread
+// Proc calls here to get the next message
 int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf,
           size_t *packetLength)
 {
-  int ret;
   int result;
 
   do
@@ -236,12 +235,7 @@ int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf,
       
         // Thread waits to be notified that a message may be available. This
         // is also where the watchdog notification is detected.
-        ret = hcom_host_enq_deq_wait_for_work();
-        if(ret < 0)
-        {
-          return ret;   // May be watchdog timed out
-        }
-
+        hcom_host_enq_deq_wait_for_work();
         break;                          // Loop again to check for new message
 
       case HCOM_CIR_BUF_GET_DELETED_TOO_BIG:
@@ -268,8 +262,6 @@ int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf,
 // or that the watchdog timer has timedout and we must take action.
 int hcom_host_enq_deq_wait_for_work()
 {
-  int ret;
-
   while (sem_wait(&_runProcSem) < 0)
   {
     int errcode = errno;
@@ -280,11 +272,7 @@ int hcom_host_enq_deq_wait_for_work()
     else
     {
       // Check if watchdog expired and if it did, update HCOM's state
-      ret = hcom_host_watchdog_check_execute_if_expired();
-      if(ret < 0)
-      {
-        return ret;     // Maybe watchdog timed out
-      }
+      hcom_host_watchdog_check_execute_if_expired();
     }
   }
 

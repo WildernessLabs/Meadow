@@ -1010,4 +1010,186 @@ int hcom_nx_exec_test_qspi_flash_read(struct hcom_nx_cmd_data *cmdData)
   return ret;
 }
 
+// //----------------------------------------------------------------------
+// // The task is created when the first developer 1 is called. The task calls
+// // here and this function calls mono_main. When mono_main returns this task
+// // waits for the next developer 1 call and the task is reused.
+  
+//   // int ret;
+//   // syslog(2, "Entered Developer_1 will call into mono_main\n");
+//   // int argc = userData;
+//   // char *myArgv[1];
+//   // myArgv[0] = "dbgTask";
+
+//   // // Now send the requested command    
+//   // ret = (*USERSPACE->us_entrypoint)((int)argc, myArgv);
+//   // syslog(2, "%s() - dbgTask exited ret = %d\n", __func__, ret);
+
+
+// void hcom_exec_rqst_testing_developer_1(uint32_t userData)
+// {
+//   hcom_utils_f7syslog(LOG_WARNING, "%s not implemented\n", __func__);
+
+//   // // This code call using 'hcom thread'
+//   // int ret;
+//   // syslog(2, "Entered Developer_1 will call into mono_main\n");
+//   // int argc = userData;
+//   // char *myArgv[1];
+//   // myArgv[0] = "dbgTask";
+
+//   // // Now send the requested command    
+//   // ret = (*USERSPACE->us_entrypoint)((int)argc, myArgv);
+//   // syslog(2, "%s() - dbgTask exited ret = %d\n", __func__, ret);
+
+// // // This call creates a new task each time
+// //   DEBUGASSERT(USERSPACE->us_entrypoint != NULL);
+// //   int dbg_pid = 0;
+
+// //   char *myArgs[3];
+// //   char ArgBuf[16];
+// //   snprintf(ArgBuf, 16, "%d", userData);
+  
+// //   myArgs[0] = ArgBuf;
+// //   myArgs[1] = "happy";
+// //   myArgs[2] = NULL;
+  
+// //   dbg_pid = task_create("dbgTask", CONFIG_USERMAIN_PRIORITY,
+// //                       CONFIG_USERMAIN_STACKSIZE,
+// //                       USERSPACE->us_entrypoint, myArgs);
+// // //                      (FAR char * const *)NULL);
+
+// //   syslog(2, "Developer_1 dgb_pid:%d\n", dbg_pid);
+
+
+//   //memTest = malloc(1024 * userData);
+// //  if(memTest == NULL)
+// //  {
+// //    syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+// //    return -ENOMEM;
+// //  }
+
+//   //memTest = kmm_malloc(1024 * userData);
+// //  if(memTest == NULL)
+// //  {
+// //    syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+// //    return -ENOMEM;
+// //  }
+
+//   // if(memTest == NULL)
+//   //   syslog(2, "****************Allocation failed\n");
+
+//   // DIR *dirp;
+
+//   // dirp = opendir(HCOM_FILE_MOUNT_POINT_TARGET);
+//   // if ( !dirp )
+//   // {
+//   //   hcom_utils_f7syslog(LOG_ERR, "opendir(\"%s\") failed with errno=%d\n", HCOM_FILE_MOUNT_POINT_TARGET, errno);
+//   // }
+
+//   // closedir(dirp);
+
+// // int ret;
+  
+// //   syslog(2, "%s() - userData = %d\n", __func__, userData);
+// //   int argc = 1;
+// //   char *argv[1];
+// //   strcpy(argv[0], "TestStdoutBefore");
+
+// // // This may never return
+// //   int ret = (*USERSPACE->us_entrypoint)((int)argc, argv);
+// //   syslog(2, "%s() - TestStdoutBefore exited ret = %d\n", __func__, ret);=
+// }
+
+// // //=============================================================
+// // // This is all related to developer_2
+// // static uint32_t dev2_user_data;
+// // //static int dev2_previous_thread_pid;
+// // //-----------
+// // // Test code
+// // static int hcom_test_pipe_server(int argc, char *argv[])
+// // {
+// //   int ret;
+// //   syslog(2, "%s() - Pipe Test Thread passing argc = %d\n",
+// //       __func__, dev2_user_data); sleep(4);
+
+// //   char *myArgv[1];
+// //   myArgv[0] = "TestPipe";
+
+// //   // Now send the requested command
+// //   syslog(2, "%s() - Now request being passed down argc = %d, argv = %s\n",
+// //       __func__, dev2_user_data, myArgv[0]);
+    
+// //   ret = (*USERSPACE->us_entrypoint)((int)dev2_user_data, myArgv);
+// //   syslog(2, "%s() - Pipe Test thread terminated = %d\n", __func__, ret);
+// //   return 0;
+// // }
+// // //---------------
+// void hcom_exec_rqst_testing_developer_2(uint32_t userData)
+// {
+//   hcom_utils_f7syslog(LOG_WARNING, "%s not implemented\n", __func__);
+
+//   //free(memTest);
+  
+//   //kmm_free(memTest);
+
+// // int ret;
+  
+// //   syslog(2, "%s() - userData = %d\n", __func__, userData);
+
+// //   // Set up a call so the pipe code can be tested
+// //   dev2_user_data = userData;
+
+// //   int pid = kthread_create("pipeTester",
+// //     100, 1024, (main_t)hcom_test_pipe_server,
+// //     (FAR char * const *)  NULL);
+// //   if(pid <= 0)
+// //   {
+// //     syslog(2, "%s() - thread create failed = %d\n", __func__, pid);
+// //     return;
+// //   }
+// }
+
+// //=============================================================
+// void hcom_exec_rqst_testing_developer_3(uint32_t userData)
+// {
+//   // int ret;
+//   int i;
+
+// // NOT NEEDED
+//   // for(i = 1; i <= userData; i++)
+//   // {
+//   //   if((i % 50) == 0)
+//   //     syslog(2, "Number is %d\n", i);
+//   //   f7syslog_host(0, "From %s. i=%d\n", __func__, i);
+//   // }
+//   // syslog(2, "Sent %d\n", i);
+
+//   // syslog(2, "%s() - userData = %d\n", __func__, userData);
+//   // int argc = 1;
+//   // char *myArgv[1];
+//   // myArgv[0] = "RedirectStdout";
+
+//   // // Now send the requested command    
+//   // ret = (*USERSPACE->us_entrypoint)((int)argc, myArgv);
+//   // syslog(2, "%s() - RedirectStdout exited ret = %d\n", __func__, ret);
+// }
+
+// //=============================================================
+// void hcom_exec_rqst_testing_developer_4(uint32_t userData)
+// {
+//   hcom_utils_f7syslog(LOG_WARNING, "%s not implemented\n", __func__);
+
+// // int ret;
+  
+// //   syslog(2, "%s() - userData = %d\n", __func__, userData);
+// //   int argc = 1;
+// //   char *argv[1];
+// //   strcpy(argv[0], "TestStdoutAfter");
+
+// // // This may never return
+// //   int ret = (*USERSPACE->us_entrypoint)((int)argc, argv);
+// //   syslog(2, "%s() - TestStdoutAfter exited ret = %d\n", __func__, ret);
+
+// }
+
 #endif

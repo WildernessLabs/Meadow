@@ -42,62 +42,45 @@
 
 #define HCOM_FILE_DNLD_STM32F7_WDOG_TIME (3)
 
-// 8 elements in path will allow up to 6 subdirectories
-// '/meadow0/filename' considered 2 mandatory elements
-#define HCOM_FILE_DNLD_MAX_NUMB_DIR_ELEMENTS (8)
-#define HCOM_FILE_DNLD_MANDATORY_DIR_ELEMENTS (2)
-#define HCOM_FILE_DNLD_MAX_NUMB_USER_SUBDIRS \
-  (HCOM_FILE_DNLD_MAX_NUMB_DIR_ELEMENTS-HCOM_FILE_DNLD_MANDATORY_DIR_ELEMENTS)
-
 // This enum defines the current processing state of the download code for a
 // specific download session. It is also used for file delete.
 // It is not used for ESP32 download, only external file system.
 // May decide to add ESP32 enum here too
 enum hcom_download_stm32f7_packet_state
 {
-  // The Invalid state indicates that there is no valid information in the
-  // hcom_dnld_shared_s structure.
-  HcomStm32F7DnldStateInvalid  = 0,
-  HcomStm32F7DnldStateNone     = 1,
-  HcomStm32F7DnldStateStarting = 2,
-  HcomStm32F7DnldStateFileXfer = 3,
+  HcomStm32F7DnldStateNone = 0,
+  HcomStm32F7DnldStateStarting = 1,
+  HcomStm32F7DnldStateFileXfer = 2,
 };
 
-enum hcom_download_dir_type_identifier
-{
-  HcomDnldDirTypeUnknown = 0,
-  HcomDnldDirTypeMeadow0 = 1,
-  HcomDnldDirTypeMmcsd0  = 2,
-};
-
+// May need to add ESP32 info to struct
 // This struct is memset to zero by processing during initialization
 struct hcom_dnld_shared_s
 {
   // Set by process and maintained during download by file handling
-  int dnldCurrentState;               // Tracks the state of the download
+  int dnldCurrentState;             // Tracks the state of the download
 
   // These are completely managed by file handling code
-  uint32_t dnldInitFileCrc;           // CRC that was received from CLI
-  uint32_t dnldCalcFileCrc;           // CRC calculated over while receiving
-  uint32_t dnldInitFileSize;          // File size based on received CLI data
-  uint32_t dnldCalcFileSize;          // This size calculated while receiving
-  uint32_t dnldPathNameEleCount;      // Number of elements in pathname
+  uint32_t dnldInitFileCrc;         // CRC that was received from CLI
+  uint32_t dnldCalcFileCrc;         // CRC calculated over while receiving
+  uint32_t dnldInitFileSize;        // File size based on received CLI data
+  uint32_t dnldCalcFileSize;        // This size calculated while receiving
+  int dnldFileFD;                   // For file write persisted fd
+  int dnldPercentSent;              // Used to calculate the % completed
 
-  int dnldFileFD;                     // For persisting fd
-  int dnldPercentSent;                // Used to calculate the % completed
-  // Set by processing and used by file handling (This is always 1)
-  uint32_t dnldFilePartId;            // File partition from CLI
-  // These are allocated and may be exactly the same string
-  char *dnldOrigPathName;             // File name as provided by CLI
-  char *dnldFullPathName;             // Full file name (e.g. /meadow0/file.txt)
+  // Set by processing and used by file handling
+  uint32_t dnldFilePartId;          // File partition from CLI
+  char *dnldOrigFileName;           // File name as provided by CLI
+  char *dnldFullFileName;           // Full file name (e.g. /meadow0/file.txt)
 };
+
 typedef struct hcom_dnld_shared_s hcom_dnld_shared_t;
 
-int hcom_dir_mgmt_free_file_info(hcom_dnld_shared_t *dnldShared);
+int hcom_host_process_free_dnld_share_mem(void);
 
-// The watchdog has a close relationship with hcom CLI message process
-int hcom_host_watchdog_initialize(hcom_dnld_shared_t *dnldShared);
+// The watchdog has a close relationship with hcom host process
+int hcom_host_watchdog_initialize(hcom_dnld_shared_t * dnldShared);
 void hcom_host_watchdog_stopping(void);
-int hcom_host_watchdog_check_execute_if_expired(void);
+void hcom_host_watchdog_check_execute_if_expired(void);
 
 #endif  // __INCLUDE_HCOM_DOWNLOAD_SHARED__H

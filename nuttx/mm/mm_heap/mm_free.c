@@ -86,7 +86,7 @@ void mm_free(FAR struct mm_heap_s *heap, FAR void *mem)
   //  
   // if (!mm_heapmember(heap, mem))
   //   {
-  //     syslog(2, "Memory address %p is not in %s heap\n", mem, heap->mm_heapstart[0] == 0x2004a000 ? "kernel" : "user");
+  //     syslog(1, "Memory address %p is not in %s heap\n", mem, heap->mm_heapstart[0] == 0x2004a000 ? "kernel" : "user");
   //     mm_givesemaphore(heap);
   //     return;
   //   }

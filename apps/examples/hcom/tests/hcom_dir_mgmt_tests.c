@@ -52,12 +52,9 @@
 
 #include <sys/mount.h>
 #include <sys/stat.h>
-#include <sys/statfs.h>
 #include <sys/ioctl.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/fs/dirent.h>
-
-#define HCOM_DIR_MGMT_TST_SHOW_FULL_FILE_STATUS (0)
 
 /****************************************************************************
  * Private Data
@@ -67,340 +64,8 @@ static char *thisFile = __FILE__;
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-static int hcom_dir_mgmt_tst_log_directories_files(const char *initialDir);
 
-//===================================================================
-// Debug code. If needed use this function with the following debug code
-static off_t hcom_dir_mgmt_find_file_status(char *path)
-{
-  int ret;
-  struct stat statBuf;
-  ret = stat(path, &statBuf);
-  if (ret < 0)
-  {
-    syslog(2, "stat call error. ret:%d, errno:%d\n", ret, errno);
-    return -1;
-  }
-#if HCOM_DIR_MGMT_TST_SHOW_FULL_FILE_STATUS > 0
-  
-  syslog(2, "Reported by stat:\n");
-
-  if (S_ISREG(statBuf.st_mode))
-    syslog(2, "type        : File\n");
-  else if (S_ISDIR(statBuf.st_mode))
-    syslog(2, "type        : Directory\n");
-  else if (S_ISCHR(statBuf.st_mode))
-    syslog(2, "type        : Character driver\n");
-  else if (S_ISBLK(statBuf.st_mode))
-    syslog(2, "type        : Block driver\n");
-  else if (S_ISMQ(statBuf.st_mode))
-    syslog(2, "type        : Message queue\n");
-  else if (S_ISSEM(statBuf.st_mode))
-    syslog(2, "type        : Named semaphore\n");
-  else if (S_ISSHM(statBuf.st_mode))
-    syslog(2, "type        : Shared memory\n");
-  else if (S_ISSOCK(statBuf.st_mode))
-    syslog(2, "type        : Socket\n");
-  else if (S_ISMTD(statBuf.st_mode))
-    syslog(2, "type        : Named MTD driver\n");
-  else if (S_ISLNK(statBuf.st_mode))
-    syslog(2, "type        : Symbolic link\n");
-  else
-    syslog(2, "type        : Unknown\n");
-
-  syslog(2, "file size   : %d (bytes)\n",  statBuf.st_size);
-  syslog(2, "block size  : %d (bytes)\n",  statBuf.st_blksize);
-  syslog(2, "size        : %d (blocks)\n", statBuf.st_blocks);
-  syslog(2, "access time : %d\n",          statBuf.st_atime);
-  syslog(2, "modify time : %d\n",          statBuf.st_mtime);
-  syslog(2, "change time : %d\n",          statBuf.st_ctime);
-#endif
-
-#if HCOM_DIR_MGMT_TST_SHOW_FULL_FILE_STATUS > 0
-  struct statfs buf;
-  ret = statfs(path, &buf);
-  if (ret < 0)
-  {
-    syslog(2, "ERROR statfs(%s) failed with errno=%d\n", path, errno);
-    return -1;
-  }
-  else
-  {
-    // LITTLEFS_SUPER_MAGIC = 0x0a732923
-    syslog(2, "Reported by statfs:\n");
-    syslog(2, "FS Type           : %0x\n", buf.f_type);
-    syslog(2, "Block size        : %d\n",  buf.f_bsize);
-    syslog(2, "Number of blocks  : %d\n",  buf.f_blocks);
-    syslog(2, "Free blocks       : %d\n",  buf.f_bfree);
-    syslog(2, "Free user blocks  : %d\n",  buf.f_bavail);
-    syslog(2, "Number file nodes : %d\n",  buf.f_files);
-    syslog(2, "Free file nodes   : %d\n",  buf.f_ffree);
-    syslog(2, "File name length  : %d\n",  buf.f_namelen);
-  }
-#endif
-
-  return statBuf.st_size;
-}
-
-//===================================================================
-// This function prints the path as a directory header and all the file found
-// in that directory.
-static void hcom_dir_mgmt_print_directory_files(DIR *dir[],
-          int dirLevel, char *currentPath)
-{
-  struct dirent *entry;
-  bool filesFound = false;
-  int fileCount = 0;
-
-  while ((entry = readdir(dir[dirLevel])) != NULL)
-  {
-    if (DIRENT_ISFILE(entry->d_type))
-    {
-      // Found a file
-      if(!filesFound)
-      {
-        // Skip a line and print this directory path as a header before the
-        // first file is printed
-        syslog(2, "\n");
-        syslog(2, "Directory:%s\n", currentPath);
-        filesFound = true;
-      }
-
-      // Print file name with file size
-      // At this point currentPath doesn't contain the file name
-      char * fullFileName = malloc(512);
-      size_t cPathLen = strlen(currentPath);
-      memcpy(fullFileName, currentPath, cPathLen);
-      fullFileName[cPathLen] = '\0';
-      strcat(fullFileName, "/");
-      strcat(fullFileName, entry->d_name);
-      off_t fsize = hcom_dir_mgmt_find_file_status(fullFileName);
-      free(fullFileName);
-
-      syslog(2, "  %s [%ld bytes]\n", entry->d_name, fsize);
-      fileCount++;
-    }
-  }
-
-  // Line if we printed files
-  if(filesFound)
-  {
-    syslog(2, "----------%d Total File(s) (Level:%d)----------\n",
-              fileCount, dirLevel);
-  }
-  else
-  {
-    syslog(2, "\n");
-    syslog(2, "Empty directory:%s\n", currentPath);
-  }
-
-  // Return to the start of directory and look for deeper directories
-  rewinddir(dir[dirLevel]);
-}
-
-//===================================================================
-// This function modifies the currentPath to follow the structure of the
-// file system. Once begun this function only calls to print the directory
-// and file information.
-static int hcom_dir_mgmt_find_next_directory(const char *initialDir)
-{
-  int dirLevel = 0;
-  int dirEndLevel;
-  DIR *dir[HCOM_FILE_DNLD_MAX_NUMB_DIR_ELEMENTS];
-  struct dirent *entry;
-  char *currentPath = malloc(1024);  // malloc size is a guess
-  bool showAll = false;
-
-  // Single '/'? If so, show all the data and types.
-  if(strlen(initialDir) == 1)
-  {
-    showAll = true;
-  }
-
-  dirEndLevel = dirLevel;
-  strcpy(currentPath, initialDir);
-
-  // Open the initial directory entry and place it in the array
-  dir[dirLevel] = opendir(currentPath);
-  if(dir[dirLevel] == NULL)
-  {
-    syslog(LOG_ERR, "%s@%d-opendir failed, errno:%d, Path:'%s', dir level:%d\n",
-              thisFile, __LINE__, errno, currentPath, dirLevel);
-    return -errno;
-  }
-
-  // Print files from starting directory
-  hcom_dir_mgmt_print_directory_files(dir, dirLevel, currentPath);
-
-  // Manage currentPath and dirlevel as it moves up and down within
-  // the directory structure.
-  while(true)
-  {
-    // Search for directories in currentPath, which may change multiple times
-    // while this loop executes, but always deeper in to subdirectories. On
-    // leaving this loop (no more directories on this branch) we will move the
-    // directory up 1 level to it's original parent.
-    while ((entry = readdir(dir[dirLevel])) != NULL)
-    {
-      if (DIRENT_ISDIRECTORY(entry->d_type))
-      {
-        // Ignore these directories, we only care about named directories
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-          continue;
-
-        // Update the currentPath to include the just found child directory
-        // If the only character is '/' we are at the root directory and don't
-        // want to add another '/'.
-        if(!(strlen(currentPath) == 1 && currentPath[0] == '/'))
-        {
-          strcat(currentPath, "/");
-        }
-
-        strcat(currentPath, entry->d_name);
-        dirLevel++;
-
-        // Open deeper child directory
-        dir[dirLevel] = opendir(currentPath);
-        if(dir[dirLevel] == NULL)
-        {
-          syslog(LOG_ERR, "%s@%d-opendir failed, errno:%d, Path:'%s', dir level:%d\n",
-                    thisFile, __LINE__, errno, currentPath, dirLevel);
-          return -errno;
-        }
-
-        // Reads the directory at currentPath/dirLevel and prints all the
-        // files found there (if there are any).
-        hcom_dir_mgmt_print_directory_files(dir, dirLevel, currentPath);
-      }
-      else if(showAll)
-      {
-        // All non-file types if starting at root directory
-        char *entryType;
-        if(! (DIRENT_ISFILE(entry->d_type)))
-        {
-          if(DIRENT_ISCHR(entry->d_type)) {entryType = "char";}
-          else if(DIRENT_ISBLK(entry->d_type)) {entryType = "block";}
-          else if(DIRENT_ISLINK(entry->d_type)) {entryType = "link";}
-          else {entryType = "????";}
-          syslog(2, "%s/%s [%s]\n", currentPath, entry->d_name, entryType);
-        }
-      }
-    }
-
-    // We reached the bottom of this directory branch
-    closedir(dir[dirLevel]);
-
-    // Is the level equal to our starting level (i.e. are we finished?)
-    if(dirEndLevel == dirLevel)
-    {
-      break;      // Break out of loop as we are done
-    }
-
-    // Remove child subdirectory from currentPath
-    char *lastShash = strrchr(currentPath, '/');
-    *lastShash = '\0';
-
-    // Up a parent directory level and resume the search from there
-    dirLevel--;
-  }
-
-  free(currentPath);
-  return OK;
-}
-
-//===================================================================
-// This is the entry point for the non-recursive version. It was used to
-// verify that the subdirectory additions were correctly done.
-int hcom_dir_mgmt_tst_log_directories_files(const char *initialDir)
-{
-  int ret;
-  
-  if(initialDir == NULL || strlen(initialDir) < 1 || initialDir[0] != '/')
-  {
-    syslog(LOG_ERR, "%s@%d-InitialDir was invalid\n", thisFile, __LINE__);
-    return -EINVAL;
-  }
-
-  // Do the heavy lifting
-  ret = hcom_dir_mgmt_find_next_directory(initialDir);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-Listing files failed, ret:%d, errno:%d\n",
-              thisFile, __LINE__, ret, errno);
-    return -errno;
-  }
-
-  return OK;
-}
-
-//--------------------------------------------------------------------------
-// NOTE - Recursive function
-static int hcom_dir_mgmt_tst_recurse_nested_directories(const char *rootDir,
-            char *hostMsg, struct dirent *entry, int indent)
-{
-  DIR *dir;
-
-  if (!(dir = opendir(rootDir)))
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Could not open:%s as root directory, errno:%d\n",
-              thisFile, __LINE__, rootDir, errno);
-    return -errno;
-  }
-
-  while ((entry = readdir(dir)) != NULL)
-  {
-    if (DIRENT_ISDIRECTORY(entry->d_type))
-    {
-      if(strcmp(entry->d_name, "proc") == 0)
-        return OK; // ignore procfs information
-              
-      syslog(2, "%*s%s/\n", indent, "", entry->d_name);
-
-      if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-        continue;
-
-      char path[256];   // MAX_PATH
-      snprintf_chk(path, sizeof(path), "%s/%s", rootDir, entry->d_name);
-
-      // Recursion is here since directory
-      hcom_dir_mgmt_tst_recurse_nested_directories(path, hostMsg, entry, indent + 2);
-    }
-#if 1     // Show everything not just directories
-    else
-    {
-      // All non-directory types
-      char *entryType;
-      if(DIRENT_ISFILE(entry->d_type)) {entryType = "file";}
-      else if(DIRENT_ISCHR(entry->d_type)) {entryType = "char";}
-      else if(DIRENT_ISBLK(entry->d_type)) {entryType = "block";}
-      else if(DIRENT_ISLINK(entry->d_type)) {entryType = "link";}
-      else {entryType = "????";}
-
-      syslog(2, "%*s%s [%s]\n", indent, "", entry->d_name, entryType);
-
-    }
-#endif
-  }
-  // Blank line
-  syslog(2, "\n");
-
-  closedir(dir);
-  return OK;
-}
-
-//===========================================================================
-// THIS RECURSIVE CODE IS FOR DIAGNOSTICS
-// Used to confirm the above non recursive is correct
-//===========================================================================
-// Note: Using "/" as the rootDir would show all files and directories etc.
-static int hcom_dir_mgmt_tst_recurse_nested_directories_start(const char *rootDir)
-{
-  // Keep these larger objects off the stack of the recursive function
-  char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-  struct dirent *entry = NULL;
-
-  return hcom_dir_mgmt_tst_recurse_nested_directories(rootDir, hostMsg, entry, 0);
-}
+void meadow_dir_mgmt_test_nested_directory(uint32_t userData);
 
 /****************************************************************************
  * Public Types
@@ -417,73 +82,52 @@ void meadow_dir_mgmt_tests(uint32_t userData)
   uint32_t freeBytes;
   uint32_t usedBytes;
 
-  syslog(2, "Directory management received 'set developer -d 13 -v %lu'\n", userData);
-  usleep(20 * 1000);
+  syslog(1, "Directory management received 'set developer -d 13 -v %lu'\n", userData);
 
   switch (userData)
   {
+  case 1:
+    meadow_dir_mgmt_test_nested_directory(userData);
+    break;
+  
       // Test getting total available external flash size in bytes
-    case 1:
+    case 2:
       ret = meadow_read_file_total_free_flash_size(&totalBytes, &freeBytes);
       if(ret < 0)
       {
-        syslog(2, "Error: calling meadow_read_file_total_free_flash_size(), ret:%d, errno:%d\n",
+        syslog(1, "Error: calling meadow_read_file_total_free_flash_size(), ret:%d, errno:%d\n",
                   ret, errno);
         return;
       }
       usedBytes = totalBytes - freeBytes;
-      syslog(2, "Total bytes:%lu (%luMb), Free bytes:%lu (%luMb), Used bytes (calculated):%lu (%luMb)\n",
+      syslog(1, "--> Total bytes:%lu (%luMb), Free bytes:%lu (%luMb), Used bytes:%lu (%luMb)\n",
                 totalBytes, totalBytes/(1024*1024),
                 freeBytes, freeBytes/(1024*1024),
                 usedBytes, usedBytes/(1024*1024));
       break;
 
-  case 2:
-    hcom_dir_mgmt_tst_recurse_nested_directories_start("/meadow0");
-    break;
+    case 3:
+      hcom_file_dir_nested_dev_dir_and_files_start();
+      // show_directories("/meadow0", 1);
+      break;
 
-  case 3:
-    hcom_dir_mgmt_tst_recurse_nested_directories_start("/sdcard");
-    break;
-
-  case 4:
-    hcom_dir_mgmt_tst_recurse_nested_directories_start("/");
-    break;
-
-  case 5:
-    hcom_dir_mgmt_tst_recurse_nested_directories_start("");
-    break;
-
-  case 6:
-    hcom_dir_mgmt_tst_log_directories_files("/meadow0");
-    break;
-
-  case 7:
-    hcom_dir_mgmt_tst_log_directories_files("/mmcsd0");
-    break;
-
-  case 8:
-    hcom_dir_mgmt_tst_log_directories_files("/sdcard");
-    break;
-
-  case 9:
-    hcom_dir_mgmt_tst_log_directories_files("/");
-    break;
-
-  case 10:
-    hcom_dir_mgmt_tst_log_directories_files("/dev");
-    break;
-
-  case 11:       // Illegal
-    hcom_dir_mgmt_tst_log_directories_files("");
-
-    break;
-  case 12:       // Illegal
-    hcom_dir_mgmt_tst_log_directories_files(NULL);
-    break;
 
   default:
     break;
+  }
+}
+
+//=======================================================================
+void meadow_dir_mgmt_test_nested_directory(uint32_t userData)
+{
+  int ret;
+  
+  syslog(2, "Test - Nested Directory, Devices and Files\n");
+
+  ret = hcom_file_dir_nested_dev_dir_and_files_start();
+  if(ret < 0)
+  {
+    syslog(2, "%s@%d-Error:ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
   }
 }
 

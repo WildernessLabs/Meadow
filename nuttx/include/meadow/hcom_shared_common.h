@@ -70,13 +70,9 @@
 #  define MAX(a,b) (((a) > (b)) ? (a) : (b))
 #endif
 
-// New while adding subdirectories
-#define HCOM_MEADOW0_PATH_NAME_PREFIX "/meadow0"
-
-// This #define is should be removed, because at this time (13Nov23)
-// partitioning isn't being used. And hasn't been used in the Meadow file
-// system, from the beginning. Also, there's been a fair amount of code written
-// that has no concept of partitioning.
+// Partition Id may be postpended to /meadow (i.e /meadow0)
+// Note:The following string must fit into 1/2 of the buffer whose size is
+// defined by HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH
 #define HCOM_FILE_MOUNT_POINT_TARGET "/meadow"
 
 // Partitioning changes will effect the following
@@ -88,8 +84,6 @@
 #define MONO_MEADOW_EXECUTABLE_APP_EXE "/meadow/Meadow.dll"
 #endif
 
-#define MEADOW_SDCARD_MOUNT_POINT_NAME  "/sdcard"
-
 #define HCOM_NX_FS_MONO_RAW_PARTITION_SIZE 0x300000 // 3MB
 #define HCOM_NX_FS_OTA_RESERVED_SPACE 0x200000 // 2MB reserved space for updates
 #define HCOM_NX_FS_NUTTX_UPDATE_SIZE 0x1C0000   // (2MB - 256KB)
@@ -99,7 +93,6 @@
 #define HCOM_TINY_HOST_STRING_BUFF_LENGTH 64        // automatic variable
 #define HCOM_SHORT_HOST_STRING_BUFF_LENGTH 128      // automatic variable
 #define HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH 144  // automatic variable
-#define HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH 512   // allocate
 #define HCOM_MAX_HOST_STRING_BUFF_LENGTH 2048       // allocate
 // PATH_MAX is defined by Nuttx in limits.h. It's 256 or less
 #define HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH ((PATH_MAX * 2) + 2) // allocate

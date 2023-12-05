@@ -710,7 +710,7 @@ int meadow_eth_dhcp_get_dhcp_info(struct dhcp_info_s *dhcp_info,
   ret = meadow_eth_dhcp_request(handle, dhcp_info);
   if (ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_dhcp_request() failed, ret:%d, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_eth_dhcp_request() failed:%d, errno:%d\n",
            thisFile, __LINE__, ret, errno);
     meadow_eth_dhcp_close(handle);
     return -errno;
@@ -720,7 +720,7 @@ int meadow_eth_dhcp_get_dhcp_info(struct dhcp_info_s *dhcp_info,
   ret = meadow_eth_utils_set_ipv4(interfaceName, &dhcp_info->ipaddr);
   if (ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_ipv4() failed, ret:%d, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_ipv4() failed:%d, errno:%d\n",
            thisFile, __LINE__, ret, errno);
     meadow_eth_dhcp_close(handle);
     return -errno;
@@ -732,7 +732,7 @@ int meadow_eth_dhcp_get_dhcp_info(struct dhcp_info_s *dhcp_info,
     ret = meadow_eth_utils_set_ipv4_mask(interfaceName, &dhcp_info->netmask);
     if (ret < 0)
     {
-      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_ipv4_mask() failed, ret:%d, errno:%d\n",
+      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_ipv4_mask() failed:%d, errno:%d\n",
              thisFile, __LINE__, ret, errno);
       meadow_eth_dhcp_close(handle);
       return -errno;
@@ -745,7 +745,7 @@ int meadow_eth_dhcp_get_dhcp_info(struct dhcp_info_s *dhcp_info,
     ret = meadow_eth_utils_set_router(interfaceName, &dhcp_info->default_router);
     if (ret < 0)
     {
-      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_router() failed, ret:%d, errno:%d\n",
+      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_router() failed:%d, errno:%d\n",
              thisFile, __LINE__, ret, errno);
       meadow_eth_dhcp_close(handle);
       return -errno;
@@ -758,7 +758,7 @@ int meadow_eth_dhcp_get_dhcp_info(struct dhcp_info_s *dhcp_info,
     ret = meadow_eth_utils_set_dns(&dhcp_info->dnsaddr);
     if (ret < 0)
     {
-      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_dns() failed, ret:%d, errno:%d\n",
+      syslog(LOG_ERR, "%s@%d-meadow_eth_utils_set_dns() failed:%d, errno:%d\n",
              thisFile, __LINE__, ret, errno);
       meadow_eth_dhcp_close(handle);
       return -errno;

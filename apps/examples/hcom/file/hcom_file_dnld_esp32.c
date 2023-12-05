@@ -183,8 +183,8 @@ void hcom_file_dnld_esp32_file_begin(const HcomProtoHdrMsg_t *hdrMsg)
   ret = hcom_host_watchdog_dnld_timer_initialize();
   if(ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Timer init, ret:%d, errno:%d\n",
-              _thisFile, __LINE__, ret, errno);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Timer init errno:%d, ret:%d\n",
+              _thisFile, __LINE__, errno, ret);
     return;
   }
 
@@ -193,8 +193,8 @@ void hcom_file_dnld_esp32_file_begin(const HcomProtoHdrMsg_t *hdrMsg)
   ret = hcom_host_watchdog_dnld_timer_set_delay(HCOM_FILE_DNLD_STM32F7_WDOG_TIME);
   if(ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set, ret:%d, errno:%d\n",
-              _thisFile, __LINE__, ret, errno);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set errno:%d, ret:%d\n",
+              _thisFile, __LINE__, errno, ret);
     return;
   }
 

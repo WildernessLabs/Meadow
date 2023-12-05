@@ -186,13 +186,15 @@ int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf, size_t *packetLen
 // Received message are first processed using these functions
 int hcom_host_process_setup(void);
 void hcom_host_process_shutdown(void);
+int hcom_host_process_free_dnld_share_mem(void);
+bool hcom_host_process_is_stm32f7_dnld_active(void);
 
 int hcom_host_watchdog_dnld_timer_initialize(void);
 int hcom_host_watchdog_dnld_timer_set_delay(time_t sec);
 int hcom_host_watchdog_dnld_timer_delete(void);
 int hcom_esp32_exec_flash_file(uint8_t *, uint32_t, uint32_t, char *);
 
-int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hcomMsg,
+void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hcomMsg,
       const size_t packetSize, const uint32_t userData,
       const uint16_t requestType, hcom_dnld_shared_t *dnldShared);  
 int hcom_host_route_setup(void);
@@ -201,13 +203,13 @@ void hcom_host_route_shutdown(void);
 // -----------------------------------------------
 // Execute Request for download add and delete
 int hcom_file_dnld_stm32f7_setup(void);
-int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
+void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
       hcom_dnld_shared_t *dnldShared);
-int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
+void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
       const size_t packetSize, hcom_dnld_shared_t *dnldShared);
-int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared);
-int hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared);
-int hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShared);
+void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared);
+void hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared);
+void hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShared);
 
 int hcom_file_dnld_esp32_setup(void);
 bool hcom_file_dnld_esp32_is_active(void);
@@ -221,9 +223,11 @@ void hcom_file_dnld_esp32_file_end(uint32_t user_data);
 // Execute Request for uploading a file
 int hcom_file_upld_proc_setup(void);
 void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
-        const size_t packetSize);
-int hcom_file_upld_proc_start_file_upload(hcom_dnld_shared_t *dnldShared);
-int hcom_file_upld_proc_begin_file_uploading(hcom_dnld_shared_t *dnldShared);
+        const size_t packetSize, uint32_t partitionId);
+void hcom_file_upld_proc_start_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
+        const size_t packetSize, uint32_t partitionId);
+void hcom_file_upld_proc_begin_file_uploading(const HcomProtoHdrMsg_t *hdrMsg,
+        const size_t packetSize, uint32_t partitionId);
 void hcom_file_upld_proc_abort_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
         const size_t packetSize, uint32_t partitionId);
 
@@ -238,18 +242,13 @@ int hcom_file_write_close_active_file(hcom_dnld_shared_t *dnldShared);
 
 // -----------------------------------------------
 // File listing functions
-int hcom_file_lists_all_files_in_directory(const HcomProtoHdrMsg_t *hdrMsg,
-        hcom_dnld_shared_t *dnldShared, bool isCrcNeeded);
-
+int hcom_file_lists_files_in_partition(uint32_t partitionId);
 int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId);
 int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData);
 
 // -----------------------------------------------
 // File directory functions
-int hcom_host_process_init_hcom_dnld_share(hcom_dnld_shared_t *dnldShared,
-          const HcomProtoHdrMsg_t *hdrMsg, const size_t packetSize,
-          bool isFileMsgType, bool endExpectFileName);
-int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared);
+int hcom_file_dir_nested_dev_dir_and_files_start(void);
 
 // -----------------------------------------------
 // File download misc functions
@@ -411,16 +410,12 @@ void hcom_diag_misc_build_info_from_recvd_msg(uint8_t buffer[],
           const int bufLen, bool isEncoded);
 void hcom_diag_misc_build_info_from_send_msg(uint8_t buffer[],
           const int bufLen, bool isEncoded);
-void hcom_via_nx_exec_diag_app_cmd(const HcomProtoHdrMsg_t *hdrMsg,
-          const size_t packetSize);
-
-#if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
 void hcom_diag_decode_recvd_message_type(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize);
-void hcom_diag_decode_data_packet_type(int decodedSize);
 void hcom_diag_decode_sending_message_type(const uint8_t *hostRawMsg,
         const uint16_t hostRqstType, const size_t packetSize);
-#endif
+void hcom_via_nx_exec_diag_app_cmd(const HcomProtoHdrMsg_t *hdrMsg,
+          const size_t packetSize);
 
 //-------------------------------------------------------
 // Testing utilities

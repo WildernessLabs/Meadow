@@ -1,7 +1,7 @@
 /****************************************************************************
  * \include\meadow\hcom_protocol.h
  * 
- *   Copyright (C) 2019 - 2023 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,8 +56,8 @@ extern uint16_t g_current_hcom_protocol_version;
 // COBS needs a specific delimiter. Zero seems to be traditional.
 #define HCOM_PROTOCOL_COBS_ENCODING_DELIMITER_VALUE (0x00)
 
-// What sequence number is used to identify a non-data, command message?
-#define HCOM_PROTOCOL_COMMAND_TYPE_SEQUENCE_NUMBER (0)
+// What sequence number is used to identify a non-data message?
+#define HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER (0)
 
 // Note: while the MD5 hash is 128-bits (16-bytes), it is 32 character
 // hex string from ESP32
@@ -75,14 +75,14 @@ extern uint16_t g_current_hcom_protocol_version;
 extern uint16_t g_current_hcom_maximum_packet_size;
 
 //--------------------------------------------------------------------
-// The following structs define the HCOM Protocol Data Messages
+// The following structs define the HCOM Data Messages
 //--------------------------------------------------------------------
 // Deprecated - This structure should be removed. But, this will take a
 // significant breaking change to the Protocol and to CLI. All messages
-// should use the standard header defined as HcomProtoFileInfoHdr_t, and this
+// should use the standard header defined in HcomProtoFileInfo_s, and this
 // structure should never be used.
-// FYI: This message type wasn't used to send file data to the host PC only
-// to send download data (binary file data) to Meadow.
+// FYI: This message type hasn't been used send data to host only to send
+// download data (binary file data) to the F7.
 struct HcomProtoDataMsg_s
 {
   // This is the only header
@@ -100,9 +100,9 @@ typedef struct HcomProtoDataMsg_s HcomProtoDataMsg_t;
 //--------------------------------------------------------------------
 // The following are used to define HCOM Messages that can be sent/received
 //--------------------------------------------------------------------
-// This struct defines a standard protocol message header. This type of header
-// is used for all message types, except legacy/deprecated HcomProtoDataMsg_t.
-struct HcomProtoStdHdr_s
+// This struct defines a standard header. This type of header is used for all
+// message types, except HcomProtoDataMsg_s.
+struct HcomProtoStdHeader_s
 {
   // If the sequence number is zero (0), it indicates that this is a non-data
   // message.Non-data messages always contain basic message related
@@ -130,17 +130,16 @@ struct HcomProtoStdHdr_s
 
 } __attribute__((packed));
 
-typedef struct HcomProtoStdHdr_s HcomProtoStdHdr_t;
+typedef struct HcomProtoStdHeader_s HcomProtoStdHeader_t;
 
-#define HCOM_PROTOCOL_STD_HDR_SIZE (sizeof(HcomProtoStdHdr_t))
+#define HCOM_PROTOCOL_STD_HEADER_SIZE (sizeof(HcomProtoStdHeader_t))
 
 //--------------------------------------------------------------------
 // This structure defines the additional information needed to initiate a file
 // download, delete and other file related messages. Many of the following
 // fields are not required nor needed for every message type.
-// Note: This struct should be broken into 2, 1 for ESP32 and 1 for Nuttx. But
-// this would be a breaking change.
-struct HcomProtoFileInfoHdr_s
+// This struct should be broken into 2, 1 for ESP32 and 1 for Nuttx.
+struct HcomProtoFileInfo_s
 {
   // File length of the entire file
   uint32_t fileSize;
@@ -159,17 +158,17 @@ struct HcomProtoFileInfoHdr_s
 
 } __attribute__((packed));
 
-typedef struct HcomProtoFileInfoHdr_s HcomProtoFileInfoHdr_t;
+typedef struct HcomProtoFileInfo_s HcomProtoFileInfo_t;
 
-#define HCOM_PROTOCOL_FILE_INFO_HDR_SIZE (sizeof(HcomProtoFileInfoHdr_t))
-#define HCOM_PROTOCOL_FILE_INFO_NAME_HDR_OFF (offsetof(HcomProtoFileInfoHdr_t, fileName))
+#define HCOM_PROTOCOL_FILE_INFO_SIZE (sizeof(HcomProtoFileInfo_t))
+#define HCOM_PROTOCOL_FILE_INFO_NAME_OFF (offsetof(HcomProtoFileInfo_t, fileName))
 
 //--------------------------------------------------------------------
-// Header only message. This is a very popular message type.
+// Header only. This is a very popular header.
 struct HcomProtoHdrMsg_s
 {
   // This is the only thing in a header only message
-  HcomProtoStdHdr_t stdHeader;
+  HcomProtoStdHeader_t stdHeader;
 
 } __attribute__((packed));
 
@@ -177,13 +176,13 @@ typedef struct HcomProtoHdrMsg_s HcomProtoHdrMsg_t;
 #define HCOM_PROTOCOL_HEADER_MSG_LENGTH (sizeof(HcomProtoHdrMsg_t))
 
 //--------------------------------------------------------------------
-// Header plus File Info message
+// Header plus File Info
 struct HcomProtoFileMsg_s
 {
-  HcomProtoStdHdr_t stdHeader;
+  HcomProtoStdHeader_t stdHeader;
 
   // Additional information relate to file downloads/uploads
-  HcomProtoFileInfoHdr_t fileInfo;
+  HcomProtoFileInfo_t fileInfo;
 
 } __attribute__((packed));
 
@@ -191,14 +190,57 @@ typedef struct HcomProtoFileMsg_s HcomProtoFileMsg_t;
 #define HCOM_PROTOCOL_FILE_MSG_LENGTH (sizeof(HcomProtoFileMsg_t))
 
 //--------------------------------------------------------------------
+// Currently, (ver B5.3) only used to upload to Host from Meadow's File System
+// This contains the information needed to initiate the downloading a file into
+// the the primary file system
+struct HcomProtoFSInfoMsg_s
+{
+  // This is the only thing in a header only message
+  HcomProtoStdHeader_t stdHeader;
+
+  // Additional information relate to file downloads/uploads
+  uint32_t fileSize;
+
+  uint32_t crcChecksum;
+
+  uint8_t fileName[0];
+
+} __attribute__((packed));
+
+typedef struct HcomProtoFSInfoMsg_s HcomProtoFInfoMsg_t;
+#define HCOM_PROTOCOL_FS_REC_MSG_LENGTH (sizeof(HcomProtoFSInfoMsg_t))
+
+//--------------------------------------------------------------------
+// This contains the information needed to initiate downloading a file into
+// the STM32F7 primary file system or the ESP32's internal file system
+struct HcomProtoEspFileInfoMsg_s
+{
+  // This is the only thing in a header only message
+  HcomProtoStdHeader_t stdHeader;
+
+  // Additional information relate to file downloads/uploads
+  uint32_t fileSize;
+
+  // File flash address (used only by ESP32)
+  uint32_t fileFlashAddr;
+
+  // The MD5 Hash is 32 char hex string (used only by ESP32)
+  char fileMD5Hash[HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH];
+
+} __attribute__((packed));
+
+typedef struct HcomProtoEspFileInfoMsg_s HcomProtoEspFileInfoMsg_t;
+#define HCOM_PROTOCOL_FS_REC_MSG_LENGTH (sizeof(HcomProtoEspFileInfoMsg_t))
+
+//--------------------------------------------------------------------
 // Header plus Text Info
 struct HcomProtoTextMsg_s
 {
   // This is the only thing in a header only message
-  HcomProtoStdHdr_t stdHeader;
+  HcomProtoStdHeader_t stdHeader;
 
   // Some 'simple' messages containing string information.
-  char textData[0];   // This can be path name
+  char textData[0];
 
 } __attribute__((packed));
 
@@ -215,7 +257,7 @@ typedef struct HcomProtoTextMsg_s HcomProtoTextMsg_t;
 // Note: The name HcomProtoDiagCmdMsg_s is poor. What's diagnostic about it?
 struct HcomProtoDiagCmdMsg_s
 {
-  HcomProtoStdHdr_t stdHeader;
+  HcomProtoStdHeader_t stdHeader;
 
   // By convention the argument list is comma separated and the first entry
   // is the name of the application to execute. (e.g. ping, wildernesslabs.co)
@@ -240,7 +282,7 @@ typedef struct HcomProtoDiagCmdMsg_s HcomProtoDiagCmdMsg_t;
 struct HcomProtoBinMsg_s
 {
   // This is the only thing in a header only message
-  HcomProtoStdHdr_t stdHeader;
+  HcomProtoStdHeader_t stdHeader;
 
   // Additional binary information for debugging or file data
   uint8_t binData[0];
@@ -372,9 +414,7 @@ enum HcomMeadowRequestType
   // >>> Breaking protocol change.
   // This should be move our of the 0xfx range since it has nothing to do with
   // diagnostics
-  // Old set developer 4 now used to get file and directory listing. At this
-  // time (Oct23) CLIv1 only uses it to find nested temporary files in a fixed
-  // set of directories
+  // Old set developer 4 now used to get file and directory listing.
   HCOM_MDOW_REQUEST_GET_FILES_AND_FOLDERS   = 0xf3 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
 
   // Testing QSPI flash

@@ -1,7 +1,7 @@
 /****************************************************************************
  * configs\stm32f777zit6-meadow\src\kerneltests\sdcard_tests.c
  * 
- *   Copyright (C) 2019 - 2023 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,6 +51,7 @@
 
 #define HCOM_EX_SDCARD_FILE_SYS_TYPE  "vfat"
 #define HCOM_EX_SDCARD_BLOCK_NAME   "/dev/mmcsd0"
+#define HCOM_EX_SDCARD_MOUNT_POINT  "/sdcard"
 #define HCOM_EX_SDCARD_TEST_FILE_NAME  "/sdcard/testfile.txt"
 
 /* Configuration ************************************************************/
@@ -89,7 +90,7 @@ static int hcom_nx_sdcard_mount_card(void)
 
   // mount(source, target, fstype, mountflags, data)
   // e.g. mount("/dev/mmcsd0", "/mnt", "vfat", 0, NULL);
-  ret = mount(HCOM_EX_SDCARD_BLOCK_NAME, MEADOW_SDCARD_MOUNT_POINT_NAME,
+  ret = mount(HCOM_EX_SDCARD_BLOCK_NAME, HCOM_EX_SDCARD_MOUNT_POINT,
             HCOM_EX_SDCARD_FILE_SYS_TYPE, 0, NULL);
   if(ret < 0)
   {
@@ -229,7 +230,7 @@ static int hcom_nx_sdcard_unmount_card(void)
 {
   int ret;
 
-  ret = umount(MEADOW_SDCARD_MOUNT_POINT_NAME);
+  ret = umount(HCOM_EX_SDCARD_MOUNT_POINT);
   if(ret < 0)
   {
     syslog(2, "%s@%d-ERROR: umount failed. ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
@@ -327,7 +328,6 @@ static int hcom_nx_sdcard_fsync_file(void)
 }
 
 //===================================================================
-// 'set developer -d 7' for these tests
 // Route the test to the correct destination
 int meadow_kt_sd_card_tests(uint32_t userData)
 {

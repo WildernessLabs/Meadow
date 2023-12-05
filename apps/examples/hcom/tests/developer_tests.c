@@ -212,7 +212,7 @@ void hcom_developer_tests_developer(uint16_t level, uint32_t value)
     bool found = false;
     char *hostMsg = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
     
-    syslog(2, "developer test Level:%u - userData:%lu\n", level, value);
+    syslog(1, "developer test Level:%u - userData:%lu\n", level, value);
 
     if ((level == 0) && (hostMsg != NULL))
     {

@@ -68,7 +68,7 @@ static void hcom_host_watchdog_cleanup_wdog_timeout(void);
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// Called from hcom_host_preprocess.c
+// Called from hcom_host_process.c
 int hcom_host_watchdog_initialize(hcom_dnld_shared_t *dnldShared)
 {
   // Need this to provide file name on failure.
@@ -88,17 +88,18 @@ void hcom_host_watchdog_stopping()
 // Check if watchdog is indicating that we must cleanup. This is called by
 // the process thread from hcom_host_enq_deq.c as the process thread is waiting
 // for data to be written.
-int hcom_host_watchdog_check_execute_if_expired()
+void hcom_host_watchdog_check_execute_if_expired()
 {
   if(_hcom_host_process_wdog_timedout)
   {
+    // Get a little debug info
+    // hcom_host_enq_deq_dbg_info();
+
     _hcom_host_process_wdog_timedout = false;
 
     // Cleanup download state information
     hcom_host_watchdog_cleanup_wdog_timeout();
-    return -ETIME;   // Watchdog timed out
   }
-  return OK;
 }
 
 //=================================================================
@@ -121,35 +122,28 @@ void hcom_host_watchdog_cleanup_wdog_timeout()
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-close failed for '%s', ret:%d, errno:%d\n",
-             thisFile, __LINE__, _dnldShared->dnldOrigPathName, ret, get_errno());
+             thisFile, __LINE__, _dnldShared->dnldOrigFileName, ret, get_errno());
   }
 
   // Delete the partially downloaded file
-  ret = hcom_file_delete_stm32f7_file_by_name_internal(_dnldShared);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-delete failed for '%s', ret:%d, errno:%d\n",
-             thisFile, __LINE__, _dnldShared->dnldOrigPathName, ret, get_errno());
-  }
+  hcom_file_delete_stm32f7_file_by_name_internal(_dnldShared);
 
   // Clear the receive data buffer queue
   if(! hcom_host_enq_deq_clear_buffer())
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-download failed, clearing buff failed '%s'\n",
-             thisFile, __LINE__, _dnldShared->dnldOrigPathName);
+             thisFile, __LINE__, _dnldShared->dnldOrigFileName);
   }
 
   // Tell CLI to restart the download
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
   snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-        "File '%s' download failed, resend", _dnldShared->dnldOrigPathName);
+        "File '%s' download failed, resend", _dnldShared->dnldOrigFileName);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_DNLD_FAIL_RESEND, 0, hostMsg,
         thisFile, __LINE__);
 
-  // Setting the download state to none allows future downloads.
+  // Setting the download state to inactive allows future downloads.
   _dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
-  
-  return ret;
 }
 
 //=================================================================
@@ -235,15 +229,13 @@ int hcom_host_watchdog_dnld_timer_delete()
   ret = hcom_host_watchdog_dnld_timer_set_delay(0);
   if(ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set delay = 0, ret:%d, errno:%d\n",
-              thisFile, __LINE__, ret, errno);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set delay = 0, errno:%d, ret:%d\n", thisFile, __LINE__, errno, ret);
   }
 
   ret = timer_delete(_processWdogTimerId);
   if(ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Timer delete, ret:%d, errno:%d\n",
-              thisFile, __LINE__, ret, errno);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Timer delete errno:%d, ret:%d\n", thisFile, __LINE__, errno, ret);
   }
 
   return ret;
