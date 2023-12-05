@@ -146,9 +146,9 @@ int hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShare
 #endif
   }
 
-  // Once the file has been deleted we must delete any parent, empty
-  // subdirectories.
-  // An element count of 2 means there will be no subdirectories.
+  // Once the file has been deleted we must delete any parent, that is an
+  // empty directory.
+  // An element count > 2 means there is a subdirectories.
   if(dnldShared->dnldPathNameEleCount > 2)
   {
     uint32_t dirDepth = dnldShared->dnldPathNameEleCount - \

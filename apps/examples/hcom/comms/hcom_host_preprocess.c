@@ -333,7 +333,7 @@ int hcom_host_process_run_loop()
       continue;
     }
 
-    // We have a good packet. Drop trailing delimiter using --packetLength,
+    // We have a good packet. Drop trailing delimiter via --packetLength,
     // then decode the packet and route it for processing.
     size_t decodedPacketSize = hcom_host_cobs_decoder(_packet_dest_buf,
               --packetLength, _decode_dest_buf);
@@ -350,7 +350,7 @@ int hcom_host_process_run_loop()
       {
         // Let CLI user know the problem
         hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
-                "Error during download/delete command processing",
+                "Error during processing request",
                 thisFile, __LINE__);
 
         hcom_logging_syslog(LOG_ERR, "%s@%d-Processing data packet, ret:%d\n",
@@ -391,23 +391,8 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       hcom_diag_decode_data_packet_type(decodedSize);
       usleep(100 * 1000);
 #endif
-
-    // Data Packet - test for stm32f7 download error for Start or Data
-    if(dnldShared->dnldCurrentState == HcomStm32F7DnldStateInvalid)
-    {
-      // There must have been a previous error, let CLI user know
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
-              "No active download, but data received", thisFile, __LINE__);
-
-      hcom_logging_syslog(LOG_ERR, "%s@%d-No active download, but 'File Data' received\n",
-                thisFile, __LINE__);
-
-      return -EOWNERDEAD;  // There must have been a previous error
-    }
-
-    // Must be a Data Packet (download) because sequence number != 0.
-    // What is the current download state? What is active, external flash or
-    // ESP32?
+    // Must be a Data Packet (download) because sequence number != 0. But,
+    // is it for STM32 or ESP32 file system?
     if(hcom_host_process_is_stm32f7_dnld_active(dnldShared))
     {
       // Keep resetting the watchdog here on every data packet
