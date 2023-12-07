@@ -74,7 +74,7 @@ enum hcom_download_dir_type_identifier
 enum hcom_file_msg_cat_e
 {
   pathnameInvalid         = 0,    // Illegal format provided
-  pathnameInvalidNoSlash  = 1,    // No '/' not found but wanted
+  pathnameInvalidNoSlash  = 1,    // No '/' found but needed
   pathnameInvalidSlash    = 2,    // '/' found but not wanted
   pathnameOriginal        = 3,    // No '/' found
   pathnameFullMeadow      = 4,    // Starts '/meadow0/'
