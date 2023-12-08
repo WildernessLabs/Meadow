@@ -173,6 +173,20 @@ int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
 
+    // New Dec2023 to support subdirectories
+    case HCOM_MDOW_REQUEST_LIST_FILES_SUBDIR:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_file_lists_all_files_in_subdirectory(hdrMsg, dnldShared, false);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      break;
+
+    // New Dec2023 to support subdirectories
+    case HCOM_MDOW_REQUEST_LIST_FILES_SUBDIR_CRC:
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_file_lists_all_files_in_subdirectory(hdrMsg, dnldShared, true);
+      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      break;
+
     case HCOM_MDOW_REQUEST_GET_DEVICE_INFORMATION:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_misc_rqst_get_device_info(userData);

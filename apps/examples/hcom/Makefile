@@ -70,6 +70,7 @@ HCOM_SRCS = comms/hcom_host_encode.c \
 	file/hcom_file_dnld_esp32.c \
 	file/hcom_file_dnld_stm32f7.c \
 	file/hcom_file_lists.c \
+	file/hcom_file_lists_subdir.c \
 	file/hcom_file_misc.c \
 	file/hcom_file_upld_proc.c \
 	file/hcom_file_write_stm32f7.c \

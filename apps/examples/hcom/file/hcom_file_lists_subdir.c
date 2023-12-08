@@ -1,7 +1,7 @@
 /****************************************************************************
- * \apps\examples\hcom\file\hcom_file_lists.c
+ * \apps\examples\hcom\file\hcom_file_lists_subdir.c
  * 
- *   Copyright (C) 2019 - 2023 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,10 +33,9 @@
  *
  ****************************************************************************/
 
-// This file contains the old file list scheme that not able to display
-// subdirectories. The newer version is in hcom_file_list_subdir.c and
-// supports  CLIv2 users. This file should be removed when CLIv1 is no
-// longer supported.
+// This file contains the new file list scheme that includes displaying
+// subdirectories. The previous version remains in hcom_file_list.c to support
+// CLIv1 users. But, should be removed when CLIv1 is no longer supported.
 
 /****************************************************************************
  * Included Files
@@ -51,7 +50,7 @@
 #include <sys/stat.h>
 
 #if defined (CONFIG_DIR_MGMT_TESTS)
-#pragma message "(--) hcom_file_lists.c"
+#pragma message "(--) hcom_file_lists_subdir.c"
 #endif
 
 /****************************************************************************
@@ -66,16 +65,16 @@ static char *thisFile = __FILE__;
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-static int hcom_file_lists_all_dev_dir_and_files(const char *name, int indent, uint32_t userData);
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 // This single function handles file list with and without CRC checksum.
-int hcom_file_lists_all_files_in_directory(const HcomProtoHdrMsg_t *hdrMsg,
+int hcom_file_lists_all_files_in_subdirectory(const HcomProtoHdrMsg_t *hdrMsg,
           hcom_dnld_shared_t *dnldShared, bool isCrcNeeded)
 {
   int fileCount = 0;
+  int dirCount = 0;
   DIR *dirp;
   struct dirent *direntry;
   off_t totalSizeOfFiles;
@@ -106,6 +105,17 @@ int hcom_file_lists_all_files_in_directory(const HcomProtoHdrMsg_t *hdrMsg,
   bool useFullPath = false;   // For now don't add full path name to files
   totalSizeOfFiles = 0;
   totalFlashSizeKB = 0;
+
+  // Show the starting point for this group of items 
+  snprintf_chk(fileInformation, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
+              "Directory:%s", dnldShared->dnldOrigPathName);
+
+  // Send to directory to CLI
+  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
+              fileInformation, thisFile, __LINE__);
+
+  hcom_logging_syslog(LOG_INFO, "%s@%d-%s\n",
+              thisFile, __LINE__, dnldShared->dnldFullPathName);
 
   while((direntry = readdir(dirp)) != NULL)
   {
@@ -183,117 +193,73 @@ int hcom_file_lists_all_files_in_directory(const HcomProtoHdrMsg_t *hdrMsg,
                   direntry->d_name);
       }
     }
+    else if(DIRENT_ISDIRECTORY(direntry->d_type) &&
+              dnldShared->dnldRqstCat != pathnameOriginal)
+    {
+      // Ignore these directories, we only care about named directories
+      if (strcmp(direntry->d_name, ".") == 0 || strcmp(direntry->d_name, "..") == 0)
+        continue;
+
+      dirCount++;
+
+      snprintf_chk(fileInformation, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
+                "/%s", direntry->d_name);
+
+      // Send to directory to CLI
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
+                fileInformation, thisFile, __LINE__);
+
+      hcom_logging_syslog(LOG_INFO, "%s@%d-/%s\n",
+                thisFile, __LINE__, direntry->d_name);
+    }
+    else if(DIRENT_ISBLK(direntry->d_type) &&
+              dnldShared->dnldRqstCat != pathnameOriginal)
+    {
+      // Show block devices too
+      snprintf_chk(fileInformation, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
+                "/%s", direntry->d_name);
+
+      // Send to directory to CLI
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
+                fileInformation, thisFile, __LINE__);
+
+      hcom_logging_syslog(LOG_INFO, "%s@%d-/%s\n",
+                thisFile, __LINE__, direntry->d_name);
+    }
+    // Ignore character devices and links
   }
 
+  // This code doesn't counting block devices
   if(isCrcNeeded)
   {
-    if(fileCount == 0)
-    {
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
-                    "No files found", thisFile, __LINE__);
-    }
-    else
-    {
-      snprintf_chk(fileInformation, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
-            "A total of %d file%s using %d KB (%u bytes)", fileCount,
-            fileCount == 1 ? "" : "s", totalFlashSizeKB, totalSizeOfFiles);
+    snprintf_chk(fileInformation, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
+          "A total of %d file%s and %d director%s using %d KB (%u bytes)", fileCount,
+          fileCount == 1 ? "" : "s", dirCount == 1 ? "y" : "ies",
+          totalFlashSizeKB, totalSizeOfFiles);
 
-      // Send the totals
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
-                    fileInformation, thisFile, __LINE__);
-                    
-      hcom_logging_syslog(LOG_INFO, "%s@%d-A total of %d file%s using %d KB (%u bytes)\n",
-                thisFile, __LINE__,
-                fileCount, fileCount == 1 ? "" : "s", totalFlashSizeKB, totalSizeOfFiles);
-    }
+    // Send the totals
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
+                  fileInformation, thisFile, __LINE__);
+
+    hcom_logging_syslog(LOG_INFO, "%s@%d-A total of %d file%s and %d director%s using %d KB (%u bytes)\n",
+              thisFile, __LINE__,
+              fileCount, fileCount == 1 ? "" : "s",
+              dirCount, dirCount == 1 ? "y" : "ies",
+              totalFlashSizeKB, totalSizeOfFiles);
   }
   else
   {
-    if(fileCount == 0)
-    {
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
-                    "No files found", thisFile, __LINE__);
-    }
-    else
-    {
       char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
       snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-                "A total of %d file%s found", fileCount, fileCount == 1 ? "" : "s");
+                "A total of %d file%s and %d director%s found",
+                fileCount, fileCount == 1 ? "" : "s",
+                dirCount, dirCount == 1 ? "y" : "ies");
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
                     hostMsg, thisFile, __LINE__);
-    }
   }
 
   closedir(dirp);
 
   free(fileInformation);
-  return OK;
-}
-
-// ==============================================================
-// THIS IS AN UNDOCUMENTED FEATURE
-// The above statement is no longer true. This feature is being used by some
-// part of CLI, unsure of the usage
-int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData)
-{
-  // Changing "/" to "meadow0" will only show meadow files
-  return hcom_file_lists_all_dev_dir_and_files("/", 0, userData);
-}
-
-//----------------------------------------------
-// NOTE - Recursive function
-int hcom_file_lists_all_dev_dir_and_files(const char *name, int indent, uint32_t userData)
-{
-  char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-
-  DIR *dir;
-  struct dirent *entry;
-
-  if (!(dir = opendir(name)))
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Could not open:%s as a directory\n",
-              thisFile, __LINE__, name);
-    return -1;
-  }
-
-  while ((entry = readdir(dir)) != NULL)
-  {
-    if (DIRENT_ISDIRECTORY(entry->d_type))
-    {
-      // Only show procfs information if userData == 1234
-      if(userData != 1234 && strcmp(entry->d_name, "proc") == 0)
-        return OK; // ignore procfs information
-
-      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-              "%*s%s/\n", indent, "", entry->d_name);
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
-                0, hostMsg, thisFile, __LINE__);
-
-      if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-        continue;
-
-      char path[256];
-      snprintf_chk(path, sizeof(path), "%s/%s", name, entry->d_name);
-      
-      // Recursion is here
-      hcom_file_lists_all_dev_dir_and_files(path, indent + 1, userData);
-    }
-    else
-    {
-      // All non-directory types
-      char *entryType;
-      if(DIRENT_ISFILE(entry->d_type)) {entryType = "file";}
-      else if(DIRENT_ISCHR(entry->d_type)) {entryType = "char";}
-      else if(DIRENT_ISBLK(entry->d_type)) {entryType = "block";}
-      else if(DIRENT_ISLINK(entry->d_type)) {entryType = "link";}
-      else {entryType = "????";}
-      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-              "%*s%s [%s]\n",indent, "", entry->d_name, entryType);
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
-                0, hostMsg, thisFile, __LINE__);
-    }
-  }
-
-  closedir(dir);
   return OK;
 }
