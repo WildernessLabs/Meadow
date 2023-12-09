@@ -70,7 +70,7 @@ static char *thisFile = __FILE__;
  * Public Functions
  ****************************************************************************/
 // This single function handles file list with and without CRC checksum.
-int hcom_file_lists_all_files_in_subdirectory(const HcomProtoHdrMsg_t *hdrMsg,
+int hcom_file_lists_all_files_in_subdirectories(const HcomProtoHdrMsg_t *hdrMsg,
           hcom_dnld_shared_t *dnldShared, bool isCrcNeeded)
 {
   int fileCount = 0;
@@ -87,6 +87,14 @@ int hcom_file_lists_all_files_in_subdirectory(const HcomProtoHdrMsg_t *hdrMsg,
     return -ENOMEM;
   }
 
+  char *completeNameBuf = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
+  if(completeNameBuf == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    free(fileInformation);
+    return -ENOMEM;
+  }
+
   // Tell CLI to output a header for the file list
   hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_LIST_HEADER, 0, thisFile, __LINE__);
 
@@ -97,7 +105,8 @@ int hcom_file_lists_all_files_in_subdirectory(const HcomProtoHdrMsg_t *hdrMsg,
     hcom_logging_syslog(LOG_ERR, "%s@%d-opendir(\"%s\") errno:%d\n",
               thisFile, __LINE__, dnldShared->dnldFullPathName, errno);
     free(fileInformation);
-    return -1;
+    free(completeNameBuf);
+    return -ENOENT;
   }
 
   // For file list, there's no file name just path so, 0 elements is the
@@ -126,14 +135,6 @@ int hcom_file_lists_all_files_in_subdirectory(const HcomProtoHdrMsg_t *hdrMsg,
       // CRC or No CRC?
       if(isCrcNeeded)
       {
-        char *completeNameBuf = malloc(HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH);
-        if(completeNameBuf == NULL)
-        {
-          hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-          free(fileInformation);
-          return -ENOMEM;
-        }
-
         // Build full path and file name, for CRC call
         snprintf_chk(completeNameBuf, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH, "%s/%s",
                   dnldShared->dnldFullPathName, direntry->d_name);
@@ -159,7 +160,7 @@ int hcom_file_lists_all_files_in_subdirectory(const HcomProtoHdrMsg_t *hdrMsg,
 
         // Send this file's information to CLI
         snprintf_chk(fileInformation, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
-                  "%s%s [0x%08x] %d KB (%u bytes)",
+                  "%s%s [0x%08x] %lu KB (%d bytes)",
                   useFullPath ? dnldShared->dnldFullPathName : "",
                   direntry->d_name,
                   crcChecksum, blockSizeKB, fileSize);
@@ -167,13 +168,11 @@ int hcom_file_lists_all_files_in_subdirectory(const HcomProtoHdrMsg_t *hdrMsg,
         hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
                       fileInformation, thisFile, __LINE__);
 
-        hcom_logging_syslog(LOG_INFO, "%s@%d-%s%s checksum:0x%08x, %d KB (%u bytes)\n",
+        hcom_logging_syslog(LOG_INFO, "%s@%d-%s%s checksum:0x%08x, %lu KB (%d bytes)\n",
                   thisFile, __LINE__,
                   useFullPath ? dnldShared->dnldFullPathName : "",
                   direntry->d_name,
                   crcChecksum, blockSizeKB, fileSize);
-
-        free(completeNameBuf);
       }
       else
       {
@@ -205,7 +204,7 @@ int hcom_file_lists_all_files_in_subdirectory(const HcomProtoHdrMsg_t *hdrMsg,
       snprintf_chk(fileInformation, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
                 "/%s", direntry->d_name);
 
-      // Send to directory to CLI
+      // Send directory name to CLI
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
                 fileInformation, thisFile, __LINE__);
 
@@ -219,7 +218,7 @@ int hcom_file_lists_all_files_in_subdirectory(const HcomProtoHdrMsg_t *hdrMsg,
       snprintf_chk(fileInformation, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
                 "/%s", direntry->d_name);
 
-      // Send to directory to CLI
+      // Send block device to CLI
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
                 fileInformation, thisFile, __LINE__);
 
@@ -229,37 +228,41 @@ int hcom_file_lists_all_files_in_subdirectory(const HcomProtoHdrMsg_t *hdrMsg,
     // Ignore character devices and links
   }
 
-  // This code doesn't counting block devices
+  // The following code doesn't display block devices
   if(isCrcNeeded)
   {
     snprintf_chk(fileInformation, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
-          "A total of %d file%s and %d director%s using %d KB (%u bytes)", fileCount,
-          fileCount == 1 ? "" : "s", dirCount == 1 ? "y" : "ies",
-          totalFlashSizeKB, totalSizeOfFiles);
+          "A total of %d file%s using %lu KB (%d bytes) and %d director%s",
+          fileCount, fileCount == 1 ? "" : "s",
+          totalFlashSizeKB, totalSizeOfFiles,
+          dirCount, dirCount == 1 ? "y" : "ies");
 
     // Send the totals
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
                   fileInformation, thisFile, __LINE__);
 
-    hcom_logging_syslog(LOG_INFO, "%s@%d-A total of %d file%s and %d director%s using %d KB (%u bytes)\n",
+    hcom_logging_syslog(LOG_INFO,
+              "%s@%d-A total of %ul file%s using %lu KB (%d bytes) and %d director%s \n",
               thisFile, __LINE__,
               fileCount, fileCount == 1 ? "" : "s",
-              dirCount, dirCount == 1 ? "y" : "ies",
-              totalFlashSizeKB, totalSizeOfFiles);
+              totalFlashSizeKB, totalSizeOfFiles,
+              dirCount, dirCount == 1 ? "y" : "ies");
   }
   else
   {
-      char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
-      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-                "A total of %d file%s and %d director%s found",
+      snprintf_chk(fileInformation, HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH,
+                "A total of %d file%s and %d director%s",
                 fileCount, fileCount == 1 ? "" : "s",
                 dirCount, dirCount == 1 ? "y" : "ies");
+
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
-                    hostMsg, thisFile, __LINE__);
+                    fileInformation, thisFile, __LINE__);
   }
 
   closedir(dirp);
 
   free(fileInformation);
+  free(completeNameBuf);
+
   return OK;
 }

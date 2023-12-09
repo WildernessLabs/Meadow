@@ -50,10 +50,6 @@
 #include <dirent.h>
 #include <sys/stat.h>
 
-#if defined (CONFIG_DIR_MGMT_TESTS)
-#pragma message "(--) hcom_file_lists.c"
-#endif
-
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -62,6 +58,12 @@
  * Private Data
  ****************************************************************************/
 static char *thisFile = __FILE__;
+
+#if HCOM_FILE_LIST_SUPPORT_CLIV1_SCHEME > 0
+
+#if defined (CONFIG_DIR_MGMT_TESTS)
+#pragma message "(--) hcom_file_lists.c"
+#endif
 
 /****************************************************************************
  * Private Function Prototypes
@@ -72,7 +74,7 @@ static int hcom_file_lists_all_dev_dir_and_files(const char *name, int indent, u
  * Public Functions
  ****************************************************************************/
 // This single function handles file list with and without CRC checksum.
-int hcom_file_lists_all_files_in_directory(const HcomProtoHdrMsg_t *hdrMsg,
+int hcom_file_lists_all_files_in_meadow0(const HcomProtoHdrMsg_t *hdrMsg,
           hcom_dnld_shared_t *dnldShared, bool isCrcNeeded)
 {
   int fileCount = 0;
@@ -98,7 +100,7 @@ int hcom_file_lists_all_files_in_directory(const HcomProtoHdrMsg_t *hdrMsg,
     hcom_logging_syslog(LOG_ERR, "%s@%d-opendir(\"%s\") errno:%d\n",
               thisFile, __LINE__, dnldShared->dnldFullPathName, errno);
     free(fileInformation);
-    return -1;
+    return -ENOENT;
   }
 
   // For file list, there's no file name just path so, 0 elements is the
@@ -229,6 +231,8 @@ int hcom_file_lists_all_files_in_directory(const HcomProtoHdrMsg_t *hdrMsg,
   free(fileInformation);
   return OK;
 }
+
+#endif    // HCOM_FILE_LIST_SUPPORT_CLIV1_SCHEME
 
 // ==============================================================
 // THIS IS AN UNDOCUMENTED FEATURE

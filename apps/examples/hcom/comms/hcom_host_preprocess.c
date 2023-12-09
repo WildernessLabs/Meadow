@@ -466,10 +466,11 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
     char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
     snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
           "Meadow is expecting a different CLI Protocol version. Please update Meadow.CLI." \
-          " (version received: %04x required: %04x).",
+          " (version received: %04x expected: %04x).",
           hdrMsg->stdHeader.version, HCOM_PROTOCOL_PREFERRED_VERSION_NUMBER);
 
     hcom_logging_syslog(LOG_ERR, "%s\n", hostMsg);
+
     uint16_t level = HCOM_HOST_REQUEST_TEXT_INFORMATION;
     if (hdrMsg->stdHeader.version < HCOM_PROTOCOL_MINIMUM_PROTOCOL_NUMBER)
     {
@@ -477,6 +478,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
     }
     else
     {
+      // Save the version so we can send the same version back to CLI
       g_current_hcom_protocol_version = hdrMsg->stdHeader.version;
     }
 
@@ -508,9 +510,17 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
     hcom_dir_mgmt_free_file_info(dnldShared);
   }
 
-  // This allows the file list processing to include a subdirectories
-  if(requestType == HCOM_MDOW_REQUEST_LIST_PARTITION_FILES ||
-     requestType == HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC)
+  // Allow the file list processing to include a subdirectories if the
+  // message type supports it.
+  #if HCOM_FILE_LIST_SUPPORT_CLIV1_SCHEME > 0
+  if( requestType == HCOM_MDOW_REQUEST_LIST_PARTITION_FILES ||
+      requestType == HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC ||
+      requestType == HCOM_MDOW_REQUEST_LIST_FILES_SUBDIR ||
+      requestType == HCOM_MDOW_REQUEST_LIST_FILES_SUBDIR_CRC)
+  #else
+  if( requestType == HCOM_MDOW_REQUEST_LIST_FILES_SUBDIR ||
+      requestType == HCOM_MDOW_REQUEST_LIST_FILES_SUBDIR_CRC)
+  #endif
   {
     // Need to get the information associated with these list requests. It
     // could be empty or include 1 or more subdirectories, from which a file
