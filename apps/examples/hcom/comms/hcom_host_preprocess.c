@@ -391,20 +391,6 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       hcom_diag_decode_data_packet_type(decodedSize);
       usleep(100 * 1000);
 #endif
-
-    // Data Packet - test for stm32f7 download error for Start or Data
-    if(dnldShared->dnldCurrentState == HcomStm32F7DnldStateInvalid)
-    {
-      // There must have been a previous error, let CLI user know
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
-              "No active download, but data received", thisFile, __LINE__);
-
-      hcom_logging_syslog(LOG_ERR, "%s@%d-No active download, but 'File Data' received\n",
-                thisFile, __LINE__);
-
-      return -EOWNERDEAD;  // There must have been a previous error
-    }
-
     // Must be a Data Packet (download) because sequence number != 0.
     // What is the current download state? What is active, external flash or
     // ESP32?
@@ -469,7 +455,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
           " (version received: %04x expected: %04x).",
           hdrMsg->stdHeader.version, HCOM_PROTOCOL_PREFERRED_VERSION_NUMBER);
 
-    hcom_logging_syslog(LOG_ERR, "%s\n", hostMsg);
+    hcom_logging_syslog(LOG_WARNING, "%s\n", hostMsg);
 
     uint16_t level = HCOM_HOST_REQUEST_TEXT_INFORMATION;
     if (hdrMsg->stdHeader.version < HCOM_PROTOCOL_MINIMUM_PROTOCOL_NUMBER)

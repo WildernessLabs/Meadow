@@ -190,8 +190,7 @@ static void hcom_dir_mgmt_print_directory_files(DIR *dir[],
   }
   else
   {
-    syslog(2, "\n");
-    syslog(2, "Empty directory:%s\n", currentPath);
+    syslog(2, "No Files:%s\n", currentPath);
   }
 
   // Return to the start of directory and look for deeper directories
