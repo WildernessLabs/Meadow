@@ -70,6 +70,19 @@ enum hcom_download_dir_type_identifier
   HcomDnldDirTypeMmcsd0  = 2,
 };
 
+// This enum is used to catorgize CLI file/directory requests
+enum hcom_file_msg_cat_e
+{
+  pathnameInvalid         = 0,    // Illegal format provided
+  pathnameInvalidNoSlash  = 1,    // No '/' found but needed
+  pathnameInvalidSlash    = 2,    // '/' found but not wanted
+  pathnameOriginal        = 3,    // No '/' found
+  pathnameFullMeadow      = 4,    // Starts '/meadow0/'
+  pathnameFullMmcsd       = 5,    // Starts '/sdcard/'
+  pathnameSingleSlash     = 6,    // Just '/'
+  pathnameSlashSlash      = 7     // '/text/'
+};
+
 // This struct is memset to zero by processing during initialization
 struct hcom_dnld_shared_s
 {
@@ -77,19 +90,20 @@ struct hcom_dnld_shared_s
   int dnldCurrentState;               // Tracks the state of the download
 
   // These are completely managed by file handling code
-  uint32_t dnldInitFileCrc;           // CRC that was received from CLI
-  uint32_t dnldCalcFileCrc;           // CRC calculated over while receiving
-  uint32_t dnldInitFileSize;          // File size based on received CLI data
-  uint32_t dnldCalcFileSize;          // This size calculated while receiving
-  uint32_t dnldPathNameEleCount;      // Number of elements in pathname
+  uint32_t dnldInitFileCrc;             // CRC that was received from CLI
+  uint32_t dnldCalcFileCrc;             // CRC calculated over while receiving
+  uint32_t dnldInitFileSize;            // File size based on received CLI data
+  uint32_t dnldCalcFileSize;            // This size calculated while receiving
+  uint32_t dnldPathNameEleCount;        // Number of elements in pathname
+  enum hcom_file_msg_cat_e dnldRqstCat; // What type of file rqst did CLI make?
 
-  int dnldFileFD;                     // For persisting fd
-  int dnldPercentSent;                // Used to calculate the % completed
+  int dnldFileFD;                       // For persisting fd
+  int dnldPercentSent;                  // Used to calculate the % completed
   // Set by processing and used by file handling (This is always 1)
-  uint32_t dnldFilePartId;            // File partition from CLI
+  uint32_t dnldFilePartId;              // File partition from CLI
   // These are allocated and may be exactly the same string
-  char *dnldOrigPathName;             // File name as provided by CLI
-  char *dnldFullPathName;             // Full file name (e.g. /meadow0/file.txt)
+  char *dnldOrigPathName;               // File name as provided by CLI
+  char *dnldFullPathName;               // Full file name (e.g. /meadow0/file.txt)
 };
 typedef struct hcom_dnld_shared_s hcom_dnld_shared_t;
 

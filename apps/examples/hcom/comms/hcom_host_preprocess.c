@@ -391,20 +391,6 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       hcom_diag_decode_data_packet_type(decodedSize);
       usleep(100 * 1000);
 #endif
-
-    // Data Packet - test for stm32f7 download error for Start or Data
-    if(dnldShared->dnldCurrentState == HcomStm32F7DnldStateInvalid)
-    {
-      // There must have been a previous error, let CLI user know
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
-              "No active download, but data received", thisFile, __LINE__);
-
-      hcom_logging_syslog(LOG_ERR, "%s@%d-No active download, but 'File Data' received\n",
-                thisFile, __LINE__);
-
-      return -EOWNERDEAD;  // There must have been a previous error
-    }
-
     // Must be a Data Packet (download) because sequence number != 0.
     // What is the current download state? What is active, external flash or
     // ESP32?
@@ -466,10 +452,11 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
     char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
     snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, 
           "Meadow is expecting a different CLI Protocol version. Please update Meadow.CLI." \
-          " (version received: %04x required: %04x).",
+          " (version received: %04x expected: %04x).",
           hdrMsg->stdHeader.version, HCOM_PROTOCOL_PREFERRED_VERSION_NUMBER);
 
-    hcom_logging_syslog(LOG_ERR, "%s\n", hostMsg);
+    hcom_logging_syslog(LOG_WARNING, "%s\n", hostMsg);
+
     uint16_t level = HCOM_HOST_REQUEST_TEXT_INFORMATION;
     if (hdrMsg->stdHeader.version < HCOM_PROTOCOL_MINIMUM_PROTOCOL_NUMBER)
     {
@@ -477,6 +464,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
     }
     else
     {
+      // Save the version so we can send the same version back to CLI
       g_current_hcom_protocol_version = hdrMsg->stdHeader.version;
     }
 
@@ -508,9 +496,17 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
     hcom_dir_mgmt_free_file_info(dnldShared);
   }
 
-  // This allows the file list processing to include a subdirectories
-  if(requestType == HCOM_MDOW_REQUEST_LIST_PARTITION_FILES ||
-     requestType == HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC)
+  // Allow the file list processing to include a subdirectories if the
+  // message type supports it.
+  #if HCOM_FILE_LIST_SUPPORT_CLIV1_SCHEME > 0
+  if( requestType == HCOM_MDOW_REQUEST_LIST_PARTITION_FILES ||
+      requestType == HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC ||
+      requestType == HCOM_MDOW_REQUEST_LIST_FILES_SUBDIR ||
+      requestType == HCOM_MDOW_REQUEST_LIST_FILES_SUBDIR_CRC)
+  #else
+  if( requestType == HCOM_MDOW_REQUEST_LIST_FILES_SUBDIR ||
+      requestType == HCOM_MDOW_REQUEST_LIST_FILES_SUBDIR_CRC)
+  #endif
   {
     // Need to get the information associated with these list requests. It
     // could be empty or include 1 or more subdirectories, from which a file

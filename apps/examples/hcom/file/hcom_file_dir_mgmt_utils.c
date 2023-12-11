@@ -82,17 +82,6 @@
 #define MEADOW_FILE_SUBDIR_PREPEND_SDCARD_STR   ("/sdcard/")
 #define MEADOW_FILE_SUBDIR_PREPEND_SDCARD_LEN   (8)
 
-// This enum is used to classify CLI requests
-enum hcom_dir_mgmt_msg_type_e
-{
-  pathnameInvalid         = 0,    // Illegal format provided
-  pathnameInvalidNoSlash  = 1,    // No '/' not found but wanted
-  pathnameInvalidSlash    = 2,    // '/' found but not wanted
-  pathnameOriginal        = 3,    // No '/' found
-  pathnameFullMeadow      = 4,    // Starts '/meadow0/'
-  pathnameFullMmcsd       = 5     // Starts '/sdcard/'
-};
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -138,13 +127,14 @@ static uint32_t find_pathname_element_count(const char *pathName, size_t strLen)
 //============================================================================
 // This function will check the received path/file name and categorize it and
 // determine if the format is correct. This way the remaining steps will know
-// what they are dealing with. Valid and invalid file names are:
-// 'filename', '/meadow0/filename', '/meadow0/dir1/dir2/filename'
+// what they are dealing with. Valid file names are:
+// 'filename', '/meadow0/filename', '/meadow0/dir1/dir2/filename', '/'
+//
 // These are illegal formats:
 // '/filename' - has leading '/'
 // /dirname/filename/ - missing leading '/meadow0'
 // endExpectFileName: true = pathname no ending '/', false = ending '/' needed
-static enum hcom_dir_mgmt_msg_type_e hcom_dir_mgmt_categorize_pathname(
+static enum hcom_file_msg_cat_e hcom_dir_mgmt_categorize_pathname(
           const char *pathName, size_t strLen,
           uint32_t *pathNameElements, bool endExpectFileName)
 {
@@ -153,10 +143,11 @@ static enum hcom_dir_mgmt_msg_type_e hcom_dir_mgmt_categorize_pathname(
   // Is this a bare filename (i.e. no '/')
   if(memchr(pathName, '/', strLen) == NULL)
   {
+
     // No '/' in file name, this is like original file naming scheme for
     // download
     if(endExpectFileName)
-      *pathNameElements = 2;  // Includes /meadow0 to be added soon
+      *pathNameElements = 2;  // 2 includes '/meadow0' and file name
     else
       *pathNameElements = 0;  // For file list there's no file name
     
@@ -206,11 +197,37 @@ static enum hcom_dir_mgmt_msg_type_e hcom_dir_mgmt_categorize_pathname(
       return pathnameFullMmcsd;
     }
   }
+  else if(strLen == 1 && pathName[0] == '/')
+  {
+    // Found a single '/'
+    if(endExpectFileName)
+    {
+      return pathnameInvalidNoSlash;
+    }
+    else
+    {
+      *pathNameElements = 1;      // One is kind of correct
+      return pathnameSingleSlash;
+    }
+  }
+  else if(pathName[0] == '/' && pathName[strLen -1] == '/')
+  {
+    // Found '/pathname/'
+    if(endExpectFileName)
+    {
+      return pathnameInvalidNoSlash;
+    }
+    else
+    {
+      *pathNameElements = find_pathname_element_count(pathName, strLen);
+      return pathnameSlashSlash;
+    }
+  }
+
 #endif
   // Lots of reasons, upper/lower case, spelling.... Wish I knew them all
   // The above is only looking for the positive reasons to allow progress.
   return pathnameInvalid;
-
 }
 
 //=====================================================================
@@ -220,7 +237,7 @@ static int hcom_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
           char *pathNameStr, size_t fileNameLength,
           bool endExpectFileName)
 {
-  int catType;
+  enum hcom_file_msg_cat_e catType;
   uint32_t pathNameElements;
   size_t dnldFileAndPathLen;
   
@@ -238,14 +255,20 @@ static int hcom_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
   // Continue to populate shared download struct with file name information
   strcpy(dnldShared->dnldOrigPathName, pathNameStr);
 
-  // There are 3 valid file name formats.
+  // There are 3 valid path name formats.
   // 1. A simple file name, with just a file name, nothing else.
-  // 2. A file beginning with '/meadow0/'
-  // 3. A file beginning with '/sdcard/'
+  // 2. A path name beginning with '/meadow0/'
+  // 3. A path name beginning with '/sdcard/'
+  // 4. A path name being only '/'
   // This call will catergorize as one of the above or error. It is assumes
-  // that the final '/' signifies the start of the file name.
+  // that the last '/' signifies the start of the file name, unless it is
+  // a file list command.
   catType = hcom_dir_mgmt_categorize_pathname(dnldShared->dnldOrigPathName,
             fileNameLength, &pathNameElements, endExpectFileName);
+  
+  // Save
+  dnldShared->dnldRqstCat = catType;
+
   if(catType == pathnameInvalid )
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-pathname '%s' is invalid\n",
@@ -345,7 +368,9 @@ static int hcom_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
   else
   {
     // Since the entire path must have been provide by the host message, we'll
-    // allocate the same size buffer as the originally path name.
+    // allocate the same size buffer as the originally path name. That is one
+    // of the following was found: pathnameFullMeadow, pathnameFullMmcsd or
+    // pathnameSingleSlash.
     dnldShared->dnldFullPathName = malloc(fileNameLength + 1);
     if(dnldShared->dnldFullPathName == NULL)
     {

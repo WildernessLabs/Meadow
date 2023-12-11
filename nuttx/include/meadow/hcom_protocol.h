@@ -46,8 +46,15 @@
 //
 // From version 7 and above it will be the responsibility of the method
 // being invoked to check the protocol version number and act accordingly.
-#define HCOM_PROTOCOL_MINIMUM_PROTOCOL_NUMBER     ((uint16_t) 0x0006)
-#define HCOM_PROTOCOL_PREFERRED_VERSION_NUMBER    ((uint16_t) 0x0007)
+#define HCOM_PROTOCOL_MINIMUM_PROTOCOL_NUMBER     ((uint16_t) 0x0007)
+#define HCOM_PROTOCOL_PREFERRED_VERSION_NUMBER    ((uint16_t) 0x0008)
+
+// This #define is used to enable the legacy behavior to support CLIv1 which
+// doesn't support subdirectories. When CLIv1 is retired this #define and all
+// the code it enables can be removed
+// Note: This change caused the protocol version to move from 7 to 8
+// (8Dec23 Peter Moody)
+#define HCOM_FILE_LIST_SUPPORT_CLIV1_SCHEME (1)
 
 // Hold the current protocol version number.  This can be used to allow
 // communication between older versions of CLI and the OS.
@@ -323,8 +330,10 @@ enum HcomMeadowRequestType
   HCOM_MDOW_REQUEST_BULK_FLASH_ERASE        = 0x0a | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_ENTER_DFU_MODE          = 0x0b | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_ENABLE_DISABLE_NSH      = 0x0c | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
+#if HCOM_FILE_LIST_SUPPORT_CLIV1_SCHEME > 0
   HCOM_MDOW_REQUEST_LIST_PARTITION_FILES    = 0x0d | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC = 0x0e | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
+#endif
   HCOM_MDOW_REQUEST_MONO_DISABLE            = 0x0f | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_MONO_ENABLE             = 0x10 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_MONO_RUN_STATE          = 0x11 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
@@ -365,6 +374,8 @@ enum HcomMeadowRequestType
   HCOM_MDOW_REQUEST_RTC_SET_TIME_CMD        = 0x03 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
   HCOM_MDOW_REQUEST_RTC_READ_TIME_CMD       = 0x04 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
   HCOM_MDOW_REQUEST_RTC_WAKEUP_TIME_CMD     = 0x05 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
+  HCOM_MDOW_REQUEST_LIST_FILES_SUBDIR       = 0x06 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
+  HCOM_MDOW_REQUEST_LIST_FILES_SUBDIR_CRC   = 0x07 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
 
   // This is a simple type with binary data
   HCOM_MDOW_REQUEST_DEBUGGING_DEBUGGER_DATA = 0x01 | HCOM_PROTOCOL_HEADER_SIMPLE_BINARY_TYPE,

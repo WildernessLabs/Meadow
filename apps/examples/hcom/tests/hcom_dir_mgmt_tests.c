@@ -190,8 +190,7 @@ static void hcom_dir_mgmt_print_directory_files(DIR *dir[],
   }
   else
   {
-    syslog(2, "\n");
-    syslog(2, "Empty directory:%s\n", currentPath);
+    syslog(2, "No Files:%s\n", currentPath);
   }
 
   // Return to the start of directory and look for deeper directories
@@ -297,8 +296,8 @@ static int hcom_dir_mgmt_find_next_directory(const char *initialDir)
     }
 
     // Remove child subdirectory from currentPath
-    char *lastShash = strrchr(currentPath, '/');
-    *lastShash = '\0';
+    char *lastSlash = strrchr(currentPath, '/');
+    *lastSlash = '\0';
 
     // Up a parent directory level and resume the search from there
     dirLevel--;
