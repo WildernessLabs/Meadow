@@ -207,7 +207,7 @@ static enum hcom_file_msg_cat_e hcom_dir_mgmt_categorize_pathname(
     else
     {
       *pathNameElements = 1;      // One is kind of correct
-      return pathnameSingleShash;
+      return pathnameSingleSlash;
     }
   }
   else if(pathName[0] == '/' && pathName[strLen -1] == '/')
@@ -220,7 +220,7 @@ static enum hcom_file_msg_cat_e hcom_dir_mgmt_categorize_pathname(
     else
     {
       *pathNameElements = find_pathname_element_count(pathName, strLen);
-      return pathnameShashShash;
+      return pathnameSlashSlash;
     }
   }
 
@@ -370,7 +370,7 @@ static int hcom_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
     // Since the entire path must have been provide by the host message, we'll
     // allocate the same size buffer as the originally path name. That is one
     // of the following was found: pathnameFullMeadow, pathnameFullMmcsd or
-    // pathnameSingleShash.
+    // pathnameSingleSlash.
     dnldShared->dnldFullPathName = malloc(fileNameLength + 1);
     if(dnldShared->dnldFullPathName == NULL)
     {

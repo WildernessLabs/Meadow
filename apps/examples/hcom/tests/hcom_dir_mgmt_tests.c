@@ -296,8 +296,8 @@ static int hcom_dir_mgmt_find_next_directory(const char *initialDir)
     }
 
     // Remove child subdirectory from currentPath
-    char *lastShash = strrchr(currentPath, '/');
-    *lastShash = '\0';
+    char *lastSlash = strrchr(currentPath, '/');
+    *lastSlash = '\0';
 
     // Up a parent directory level and resume the search from there
     dirLevel--;

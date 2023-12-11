@@ -79,8 +79,8 @@ enum hcom_file_msg_cat_e
   pathnameOriginal        = 3,    // No '/' found
   pathnameFullMeadow      = 4,    // Starts '/meadow0/'
   pathnameFullMmcsd       = 5,    // Starts '/sdcard/'
-  pathnameSingleShash     = 6,    // Just '/'
-  pathnameShashShash      = 7     // '/text/'
+  pathnameSingleSlash     = 6,    // Just '/'
+  pathnameSlashSlash      = 7     // '/text/'
 };
 
 // This struct is memset to zero by processing during initialization
