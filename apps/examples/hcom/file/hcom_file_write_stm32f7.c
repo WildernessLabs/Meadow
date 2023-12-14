@@ -92,11 +92,15 @@ int hcom_file_write_open_active_file(hcom_dnld_shared_t *dnldShared)
   if (_shutting_down)
     return OK;
 
-  if (!hcom_via_nx_is_mounted(dnldShared->dnldFilePartId))
+  // Only test if meadow file system
+  if(dnldShared->dnldRqstCat == pathnameFullMeadow)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-F/S not mounted %s\n",
-             thisFile, __LINE__, dnldShared->dnldFullPathName);
-    return -ENOENT; // No such file or directory
+    if (!hcom_via_nx_is_mounted(dnldShared->dnldFilePartId))
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-F/S not mounted %s\n",
+              thisFile, __LINE__, dnldShared->dnldFullPathName);
+      return -ENOENT; // No such file or directory
+    }
   }
 
   // Second (flags) parameter O_RDONLY, O_WRONLY, or O_RDWR ||
@@ -129,11 +133,21 @@ int hcom_file_write_to_active_file(hcom_dnld_shared_t *dnldShared,
   if (_shutting_down)
     return OK;
 
-  if (!hcom_via_nx_is_mounted(dnldShared->dnldFilePartId))
-    return -ENOENT; // No such file or directory
+  // Only test if Meadow file system
+  if(dnldShared->dnldRqstCat == pathnameFullMeadow)
+  {
+    if (!hcom_via_nx_is_mounted(dnldShared->dnldFilePartId))
+      return -ENOENT; // No such file or directory
+  }
 
   if (dnldShared->dnldFileFD < 0)
     return -EBADF; // Bad file number
+
+#if defined (CONFIG_DIR_MGMT_TESTS)
+  syslog(1, "------- %s@%d Show first 16 of file write ------\n",
+            __FILE__, __LINE__);
+  hcom_diag_print_buffer(fileWriteData, 16, 1);
+#endif
 
   ssize_t nbytes = 0;
   nbytes = write(dnldShared->dnldFileFD, fileWriteData, fileWriteSize);
@@ -168,8 +182,11 @@ int hcom_file_write_close_active_file(hcom_dnld_shared_t *dnldShared)
 {
   int ret = OK;
 
-  if (!hcom_via_nx_is_mounted(dnldShared->dnldFilePartId))
-    return -ENOENT;         // No such file or directory
+  if(dnldShared->dnldRqstCat == pathnameFullMeadow)
+  {
+    if (!hcom_via_nx_is_mounted(dnldShared->dnldFilePartId))
+      return -ENOENT;         // No such file or directory
+  }
 
   if (dnldShared->dnldFileFD < 0)  // Okay to close file multiple times in nuttx?
     return -EBADF;          // Bad file number

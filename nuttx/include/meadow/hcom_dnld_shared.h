@@ -95,7 +95,7 @@ struct hcom_dnld_shared_s
   uint32_t dnldInitFileSize;            // File size based on received CLI data
   uint32_t dnldCalcFileSize;            // This size calculated while receiving
   uint32_t dnldPathNameEleCount;        // Number of elements in pathname
-  enum hcom_file_msg_cat_e dnldRqstCat; // What type of file rqst did CLI make?
+  enum hcom_file_msg_cat_e dnldRqstCat; // Category of file rqst did CLI make?
 
   int dnldFileFD;                       // For persisting fd
   int dnldPercentSent;                  // Used to calculate the % completed

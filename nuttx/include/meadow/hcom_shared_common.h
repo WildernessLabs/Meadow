@@ -89,6 +89,8 @@
 #endif
 
 #define MEADOW_SDCARD_MOUNT_POINT_NAME  "/sdcard"
+#define MEADOW_SDCARD_FILE_SYS_TYPE  "vfat"
+#define MEADOW_SDCARD_BLOCK_NAME   "/dev/mmcsd0"
 
 #define HCOM_NX_FS_MONO_RAW_PARTITION_SIZE 0x300000 // 3MB
 #define HCOM_NX_FS_OTA_RESERVED_SPACE 0x200000 // 2MB reserved space for updates
@@ -781,7 +783,8 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 
 // Cause the build to include the ability to print a buffer
 // full of data, showing hex and ascii. Duplicate code is created
-// on both the apps and nuttx side of hcom
+// on both the apps and nuttx side of hcom. On Apps side 
+// hcom_diag_print_buffer on Nuttx hcom_nx_diag_print_buffer
 #define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE           0
  // To output non-null terminated string. This won't work if binary in buffer
  // syslog(2, "%.*s\n", textLen, buffer);

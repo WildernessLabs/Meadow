@@ -81,8 +81,8 @@ static off_t hcom_dir_mgmt_find_file_status(char *path)
     syslog(2, "stat call error. ret:%d, errno:%d\n", ret, errno);
     return -1;
   }
+
 #if HCOM_DIR_MGMT_TST_SHOW_FULL_FILE_STATUS > 0
-  
   syslog(2, "Reported by stat:\n");
 
   if (S_ISREG(statBuf.st_mode))

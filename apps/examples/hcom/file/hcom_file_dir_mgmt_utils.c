@@ -40,16 +40,21 @@
 // directory and the CLI just sends the bare file name and it is assumed that
 // the file is to be written to the /meadow0/ device.
 //
-// The following rules will be followed
-// 1. All reads or writes sent with just a bare file name will default to using /meadow0/.
-//    The intent is to support the existing CLIv1 behavior, without changes.
-// 2. Files prepended with a single '/' (e.g. /filename) will considered an error.
-// 3. Files downloaded to subdirectory must be in this format '/meadow0/dir/filename'.
-// 4. For writing files, if the directory or directories don't exist, they will be created.
-// 5. Reads from a non-existing directory will return an error.
-// 6. There is a nesting limit for directories of 6, not counting /meadow0.
-// 7. When a file is delete all lower, empty directories will be deleted.
-// 8. All file writes or reads for the SD-Card must begin with /sdcard/.
+// The following rules will be followed:
+// 1. All reads or writes sent with just a bare file name will default to using
+//     /meadow0/. The intent is to support the existing CLIv1 behavior, without
+//     changes to it.
+// 2. All file writes or reads for the SD-Card must begin with /sdcard/.
+// 3. Files prepended with a single '/' (e.g. '/filename' or './filename') will
+//     considered an error.
+// 4. Files downloaded to subdirectory must be in this format
+//      '/meadow0/dir/filename' or '/sdcard/dir/filename'
+// 5. There is a limit of 6 nested subdirectories, not counting /meadow0.
+// 6. For writing files, if the directory or directories don't exist, they will
+//      automatically be created.
+// 7. When a file is delete all lower, empty directories will automatically be
+//      deleted.
+// 8. Reads from a non-existing directory will return an error.
 
 /****************************************************************************
  * Included Files
@@ -487,6 +492,21 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
     return -ENOMEM;
   }
 
+  if(dnldShared->dnldRqstCat == pathnameFullMmcsd)
+  {
+    ret = mount(MEADOW_SDCARD_BLOCK_NAME, MEADOW_SDCARD_MOUNT_POINT_NAME,
+              MEADOW_SDCARD_FILE_SYS_TYPE, 0, NULL);
+    if(ret < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-ERROR: Mount failed. ret:%d, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
+      return ret;
+    }
+#if defined (CONFIG_DIR_MGMT_TESTS)
+    syslog(2, "Mount successful\n");
+#endif
+  }
+
   strcpy(fullFileNamePath, dnldShared->dnldFullPathName);
 
   token = strtok_r(fullFileNamePath, "/", &savePtr);
@@ -497,7 +517,7 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
   // care about the tokens, we want the side-effect of this operation which
   // removes the tokens from the original pathname and replaces them with
   // nulls. This allows us to find the offsets of theses "gaps" and then
-  // rebuild the directory path one element at a time.
+  // rebuild the directory path one element at a time in the next step.
   while (token != NULL)
   {
     tokenCount++;
@@ -533,7 +553,7 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
         ret = mkdir(fullFileNamePath, 0777);
         if(ret < 0)
         {
-          syslog(LOG_ERR, "%s@%d-mkdir of '%s' failed with, ret:%d, errno:%d\n",
+          hcom_logging_syslog(LOG_ERR, "%s@%d-mkdir of '%s' failed with, ret:%d, errno:%d\n",
                     thisFile, __LINE__, fullFileNamePath, ret, errno);
 
           char *hostMsg = malloc(HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH);
@@ -563,7 +583,7 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
       }
       else
       {
-        syslog(LOG_ERR, "%s@%d-Error from stat() call, ret:%d, errno:%d\n",
+        hcom_logging_syslog(LOG_ERR, "%s@%d-Error from stat() call, ret:%d, errno:%d\n",
                   thisFile, __LINE__, ret, errno);
       }
 
@@ -590,6 +610,61 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
         return -ENOTDIR;
       }
 
+      if(dnldShared->dnldRqstCat == pathnameFullMmcsd)
+      {
+        ret = umount(MEADOW_SDCARD_MOUNT_POINT_NAME);
+        if(ret < 0)
+        {
+          hcom_logging_syslog(LOG_ERR, "%s@%d-ERROR: umount failed. ret:%d, errno:%d\n",
+                    thisFile, __LINE__, ret, errno);
+          return ret;
+        }
+        
+#if defined (CONFIG_DIR_MGMT_TESTS)
+        syslog(2, "umount successful\n");
+#endif
+      }
+
+      free(fullFileNamePath);
+      return ret;
+    }
+#if defined (CONFIG_DIR_MGMT_TESTS)
+    else
+    {
+      syslog(2, "stat() found at '%s':\n", fullFileNamePath);
+      if (S_ISREG(statBuf.st_mode))
+        syslog(2, "type        : File\n");
+      else if (S_ISDIR(statBuf.st_mode))
+        syslog(2, "type        : Directory\n");
+      else if (S_ISCHR(statBuf.st_mode))
+        syslog(2, "type        : Character driver\n");
+      else if (S_ISBLK(statBuf.st_mode))
+        syslog(2, "type        : Block driver\n");
+      else if (S_ISMQ(statBuf.st_mode))
+        syslog(2, "type        : Message queue\n");
+      else if (S_ISSEM(statBuf.st_mode))
+        syslog(2, "type        : Named semaphore\n");
+      else if (S_ISSHM(statBuf.st_mode))
+        syslog(2, "type        : Shared memory\n");
+      else if (S_ISSOCK(statBuf.st_mode))
+        syslog(2, "type        : Socket\n");
+      else if (S_ISMTD(statBuf.st_mode))
+        syslog(2, "type        : Named MTD driver\n");
+      else if (S_ISLNK(statBuf.st_mode))
+        syslog(2, "type        : Symbolic link\n");
+      else
+        syslog(2, "type        : Unknown\n");
+    }
+#endif
+  }
+
+  if(dnldShared->dnldRqstCat == pathnameFullMmcsd)
+  {
+    ret = umount(MEADOW_SDCARD_MOUNT_POINT_NAME);
+    if(ret < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-ERROR: umount failed. ret:%d, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
       free(fullFileNamePath);
       return ret;
     }

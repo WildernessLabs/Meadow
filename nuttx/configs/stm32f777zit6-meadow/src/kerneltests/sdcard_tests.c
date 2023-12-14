@@ -45,12 +45,15 @@
 #include <dirent.h>
 #include <sys/stat.h>
 
+#include <meadow/hcom_shared_common.h>
+
+#if defined (CONFIG_SD_CARD_TESTS)
+#pragma message "(--) sdcard_tests.c"
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define HCOM_EX_SDCARD_FILE_SYS_TYPE  "vfat"
-#define HCOM_EX_SDCARD_BLOCK_NAME   "/dev/mmcsd0"
 #define HCOM_EX_SDCARD_TEST_FILE_NAME  "/sdcard/testfile.txt"
 
 /* Configuration ************************************************************/
@@ -71,7 +74,6 @@ static char textForTesting[] ="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abc
 
 static int hcom_nx_sdcard_file_stat_test(void);
 
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -87,10 +89,9 @@ static int hcom_nx_sdcard_mount_card(void)
 {
   int ret;
 
-  // mount(source, target, fstype, mountflags, data)
-  // e.g. mount("/dev/mmcsd0", "/mnt", "vfat", 0, NULL);
-  ret = mount(HCOM_EX_SDCARD_BLOCK_NAME, MEADOW_SDCARD_MOUNT_POINT_NAME,
-            HCOM_EX_SDCARD_FILE_SYS_TYPE, 0, NULL);
+  // e.g. mount("/dev/mmcsd0", "/sdcard", "vfat", 0, NULL);
+  ret = mount(MEADOW_SDCARD_BLOCK_NAME, MEADOW_SDCARD_MOUNT_POINT_NAME,
+            MEADOW_SDCARD_FILE_SYS_TYPE, 0, NULL);
   if(ret < 0)
   {
     syslog(2, "%s@%d-ERROR: Mount failed. ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
@@ -391,3 +392,4 @@ int meadow_kt_sd_card_tests(uint32_t userData)
   return OK;
 }
 
+#endif      // #if defined (CONFIG_SD_CARD_TESTS)
