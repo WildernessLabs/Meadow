@@ -73,6 +73,7 @@ enum hcom_download_dir_type_identifier
 // This enum is used to catorgize CLI file/directory requests
 enum hcom_file_msg_cat_e
 {
+  pathnameNotUsed         = 0xff,    // Flag to indicate Not Used
   pathnameInvalid         = 0,    // Illegal format provided
   pathnameInvalidNoSlash  = 1,    // No '/' found but needed
   pathnameInvalidSlash    = 2,    // '/' found but not wanted
@@ -96,7 +97,6 @@ struct hcom_dnld_shared_s
   uint32_t dnldCalcFileSize;            // This size calculated while receiving
   uint32_t dnldPathNameEleCount;        // Number of elements in pathname
   enum hcom_file_msg_cat_e dnldRqstCat; // Category of file rqst did CLI make?
-
   int dnldFileFD;                       // For persisting fd
   int dnldPercentSent;                  // Used to calculate the % completed
   // Set by processing and used by file handling (This is always 1)

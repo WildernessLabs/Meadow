@@ -42,7 +42,6 @@
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_shared_common.h>
 
-#include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <nuttx/fs/fs.h>
@@ -129,7 +128,7 @@ int hcom_file_write_open_active_file(hcom_dnld_shared_t *dnldShared)
 int hcom_file_write_to_active_file(hcom_dnld_shared_t *dnldShared,
           const uint8_t *fileWriteData, const size_t fileWriteSize)
 {
-  uint8_t *writeDataBuff;
+  uint8_t *writeDataBuff = NULL;
 
   if (_shutting_down)
     return OK;
@@ -143,7 +142,7 @@ int hcom_file_write_to_active_file(hcom_dnld_shared_t *dnldShared,
     if (!hcom_via_nx_is_mounted(dnldShared->dnldFilePartId))
       return -ENOENT; // No such file or directory
     
-    writeDataBuff = fileWriteData;
+    writeDataBuff = (uint8_t *)fileWriteData;
   }
   else if(dnldShared->dnldRqstCat == pathnameFullSdcard)
   {

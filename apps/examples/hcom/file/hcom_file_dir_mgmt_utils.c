@@ -66,7 +66,6 @@
 #include <meadow/hcom_dnld_shared.h>
 #include <meadow/meadow_os.h>
 
-#include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <nuttx/fs/fs.h>
@@ -411,11 +410,12 @@ int hcom_host_process_init_hcom_dnld_share(hcom_dnld_shared_t *dnldShared,
   char *pathName;
   size_t pathNameLength;
 
-  // Clear the entire struct containing all information.
-  memset(dnldShared, 0, sizeof(hcom_dnld_shared_t));
+  // Ensure any unremoved information is gone
+  hcom_dir_mgmt_free_file_info(dnldShared);
 
-  // Start populating the shared download fields
-  dnldShared->dnldFilePartId = 0;    // It's always 0
+#if defined (CONFIG_DIR_MGMT_TESTS)
+    syslog(2, "===> %s@%d-Populating dnldShared information\n", thisFile, __LINE__);
+#endif
 
   if(isFileMsgType)
   {
@@ -465,7 +465,6 @@ int hcom_host_process_init_hcom_dnld_share(hcom_dnld_shared_t *dnldShared,
   return ret;
 }
 
-
 //===========================================================================
 // This function will add any missing directories needed to write the file
 // being added
@@ -490,21 +489,6 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n",
               thisFile, __LINE__);
     return -ENOMEM;
-  }
-
-  if(dnldShared->dnldRqstCat == pathnameFullSdcard)
-  {
-    ret = mount(MEADOW_SDCARD_BLOCK_NAME, MEADOW_SDCARD_MOUNT_POINT_NAME,
-              MEADOW_SDCARD_FILE_SYS_TYPE, 0, NULL);
-    if(ret < 0)
-    {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-ERROR: Mount failed. ret:%d, errno:%d\n",
-                thisFile, __LINE__, ret, errno);
-      return ret;
-    }
-#if defined (CONFIG_DIR_MGMT_TESTS)
-    syslog(2, "%s@%d-mount successful\n",  __FILE__, __LINE__);
-#endif
   }
 
   strcpy(fullFileNamePath, dnldShared->dnldFullPathName);
@@ -572,19 +556,6 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
                   hostMsg, thisFile, __LINE__);
           free(hostMsg);
           free(fullFileNamePath);
-          if(dnldShared->dnldRqstCat == pathnameFullSdcard)
-          {
-            ret = umount(MEADOW_SDCARD_MOUNT_POINT_NAME);
-            if(ret < 0)
-            {
-              hcom_logging_syslog(LOG_ERR, "%s@%d-ERROR: umount failed. ret:%d, errno:%d\n",
-                        thisFile, __LINE__, ret, errno);
-              return ret;
-            }
-#if defined (CONFIG_DIR_MGMT_TESTS)
-            syslog(2, "%s@%d-umount successful\n",  __FILE__, __LINE__);
-#endif
-          }
 
           return ret;
         }
@@ -610,19 +581,6 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
                     thisFile, __LINE__);
           free(hostMsg);
           free(fullFileNamePath);
-          if(dnldShared->dnldRqstCat == pathnameFullSdcard)
-          {
-            ret = umount(MEADOW_SDCARD_MOUNT_POINT_NAME);
-            if(ret < 0)
-            {
-              hcom_logging_syslog(LOG_ERR, "%s@%d-ERROR: umount failed. ret:%d, errno:%d\n",
-                        thisFile, __LINE__, ret, errno);
-              return ret;
-            }
-#if defined (CONFIG_DIR_MGMT_TESTS)
-            syslog(2, "%s@%d-umount successful\n",  __FILE__, __LINE__);
-#endif
-          }
           return -ENOMEM;
         }
 
@@ -634,21 +592,6 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
         free(hostMsg);
         free(fullFileNamePath);
         return -ENOTDIR;
-      }
-
-      if(dnldShared->dnldRqstCat == pathnameFullSdcard)
-      {
-        ret = umount(MEADOW_SDCARD_MOUNT_POINT_NAME);
-        if(ret < 0)
-        {
-          hcom_logging_syslog(LOG_ERR, "%s@%d-ERROR: umount failed. ret:%d, errno:%d\n",
-                    thisFile, __LINE__, ret, errno);
-          return ret;
-        }
-
-#if defined (CONFIG_DIR_MGMT_TESTS)
-        syslog(2, "%s@%d-umount successful\n",  __FILE__, __LINE__);
-#endif
       }
 
       free(fullFileNamePath);
@@ -681,21 +624,6 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
       else
         syslog(2, "type        : Unknown\n");
     }
-#endif
-  }
-
-  if(dnldShared->dnldRqstCat == pathnameFullSdcard)
-  {
-    ret = umount(MEADOW_SDCARD_MOUNT_POINT_NAME);
-    if(ret < 0)
-    {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-ERROR: umount failed. ret:%d, errno:%d\n",
-                thisFile, __LINE__, ret, errno);
-      free(fullFileNamePath);
-      return ret;
-    }
-#if defined (CONFIG_DIR_MGMT_TESTS)
-    syslog(2, "%s@%d-umount successful\n",  __FILE__, __LINE__);
 #endif
   }
 

@@ -41,7 +41,6 @@
  ****************************************************************************/
 
 #include "../hcom_common.h"
-#include <sys/mount.h>
 #include <nuttx/arch.h>
 #include <nuttx/mtd/mtd.h>
 
@@ -121,23 +120,6 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
   hcom_logging_syslog(LOG_INFO, "%s@%d-Meadow downloading file (FileLen:%d, Crc:0x%08x, Name:%s)\n",
           thisFile, __LINE__, dnldShared->dnldInitFileSize,
           dnldShared->dnldInitFileCrc, dnldShared->dnldOrigPathName);
-
-  // Some file types (e.g. SD-Card) must be mounted before begin accessed
-  if(dnldShared->dnldRqstCat == pathnameFullSdcard)
-  {
-    // mount(source, target, fstype, mountflags, data)
-    // e.g. mount("/dev/mmcsd0", "/sdcard", "vfat", 0, NULL);
-    ret = mount(MEADOW_SDCARD_BLOCK_NAME, MEADOW_SDCARD_MOUNT_POINT_NAME,
-              MEADOW_SDCARD_FILE_SYS_TYPE, 0, NULL);
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-ERROR: Mount failed. ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
-      return ret;
-    }
-#if defined (CONFIG_DIR_MGMT_TESTS)
-    syslog(2, "Mount successful\n");
-#endif
-  }
 
   // Open the file in F7 file system
   ret = hcom_file_write_open_active_file(dnldShared);
@@ -329,21 +311,6 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
 
   uint32_t actualFileCrc = hcom_file_misc_calc_crc_for_file(dnldShared->dnldFullPathName,
                 &fileSize, &blockSizeKB, &detectError);
-
-  // Some file types (e.g. SD-Card) must be unmounted too
-  if(dnldShared->dnldRqstCat == pathnameFullSdcard)
-  {
-    ret = umount(MEADOW_SDCARD_MOUNT_POINT_NAME);
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-ERROR: umount failed. ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
-      return ret;
-    }
-    
-#if defined (CONFIG_DIR_MGMT_TESTS)
-    syslog(2, "umount successful\n");
-#endif
-  }
 
   // Report to host
   hostMsg = malloc(HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH);

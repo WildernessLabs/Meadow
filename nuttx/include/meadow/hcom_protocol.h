@@ -54,7 +54,7 @@
 // the code it enables can be removed
 // Note: This change caused the protocol version to move from 7 to 8
 // (8Dec23 Peter Moody)
-#define HCOM_FILE_LIST_SUPPORT_CLIV1_SCHEME (1)
+#define HCOM_SUPPORT_CLIV1_LEGACY_BEHAVIOR (1)
 
 // Hold the current protocol version number.  This can be used to allow
 // communication between older versions of CLI and the OS.
@@ -330,7 +330,7 @@ enum HcomMeadowRequestType
   HCOM_MDOW_REQUEST_BULK_FLASH_ERASE        = 0x0a | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_ENTER_DFU_MODE          = 0x0b | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_ENABLE_DISABLE_NSH      = 0x0c | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
-#if HCOM_FILE_LIST_SUPPORT_CLIV1_SCHEME > 0
+#if HCOM_SUPPORT_CLIV1_LEGACY_BEHAVIOR > 0
   HCOM_MDOW_REQUEST_LIST_PARTITION_FILES    = 0x0d | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC = 0x0e | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
 #endif

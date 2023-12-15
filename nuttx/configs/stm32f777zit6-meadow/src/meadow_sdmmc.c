@@ -182,28 +182,11 @@ int stm32_sdio_initialize_meadow(void)
 
   sdio_mediachange(_SdioDev, _CurrentSdInserted);
 
-  // Note: the following mount would always succeed, but I found no way to
-  // auto-mount via the interrupts, directly or using Nuttx work threads. I
-  // think it might be possible to send a signal to HCOM and use it's thread,
-  // but I didn't have time to attempt implementing this. Nuttx does have a
-  // Automount feature but with the rehosting to Nuttx V12 in progress decided
-  // to wait for it and for a customer requirement to proceed. (12Dec23 Peter)
-  // if(_CurrentSdInserted)
-  // {
-  //   // syslog(LOG_DEBUG, "Call Mount Callback attempt'%s'\n", MEADOW_SDCARD_MOUNT_POINT_NAME);
-  //   ret = mount(MEADOW_SDCARD_BLOCK_NAME, MEADOW_SDCARD_MOUNT_POINT_NAME,
-  //             MEADOW_SDCARD_FILE_SYS_TYPE, 0, NULL);
-  //   if(ret < 0)
-  //   {
-  //     syslog(LOG_ERR, "%s@%d-ERROR: Mount failed. ret:%d, errno:%d\n", __FILE__, __LINE__, ret, errno);
-  //     return ret;
-  //   }
-  //   syslog(LOG_DEBUG, "Mount '%s' SUCCESS!!\n", MEADOW_SDCARD_MOUNT_POINT_NAME);
-  // }
-  // else
-  // {
-  //   syslog(LOG_DEBUG, "Not inserted so no mount attempted'%s'\n", MEADOW_SDCARD_MOUNT_POINT_NAME);
-  // }
+  // Note: I found no way to auto-mount via the interrupts, directly or using
+  // Nuttx work threads. I think it might be possible to send a signal to HCOM
+  // and use it's thread, but I didn't have time to attempt implementing this.
+  // Nuttx does have an Automount feature but with the rehosting to Nuttx V12
+  // in progress decided to wait for it. (12Dec23 Peter)
 
   _PreviousSdInserted = _CurrentSdInserted;
 

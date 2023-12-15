@@ -160,7 +160,7 @@ int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
       hcom_diag_logging_change_trace_level(userData);
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
       break;
-#if HCOM_FILE_LIST_SUPPORT_CLIV1_SCHEME > 0
+#if HCOM_SUPPORT_CLIV1_LEGACY_BEHAVIOR > 0
     case HCOM_MDOW_REQUEST_LIST_PARTITION_FILES:
       hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
       hcom_file_lists_all_files_in_meadow0(hdrMsg, dnldShared, false);
