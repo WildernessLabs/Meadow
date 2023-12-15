@@ -1,7 +1,7 @@
 /****************************************************************************
  * \include\meadow\hcom_dnld_shared.h
  * 
- *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2022-2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -78,7 +78,7 @@ enum hcom_file_msg_cat_e
   pathnameInvalidSlash    = 2,    // '/' found but not wanted
   pathnameOriginal        = 3,    // No '/' found
   pathnameFullMeadow      = 4,    // Starts '/meadow0/'
-  pathnameFullMmcsd       = 5,    // Starts '/sdcard/'
+  pathnameFullSdcard      = 5,    // Starts '/sdcard/'
   pathnameSingleSlash     = 6,    // Just '/'
   pathnameSlashSlash      = 7     // '/text/'
 };

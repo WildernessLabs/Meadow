@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\file\hcom_file_write_stm32f7.c
  * 
- *   Copyright (C) 2019 - 2022 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -126,38 +126,59 @@ int hcom_file_write_open_active_file(hcom_dnld_shared_t *dnldShared)
 
 //==================================================================
 // When data to be added to a file is received, it arrives here for writing.
-//
 int hcom_file_write_to_active_file(hcom_dnld_shared_t *dnldShared,
           const uint8_t *fileWriteData, const size_t fileWriteSize)
 {
+  uint8_t *writeDataBuff;
+
   if (_shutting_down)
     return OK;
+
+  if (dnldShared->dnldFileFD < 0)
+    return -EBADF; // Bad file number
 
   // Only test if Meadow file system
   if(dnldShared->dnldRqstCat == pathnameFullMeadow)
   {
     if (!hcom_via_nx_is_mounted(dnldShared->dnldFilePartId))
       return -ENOENT; // No such file or directory
+    
+    writeDataBuff = fileWriteData;
   }
+  else if(dnldShared->dnldRqstCat == pathnameFullSdcard)
+  {
+    // Found that the SD-Card write must be properly aligned or it writes data
+    // to the file that is outside of the specified buffers beginning address.
+    // malloc will allocate memory that this 4-byte aligned.
+    writeDataBuff = malloc(fileWriteSize);
+    if(writeDataBuff == NULL)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+      return -ENOMEM;
+    }
 
-  if (dnldShared->dnldFileFD < 0)
-    return -EBADF; // Bad file number
+    memcpy(writeDataBuff, fileWriteData, fileWriteSize);
+  }
 
 #if defined (CONFIG_DIR_MGMT_TESTS)
   syslog(1, "------- %s@%d Show first 16 of file write ------\n",
             __FILE__, __LINE__);
-  hcom_diag_print_buffer(fileWriteData, 16, 1);
+  hcom_diag_print_buffer(writeDataBuff, 16, 1);
 #endif
 
   ssize_t nbytes = 0;
-  nbytes = write(dnldShared->dnldFileFD, fileWriteData, fileWriteSize);
+  nbytes = write(dnldShared->dnldFileFD, writeDataBuff, fileWriteSize);
   if (nbytes < 0)
   {
     int Errno = get_errno();
     hcom_logging_syslog(LOG_ERR, "%s@%d-failed to write %s, errno %d\n",
              thisFile, __LINE__, dnldShared->dnldFullPathName, Errno);
+
+    free(writeDataBuff);
     return nbytes;
   }
+
+  free(writeDataBuff);
 
   if (nbytes < fileWriteSize)
   {

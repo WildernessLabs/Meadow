@@ -123,7 +123,7 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
           dnldShared->dnldInitFileCrc, dnldShared->dnldOrigPathName);
 
   // Some file types (e.g. SD-Card) must be mounted before begin accessed
-  if(dnldShared->dnldRqstCat == pathnameFullMmcsd)
+  if(dnldShared->dnldRqstCat == pathnameFullSdcard)
   {
     // mount(source, target, fstype, mountflags, data)
     // e.g. mount("/dev/mmcsd0", "/sdcard", "vfat", 0, NULL);
@@ -261,8 +261,8 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
             dnldShared->dnldCalcFileCrc);
 
 #if defined (CONFIG_DIR_MGMT_TESTS)
-  syslog(1, "------- %s@%d (Showing 16 of %lu packet) ------\n", __FILE__, __LINE__, packetSize);
-  hcom_diag_print_buffer(hcomDataMsg, 16, 1);
+  syslog(1, "------- %s@%d (Showing first 16 of %lu packet) ------\n", __FILE__, __LINE__, packetSize);
+  hcom_diag_print_buffer((uint8_t *)hcomDataMsg, 16, 1);
 #endif
 
   // Write the data to the file system
@@ -278,7 +278,7 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
       return -ENOMEM;
     }
 
-    uint32_t seqNumb = hcomDataMsg->seqNumber;
+    uint16_t seqNumb = hcomDataMsg->seqNumber;
 
     hcom_logging_syslog(LOG_ERR, "%s@%d-Write of %s failed:%d seq:%d\n",
              thisFile, __LINE__, dnldShared->dnldOrigPathName, ret, seqNumb);
@@ -331,7 +331,7 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
                 &fileSize, &blockSizeKB, &detectError);
 
   // Some file types (e.g. SD-Card) must be unmounted too
-  if(dnldShared->dnldRqstCat == pathnameFullMmcsd)
+  if(dnldShared->dnldRqstCat == pathnameFullSdcard)
   {
     ret = umount(MEADOW_SDCARD_MOUNT_POINT_NAME);
     if(ret < 0)

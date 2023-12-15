@@ -333,7 +333,7 @@ int hcom_host_process_run_loop()
       continue;
     }
 
-    // We have a good packet. Drop trailing delimiter using --packetLength,
+    // We have a good packet. Drop trailing delimiter via --packetLength,
     // then decode the packet and route it for processing.
     size_t decodedPacketSize = hcom_host_cobs_decoder(_packet_dest_buf,
               --packetLength, _decode_dest_buf);

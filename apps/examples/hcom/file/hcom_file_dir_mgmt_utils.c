@@ -199,7 +199,7 @@ static enum hcom_file_msg_cat_e hcom_dir_mgmt_categorize_pathname(
       }
 
       *pathNameElements = find_pathname_element_count(pathName, strLen);
-      return pathnameFullMmcsd;
+      return pathnameFullSdcard;
     }
   }
   else if(strLen == 1 && pathName[0] == '/')
@@ -374,7 +374,7 @@ static int hcom_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
   {
     // Since the entire path must have been provide by the host message, we'll
     // allocate the same size buffer as the originally path name. That is one
-    // of the following was found: pathnameFullMeadow, pathnameFullMmcsd or
+    // of the following was found: pathnameFullMeadow, pathnameFullSdcard or
     // pathnameSingleSlash.
     dnldShared->dnldFullPathName = malloc(fileNameLength + 1);
     if(dnldShared->dnldFullPathName == NULL)
@@ -492,7 +492,7 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
     return -ENOMEM;
   }
 
-  if(dnldShared->dnldRqstCat == pathnameFullMmcsd)
+  if(dnldShared->dnldRqstCat == pathnameFullSdcard)
   {
     ret = mount(MEADOW_SDCARD_BLOCK_NAME, MEADOW_SDCARD_MOUNT_POINT_NAME,
               MEADOW_SDCARD_FILE_SYS_TYPE, 0, NULL);
@@ -503,7 +503,7 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
       return ret;
     }
 #if defined (CONFIG_DIR_MGMT_TESTS)
-    syslog(2, "Mount successful\n");
+    syslog(2, "%s@%d-mount successful\n",  __FILE__, __LINE__);
 #endif
   }
 
@@ -572,6 +572,19 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
                   hostMsg, thisFile, __LINE__);
           free(hostMsg);
           free(fullFileNamePath);
+          if(dnldShared->dnldRqstCat == pathnameFullSdcard)
+          {
+            ret = umount(MEADOW_SDCARD_MOUNT_POINT_NAME);
+            if(ret < 0)
+            {
+              hcom_logging_syslog(LOG_ERR, "%s@%d-ERROR: umount failed. ret:%d, errno:%d\n",
+                        thisFile, __LINE__, ret, errno);
+              return ret;
+            }
+#if defined (CONFIG_DIR_MGMT_TESTS)
+            syslog(2, "%s@%d-umount successful\n",  __FILE__, __LINE__);
+#endif
+          }
 
           return ret;
         }
@@ -597,6 +610,19 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
                     thisFile, __LINE__);
           free(hostMsg);
           free(fullFileNamePath);
+          if(dnldShared->dnldRqstCat == pathnameFullSdcard)
+          {
+            ret = umount(MEADOW_SDCARD_MOUNT_POINT_NAME);
+            if(ret < 0)
+            {
+              hcom_logging_syslog(LOG_ERR, "%s@%d-ERROR: umount failed. ret:%d, errno:%d\n",
+                        thisFile, __LINE__, ret, errno);
+              return ret;
+            }
+#if defined (CONFIG_DIR_MGMT_TESTS)
+            syslog(2, "%s@%d-umount successful\n",  __FILE__, __LINE__);
+#endif
+          }
           return -ENOMEM;
         }
 
@@ -610,7 +636,7 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
         return -ENOTDIR;
       }
 
-      if(dnldShared->dnldRqstCat == pathnameFullMmcsd)
+      if(dnldShared->dnldRqstCat == pathnameFullSdcard)
       {
         ret = umount(MEADOW_SDCARD_MOUNT_POINT_NAME);
         if(ret < 0)
@@ -619,9 +645,9 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
                     thisFile, __LINE__, ret, errno);
           return ret;
         }
-        
+
 #if defined (CONFIG_DIR_MGMT_TESTS)
-        syslog(2, "umount successful\n");
+        syslog(2, "%s@%d-umount successful\n",  __FILE__, __LINE__);
 #endif
       }
 
@@ -658,7 +684,7 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
 #endif
   }
 
-  if(dnldShared->dnldRqstCat == pathnameFullMmcsd)
+  if(dnldShared->dnldRqstCat == pathnameFullSdcard)
   {
     ret = umount(MEADOW_SDCARD_MOUNT_POINT_NAME);
     if(ret < 0)
@@ -668,6 +694,9 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
       free(fullFileNamePath);
       return ret;
     }
+#if defined (CONFIG_DIR_MGMT_TESTS)
+    syslog(2, "%s@%d-umount successful\n",  __FILE__, __LINE__);
+#endif
   }
 
   free(fullFileNamePath);
