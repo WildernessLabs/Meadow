@@ -108,6 +108,9 @@ struct hcom_dnld_shared_s
 typedef struct hcom_dnld_shared_s hcom_dnld_shared_t;
 
 int hcom_dir_mgmt_free_file_info(hcom_dnld_shared_t *dnldShared);
+#if defined (CONFIG_DIR_MGMT_TESTS)
+char *hcom_file_dir_mgmt_find_category(enum hcom_file_msg_cat_e cat);
+#endif
 
 // The watchdog has a close relationship with hcom CLI message process
 int hcom_host_watchdog_initialize(hcom_dnld_shared_t *dnldShared);

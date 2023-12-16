@@ -178,11 +178,6 @@ uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
 
     if (nbytes > 0)
     {
-#if defined (CONFIG_DIR_MGMT_TESTS)
-      syslog(1, "%s@%d-CRC-Fiirst 16 bytes of file data ------\n",
-                __FILE__, __LINE__);
-      hcom_diag_print_buffer(crcReadBuff, 16, 1);
-#endif
       crc32Checksum = crc32part(crcReadBuff, nbytes, crc32Checksum);
     }
   } while (nbytes > 0);

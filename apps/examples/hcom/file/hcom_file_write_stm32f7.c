@@ -173,11 +173,17 @@ int hcom_file_write_to_active_file(hcom_dnld_shared_t *dnldShared,
     hcom_logging_syslog(LOG_ERR, "%s@%d-failed to write %s, errno %d\n",
              thisFile, __LINE__, dnldShared->dnldFullPathName, Errno);
 
-    free(writeDataBuff);
+    if(dnldShared->dnldRqstCat == pathnameFullSdcard)
+      free(writeDataBuff);
+      
     return nbytes;
   }
 
-  free(writeDataBuff);
+  // Only free if allocated (i.e. sdcard)
+  if(dnldShared->dnldRqstCat == pathnameFullSdcard)
+  {
+    free(writeDataBuff);
+  }
 
   if (nbytes < fileWriteSize)
   {

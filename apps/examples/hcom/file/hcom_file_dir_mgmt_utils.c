@@ -128,6 +128,39 @@ static uint32_t find_pathname_element_count(const char *pathName, size_t strLen)
   return elementCount;
 }
 
+#if defined (CONFIG_DIR_MGMT_TESTS)
+//============================================================================
+// This function will check the received path/file name and categorize it and
+char *hcom_file_dir_mgmt_find_category(enum hcom_file_msg_cat_e cat)
+{
+  switch(cat)
+  {
+    case pathnameNotUsed:
+      return "pathnameNotUsed";
+    case pathnameInvalid:
+      return "pathnameInvalid";
+    case pathnameInvalidNoSlash:
+      return "pathnameInvalidNoSlash";
+    case pathnameInvalidSlash:
+      return "pathnameInvalidSlash";
+    case pathnameOriginal:
+      return "pathnameOriginal";
+    case pathnameFullMeadow:
+      return "pathnameFullMeadow";
+    case pathnameFullSdcard:
+      return "pathnameFullSdcard";
+    case pathnameSingleSlash:
+      return "pathnameSingleSlash";
+    case pathnameSlashSlash:
+      return "pathnameSlashSlash";
+    default:
+      return "Not categorized";
+  }
+
+  // return "Not categorized";
+}
+#endif
+
 //============================================================================
 // This function will check the received path/file name and categorize it and
 // determine if the format is correct. This way the remaining steps will know
@@ -353,7 +386,7 @@ static int hcom_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
   if(catType == pathnameOriginal)
   {
     // A file name based on the original naming convention needs
-    // to have '/meadow0/' prepended to the filename
+    // to have '/meadow0/' prepended to the filename as CLIv1 default.
     // (e.g. /meadow0/filename.ext).
     dnldFileAndPathLen = strlen(dnldShared->dnldOrigPathName) + \
               strlen(HCOM_MEADOW0_PATH_NAME_PREFIX) + 2; // Room for '/' + NULL
@@ -448,7 +481,7 @@ int hcom_host_process_init_hcom_dnld_share(hcom_dnld_shared_t *dnldShared,
 
   pathName[pathNameLength] = '\0';  // Make into C string
 
-  // Construct the proper full file name for 
+  // Construct the proper full file name
   // Note: This call should allocate memory, therefore, this must be considered
   // this memory after this point.
   // Note: isFileMsgType is only true based for a few request types. There are only
@@ -600,29 +633,32 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
 #if defined (CONFIG_DIR_MGMT_TESTS)
     else
     {
-      syslog(2, "stat() found at '%s':\n", fullFileNamePath);
+      syslog(2, "===> %s@%d- Searching FS found '%s' which is:\n",
+                thisFile, __LINE__, fullFileNamePath);
       if (S_ISREG(statBuf.st_mode))
-        syslog(2, "type        : File\n");
+        syslog(2, "type: File\n");
       else if (S_ISDIR(statBuf.st_mode))
-        syslog(2, "type        : Directory\n");
+        syslog(2, "type: Directory\n");
       else if (S_ISCHR(statBuf.st_mode))
-        syslog(2, "type        : Character driver\n");
+        syslog(2, "type: Character driver\n");
       else if (S_ISBLK(statBuf.st_mode))
-        syslog(2, "type        : Block driver\n");
+        syslog(2, "type: Block driver\n");
       else if (S_ISMQ(statBuf.st_mode))
-        syslog(2, "type        : Message queue\n");
+        syslog(2, "type: Message queue\n");
       else if (S_ISSEM(statBuf.st_mode))
-        syslog(2, "type        : Named semaphore\n");
+        syslog(2, "type: Named semaphore\n");
       else if (S_ISSHM(statBuf.st_mode))
-        syslog(2, "type        : Shared memory\n");
+        syslog(2, "type: Shared memory\n");
       else if (S_ISSOCK(statBuf.st_mode))
-        syslog(2, "type        : Socket\n");
+        syslog(2, "type: Socket\n");
       else if (S_ISMTD(statBuf.st_mode))
-        syslog(2, "type        : Named MTD driver\n");
+        syslog(2, "type: Named MTD driver\n");
       else if (S_ISLNK(statBuf.st_mode))
-        syslog(2, "type        : Symbolic link\n");
+        syslog(2, "type: Symbolic link\n");
       else
-        syslog(2, "type        : Unknown\n");
+        syslog(2, "type: Unknown\n");
+
+      usleep(30 * 1000);
     }
 #endif
   }

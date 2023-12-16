@@ -112,7 +112,11 @@ int hcom_host_process_setup()
     return -ENOMEM;
   }
 
+  // Initialize download shared structure
   memset(_dnldShared, 0, sizeof(hcom_dnld_shared_t));
+  _dnldShared->dnldRqstCat = pathnameNotUsed;
+  _dnldShared->dnldFileFD = -1;
+  _dnldShared->dnldCurrentState = HcomStm32F7DnldStateInvalid;
 
   // The watchdog needs access to the download shared structure
   ret = hcom_host_watchdog_initialize(_dnldShared);
@@ -175,8 +179,32 @@ int hcom_dir_mgmt_free_file_info(hcom_dnld_shared_t *dnldShared)
 {
   int ret;
 
+  // Already clean?
+  if(dnldShared->dnldRqstCat == pathnameNotUsed)
+  {
 #if defined (CONFIG_DIR_MGMT_TESTS)
-    syslog(2, "===> %s@%d-Freeing dnldShared information\n", thisFile, __LINE__);
+    syslog(2, "===> %s@%d-All dnldShared resources already removed\n",thisFile, __LINE__);
+#endif
+    return OK;
+  }
+
+#if defined (CONFIG_DIR_MGMT_TESTS)
+  // To help insure all removed
+  if(dnldShared->dnldFullPathName != NULL)
+  {
+    syslog(2, "===> %s@%d-About to remove any existing dnldShared resources, cat:%s, file'%s'\n",
+              thisFile, __LINE__,
+              hcom_file_dir_mgmt_find_category(dnldShared->dnldRqstCat),
+              dnldShared->dnldFullPathName);
+    usleep(20 * 1000);
+  }
+  else
+  {
+    syslog(2, "===> %s@%d-About to remove any existing dnldShared resources, cat:%s\n",
+              thisFile, __LINE__,
+              hcom_file_dir_mgmt_find_category(dnldShared->dnldRqstCat));
+    usleep(20 * 1000);
+  }
 #endif
 
   if(dnldShared->dnldFileFD > 0)
@@ -188,8 +216,6 @@ int hcom_dir_mgmt_free_file_info(hcom_dnld_shared_t *dnldShared)
               thisFile, __LINE__, ret, errno);
     }
   }
-
-  dnldShared->dnldFileFD = -1;
 
   // Free any string memory allocations
   if(dnldShared->dnldOrigPathName != NULL)
@@ -204,11 +230,12 @@ int hcom_dir_mgmt_free_file_info(hcom_dnld_shared_t *dnldShared)
     dnldShared->dnldFullPathName = NULL;
   }
 
+  // Basic reinitialization
   memset(dnldShared, 0, sizeof(hcom_dnld_shared_t));
-
   dnldShared->dnldRqstCat = pathnameNotUsed;
-
+  dnldShared->dnldFileFD = -1;
   dnldShared->dnldCurrentState = HcomStm32F7DnldStateInvalid;
+
   return OK;
 }
 
@@ -262,12 +289,33 @@ static int hcom_host_process_init_write_or_del(hcom_dnld_shared_t *dnldShared,
     return -EPERM;    // Operation not permitted
   }
 
-  // Initialize the shared struct
+  // Initialize the shared download struct
   ret = hcom_host_process_init_hcom_dnld_share(dnldShared, hdrMsg,
             packetSize, true, true);
   if(ret < 0)
   {
     return ret;    // Error already reported via syslog
+  }
+
+  // SD-Card file activity must be mounted before it can be accessed
+  if(dnldShared->dnldRqstCat == pathnameFullSdcard)
+  {
+#if defined (CONFIG_DIR_MGMT_TESTS)
+    syslog(2, "===> %s@%d-Must mount SDCard for file:%s\n",
+              thisFile, __LINE__,
+              dnldShared->dnldFullPathName);
+    usleep(20 * 1000);
+#endif
+
+    // mount(source, target, fstype, mountflags, data)
+    // e.g. mount("/dev/mmcsd0", "/sdcard", "vfat", 0, NULL);
+    ret = mount(MEADOW_SDCARD_BLOCK_NAME, MEADOW_SDCARD_MOUNT_POINT_NAME,
+              MEADOW_SDCARD_FILE_SYS_TYPE, 0, NULL);
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-ERROR: Mount failed. ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
+      return ret;
+    }
   }
 
   // For the Meadow file system download start, need to do extra initialization
@@ -512,8 +560,27 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       hcom_dir_mgmt_free_file_info(dnldShared);
       return ret;   // On error exit
     }
+
+    // SD-Card file activity must be mounted before it can be accessed
+    if(dnldShared->dnldRqstCat == pathnameFullSdcard)
+    {
+#if defined (CONFIG_DIR_MGMT_TESTS)
+      syslog(2, "===> %s@%d-Must mount SDCard for file:%s\n",
+                thisFile, __LINE__, dnldShared->dnldFullPathName);
+      usleep(20 * 1000);
+#endif
+      // mount(source, target, fstype, mountflags, data)
+      // e.g. mount("/dev/mmcsd0", "/sdcard", "vfat", 0, NULL);
+      ret = mount(MEADOW_SDCARD_BLOCK_NAME, MEADOW_SDCARD_MOUNT_POINT_NAME,
+                MEADOW_SDCARD_FILE_SYS_TYPE, 0, NULL);
+      if(ret < 0)
+      {
+        syslog(LOG_ERR, "%s@%d-ERROR: Mount failed. ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
+        return ret;
+      }
+    }
   }
-  // Upload initialization
+  // File Read initialization
   else if(requestType == HCOM_MDOW_REQUEST_UPLOAD_FILE_INIT)
   {
     ret = hcom_host_process_init_hcom_dnld_share(dnldShared, hdrMsg,
@@ -526,6 +593,25 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       hcom_dir_mgmt_free_file_info(dnldShared);
       return ret;   // On error exit
     }
+
+    // SD-Card file activity must be mounted before it can be used
+    if(dnldShared->dnldRqstCat == pathnameFullSdcard)
+    {
+#if defined (CONFIG_DIR_MGMT_TESTS)
+      syslog(2, "===> %s@%d-Must mount SDCard for file:%s\n",
+                thisFile, __LINE__, dnldShared->dnldFullPathName);
+      usleep(20 * 1000);
+#endif
+      // mount(source, target, fstype, mountflags, data)
+      // e.g. mount("/dev/mmcsd0", "/sdcard", "vfat", 0, NULL);
+      ret = mount(MEADOW_SDCARD_BLOCK_NAME, MEADOW_SDCARD_MOUNT_POINT_NAME,
+                MEADOW_SDCARD_FILE_SYS_TYPE, 0, NULL);
+      if(ret < 0)
+      {
+        syslog(LOG_ERR, "%s@%d-ERROR: Mount failed. ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
+        return ret;
+      }
+    }
   }
   else if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
           requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME ||
@@ -533,7 +619,8 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
   {
     // Starting a file transfer or delete needs special pre-processing
     // before being routed to the various write and delete functions.
-    // This function calls hcom_host_process_init_hcom_dnld_share().
+    // This function calls hcom_host_process_init_hcom_dnld_share() to
+    // initialize the dnldShared information and if an SD-Card mounts it.
     ret = hcom_host_process_init_write_or_del(dnldShared, hdrMsg,
           decodedSize, requestType);
     if(ret < 0)
@@ -584,23 +671,6 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
     }
   }
 
-  // SD-Card file activity must be mounted before it can be accessed
-  if(dnldShared->dnldRqstCat == pathnameFullSdcard)
-  {
-    // mount(source, target, fstype, mountflags, data)
-    // e.g. mount("/dev/mmcsd0", "/sdcard", "vfat", 0, NULL);
-    ret = mount(MEADOW_SDCARD_BLOCK_NAME, MEADOW_SDCARD_MOUNT_POINT_NAME,
-              MEADOW_SDCARD_FILE_SYS_TYPE, 0, NULL);
-    if(ret < 0)
-    {
-      syslog(LOG_ERR, "%s@%d-ERROR: Mount failed. ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
-      return ret;
-    }
-#if defined (CONFIG_DIR_MGMT_TESTS)
-    syslog(2, "===> %s@%d-Mount successful\n", thisFile, __LINE__);
-#endif
-  }
-
   //-------------------------------------------------------------------
   // All command request types are routed here
   //-------------------------------------------------------------------
@@ -643,7 +713,11 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
         // Still have memory to free, don't return
       }
 #if defined (CONFIG_DIR_MGMT_TESTS)
-      syslog(2, "===> %s@%d-umount successful\n",  __FILE__, __LINE__);
+      syslog(2, "===> %s@%d-umount successful, cat:%s', file:%s\n",
+              __FILE__, __LINE__,
+              hcom_file_dir_mgmt_find_category(dnldShared->dnldRqstCat),
+              dnldShared->dnldFullPathName);
+      usleep(20 * 1000);
 #endif
     }
 
