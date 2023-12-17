@@ -103,8 +103,7 @@ static inline void
 mono_os_mutex_lock (mono_mutex_t *mutex)
 {
 	int res;
-
-	res = pthread_mutex_lock (mutex);
+	while ((res = pthread_mutex_lock (mutex) < 0 && errno == EINTR));
 	if (G_UNLIKELY (res != 0))
 		g_error ("%s: pthread_mutex_lock failed with \"%s\" (%d)", __func__, g_strerror (res), res);
 }
