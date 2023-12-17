@@ -232,7 +232,7 @@ int meadow_idle_mon_timer_init(uint32_t timerBase)
 // Return the current MCU idle percentage 0 - 100%
 int meadow_idle_monitor_get_value()
 {
-  static int IdlePercent;
+  static int IdlePercent = 0;
 
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)
 
@@ -241,10 +241,6 @@ int meadow_idle_monitor_get_value()
   {
     IdlePercent = 
         (_idleCountSnapShot * 100) / MEADOW_IDLE_MON_MAX_100_PER_CENT_COUNT;
-  }
-  else
-  {
-    IdlePercent = 0;
   }
 #endif    // #if defined (CONFIG_ARCH_IDLE_CUSTOM)
 
