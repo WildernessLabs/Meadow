@@ -243,8 +243,10 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
             dnldShared->dnldCalcFileCrc);
 
 #if defined (CONFIG_DIR_MGMT_TESTS)
+  #if (HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0)
   syslog(1, "------- %s@%d (Showing first 16 of %lu packet) ------\n", __FILE__, __LINE__, packetSize);
   hcom_diag_print_buffer((uint8_t *)hcomDataMsg, 16, 1);
+  #endif
 #endif
 
   // Write the data to the file system
