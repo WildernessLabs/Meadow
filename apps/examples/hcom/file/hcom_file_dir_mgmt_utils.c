@@ -36,17 +36,19 @@
 // This module contains utilities to support adding subdirectories to Meadow.OS
 // This will resolve Meadow_Issues #320 Add HCOM support for “current directory”
 
-// The existing situation is that all files are placed in the /meadow0/
-// directory and the CLI just sends the bare file name and it is assumed that
-// the file is to be written to the /meadow0/ device.
+// The situation before adding subdirectories is that all files have been
+// placed in the '/meadow0' directory and the CLI just sends the bare file name
+// which has been assumed to be written to the /meadow0/ device.
 //
 // The following rules will be followed:
 // 1. All reads or writes sent with just a bare file name will default to using
 //     /meadow0/. The intent is to support the existing CLIv1 behavior, without
 //     changes to it.
 // 2. All file writes or reads for the SD-Card must begin with /sdcard/.
-// 3. Files prepended with a single '/' (e.g. '/filename' or './filename') will
-//     considered an error.
+// 3. Files prepended with a '/' (e.g. '/filename' or './filename') will
+//     considered an error. Also, a single '/' character or a string
+//     containing '/text/' will be considered an error, even though these
+//     would be useful to inspect the file systems root.
 // 4. Files downloaded to subdirectory must be in this format
 //      '/meadow0/dir/filename' or '/sdcard/dir/filename'
 // 5. There is a limit of 6 nested subdirectories, not counting /meadow0.
@@ -145,14 +147,14 @@ char *hcom_file_dir_mgmt_find_category(enum hcom_file_msg_cat_e cat)
       return "pathnameInvalidSlash";
     case pathnameOriginal:
       return "pathnameOriginal";
-    case pathnameFullMeadow:
-      return "pathnameFullMeadow";
-    case pathnameFullSdcard:
-      return "pathnameFullSdcard";
-    case pathnameSingleSlash:
-      return "pathnameSingleSlash";
-    case pathnameSlashSlash:
-      return "pathnameSlashSlash";
+    case pathnameMeadow:
+      return "pathnameMeadow";
+    case pathnameSdcard:
+      return "pathnameSdcard";
+    // case pathnameSingleSlash:
+    //   return "pathnameSingleSlash";
+    // case pathnameSlashSlash:
+    //   return "pathnameSlashSlash";
     default:
       return "Not categorized";
   }
@@ -177,10 +179,9 @@ static enum hcom_file_msg_cat_e hcom_dir_mgmt_categorize_pathname(
 {
   *pathNameElements = 0;
 
-  // Is this a bare filename (i.e. no '/')
+  // Is this a simple filename (i.e. no '/')
   if(memchr(pathName, '/', strLen) == NULL)
   {
-
     // No '/' in file name, this is like original file naming scheme for
     // download
     if(endExpectFileName)
@@ -208,7 +209,7 @@ static enum hcom_file_msg_cat_e hcom_dir_mgmt_categorize_pathname(
     }
 
     *pathNameElements = find_pathname_element_count(pathName, strLen);
-    return pathnameFullMeadow;
+    return pathnameMeadow;
   }
 #if defined (CONFIG_STM32F7_SDMMC2)
   else if(memcmp(MEADOW_FILE_SUBDIR_PREPEND_SDCARD_STR,
@@ -231,12 +232,17 @@ static enum hcom_file_msg_cat_e hcom_dir_mgmt_categorize_pathname(
       }
 
       *pathNameElements = find_pathname_element_count(pathName, strLen);
-      return pathnameFullSdcard;
+      return pathnameSdcard;
     }
   }
+
+  // The following 2 path names ('/' and '/text/') where originally thought to
+  // be needed, but have been removed. This means that only '/meadow0' and
+  // /sdcard' are accessable to the HCOM user.
+#if 0
   else if(strLen == 1 && pathName[0] == '/')
   {
-    // Found a single '/'
+    // Found a single '/', only useful for file list to see devices etc.
     if(endExpectFileName)
     {
       return pathnameInvalidNoSlash;
@@ -249,7 +255,7 @@ static enum hcom_file_msg_cat_e hcom_dir_mgmt_categorize_pathname(
   }
   else if(pathName[0] == '/' && pathName[strLen -1] == '/')
   {
-    // Found '/pathname/'
+    // Found '/pathname/', this maybe used in the future for file list (e.g. /dev/)
     if(endExpectFileName)
     {
       return pathnameInvalidNoSlash;
@@ -260,10 +266,11 @@ static enum hcom_file_msg_cat_e hcom_dir_mgmt_categorize_pathname(
       return pathnameSlashSlash;
     }
   }
+#endif
 
 #endif
   // Lots of reasons, upper/lower case, spelling.... Wish I knew them all
-  // The above is only looking for the positive reasons to allow progress.
+  // The above is only looking for the positive reasons to allow processing.
   return pathnameInvalid;
 }
 
@@ -406,8 +413,7 @@ static int hcom_dir_mgmt_eval_build_pathname(hcom_dnld_shared_t *dnldShared,
   {
     // Since the entire path must have been provide by the host message, we'll
     // allocate the same size buffer as the originally path name. That is one
-    // of the following was found: pathnameFullMeadow, pathnameFullSdcard or
-    // pathnameSingleSlash.
+    // of the following was found: pathnameMeadow or pathnameSdcard.
     dnldShared->dnldFullPathName = malloc(fileNameLength + 1);
     if(dnldShared->dnldFullPathName == NULL)
     {

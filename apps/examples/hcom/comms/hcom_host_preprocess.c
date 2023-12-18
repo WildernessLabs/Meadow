@@ -298,7 +298,7 @@ static int hcom_host_process_init_write_or_del(hcom_dnld_shared_t *dnldShared,
   }
 
   // SD-Card file activity must be mounted before it can be accessed
-  if(dnldShared->dnldRqstCat == pathnameFullSdcard)
+  if(dnldShared->dnldRqstCat == pathnameSdcard)
   {
 #if defined (CONFIG_DIR_MGMT_TESTS)
     syslog(2, "===> %s@%d-Must mount SDCard for file:%s\n",
@@ -562,7 +562,9 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
     }
 
     // SD-Card file activity must be mounted before it can be accessed
-    if(dnldShared->dnldRqstCat == pathnameFullSdcard)
+    // Note: if the file list command contains a single '\' this will
+    // not mount the SD-Card.
+    if(dnldShared->dnldRqstCat == pathnameSdcard)
     {
 #if defined (CONFIG_DIR_MGMT_TESTS)
       syslog(2, "===> %s@%d-Must mount SDCard for file:%s\n",
@@ -595,7 +597,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
     }
 
     // SD-Card file activity must be mounted before it can be used
-    if(dnldShared->dnldRqstCat == pathnameFullSdcard)
+    if(dnldShared->dnldRqstCat == pathnameSdcard)
     {
 #if defined (CONFIG_DIR_MGMT_TESTS)
       syslog(2, "===> %s@%d-Must mount SDCard for file:%s\n",
@@ -643,7 +645,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
   {
     // End of file download
 #if HCOM_SUPPORT_CLIV1_LEGACY_BEHAVIOR > 0
-    // Looks like CLI sent ending message even though an earlier error.
+    // Looks like CLIv1 sent ending message even though an earlier error
     if(dnldShared->dnldCurrentState == HcomStm32F7DnldStateInvalid)
     {
       // There must have been a previous error, let CLI know
@@ -703,7 +705,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       requestType == HCOM_MDOW_REQUEST_LIST_FILES_SUBDIR_CRC)
   {
     // SD Card's need to be unmounted when a command has mounted it
-    if(dnldShared->dnldRqstCat == pathnameFullSdcard)
+    if(dnldShared->dnldRqstCat == pathnameSdcard)
     {
       ret = umount(MEADOW_SDCARD_MOUNT_POINT_NAME);
       if(ret < 0)

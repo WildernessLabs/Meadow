@@ -412,12 +412,24 @@ static int hcom_dir_mgmt_tst_recurse_nested_directories_start(const char *rootDi
 void meadow_dir_mgmt_tests(uint32_t userData)
 {
   int ret;
+  bool isMounted = false;
   uint32_t totalBytes;
   uint32_t freeBytes;
   uint32_t usedBytes;
 
   syslog(2, "Directory management received 'set developer -d 13 -v %lu'\n", userData);
   usleep(20 * 1000);
+
+  // We assume sdcard needs to be mounted and if not, an error message, we'll
+  // ignore.
+  // mount(source, target, fstype, mountflags, data)
+  // e.g. mount("/dev/mmcsd0", "/sdcard", "vfat", 0, NULL);
+  ret = mount(MEADOW_SDCARD_BLOCK_NAME, MEADOW_SDCARD_MOUNT_POINT_NAME,
+            MEADOW_SDCARD_FILE_SYS_TYPE, 0, NULL);
+  if(ret < 0)
+    syslog(2, "SD-Card mount attempt failed. ret:%d, errno:%d\n", ret, errno);
+  else
+    isMounted = true;
 
   switch (userData)
   {
@@ -465,24 +477,34 @@ void meadow_dir_mgmt_tests(uint32_t userData)
     hcom_dir_mgmt_tst_log_directories_files("/sdcard");
     break;
 
-  case 9:
+  case 9:       // Illegal entry
     hcom_dir_mgmt_tst_log_directories_files("/");
     break;
 
-  case 10:
+  case 10:       // Illegal entry
     hcom_dir_mgmt_tst_log_directories_files("/dev");
     break;
 
-  case 11:       // Illegal
+  case 11:       // Illegal entry
     hcom_dir_mgmt_tst_log_directories_files("");
 
     break;
-  case 12:       // Illegal
+  case 12:       // Illegal entry
     hcom_dir_mgmt_tst_log_directories_files(NULL);
     break;
 
   default:
     break;
+  }
+
+  if(isMounted)
+  {
+    ret = umount(MEADOW_SDCARD_MOUNT_POINT_NAME);
+    if(ret < 0)
+      syslog(2, "%s@%d-ERROR: umount failed. ret:%d, errno:%d\n",
+                thisFile, __LINE__, ret, errno);
+
+    syslog(2, "===> umount successful\n");
   }
 }
 

@@ -73,15 +73,24 @@ enum hcom_download_dir_type_identifier
 // This enum is used to catorgize CLI file/directory requests
 enum hcom_file_msg_cat_e
 {
-  pathnameNotUsed         = 0xff,    // Flag to indicate Not Used
+  pathnameNotUsed         = 0xff, // Flag to indicate cleaned
   pathnameInvalid         = 0,    // Illegal format provided
   pathnameInvalidNoSlash  = 1,    // No '/' found but needed
   pathnameInvalidSlash    = 2,    // '/' found but not wanted
   pathnameOriginal        = 3,    // No '/' found
-  pathnameFullMeadow      = 4,    // Starts '/meadow0/'
-  pathnameFullSdcard      = 5,    // Starts '/sdcard/'
-  pathnameSingleSlash     = 6,    // Just '/'
-  pathnameSlashSlash      = 7     // '/text/'
+  pathnameMeadow          = 4,    // Starts with '/meadow0/'
+  pathnameSdcard          = 5,    // Starts with '/sdcard/'
+
+  // The following 2 path names ('/' and '/text/') where originally thought to
+  // be needed, but have been removed. This means that only '/meadow0' and
+  // /sdcard' are accessable to the HCOM user.
+  // e.g. '/' for file list to examine items from the root which are
+  // not '/meadow0/ or /sdcard/ (e.g. to find /dev).
+  // pathnameSingleSlash     = 6,    // Just '/' for file list to see root
+
+  // e.g. '/text/' Future - if file list is to examine items from the
+  // root (e.g. /dev/).
+  // pathnameSlashSlash      = 7
 };
 
 // This struct is memset to zero by processing during initialization

@@ -46,8 +46,8 @@
 //
 // From version 7 and above it will be the responsibility of the method
 // being invoked to check the protocol version number and act accordingly.
-#define HCOM_PROTOCOL_MINIMUM_PROTOCOL_NUMBER     ((uint16_t) 0x0007)
-#define HCOM_PROTOCOL_PREFERRED_VERSION_NUMBER    ((uint16_t) 0x0008)
+#define HCOM_PROTOCOL_MINIMUM_PROTOCOL_NUMBER     ((uint16_t) 0x0006)
+#define HCOM_PROTOCOL_PREFERRED_VERSION_NUMBER    ((uint16_t) 0x0007)
 
 // This #define is used to enable the legacy behavior to support CLIv1 which
 // doesn't support subdirectories. When CLIv1 is retired this #define and all
