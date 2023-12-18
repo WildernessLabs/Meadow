@@ -413,7 +413,7 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
 #endif
 
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)
-  SYSCALL_LOOKUP(meadow_idle_monitor_get_value,     1, STUB_meadow_idle_monitor_get_value)
+  SYSCALL_LOOKUP(meadow_idle_monitor_get_value,     0, STUB_meadow_idle_monitor_get_value)
 #endif
 
 #if defined (CONFIG_STM32F7_DMA2)
