@@ -405,7 +405,7 @@ int hcom_host_process_run_loop()
       {
         // Let CLI user know the problem
         hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
-                "Error during download/delete command processing",
+                "Error during download or delete command processing",
                 thisFile, __LINE__);
 
         hcom_logging_syslog(LOG_ERR, "%s@%d-Processing data packet, ret:%d\n",
