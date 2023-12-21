@@ -1,7 +1,7 @@
 /****************************************************************************
  * \include\meadow\hcom_dnld_shared.h
  * 
- *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2022-2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,14 +73,24 @@ enum hcom_download_dir_type_identifier
 // This enum is used to catorgize CLI file/directory requests
 enum hcom_file_msg_cat_e
 {
+  pathnameNotUsed         = 0xff, // Flag to indicate cleaned
   pathnameInvalid         = 0,    // Illegal format provided
   pathnameInvalidNoSlash  = 1,    // No '/' found but needed
   pathnameInvalidSlash    = 2,    // '/' found but not wanted
   pathnameOriginal        = 3,    // No '/' found
-  pathnameFullMeadow      = 4,    // Starts '/meadow0/'
-  pathnameFullMmcsd       = 5,    // Starts '/sdcard/'
-  pathnameSingleSlash     = 6,    // Just '/'
-  pathnameSlashSlash      = 7     // '/text/'
+  pathnameMeadow          = 4,    // Starts with '/meadow0/'
+  pathnameSdcard          = 5,    // Starts with '/sdcard/'
+
+  // The following 2 path names ('/' and '/text/') where originally thought to
+  // be needed, but have been removed. This means that only '/meadow0' and
+  // /sdcard' are accessable to the HCOM user.
+  // e.g. '/' for file list to examine items from the root which are
+  // not '/meadow0/ or /sdcard/ (e.g. to find /dev).
+  // pathnameSingleSlash     = 6,    // Just '/' for file list to see root
+
+  // e.g. '/text/' Future - if file list is to examine items from the
+  // root (e.g. /dev/).
+  // pathnameSlashSlash      = 7
 };
 
 // This struct is memset to zero by processing during initialization
@@ -95,8 +105,7 @@ struct hcom_dnld_shared_s
   uint32_t dnldInitFileSize;            // File size based on received CLI data
   uint32_t dnldCalcFileSize;            // This size calculated while receiving
   uint32_t dnldPathNameEleCount;        // Number of elements in pathname
-  enum hcom_file_msg_cat_e dnldRqstCat; // What type of file rqst did CLI make?
-
+  enum hcom_file_msg_cat_e dnldRqstCat; // Category of file rqst did CLI make?
   int dnldFileFD;                       // For persisting fd
   int dnldPercentSent;                  // Used to calculate the % completed
   // Set by processing and used by file handling (This is always 1)
@@ -108,6 +117,9 @@ struct hcom_dnld_shared_s
 typedef struct hcom_dnld_shared_s hcom_dnld_shared_t;
 
 int hcom_dir_mgmt_free_file_info(hcom_dnld_shared_t *dnldShared);
+#if defined (CONFIG_DIR_MGMT_TESTS)
+char *hcom_file_dir_mgmt_find_category(enum hcom_file_msg_cat_e cat);
+#endif
 
 // The watchdog has a close relationship with hcom CLI message process
 int hcom_host_watchdog_initialize(hcom_dnld_shared_t *dnldShared);
