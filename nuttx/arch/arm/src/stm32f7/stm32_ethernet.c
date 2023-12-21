@@ -3705,8 +3705,7 @@ static int stm32_ethreset(struct stm32_ethmac_s *priv)
     countDown--;
     if(countDown == 0)
     {
-    syslog(1, "==>>%s@%d-Exited while loop wait\n", __FILE__, __LINE__); usleep(30*1000);
-      return -ENODEV;   // Assume No Device
+      return -ENODEV;   // Must assume No Device
     }
   } while ((stm32_getreg(STM32_ETH_DMABMR) & ETH_DMABMR_SR) != 0);
 
