@@ -769,7 +769,7 @@ static inline void stm32_selectmii(void);
 static inline void stm32_selectrmii(void);
 #endif
 static inline void stm32_ethgpioconfig(struct stm32_ethmac_s *priv);
-static void stm32_ethreset(struct stm32_ethmac_s *priv);
+static int  stm32_ethreset(struct stm32_ethmac_s *priv);
 static int  stm32_macconfig(struct stm32_ethmac_s *priv);
 static void stm32_macaddress(struct stm32_ethmac_s *priv);
 #ifdef CONFIG_NET_ICMPv6
@@ -2505,13 +2505,13 @@ static int stm32_ifdown(struct net_driver_s *dev)
    * successfully brings the interface back up.
    */
 
-  stm32_ethreset(priv);
+  int ret = stm32_ethreset(priv);
 
   /* Mark the device "down" */
 
   priv->ifup = false;
   leave_critical_section(flags);
-  return OK;
+  return ret;
 }
 
 /****************************************************************************
@@ -3670,7 +3670,7 @@ static inline void stm32_ethgpioconfig(struct stm32_ethmac_s *priv)
  *
  ****************************************************************************/
 
-static void stm32_ethreset(struct stm32_ethmac_s *priv)
+static int stm32_ethreset(struct stm32_ethmac_s *priv)
 {
   uint32_t regval;
 
@@ -3698,7 +3698,19 @@ static void stm32_ethreset(struct stm32_ethmac_s *priv)
    * after the reset operation has completed in all of the core clock domains.
    */
 
-  while ((stm32_getreg(STM32_ETH_DMABMR) & ETH_DMABMR_SR) != 0);
+  // while ((stm32_getreg(STM32_ETH_DMABMR) & ETH_DMABMR_SR) != 0);
+  uint32_t countDown = 0x01ffffff;
+  do
+  {
+    countDown--;
+    if(countDown == 0)
+    {
+    syslog(1, "==>>%s@%d-Exited while loop wait\n", __FILE__, __LINE__); usleep(30*1000);
+      return -ENODEV;   // Assume No Device
+    }
+  } while ((stm32_getreg(STM32_ETH_DMABMR) & ETH_DMABMR_SR) != 0);
+
+  return OK;
 }
 
 /****************************************************************************
@@ -4150,7 +4162,9 @@ int stm32_ethinitialize(int intf)
 
   /* Put the interface in the down state. */
 
-  stm32_ifdown(&priv->dev);
+  int ret  = stm32_ifdown(&priv->dev);
+  if(ret != OK)
+    return ret;
 
   /* Register the device with the OS so that socket IOCTLs can be performed */
 
