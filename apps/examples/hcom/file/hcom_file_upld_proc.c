@@ -388,6 +388,7 @@ int hcom_file_upld_proc_begin_file_uploading(hcom_dnld_shared_t *dnldShared)
             thisFile, __LINE__);
 
     _uploadAction = HcomUpldActionNone;
+
     hcom_dir_mgmt_free_file_info(dnldShared);
     return ret;
   }

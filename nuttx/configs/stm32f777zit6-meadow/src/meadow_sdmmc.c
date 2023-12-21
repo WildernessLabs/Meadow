@@ -1,7 +1,7 @@
 /****************************************************************************
  * \nuttx\configs\stm32f777zit6-meadow\src\meadow_sdmmc.c
  *
- *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2022-2023 Wilderness Labs. All rights reserved.
  *
  *   Copyright (C) 2016-2017 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -54,10 +54,17 @@
 #include <nuttx/irq.h>
 #include <nuttx/sdio.h>
 #include <nuttx/mmcsd.h>
-#include <meadow/meadow_hw_version.h>
+// #include <string.h>
+// #include <sys/mount.h>
 
 #include "stm32_gpio.h"
 #include "meadow_sdmmc.h"
+// #include <meadow/meadow_hw_version.h>
+// #include <meadow/hcom_shared_common.h>
+
+#if defined (CONFIG_SD_CARD_TESTS)
+#pragma message "(--) meadow_sdmmc.c"
+#endif
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -68,10 +75,11 @@
  * Private Data
  ****************************************************************************/
 
-static struct sdio_dev_s *g_sdio_dev;
+static struct sdio_dev_s *_SdioDev;
 
 #ifdef HAVE_MEADOW_NCD
-static bool g_sd_inserted = 0xff; /* Impossible value */
+static bool _PreviousSdInserted = false;
+static bool _CurrentSdInserted;
 #endif
 
 /****************************************************************************
@@ -89,20 +97,20 @@ static bool g_sd_inserted = 0xff; /* Impossible value */
 #ifdef HAVE_MEADOW_NCD
 static int stm32_ncd_interrupt(int irq, FAR void *context, void *arg)
 {
-  bool present;
+  _CurrentSdInserted = !stm32_gpioread(GPIO_MEADOW_SDIO_NCD);
 
-  present = !stm32_gpioread(GPIO_MEADOW_SDIO_NCD);
+#if defined (CONFIG_SD_CARD_TESTS)
+syslog(2, "%s@%d-SDMMC interrupt. Card was %s, now is %s\n",
+            __FILE__, __LINE__,
+            _PreviousSdInserted ? "In" : "Out",
+            _CurrentSdInserted ? "In" : "Out");
+#endif
 
-  // syslog(2, "--> %s@%d-Received interrupt. Card was %s, now is %s\n",
-  //           __FILE__, __LINE__,
-  //           g_sd_inserted ? "In" : "Out",
-  //           present ? "In" : "Out");
-  
-  if (present != g_sd_inserted)
-    {
-      sdio_mediachange(g_sdio_dev, present);
-      g_sd_inserted = present;
-    }
+  if (_CurrentSdInserted != _PreviousSdInserted)
+  {
+    sdio_mediachange(_SdioDev, _CurrentSdInserted);
+    _PreviousSdInserted = _CurrentSdInserted;
+  }
 
   return OK;
 }
@@ -125,16 +133,12 @@ int stm32_sdio_initialize_meadow(void)
   int ret;
 
 #ifdef HAVE_MEADOW_NCD
-  /* Card detect */
 
-  bool cd_status;
-
-  /* Configure the card detect GPIO */
-
+  // Configure the card detect GPIO PG6 defined in
+  // nuttx/configs/stm32f777zit6-meadow/include/board.h
   stm32_configgpio(GPIO_MEADOW_SDIO_NCD);
 
-  /* Register an interrupt handler for the card detect pin */
-
+  // Register an interrupt handler for the card detect pin
   (void)stm32_gpiosetevent(
     GPIO_MEADOW_SDIO_NCD,
     true,
@@ -142,46 +146,53 @@ int stm32_sdio_initialize_meadow(void)
     true,
     stm32_ncd_interrupt,
     NULL);
-
 #endif
-
-  /* Mount the SDIO-based MMC/SD block driver */
-  /* First, get an instance of the SDIO interface */
 
   syslog(LOG_DEBUG, "Initializing SDIO slot %d\n", SDIO_SLOTNO);
 
-  g_sdio_dev = sdio_initialize(SDIO_SLOTNO);
-  if (!g_sdio_dev)
-    {
-      syslog(LOG_ERR, "ERROR: Failed to initialize SDIO slot %d\n", SDIO_SLOTNO);
-      return -ENODEV;
-    }
+  _SdioDev = sdio_initialize(SDIO_SLOTNO);
 
-  /* Now bind the SDIO interface to the MMC/SD driver */
+  if (!_SdioDev)
+  {
+    syslog(LOG_ERR, "ERROR: Failed to initialize SDIO slot %d\n", SDIO_SLOTNO);
+    return -ENODEV;
+  }
 
+  // Now bind the SDIO interface to the MMC/SD driver
   syslog(LOG_DEBUG, "Bind SDIO to the MMC/SD driver, minor=%d\n", SDIO_MINOR);
 
   // Also setup insert/remove card interrupt callback
-  ret = mmcsd_slotinitialize(SDIO_MINOR, g_sdio_dev);
+  ret = mmcsd_slotinitialize(SDIO_MINOR, _SdioDev);
   if (ret != OK)
-    {
-      syslog(LOG_ERR, "ERROR: Failed to bind SDIO to the MMC/SD driver: %d\n", ret);
-      return ret;
-    }
+  {
+    syslog(LOG_ERR, "ERROR: Failed to bind SDIO to the MMC/SD driver: %d\n", ret);
+    return ret;
+  }
 
   syslog(LOG_DEBUG, "Successfully bound SDIO to the MMC/SD driver\n");
 
 #ifdef HAVE_MEADOW_NCD
-  /* Use SD card detect pin to check if a card is g_sd_inserted */
+  // Use SD card detect pin to check if a card is inserted
+  _CurrentSdInserted = !stm32_gpioread(GPIO_MEADOW_SDIO_NCD);
 
-  cd_status = !stm32_gpioread(GPIO_MEADOW_SDIO_NCD);
-  syslog(LOG_DEBUG, "Card detect : %d\n", cd_status);
+  // syslog(LOG_DEBUG, "%s@%d-At startup. Card was %s, now is %s\n",
+  //           __FILE__, __LINE__,
+  //           _PreviousSdInserted ? "In" : "Out",
+  //           _CurrentSdInserted ? "In" : "Out");
 
-  sdio_mediachange(g_sdio_dev, cd_status);
+  sdio_mediachange(_SdioDev, _CurrentSdInserted);
+
+  // Note: I found no way to auto-mount via the interrupts, directly or using
+  // Nuttx work threads. I think it might be possible to send a signal to HCOM
+  // and use it's thread, but I didn't have time to attempt implementing this.
+  // Nuttx does have an Automount feature but with the rehosting to Nuttx V12
+  // in progress decided to wait for it. (12Dec23 Peter)
+
+  _PreviousSdInserted = _CurrentSdInserted;
+
 #else
-
   /* Assume that the SD card is inserted.  What choice do we have? */
-  sdio_mediachange(g_sdio_dev, true);
+  sdio_mediachange(_SdioDev, true);
 #endif
 
   return OK;

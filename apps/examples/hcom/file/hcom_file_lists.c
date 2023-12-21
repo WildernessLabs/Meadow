@@ -59,7 +59,7 @@
  ****************************************************************************/
 static char *thisFile = __FILE__;
 
-#if HCOM_FILE_LIST_SUPPORT_CLIV1_SCHEME > 0
+#if HCOM_SUPPORT_CLIV1_LEGACY_BEHAVIOR > 0
 
 #if defined (CONFIG_DIR_MGMT_TESTS)
 #pragma message "(--) hcom_file_lists.c"
@@ -232,7 +232,7 @@ int hcom_file_lists_all_files_in_meadow0(const HcomProtoHdrMsg_t *hdrMsg,
   return OK;
 }
 
-#endif    // HCOM_FILE_LIST_SUPPORT_CLIV1_SCHEME
+#endif    // HCOM_SUPPORT_CLIV1_LEGACY_BEHAVIOR
 
 // ==============================================================
 // THIS IS AN UNDOCUMENTED FEATURE

@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\file\hcom_file_write_stm32f7.c
  * 
- *   Copyright (C) 2019 - 2022 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,6 @@
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_shared_common.h>
 
-#include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <nuttx/fs/fs.h>
@@ -92,11 +91,17 @@ int hcom_file_write_open_active_file(hcom_dnld_shared_t *dnldShared)
   if (_shutting_down)
     return OK;
 
-  if (!hcom_via_nx_is_mounted(dnldShared->dnldFilePartId))
+  // Only test if meadow file system. We've already attempted to mount the
+  // SDCard so if this open is related to SDCard no need to retest here.
+  if(dnldShared->dnldRqstCat == pathnameMeadow ||
+     dnldShared->dnldRqstCat == pathnameOriginal)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-F/S not mounted %s\n",
-             thisFile, __LINE__, dnldShared->dnldFullPathName);
-    return -ENOENT; // No such file or directory
+    if (!hcom_via_nx_is_mounted(dnldShared->dnldFilePartId))
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-F/S not mounted %s\n",
+              thisFile, __LINE__, dnldShared->dnldFullPathName);
+      return -ENOENT; // No such file or directory
+    }
   }
 
   // Second (flags) parameter O_RDONLY, O_WRONLY, or O_RDWR ||
@@ -122,27 +127,68 @@ int hcom_file_write_open_active_file(hcom_dnld_shared_t *dnldShared)
 
 //==================================================================
 // When data to be added to a file is received, it arrives here for writing.
-//
 int hcom_file_write_to_active_file(hcom_dnld_shared_t *dnldShared,
           const uint8_t *fileWriteData, const size_t fileWriteSize)
 {
+  uint8_t *writeDataBuff = NULL;
+
   if (_shutting_down)
     return OK;
-
-  if (!hcom_via_nx_is_mounted(dnldShared->dnldFilePartId))
-    return -ENOENT; // No such file or directory
 
   if (dnldShared->dnldFileFD < 0)
     return -EBADF; // Bad file number
 
+  // Only test if Meadow file system We've already attempted to mount the
+  // SDCard so if this open is related to SDCard no need to retest here.
+  if(dnldShared->dnldRqstCat == pathnameMeadow ||
+     dnldShared->dnldRqstCat == pathnameOriginal)
+  {
+    if (!hcom_via_nx_is_mounted(dnldShared->dnldFilePartId))
+      return -ENOENT; // No such file or directory
+    
+    writeDataBuff = (uint8_t *)fileWriteData;
+  }
+  else if(dnldShared->dnldRqstCat == pathnameSdcard)
+  {
+    // Found that the SD-Card write must be properly aligned or it writes data
+    // to the file that is outside of the specified buffers beginning address.
+    // malloc will allocate memory that this 4-byte aligned.
+    writeDataBuff = malloc(fileWriteSize);
+    if(writeDataBuff == NULL)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+      return -ENOMEM;
+    }
+
+    memcpy(writeDataBuff, fileWriteData, fileWriteSize);
+  }
+
+#if defined (CONFIG_DIR_MGMT_TESTS)
+  #if (HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0)
+  syslog(1, "------- %s@%d File Write show first 16 of %d ------\n",
+            __FILE__, __LINE__, fileWriteSize);
+  hcom_diag_print_buffer(writeDataBuff, 16, 1);
+  #endif
+#endif
+
   ssize_t nbytes = 0;
-  nbytes = write(dnldShared->dnldFileFD, fileWriteData, fileWriteSize);
+  nbytes = write(dnldShared->dnldFileFD, writeDataBuff, fileWriteSize);
   if (nbytes < 0)
   {
     int Errno = get_errno();
-    hcom_logging_syslog(LOG_ERR, "%s@%d-failed to write %s, errno %d\n",
-             thisFile, __LINE__, dnldShared->dnldFullPathName, Errno);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-failed to write %s, fd:%d, errno %d\n",
+             thisFile, __LINE__, dnldShared->dnldFullPathName, dnldShared->dnldFileFD, Errno);
+
+    if(dnldShared->dnldRqstCat == pathnameSdcard)
+      free(writeDataBuff);
+      
     return nbytes;
+  }
+
+  // Only free if allocated (i.e. sdcard)
+  if(dnldShared->dnldRqstCat == pathnameSdcard)
+  {
+    free(writeDataBuff);
   }
 
   if (nbytes < fileWriteSize)
@@ -168,8 +214,14 @@ int hcom_file_write_close_active_file(hcom_dnld_shared_t *dnldShared)
 {
   int ret = OK;
 
-  if (!hcom_via_nx_is_mounted(dnldShared->dnldFilePartId))
-    return -ENOENT;         // No such file or directory
+  // Only test if meadow file system. We've already attempted to mount the
+  // SDCard so if this open is related to SDCard no need to retest here.
+  if(dnldShared->dnldRqstCat == pathnameMeadow ||
+     dnldShared->dnldRqstCat == pathnameOriginal)
+  {
+    if (!hcom_via_nx_is_mounted(dnldShared->dnldFilePartId))
+      return -ENOENT;         // No such file or directory
+  }
 
   if (dnldShared->dnldFileFD < 0)  // Okay to close file multiple times in nuttx?
     return -EBADF;          // Bad file number

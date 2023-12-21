@@ -83,9 +83,9 @@ uint32_t hcom_file_misc_calc_crc_for_file(char *completeFilePath,
     return 0;
   }
 
-  crc32Checksum = hcom_file_misc_calc_crc_for_file_fd(fd, completeFilePath, fileSize,
-            blockSizeKB, detectError);
-  
+  crc32Checksum = hcom_file_misc_calc_crc_for_file_fd(fd, completeFilePath,
+            fileSize, blockSizeKB, detectError);
+
   ret = close(fd);
   if (ret < 0)
   {
@@ -163,7 +163,6 @@ uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
     *detectError = -ENOMEM;
     return 0;
   }
-
   ssize_t nbytes;
   do
   {
@@ -182,6 +181,7 @@ uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
       crc32Checksum = crc32part(crcReadBuff, nbytes, crc32Checksum);
     }
   } while (nbytes > 0);
+
   free(crcReadBuff);
 
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)

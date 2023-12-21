@@ -42,7 +42,6 @@
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_dnld_shared.h>
 
-#include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <nuttx/fs/fs.h>

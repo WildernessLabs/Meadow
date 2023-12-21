@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\file\hcom_file_dnld_stm32f7.c
  * 
- *   Copyright (C) 2019-2022 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019-2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,11 +41,12 @@
  ****************************************************************************/
 
 #include "../hcom_common.h"
+#include <nuttx/arch.h>
+#include <nuttx/mtd/mtd.h>
+
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_dnld_shared.h>
-#include <nuttx/arch.h>
-#include <nuttx/mtd/mtd.h>
 
 #if defined (CONFIG_DIR_MGMT_TESTS)
 #pragma message "(--) hcom_file_dnld_stm32f7.c"
@@ -95,14 +96,6 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
           hcom_dnld_shared_t *dnldShared)
 {
   int ret = OK;
-  char *hostMsg = NULL;
-
-  hostMsg = malloc(HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH);
-  if(hostMsg == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return -ENOMEM;
-  }
 
   HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
 
@@ -132,6 +125,15 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
   ret = hcom_file_write_open_active_file(dnldShared);
   if (ret < 0)
   {
+    char *hostMsg;
+
+    hostMsg = malloc(HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH);
+    if(hostMsg == NULL)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+      return -ENOMEM;
+    }
+
     char *errorCause;
     switch(ret)
     {
@@ -164,6 +166,7 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL,
           0, hostMsg, thisFile, __LINE__);
 
+    free(hostMsg);
     return ret;
   }
   else
@@ -176,9 +179,6 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
               0, thisFile, __LINE__);
     ret = OK;
   }
-
-  if(hostMsg != NULL)
-    free(hostMsg);
 
   return ret;
 }
@@ -209,24 +209,22 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
   _dbgNumbPacketsRecvd++;
 #endif
 
-  uint32_t seqNumb = hcomDataMsg->seqNumber;
-
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   if(seqNumb % 250 == 0)
-    hcom_logging_syslog(LOG_DEBUG, "Sequence %d\n", seqNumb);
+    hcom_logging_syslog(LOG_DEBUG, "Sequence %d\n", hcomDataMsg->seqNumber);
 #endif
-
-  hostMsg = malloc(HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH);
-  if(hostMsg == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return -ENOMEM;
-  }
 
   // Compare _xferRecvFullFileSize with _xferCalcFullFileSize and send a message to host
   int percentDone = (dnldShared->dnldCalcFileSize  * 100) / dnldShared->dnldInitFileSize;
   if(percentDone / 10 != dnldShared->dnldPercentSent)
   {
+    hostMsg = malloc(HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH);
+    if(hostMsg == NULL)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+      return -ENOMEM;
+    }
+
     // 10, 20 etc
     dnldShared->dnldPercentSent = percentDone / 10;
 
@@ -235,6 +233,7 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
 
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
               0, hostMsg, thisFile, __LINE__);
+    free(hostMsg);
   }
 
   size_t binDataLen = packetSize - (HCOM_PROTOCOL_DATA_MSG_DATA_INFO_OFF);
@@ -243,12 +242,28 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
   dnldShared->dnldCalcFileCrc = crc32part(hcomDataMsg->binData, binDataLen,
             dnldShared->dnldCalcFileCrc);
 
-  // Actually write the data to the file system
+#if defined (CONFIG_DIR_MGMT_TESTS)
+  #if (HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0)
+  syslog(1, "------- %s@%d (Showing first 16 of %lu packet) ------\n", __FILE__, __LINE__, packetSize);
+  hcom_diag_print_buffer((uint8_t *)hcomDataMsg, 16, 1);
+  #endif
+#endif
+
+  // Write the data to the file system
   ret = hcom_file_write_to_active_file(dnldShared, hcomDataMsg->binData,
             binDataLen);
   if (ret < 0)
   {
     // Error
+    hostMsg = malloc(HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH);
+    if(hostMsg == NULL)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+      return -ENOMEM;
+    }
+
+    uint16_t seqNumb = hcomDataMsg->seqNumber;
+
     hcom_logging_syslog(LOG_ERR, "%s@%d-Write of %s failed:%d seq:%d\n",
              thisFile, __LINE__, dnldShared->dnldOrigPathName, ret, seqNumb);
 
@@ -258,16 +273,11 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
             thisFile, __LINE__);
 
-    if(hostMsg != NULL)
-      free(hostMsg);
-
+    free(hostMsg);
     return ret;
   }
 
   dnldShared->dnldCalcFileSize += binDataLen;
-
-    if(hostMsg != NULL)
-      free(hostMsg);
   return OK;
 }
 
@@ -279,13 +289,6 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
   char* hostMsg = NULL;
   char *msgToSend;
   uint16_t requestType;
-
-  hostMsg = malloc(HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH);
-  if(hostMsg == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return -ENOMEM;
-  }
 
   hcom_logging_syslog(LOG_NOTICE, "End of file write received\n");
 
@@ -312,6 +315,13 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
                 &fileSize, &blockSizeKB, &detectError);
 
   // Report to host
+  hostMsg = malloc(HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH);
+  if(hostMsg == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
+
   if(detectError < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Error in Checksum calculation err:%d\n",
