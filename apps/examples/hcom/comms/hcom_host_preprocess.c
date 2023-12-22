@@ -183,7 +183,7 @@ int hcom_dir_mgmt_free_file_info(hcom_dnld_shared_t *dnldShared)
   if(dnldShared->dnldRqstCat == pathnameNotUsed)
   {
 #if defined (CONFIG_DIR_MGMT_TESTS)
-    syslog(2, "===> %s@%d-All dnldShared resources already removed\n",thisFile, __LINE__);
+    syslog(2, "===> %s@%d-All dnldShared resources already removed, exiting\n",thisFile, __LINE__);
 #endif
     return OK;
   }
@@ -207,6 +207,7 @@ int hcom_dir_mgmt_free_file_info(hcom_dnld_shared_t *dnldShared)
   }
 #endif
 
+  // Insure all removed
   if(dnldShared->dnldFileFD > 0)
   {
     ret = close(dnldShared->dnldFileFD);

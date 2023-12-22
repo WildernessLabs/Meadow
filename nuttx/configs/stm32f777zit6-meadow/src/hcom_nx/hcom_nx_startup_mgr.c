@@ -338,12 +338,10 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
       {
         if(ret == -ENODEV)
         {
-          char *ethErrMsg = "Error: Ethernet CCM based device, but Ethernet"
-                    " initialization failed. Check meadow.config.yaml file"
-                    " and ensure Ethernet is not enabled.";
+          // Seems that there's no PHY on this Meadow device.
+          char *ethErrMsg = "Error: CCM based device. Ethernet initialization"
+                            " failed. Ensure Ethernet not configured.";
 
-          // Seems that there's no PHY on this hardware, send a CLI msg and
-          // continue with Meadow startup.
           syslog(LOG_ERR, "%s\n", ethErrMsg);
 
           // Log the message to meadow.log for Meadow.Core consumption
