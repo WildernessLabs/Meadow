@@ -323,28 +323,49 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
       // in up_initialize.c's up_initialize() function (look for
       // CONFIG_NETDEV_LATEINIT).
       syslog(LOG_INFO, "Ethernet is being initialized\n");
-      (void)stm32_ethinitialize(0);
-
-      ret = meadow_eth_mngr_startup();
-      if (ret < 0)
+      ret = stm32_ethinitialize(0);
+      if(ret == OK)
       {
-        syslog(LOG_ERR, "ERROR: Failed to initialize ethernet:%d\n", ret);
-        return ret;
+        // Second phase of initialization, this is Meadow specific
+        ret = meadow_eth_mngr_startup();
+        if (ret < 0)
+        {
+          syslog(LOG_ERR, "ERROR: Failed to start ethernet:%d\n", ret);
+          return ret;
+        }
+      }
+      else
+      {
+        if(ret == -ENODEV)
+        {
+          // Seems that there's no PHY on this Meadow device.
+          char *ethErrMsg = "Error: CCM based device. Ethernet initialization"
+                            " failed. Ensure Ethernet not configured.";
+
+          syslog(LOG_ERR, "%s\n", ethErrMsg);
+
+          // Log the message to meadow.log for Meadow.Core consumption
+          meadow_logging_write(mfl_warning, ethErrMsg);
+        }
+        else
+        {
+          // Unknown problem, exit
+          syslog(LOG_ERR, "ERROR: Failed to fully initialize ethernet:%d\n", ret);
+          return ret;
+        }
       }
     }
     else
     {
       hcom_nx_config_unlock();
-      syslog(LOG_INFO, "CCM device with Ethernet is not enabled\n");
+      syslog(LOG_INFO, "CCM device but, Ethernet not enabled\n");
     }
   }
   else
   {
     syslog(LOG_INFO, "Ethernet not supported by this device\n");
   }
-
 #endif    // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD) && defined(CONFIG_NETDEV_LATEINIT)
-
 
 #if defined(CONFIG_NETUTILS_PPPD)
   hcom_nx_config_lock();
