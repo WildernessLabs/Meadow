@@ -272,12 +272,28 @@ static int hcom_host_process_init_write_or_del(hcom_dnld_shared_t *dnldShared,
 {
   int ret;
 
-  // Verify that mono has been disabled, if not don't allow download
+  // Verify that mono has been disabled
   if(hcom_mono_ctrl_is_mono_enabled())
   {
+    char *rqstTypeStr;
     char hostMsg[HCOM_TINY_HOST_STRING_BUFF_LENGTH];
+
+    if(requestType == HCOM_MDOW_REQUEST_START_FILE_TRANSFER ||
+        requestType == HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME)
+    {
+      rqstTypeStr = "download";
+    }
+    else if(requestType == HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME)
+    {
+      rqstTypeStr = "delete";
+    }
+    else
+    {
+      rqstTypeStr = "access";   // Cover all other bases
+    }
+
     snprintf_chk(hostMsg, HCOM_TINY_HOST_STRING_BUFF_LENGTH,
-            "Mono must be disabled for file download");
+            "Mono must be disabled for file %s", rqstTypeStr);
 
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s\n", thisFile, __LINE__, hostMsg);
 
@@ -285,7 +301,7 @@ static int hcom_host_process_init_write_or_del(hcom_dnld_shared_t *dnldShared,
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
             hostMsg, thisFile, __LINE__);
 
-    // Notify CLI that download can't continue because of an error.
+    // Notify CLI that download/delete can't continue because of an error.
     hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL, 0, thisFile, __LINE__);
     return -EPERM;    // Operation not permitted
   }
@@ -628,8 +644,12 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
           decodedSize, requestType);
     if(ret < 0)
     {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-File write/delete, ret:%d, errno:%d\n",
-                thisFile, __LINE__, ret, errno);
+      // Don't send another error message if mono not disabled
+      if(ret != -EPERM)   // Not Permitted
+      {
+        hcom_logging_syslog(LOG_ERR, "%s@%d-File write/delete, ret:%d, errno:%d\n",
+                  thisFile, __LINE__, ret, errno);
+      }
 
       hcom_dir_mgmt_free_file_info(dnldShared);
 
