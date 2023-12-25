@@ -93,7 +93,7 @@ int sigpending(FAR sigset_t *set)
 
 sigset_t nxsig_pendingset(FAR struct tcb_s *stcb)
 {
-  FAR struct task_group_s *group = stcb->group;
+  FAR struct task_group_s * __attribute__((unused)) group = stcb->group;
   sigset_t sigpendset;
   FAR sigpendq_t *sigpend;
   irqstate_t flags;

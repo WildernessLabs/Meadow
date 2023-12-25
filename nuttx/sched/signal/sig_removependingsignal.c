@@ -68,7 +68,7 @@
 
 FAR sigpendq_t *nxsig_remove_pendingsignal(FAR struct tcb_s *stcb, int signo)
 {
-  FAR struct task_group_s *group = stcb->group;
+  FAR struct task_group_s * __attribute__((unused)) group = stcb->group;
   FAR sigpendq_t *currsig;
   FAR sigpendq_t *prevsig;
   irqstate_t  flags;

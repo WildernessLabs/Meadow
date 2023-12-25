@@ -67,7 +67,7 @@ int getnameinfo(FAR const struct sockaddr *addr, socklen_t addrlen,
                 FAR char *serv, socklen_t servlen, int flags)
 {
   FAR const void *saddr;
-  // socklen_t saddr_len;
+  socklen_t  __attribute__((unused)) saddr_len;
   int port;
   // int ret;
 
