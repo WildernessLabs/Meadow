@@ -75,7 +75,7 @@ void mm_checkcorruption(FAR struct mm_heap_s *heap)
 {
   FAR struct mm_allocnode_s *node;
   // FAR struct mm_allocnode_s *prev;
-  size_t nodesize;
+  // size_t nodesize;
   int region;
 
   mm_takesemaphore(heap);
