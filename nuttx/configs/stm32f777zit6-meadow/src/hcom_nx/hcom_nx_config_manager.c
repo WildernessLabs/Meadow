@@ -136,7 +136,8 @@ static sem_t config_lock = { };
 /**
  *  Structure to hold the F7MicroV2 pin mappings
  */
-struct f7_micro_v2_pin_mapping_s {
+struct f7_micro_v2_pin_mapping_s
+{
     const char* pin_name;
     int pin_value;
 };
@@ -145,7 +146,8 @@ typedef struct f7_micro_v2_pin_mapping_s f7_micro_v2_pin_mapping_t;
 /**
  *  Define the pin mappings as an array of structures.
  */
-const f7_micro_v2_pin_mapping_t f7_micro_v2_pin_mappings[] = {
+const f7_micro_v2_pin_mapping_t f7_micro_v2_pin_mappings[] =
+{
     { F7_MICRO_V2_A00_PIN_NAME, F7_MICRO_V2_A00_PIN },
     { F7_MICRO_V2_A01_PIN_NAME, F7_MICRO_V2_A01_PIN },
     { F7_MICRO_V2_A02_PIN_NAME, F7_MICRO_V2_A02_PIN },
@@ -168,6 +170,54 @@ const f7_micro_v2_pin_mapping_t f7_micro_v2_pin_mappings[] = {
     { F7_MICRO_V2_D13_PIN_NAME, F7_MICRO_V2_D13_PIN },
     { F7_MICRO_V2_D14_PIN_NAME, F7_MICRO_V2_D14_PIN },
     { F7_MICRO_V2_D15_PIN_NAME, F7_MICRO_V2_D15_PIN },
+};
+
+/**
+ *  Structure to hold the cellular mode mappings
+ */
+typedef struct
+{
+    const char* mode_name;
+    uint32_t mode_id;
+} cell_mode_mapping_t;
+
+/**
+ *  Define the cell mode mappings as an array of structures.
+ */
+const cell_mode_mapping_t cell_mode_mappings[] =
+{
+    {CELL_CATM1_MODE_NAME, CELL_CATM1_MODE},
+    {CELL_NBIOT_MODE_NAME, CELL_NBIOT_MODE},
+    {CELL_GSM_MODE_NAME, CELL_GSM_MODE},
+    {CELL_UTRAN_MODE_NAME, CELL_UTRAN_MODE},
+    {CELL_GSM_W_EGPRS_MODE_NAME, CELL_GSM_W_EGPRS_MODE},
+    {CELL_UTRAN_W_HSDPA_MODE_NAME, CELL_UTRAN_W_HSDPA_MODE},
+    {CELL_UTRAN_W_HSUPA_MODE_NAME, CELL_UTRAN_W_HSUPA_MODE},
+    {CELL_UTRAN_W_HSDPA_HSUPA_MODE_NAME, CELL_UTRAN_W_HSDPA_HSUPA_MODE},
+    {CELL_E_UTRAN_MODE_NAME, CELL_E_UTRAN_MODE},
+    {CELL_CDMA_MODE_NAME, CELL_CDMA_MODE},
+    {NULL, CELL_UNKNOWN_MODE}
+};
+
+/**
+ *  Structure to hold the cellular module mappings
+ */
+typedef struct
+{
+    const char* module_name;
+    uint32_t module_id;
+} cell_module_mapping_t;
+
+/**
+ *  Define the cell module mappings as an array of structures.
+ */
+static const cell_module_mapping_t cell_module_mappings[] =
+{
+    {CELL_BG770A_MODULE_NAME, CELL_BG770A_MODULE},
+    {CELL_M95_MODULE_NAME, CELL_M95_MODULE},
+    {CELL_BG95M3_MODULE_NAME, CELL_BG95M3_MODULE},
+    {CELL_EG21GL_MODULE_NAME, CELL_EG21GL_MODULE},
+    {NULL, CELL_UNKNOWN_MODULE}
 };
 
 /****************************************************************************
@@ -199,23 +249,18 @@ void hcom_nx_config_populate_cell_module_id(meadow_configuration_t *config)
         return;
     }
 
-    if (strcasecmp(config->default_cell_settings->module, CELL_BG770A_MODULE_NAME) == 0)
+    // Iterate through the mappings and find a match
+    for (size_t i = 0; cell_module_mappings[i].module_name != NULL; ++i)
     {
-        config->default_cell_settings->module_id = CELL_BG770A_MODULE;
+        if (strcasecmp(config->default_cell_settings->module, cell_module_mappings[i].module_name) == 0)
+        {
+            config->default_cell_settings->module_id = cell_module_mappings[i].module_id;
+            return;
+        }
     }
-    else if (strcasecmp(config->default_cell_settings->module, CELL_M95_MODULE_NAME) == 0)
-    {
-        config->default_cell_settings->module_id = CELL_M95_MODULE;
-    }
-    else if (strcasecmp(config->default_cell_settings->module, CELL_BG95M3_MODULE_NAME) == 0)
-    {
-        config->default_cell_settings->module_id = CELL_BG95M3_MODULE;
-    }
-    else
-    {
-        syslog(LOG_INFO, "Failed populating cell module id");
-        config->default_cell_settings->module_id = CELL_UNKNOWN_MODULE;
-    }
+
+    syslog(LOG_INFO, "Failed populating cell module id");
+    config->default_cell_settings->module_id = CELL_UNKNOWN_MODULE;
 }
 
 /****************************************************************************
@@ -243,23 +288,18 @@ void hcom_nx_config_populate_cell_network_mode_id(meadow_configuration_t *config
         return;
     }
 
-    if (strcasecmp(config->default_cell_settings->mode, CELL_CATM1_MODE_NAME) == 0)
+    // Iterate through the mappings and find a match
+    for (size_t i = 0; cell_mode_mappings[i].mode_name != NULL; ++i)
     {
-        config->default_cell_settings->mode_id = CELL_CATM1_MODE;
+        if (strcasecmp(config->default_cell_settings->mode, cell_mode_mappings[i].mode_name) == 0)
+        {
+            config->default_cell_settings->mode_id = cell_mode_mappings[i].mode_id;
+            return;
+        }
     }
-    else if (strcasecmp(config->default_cell_settings->mode, CELL_NBIOT_MODE_NAME) == 0)
-    {
-        config->default_cell_settings->mode_id = CELL_NBIOT_MODE;
-    }
-    else if (strcasecmp(config->default_cell_settings->mode, CELL_GSM_MODE_NAME) == 0)
-    {
-        config->default_cell_settings->mode_id = CELL_GSM_MODE;
-    }
-    else
-    {
-        syslog(LOG_INFO, "Failed populating cell network mode id");
-        config->default_cell_settings->mode_id = CELL_UNKNOWN_MODE;
-    }
+
+    syslog(LOG_INFO, "Failed populating cell network mode id");
+    config->default_cell_settings->mode_id = CELL_UNKNOWN_MODE;
 }
 
 /****************************************************************************
@@ -337,6 +377,40 @@ void hcom_nx_config_map_cell_network_mode(meadow_configuration_t *config)
             break;
         default:
             syslog(LOG_INFO, "Mode %u not supported on M95 module", mode);
+            strcpy(config->default_cell_settings->mode, "");
+            break;
+        }
+        break;
+
+    case CELL_EG21GL_MODULE:
+        switch (mode)
+        {
+        case CELL_GSM_MODE:
+            strcpy(config->default_cell_settings->mode, "0");
+            break;
+        case CELL_UTRAN_MODE:
+            strcpy(config->default_cell_settings->mode, "2");
+            break;
+        case CELL_GSM_W_EGPRS_MODE: // GSM W/EGPRS
+            strcpy(config->default_cell_settings->mode, "3");
+            break;
+        case CELL_UTRAN_W_HSDPA_MODE: // UTRAN W/HSDPA
+            strcpy(config->default_cell_settings->mode, "4");
+            break;
+        case CELL_UTRAN_W_HSUPA_MODE: // UTRAN W/HSUPA
+            strcpy(config->default_cell_settings->mode, "5");
+            break;
+        case CELL_UTRAN_W_HSDPA_HSUPA_MODE: // UTRAN W/HSDPA and HSUPA
+            strcpy(config->default_cell_settings->mode, "6");
+            break;
+        case CELL_E_UTRAN_MODE: // E-UTRAN
+            strcpy(config->default_cell_settings->mode, "7");
+            break;
+        case CELL_CDMA_MODE:
+            strcpy(config->default_cell_settings->mode, "100");
+            break;
+        default:
+            syslog(LOG_INFO, "Mode %u not supported on EG21GL module", mode);
             strcpy(config->default_cell_settings->mode, "");
             break;
         }
@@ -2678,6 +2752,15 @@ void hcom_nx_config_turn_on_the_cell_module()
                 stm32_gpiowrite(turn_on_pin, true);
                 usleep(3000000);
                 stm32_gpiowrite(turn_on_pin, false);
+            break;
+
+            case CELL_EG21GL_MODULE:
+                // Low pulse for 500 milliseconds to turn on the Quectel EG21-GL cell module
+                syslog(LOG_INFO, "Turning on EG21-GL module\n");
+                stm32_configgpio(GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | turn_on_pin); 
+                stm32_gpiowrite(turn_on_pin, false);
+                usleep(500000);
+                stm32_gpiowrite(turn_on_pin, true);
             break;
 
             default:

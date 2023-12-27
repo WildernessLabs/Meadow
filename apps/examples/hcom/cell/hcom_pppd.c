@@ -203,6 +203,29 @@ static int pppd_create_connect_scripts(cell_settings_t *cell_settings, char **co
       );
     break;
 
+    case CELL_EG21GL_MODULE:
+      snprintf_chk(*connect_script, CONNECT_SCRIPT_MAX_SIZE, 
+        "ECHO ON " 
+        "TIMEOUT %s "
+        "\"\" AT+CMEE=2 "
+        "PAUSE 3 "
+        "OK AT+GSN "
+        "PAUSE 3 "
+        "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
+        "PAUSE 3 "
+        "OK AT+QCSQ "
+        "PAUSE 3 "
+        "OK AT+CSQ "
+        "PAUSE 3 "
+        "OK %s"
+        "ATD*99# "
+        "CONNECT \\c",
+        cell_settings->timeout, 
+        cell_settings->apn,
+        operator_selection_cmd
+      );
+    break;
+
     default:
       hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting connect script\n", thisFile, __LINE__);
       free(authentication_cmd);
