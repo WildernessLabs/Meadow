@@ -572,7 +572,7 @@ static int flash_file(const char *path, off_t size, off_t offset)
   int filefd = open(path, O_RDONLY);
   if (filefd == -1)
   {
-    error("%s@%d-File not found: %s.", path);
+    error("%s@%d-File not found: %s.", thisFile, __LINE__, path);
     return -1;
   }
 
@@ -580,7 +580,7 @@ static int flash_file(const char *path, off_t size, off_t offset)
   ret = fstat(filefd, &fileStatus);
   if (ret < 0)
   {
-    error("%s@%d-fstat of %s failed errno:%d\n", path, errno);
+    error("%s@%d-fstat of %s failed errno:%d\n", thisFile, __LINE__, path, errno);
     return -errno;
   }
 
