@@ -549,6 +549,7 @@ int network_test_misc_network_functions(void)
         freeifaddrs(ifa);
     }
     
+    GET_FINAL_HEAP_INFORMATION;
     HEAP_USAGE_PASS_OR_FAIL;
     COPY_FINAL_TO_START;
 
