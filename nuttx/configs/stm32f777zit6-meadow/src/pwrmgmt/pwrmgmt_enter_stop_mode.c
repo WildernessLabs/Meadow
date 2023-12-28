@@ -108,6 +108,8 @@
  ************************************************************************************/
 // static char *thisFile = __FILE__;
 
+static bool _meadowIsSleeping = false;
+
 /************************************************************************************
  * Public Data
  ************************************************************************************/
@@ -120,16 +122,23 @@
 // It is necessary to do a few things here to get the Meadow back to a running state.
 static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context, FAR void *arg)
 {
-  return pwrmgmt_exit_stop_mode();
+  return pwrmgmt_exit_stop_mode(false);
 }
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 // This public function is executed from the local ISR and from Meadow
-// interrupt handling code when the GPIO is configured to wakeup the F7.
-int pwrmgmt_exit_stop_mode()
+// interrupt handling code. This allows a GPIO to be configured for wakeup.
+int pwrmgmt_exit_stop_mode(bool gpioWakeup)
 {
+  // This check is primarily for GPIO wakeup, in the case it is interrupted
+  // while not sleeping.
+  if(!_meadowIsSleeping)
+  {
+    return OK;
+  }
+
   // Reconfigure the internal clocks. Restarts the clocks as defined in
   // board.h. These clocks are what run the entire MCU.
   stm32_clockenable();
@@ -137,17 +146,19 @@ int pwrmgmt_exit_stop_mode()
   // Restart Nuttx Systick
   up_enable_irq(STM32_IRQ_SYSTICK);
 
-  // Even if the wakeup was because of GPIO input clearing the EXTI won't hurt
-  // anything.
+  // If waking up from GPIO interrupt don't want to clear RTC register?
+  if(! gpioWakeup)
+  {
 #if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
-  // Clear the EXTI Pending Register for the RTC Alarm
-  putreg32(EXTI_RTC_ALARM, STM32_EXTI_PR);
+    // Clear the EXTI Pending Register for the RTC Alarm
+    putreg32(EXTI_RTC_ALARM, STM32_EXTI_PR);
 #elif defined (PWRMGMT_LOW_PWR_MODE_USE_WAKEUP_TIMER)
-  // Clear the EXTI Pending Register for the Wakeup Timer
-  putreg32(EXTI_RTC_WAKEUP, STM32_EXTI_PR);
+    // Clear the EXTI Pending Register for the Wakeup Timer
+    putreg32(EXTI_RTC_WAKEUP, STM32_EXTI_PR);
 #else
-  #error "Select Power Management Low-Power scheme"
+    #error "Select Power Management Low-Power scheme"
 #endif
+  }
 
   // Don't leave ISR until the above have fully finished
   asm volatile ("dsb");
@@ -269,6 +280,8 @@ int pwrmgmt_enter_stop_mode(void)
   // Wait again till busy flag is cleared and SDRAM is fully in self-refresh
   while ((getreg32(STM32_FMC_SDSR) & 0x00000020) != 0);
 
+  _meadowIsSleeping = true;
+  
   // Force memory sync before wfe, thus ensuring that all instructions done
   // before entering STOP mode Data synchronous Barrier (DSB) just after the
   // write operation. This will force the CPU to respect the sequence of
@@ -288,6 +301,7 @@ int pwrmgmt_enter_stop_mode(void)
   // Meadow is running again. ISR has handled starting the clocks and the Nuttx
   // systick timer. These must be in the ISR handler or things don't start
   // correctly.
+  _meadowIsSleeping = false;
 
   // Clear sleep control bits in Power Controller registers
   regval  = getreg32(STM32_PWR_CR1);

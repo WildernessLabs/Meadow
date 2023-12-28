@@ -114,7 +114,7 @@ void meadow_kt_quick_misc_tests(uint32_t userData)
         syslog(2, "Only first time\n");
       }
       break;
-    
+
     case 2:
       DEBUG_SET_HIGH(DEBUG_PIN_V2_D14);
       pwrmgmt_enter_stm32f7_stop_mode(10);    // Stop for 10 seconds
@@ -191,7 +191,7 @@ void quick_misc_test_exercise_issue_346_free_1(void)
   // Setup a GPIO
   int ret;
   struct mint_gpio_int_config* cfg = malloc(sizeof(struct mint_gpio_int_config));
-  syslog(1, "TEST-Freeing memory - for 1 point 0x14\n"); usleep(29 * 1000);
+  syslog(2, "TEST-Freeing memory - for 1 point 0x14\n"); usleep(29 * 1000);
 
   // PB4
   cfg->port = 1;              // port B (D05 in FeatherV2)
@@ -221,7 +221,7 @@ void quick_misc_test_exercise_issue_346_alloc_5(void)
   // Setup a GPIO
   int ret;
   struct mint_gpio_int_config* cfg = malloc(sizeof(struct mint_gpio_int_config));
-  syslog(1, "TEST-Configuring 5 points 0x14\n"); usleep(29 * 1000);
+  syslog(2, "TEST-Configuring 5 points 0x14\n"); usleep(29 * 1000);
 
   // We need some GPIOs to initialize and free
   // Populate config structure for GPIO wakeup of PB4 (D05 in FeatherV2).
@@ -233,7 +233,7 @@ void quick_misc_test_exercise_issue_346_alloc_5(void)
   for(int i = 7; i <= 11; i++)
   {
     uint8_t pinDesignation = 0x10 | i;
-    syslog(1, "TEST-Config point:0x%02x\n", pinDesignation); usleep(29 * 1000);
+    syslog(2, "TEST-Config point:0x%02x\n", pinDesignation); usleep(29 * 1000);
 
     cfg->port = 1;              // port B
     cfg->pin = i;               // pin 7-11
@@ -262,13 +262,13 @@ void quick_misc_test_exercise_issue_346_free_5(void)
   // Setup a GPIO
   int ret;
   struct mint_gpio_int_config* cfg = malloc(sizeof(struct mint_gpio_int_config));
-  syslog(1, "TEST-Freeing 5 points 0x14\n"); usleep(29 * 1000);
+  syslog(2, "TEST-Freeing 5 points 0x14\n"); usleep(29 * 1000);
 
   // PB7 - PB11 but remove in reverse order
   for(int i = 11; i >= 7; i--)
   {
     uint8_t pinDesignation = 0x10 | i;
-    syslog(1, "TEST-Free point:0x%02x\n", pinDesignation); usleep(29 * 1000);
+    syslog(2, "TEST-Free point:0x%02x\n", pinDesignation); usleep(29 * 1000);
     
     cfg->port = 1;              // port B
     cfg->pin = i;               // pin 7-11
@@ -364,8 +364,10 @@ static void quick_misc_test_initialize_wakeup_and_sleep(void)
   }
   free (cfg);
 
-  syslog(1, "%s@%d - Going into Low-power sleep for 30 seconds unless interrupted\n", __FILE__, __LINE__);
-  usleep(20 * 1000);
+  syslog(2, "%s@%d - Going into Low-power sleep for 30 seconds unless interrupted.\n", __FILE__, __LINE__);
+  // Need a bit of time to insure message is received before low-power mode
+  usleep(50 * 1000);
+
   DEBUG_SET_HIGH(DEBUG_PIN_V2_D14);
 
   // Put Meadow to sleep for either time or till interrupt
@@ -376,8 +378,7 @@ static void quick_misc_test_initialize_wakeup_and_sleep(void)
   }
 
   DEBUG_SET_LOW(DEBUG_PIN_V2_D14);
-  syslog(1, "%s@%d - Low-power sleep ended\n", __FILE__, __LINE__);
-  usleep(20 * 1000);
+  syslog(2, "%s@%d - Low-power sleep ended\n", __FILE__, __LINE__);
 }
 
 #endif  // #if defined(CONFIG_QUICK_MISC_TESTS)

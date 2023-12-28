@@ -256,8 +256,25 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 #error "Select Low-Power timing scheme"
 #endif
 
+  // Notify CLI (if listening) of imminent low-power mode entry.
+  uint8_t hdrMsg[HCOM_PROTOCOL_HEADER_MSG_LENGTH];
+  memset(hdrMsg, 0, HCOM_PROTOCOL_HEADER_MSG_LENGTH);
+  HcomProtoTextMsg_t *msgHdrMsg = (HcomProtoTextMsg_t *)hdrMsg;
+  msgHdrMsg->stdHeader.rqstType = HCOM_HOST_REQUEST_TEXT_NEXT_LOW_PWR;
+  msgHdrMsg->stdHeader.userData = 0;
+  msgHdrMsg->stdHeader.extraData = 0;
+  
+  ret = hcom_nx_host_send_std_msg_data(msgHdrMsg, HCOM_PROTOCOL_HEADER_MSG_LENGTH,
+            thisFile, __LINE__);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Error attempting to send msg to host, ret:%d\n",
+              thisFile, __LINE__, ret);
+    // Keep going, this is unavoidable
+  }
+
   // Notify registered modules that low-power is about to begin.
-  // Currently (10Jul23) there are 4 modules that are notified before entering
+  // Currently, (10Jul23) there are 4 modules that are notified before entering
   // a low-power state. These are:hcom_host_receive, hcom_host_send,
   // hcom_stderr_redirect and hcom_stdout_redirect.
   ret = pwrmgmt_notify_registered_modules(true);
