@@ -83,7 +83,6 @@ int hcom_nx_host_send_set_send_callback(send_host_std_msg_data hostCallback)
   return OK;
 }
 
-
 //==========================================================================
 // Routes message to apps side for sending to host (e.g. CLI).
 // /apps/examples/hcom/comms/hcom_host_send.c/hcom_host_send_std_msg_data()

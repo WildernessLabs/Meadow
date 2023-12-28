@@ -87,6 +87,7 @@ static void quick_misc_test_exercise_issue_346_alloc_1(void);
 static void quick_misc_test_exercise_issue_346_alloc_5(void);
 static void quick_misc_test_exercise_issue_346_free_5(void);
 static void quick_misc_test_initialize_interrupt_for_wakeup(void);
+static void quick_misc_test_initialize_wakeup_and_sleep(void);
 
 int mint_config_interrupt(struct mint_gpio_int_config* cfg);    // This is a duplicate
 
@@ -98,7 +99,7 @@ void meadow_kt_quick_misc_tests(uint32_t userData)
 {
   static bool firstTime = true;
 
-  syslog(2, "Quick and Misc tests received 'set developer -d 12 -v %lu'\n", userData);
+  syslog(2, "Quick and Misc tests received 'set developer -d 10 -v %lu'\n", userData);
 
   switch(userData)
   {
@@ -121,18 +122,23 @@ void meadow_kt_quick_misc_tests(uint32_t userData)
       break;
 
     case 3:
-      quick_misc_test_exercise_issue_346_alloc_1();
+      // Initialize wakeup pin then sleep
+      quick_misc_test_initialize_wakeup_and_sleep();
       break;
 
     case 4:
+      quick_misc_test_exercise_issue_346_alloc_1();
+      break;
+
+    case 5:
       quick_misc_test_exercise_issue_346_free_1();
       break;
       
-    case 5:
+    case 6:
       quick_misc_test_exercise_issue_346_alloc_5();
       break;
 
-    case 6:
+    case 7:
       quick_misc_test_exercise_issue_346_free_5();
       break;
       
@@ -294,9 +300,8 @@ static void quick_misc_test_initialize_interrupt_for_wakeup(void)
   int ret;
   struct mint_gpio_int_config* cfg = malloc(sizeof(struct mint_gpio_int_config));
 
-  DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D14);
-  DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D15);
-  DEBUG_SET_LOW(DEBUG_PIN_V2_D15);
+  DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D14); // On while sleeping
+  DEBUG_SET_LOW(DEBUG_PIN_V2_D14);
 
   // Populate config structure for GPIO wakeup of PB4 (D05 in FeatherV2).
   // This is what Meadow.Core will do when it's been enhanced to support this
@@ -320,4 +325,59 @@ static void quick_misc_test_initialize_interrupt_for_wakeup(void)
   }
   free (cfg);
 }
+
+// ============================================================================
+// This test is used to determine if an interrupt can wakeup the F7 from a
+// low-power mode. It simulates being configured via Meadow.Core.
+static void quick_misc_test_initialize_wakeup_and_sleep(void)
+{
+  int ret;
+
+  struct mint_gpio_int_config* cfg = malloc(sizeof(struct mint_gpio_int_config));
+
+  // Only used by this module
+  DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D14); // On while sleeping
+  DEBUG_SET_LOW(DEBUG_PIN_V2_D14);
+  
+  // D05 - PB4 Input for GPIO wakeup pin
+  stm32_configgpio(GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTB | GPIO_PIN4);
+  
+  // Populate config structure for GPIO wakeup of PB4 (D05 in FeatherV2).
+  // This is what Meadow.Core will do when it's been enhanced to support this
+  // feature.
+  // Note: cfg is not the Nuttx cfgset. The Nuttx cfgset is built by the call
+  // to mint_config_interrupt().
+  cfg->port = 1;              // port B (D05 in FeatherV2)
+  cfg->pin = 4;               // pin 4  (D05 in FeatherV2)
+  cfg->configType = gpio_intrpt_cfg_type_wakeup;
+  cfg->risingEdge = 1;
+  cfg->fallingEdge = 0;
+  cfg->resistorMode = 2;      // 2 = pull down
+  cfg->debounceDuration = 0;  // Must be 0 for lp wakeup
+  cfg->glitchDuration = 0;    // Must be 0 for lp wakeup
+
+  // Configure interrupt pin via public function used by managed code
+  ret = mint_config_interrupt(cfg);
+  if(ret < 0)
+  {
+    syslog(2, "Error:mint_config_interrupt returned ret:%d\n", ret);
+  }
+  free (cfg);
+
+  syslog(1, "%s@%d - Going into Low-power sleep for 30 seconds unless interrupted\n", __FILE__, __LINE__);
+  usleep(20 * 1000);
+  DEBUG_SET_HIGH(DEBUG_PIN_V2_D14);
+
+  // Put Meadow to sleep for either time or till interrupt
+  ret = pwrmgmt_enter_stm32f7_stop_mode(30);
+  if(ret < 0)
+  {
+    syslog(2, "Error:mint_config_interrupt returned ret:%d\n", ret);
+  }
+
+  DEBUG_SET_LOW(DEBUG_PIN_V2_D14);
+  syslog(1, "%s@%d - Low-power sleep ended\n", __FILE__, __LINE__);
+  usleep(20 * 1000);
+}
+
 #endif  // #if defined(CONFIG_QUICK_MISC_TESTS)

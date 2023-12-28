@@ -234,6 +234,12 @@ static enum hcom_file_msg_cat_e hcom_dir_mgmt_categorize_pathname(
       *pathNameElements = find_pathname_element_count(pathName, strLen);
       return pathnameSdcard;
     }
+#if defined (CONFIG_DIR_MGMT_TESTS)
+    else
+    {
+      syslog(1, "SDCard not configured for use\n");
+    }
+#endif
   }
 
   // The following 2 path names ('/' and '/text/') where originally thought to

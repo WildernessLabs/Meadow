@@ -58,6 +58,10 @@
 
 #include "../pwrmgmt/pwrmgmt_local.h"
 
+#if defined (CONFIG_POWER_MANAGEMENT_TESTS)
+#pragma message "(--) power_management_tests.c"
+#endif
+
 // Diagnostic always as this is test code
 // #define USE_MEADOW_DEBUG_HELPERS
 #undef USE_MEADOW_DEBUG_HELPERS
@@ -142,6 +146,8 @@ void meadow_kt_power_management_tests(uint32_t userData)
   int ret = OK;
   struct tm tmNowRtc;
   static int testCount = 0;
+
+  syslog(2, "Power Management tests received 'set developer -d 8 -v %lu'\n", userData);
 
   testCount++;
 
