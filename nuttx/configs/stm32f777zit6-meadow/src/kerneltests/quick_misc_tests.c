@@ -158,7 +158,12 @@ void quick_misc_test_exercise_issue_346_alloc_1(void)
   // Setup a GPIO
   int ret;
   struct mint_gpio_int_config* cfg = malloc(sizeof(struct mint_gpio_int_config));
-
+  if(cfg == NULL)
+  {
+    syslog(2, "%s@%d-Error:malloc returned NULL\n", __FILE__, __LINE__);
+    return;
+  }
+  
   // We need some GPIOs to initialize and free
   // Populate config structure for GPIO wakeup of PB4 (D05 in FeatherV2).
   // This is what Meadow.Core will do when it's been enhanced to support this
@@ -191,6 +196,11 @@ void quick_misc_test_exercise_issue_346_free_1(void)
   // Setup a GPIO
   int ret;
   struct mint_gpio_int_config* cfg = malloc(sizeof(struct mint_gpio_int_config));
+  if(cfg == NULL)
+  {
+    syslog(2, "%s@%d-Error:malloc returned NULL\n", __FILE__, __LINE__);
+    return;
+  }
   syslog(2, "TEST-Freeing memory - for 1 point 0x14\n"); usleep(29 * 1000);
 
   // PB4
@@ -221,6 +231,11 @@ void quick_misc_test_exercise_issue_346_alloc_5(void)
   // Setup a GPIO
   int ret;
   struct mint_gpio_int_config* cfg = malloc(sizeof(struct mint_gpio_int_config));
+  if(cfg == NULL)
+  {
+    syslog(2, "%s@%d-Error:malloc returned NULL\n", __FILE__, __LINE__);
+    return;
+  }
   syslog(2, "TEST-Configuring 5 points 0x14\n"); usleep(29 * 1000);
 
   // We need some GPIOs to initialize and free
@@ -262,6 +277,11 @@ void quick_misc_test_exercise_issue_346_free_5(void)
   // Setup a GPIO
   int ret;
   struct mint_gpio_int_config* cfg = malloc(sizeof(struct mint_gpio_int_config));
+  if(cfg == NULL)
+  {
+    syslog(2, "%s@%d-Error:malloc returned NULL\n", __FILE__, __LINE__);
+    return;
+  }
   syslog(2, "TEST-Freeing 5 points 0x14\n"); usleep(29 * 1000);
 
   // PB7 - PB11 but remove in reverse order
@@ -299,6 +319,11 @@ static void quick_misc_test_initialize_interrupt_for_wakeup(void)
   // Setup a GPIO to generate an interrupt to wakeup
   int ret;
   struct mint_gpio_int_config* cfg = malloc(sizeof(struct mint_gpio_int_config));
+  if(cfg == NULL)
+  {
+    syslog(2, "%s@%d-Error:malloc returned NULL\n", __FILE__, __LINE__);
+    return;
+  }
 
   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D14); // On while sleeping
   DEBUG_SET_LOW(DEBUG_PIN_V2_D14);
@@ -334,6 +359,11 @@ static void quick_misc_test_initialize_wakeup_and_sleep(void)
   int ret;
 
   struct mint_gpio_int_config* cfg = malloc(sizeof(struct mint_gpio_int_config));
+  if(cfg == NULL)
+  {
+    syslog(2, "%s@%d-Error:malloc returned NULL\n", __FILE__, __LINE__);
+    return;
+  }
 
   // Only used by this module
   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D14); // On while sleeping

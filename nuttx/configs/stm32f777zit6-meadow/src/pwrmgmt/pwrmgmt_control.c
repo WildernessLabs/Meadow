@@ -258,7 +258,6 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 
   // Notify CLI (if listening) of imminent low-power mode entry.
   uint8_t hdrMsg[HCOM_PROTOCOL_HEADER_MSG_LENGTH];
-  memset(hdrMsg, 0, HCOM_PROTOCOL_HEADER_MSG_LENGTH);
   HcomProtoTextMsg_t *msgHdrMsg = (HcomProtoTextMsg_t *)hdrMsg;
   msgHdrMsg->stdHeader.rqstType = HCOM_HOST_REQUEST_TEXT_NEXT_LOW_PWR;
   msgHdrMsg->stdHeader.userData = 0;
