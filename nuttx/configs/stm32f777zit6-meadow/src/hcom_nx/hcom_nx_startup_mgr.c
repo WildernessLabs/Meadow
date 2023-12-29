@@ -44,6 +44,7 @@
 #include "../espcp/espcp_coprocessor.h"
 #include <assert.h>
 #include "../misc/meadow_logging.h"
+#include "../cell/meadow_cell.h"
 
 #include "stm32f777zit6-meadow.h"
 #include "hcom_nx_config_manager.h"
@@ -378,7 +379,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
       hcom_nx_config_process_cell_config_file();
       syslog(LOG_INFO, "Cell settings processed\n");
 
-      hcom_nx_config_turn_on_the_cell_module();
+      meadow_cell_turn_on_the_cell_module();
     }
     else {
       hcom_nx_config_unlock();
