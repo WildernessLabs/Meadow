@@ -281,10 +281,10 @@ int mint_gpio_no_delay_isr(int irq, void *context, void *arg)
 
   if(gpioInfoAddr->InputUsage == gpio_intrpt_cfg_type_wakeup)
   {
-    // Execute the code that restarts the F7's internal clocks etc. and return.
-    // The thread that put things into sleep mode will do the rest of the
-    // things needed to fully restore normal operations.
-    int ret = pwrmgmt_exit_stop_mode();
+    // Execute the generic code that restarts the F7's internal clocks etc.
+    // and then return. The thread that put things into sleep mode will do the
+    // rest of the things needed to fully restore normal operations.
+    int ret = pwrmgmt_exit_stop_mode(true);
     DEBUG_SET_LOW(DEBUG_PIN_V2_A1);
     return ret;
   }
@@ -1023,7 +1023,7 @@ int mint_config_interrupt(struct mint_gpio_int_config* cfg)
     syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", __FILE__, __LINE__);
     return -ENOMEM;
   }
-  
+
   // We must set a few elements in the struct for this configuration
   gpioInfoAddr->PinId = pinDesignation;
 
@@ -1124,7 +1124,7 @@ int mint_config_interrupt_new(struct mint_gpio_int_config* cfg,
   // is set at 100 usec then the count provided is the same as the number
   // of timer timeouts received.
   gpioInfoAddr->DebounceConfiguredDuration = cfg->debounceDuration;
-  gpioInfoAddr->GlitchConfiguredDuration = cfg->glitchDuration;      
+  gpioInfoAddr->GlitchConfiguredDuration = cfg->glitchDuration;
   gpioInfoAddr->GlitchTimeoutsCounter = 0;
 
   // none = 0, rising = 1, falling = 2 & both = 3 (must match F7GPIOManager_interrupts.cs

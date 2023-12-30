@@ -329,6 +329,7 @@ int hcom_file_upld_proc_start_file_upload(hcom_dnld_shared_t *dnldShared)
 
   fileMsg->fileInfo.fileSize = fileSize;
   fileMsg->fileInfo.fileCheckSum = crc32Checksum;
+  fileMsg->stdHeader.extraData = 0;
   fileMsg->stdHeader.userData = 0;
   fileMsg->stdHeader.rqstType = HCOM_HOST_REQUEST_INIT_UPLOAD_OKAY;
 
@@ -455,6 +456,7 @@ int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
       // Send the data to the host
       sentCount++;
       binMsg->stdHeader.userData = sequenceNumb++;
+      binMsg->stdHeader.extraData = 0;
 
       // This call will build the standard message and send it to the host
       // Length must include header + data
@@ -475,6 +477,7 @@ int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
   HcomProtoHdrMsg_t *endHdrMsg = (HcomProtoHdrMsg_t *)msgBuf;
   endHdrMsg->stdHeader.rqstType = HCOM_HOST_REQUEST_UPLOAD_FILE_COMPLETED;
   endHdrMsg->stdHeader.userData = 0;
+  endHdrMsg->stdHeader.extraData = 0;
 
   // Report to hosts that the entire file has been sent
   hcom_host_send_std_msg_data(endHdrMsg, HCOM_PROTOCOL_HEADER_MSG_LENGTH,
