@@ -208,6 +208,7 @@ int hcom_nx_create_fs_mount(const char *sourceDevice, const char *targetDevice,
   if(fullMountPtName == NULL)
   {
     syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    free(finalSourceName);
     return -ENOMEM;
   }
 

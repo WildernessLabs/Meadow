@@ -798,9 +798,9 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 // Should mono be prevented from running?
 #define HCOM_DIAG_PREVENT_MONO_FROM_RUNNING           0
 
-// Adds code that takes the HCOM messages from CLI and outputs
-// a decoded version to syslog enable
-// HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE to add hex dump of HCOM messages
+// Adds code that takes the HCOM messages from/to CLI and outputs a decoded
+// version to syslog. Enable HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE to add hex
+// dump of HCOM messages
 #define HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD   0
 
 // LOG_DEBUG syslog message are almost never used. Set this to 1

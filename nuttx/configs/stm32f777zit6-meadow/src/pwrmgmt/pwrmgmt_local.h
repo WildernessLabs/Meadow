@@ -70,7 +70,7 @@ int pwrmgmt_rtc_synchwait(void);
 uint32_t pwrmgmt_rtc_bin2bcd(int value);
 
 // Internal to power management
-int pwrmgmt_exit_stop_mode(void);
+int pwrmgmt_exit_stop_mode(bool gpioWakeup);
 int pwrmgmt_enter_stop_mode(void);
 
 int pwrmgmt_init_lsi_calib(void);
