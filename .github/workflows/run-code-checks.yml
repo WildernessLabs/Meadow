@@ -20,7 +20,7 @@ jobs:
       run: docker build -t code-checks -f ./DockerFiles/CodeChecks .
 
     - name: Run code checks.
-      run: docker run --platform=linux/amd64 --rm -v $PWD:/project -w /project --user dev:dev code-checks ./run-checks.sh
+      run: docker run --platform=linux/amd64 --rm -v $PWD:/project -w /project --user "$(id -u):$(id -g)" code-checks ./run-checks.sh
       id: code-checks
 
     - name: Show the exit code
