@@ -66,29 +66,36 @@ namespace System.Net.NetworkInformation {
 		{
 			try
 			{
+				_dns_servers = new IPAddressCollection();
+
 				string filePath = Path.Combine("meadow0", "dns.conf");
 
 				if (File.Exists(filePath))
 				{
-					foreach (string line in File.ReadAllLines(filePath))
+					string line = File.ReadAllText(filePath).Trim();
+					
+					if (!string.IsNullOrEmpty(line) && line.StartsWith("nameserver"))
 					{
-						if (line.StartsWith("nameserver"))
-						{
-							string ipAddress = line.Substring(11).Trim();
+						string[] elements = line.Split(new string[] { "nameserver" }, StringSplitOptions.RemoveEmptyEntries);
 
+						foreach (string element in elements)
+						{
+							string ipAddress = element.Trim();
+							
 							// Convert the string IP address to IPAddress
 							if (IPAddress.TryParse(ipAddress, out IPAddress dnsServer))
 							{
-								if (!_dns_servers.Contains(dnsServer))
-								{
-									_dns_servers.InternalAdd(dnsServer);
-								}
+								_dns_servers.InternalAdd(dnsServer);
 							}
 							else
 							{
 								throw new FormatException($"Invalid IP address format in line: {line}");
 							}
 						}
+					}
+					else
+					{
+						throw new FormatException($"Invalid format in the dns.conf file: {line}");
 					}
 				}
 				else
@@ -98,7 +105,7 @@ namespace System.Net.NetworkInformation {
 			}
 			catch (Exception ex)
 			{
-        		Console.WriteLine($"Error reading dns.conf: {ex.Message}");
+				Console.WriteLine($"Error reading dns.conf: {ex.Message}");
 			}
 		}
 
