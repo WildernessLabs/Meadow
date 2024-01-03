@@ -45,6 +45,13 @@
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
+enum MeadowWakeupReason_e
+{
+  wake_reason_unknown             = 0,    // Wakeup reason not known
+  wake_reason_wakeup_time_reached = 1,    // Wakeup time reached
+  wake_reason_gpio_caused_wakeup  = 2,    // GPIO interrupt caused wakeup
+};
+
 #if defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 // This test provides a means to know, and display on syslog, when the clock
 // feeding the RTC (HSE or LSI) has changed.

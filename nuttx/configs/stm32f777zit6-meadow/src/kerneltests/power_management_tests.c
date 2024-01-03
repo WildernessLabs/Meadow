@@ -504,7 +504,8 @@ void pwmmgmt_test_initialize_wakeup_and_sleep(void)
   }
 
   DEBUG_SET_LOW(DEBUG_PIN_V2_D14);
-  syslog(2, "%s@%d - Low-power sleep ended\n", __FILE__, __LINE__);
+  int wakeReason = pwrmgmt_most_recent_wakeup_reason();
+  syslog(2, "%s@%d - Low-power sleep ended, reason:%d\n", __FILE__, __LINE__, wakeReason);
 }
 
 #endif    // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
