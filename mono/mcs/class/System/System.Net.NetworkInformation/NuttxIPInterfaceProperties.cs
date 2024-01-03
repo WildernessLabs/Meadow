@@ -40,11 +40,11 @@ namespace System.Net.NetworkInformation {
 		List<IPAddress> _addresses;
 		IPAddressCollection _dns_servers;
 
-		public NuttxIPInterfaceProperties(NuttxNetworkInterface iface, List <IPAddress> addresses)
+		public NuttxIPInterfaceProperties(NuttxNetworkInterface iface, List <IPAddress> addresses, IPAddressCollection dns_servers)
 		{
 			_iface = iface;
 			_addresses = addresses;
-			_dns_servers = null;
+			_dns_servers = dns_servers;
 		}
 
 		public override IPv4InterfaceProperties GetIPv4Properties()
@@ -62,9 +62,51 @@ namespace System.Net.NetworkInformation {
 			throw new NotImplementedException(nameof(GetIPv6Properties));
 		}
 
-		void GetDNSServersFromOS ()
+		void GetDNSServersFromOS()
 		{
-			throw new NotImplementedException(nameof(GetDNSServersFromOS));
+			try
+			{
+				_dns_servers = new IPAddressCollection();
+
+				string filePath = Path.Combine("meadow0", "dns.conf");
+
+				if (File.Exists(filePath))
+				{
+					string line = File.ReadAllText(filePath).Trim();
+					
+					if (!string.IsNullOrEmpty(line) && line.StartsWith("nameserver"))
+					{
+						string[] elements = line.Split(new string[] { "nameserver" }, StringSplitOptions.RemoveEmptyEntries);
+
+						foreach (string element in elements)
+						{
+							string ipAddress = element.Trim();
+							
+							// Convert the string IP address to IPAddress
+							if (IPAddress.TryParse(ipAddress, out IPAddress dnsServer))
+							{
+								_dns_servers.InternalAdd(dnsServer);
+							}
+							else
+							{
+								throw new FormatException($"Invalid IP address format in line: {line}");
+							}
+						}
+					}
+					else
+					{
+						throw new FormatException($"Invalid format in the dns.conf file: {line}");
+					}
+				}
+				else
+				{
+					throw new FileNotFoundException($"File not found: {filePath}");
+				}
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"Error reading dns.conf: {ex.Message}");
+			}
 		}
 
 		public override GatewayIPAddressInformationCollection GatewayAddresses
