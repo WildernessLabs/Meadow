@@ -1,7 +1,7 @@
 /****************************************************************************
  * configs\stm32f777zit6-meadow\src\kerneltests\power_management_tests.c
  * 
- *   Copyright (C) 2019 - 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2024 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,6 +54,8 @@
 #include <arch/board/board.h>           // Needed for testing getreg16
 #include "chip/stm32f76xx77xx_pwr.h"    // Needed for testing
 #include <nuttx/kthread.h>
+#include "meadow-upd.h"   // mint_config_interrupt(cfg);
+#include "meadow_interrupt.h"
 #include <meadow/meadow_kernel_tests.h>
 
 #include "../pwrmgmt/pwrmgmt_local.h"
@@ -88,6 +90,8 @@
 // Used to verify the alarm is being properly configured
 static int pwrmgmt_enter_test_alarm_timer_parsing(void);
 #endif
+
+static void pwmmgmt_test_initialize_wakeup_and_sleep(void);
 
 /************************************************************************************
  * Private Functions
@@ -169,6 +173,14 @@ void meadow_kt_power_management_tests(uint32_t userData)
       // Used to verify that multiple sleep events can succeed
       pwrmgmt_enter_test_sleep_x_times_for_y_seconds();
       break;
+    
+    case 3:
+      syslog(2, "==>>power mgmt test #%d - received %u - Power sleep x times for y seconds\n", testCount, userData);
+      usleep(20 * 1000);
+      
+      // Used to verify that both timeout and GPIO interrupt can wake from low-power sleep
+      pwmmgmt_test_initialize_wakeup_and_sleep();
+      break;
 
     case 52:
       // Enter Stop mode with max power savings & slowest restart
@@ -186,13 +198,6 @@ void meadow_kt_power_management_tests(uint32_t userData)
       ret = pwrmgmt_enter_stop_mode();
       break;
 
-    // case 54:
-    //   // Enter Standby mode. This is the lowest possible power mode
-    //   syslog(2, "==>>power mgmt tests received %u - Standby mode\n", userData);
-    //   usleep(100 * 1000);
-    //   ret = meadow_pwr_mgmt_enter_standby();
-    //   break;
-
     case 55:
       // Set clock to HSE
       syslog(2, "==>>power mgmt tests received %u - HSE for clock\n", userData);
@@ -204,7 +209,6 @@ void meadow_kt_power_management_tests(uint32_t userData)
       // Set clock to LSI
       syslog(2, "==>>power mgmt tests received %u - LSI for clock\n", userData);
       usleep(20 * 1000);
-      // The following function calls will result in the the F7 being put into sleep mode for 45 seconds.
       ret = meadow_pwr_mgmt_use_lsi_for_rtc();
       break;
 
@@ -441,6 +445,66 @@ int pwmmgmt_test_timer_and_alarm_wakeup(time_t wakeupPeriod)
 #endif
 
   return OK;
+}
+
+// ============================================================================
+// This test is used to determine if an interrupt can wakeup the F7 from a
+// low-power mode. It simulates being configured via Meadow.Core.
+void pwmmgmt_test_initialize_wakeup_and_sleep(void)
+{
+  int ret;
+
+  struct mint_gpio_int_config* cfg = malloc(sizeof(struct mint_gpio_int_config));
+  if(cfg == NULL)
+  {
+    syslog(2, "%s@%d-Error:malloc returned NULL\n", __FILE__, __LINE__);
+    return;
+  }
+
+  // Only used by this module
+  DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D14); // On while sleeping
+  DEBUG_SET_LOW(DEBUG_PIN_V2_D14);
+  
+  // D05 - PB4 Input for GPIO wakeup pin
+  stm32_configgpio(GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTB | GPIO_PIN4);
+  
+  // Populate config structure for GPIO wakeup of PB4 (D05 in FeatherV2).
+  // This is what Meadow.Core will do when it's been enhanced to support this
+  // feature.
+  // Note: cfg is not the Nuttx cfgset. The Nuttx cfgset is built by the call
+  // to mint_config_interrupt().
+  cfg->port = 1;              // port B (D05 in FeatherV2)
+  cfg->pin = 4;               // pin 4  (D05 in FeatherV2)
+  cfg->configType = gpio_intrpt_cfg_type_wakeup;
+  cfg->risingEdge = 1;
+  cfg->fallingEdge = 0;
+  cfg->resistorMode = 2;      // 2 = pull down
+  cfg->debounceDuration = 0;  // Must be 0 for lp wakeup
+  cfg->glitchDuration = 0;    // Must be 0 for lp wakeup
+
+  // Configure interrupt pin via public function used by managed code
+  ret = mint_config_interrupt(cfg);
+  if(ret < 0)
+  {
+    syslog(2, "Error:mint_config_interrupt returned ret:%d\n", ret);
+  }
+  free (cfg);
+
+  syslog(2, "%s@%d - Going into Low-power sleep for 30 seconds unless interrupted.\n", __FILE__, __LINE__);
+  // Need a bit of time to insure message is received before low-power mode
+  usleep(50 * 1000);
+
+  DEBUG_SET_HIGH(DEBUG_PIN_V2_D14);
+
+  // Put Meadow to sleep for either time or till interrupt
+  ret = pwrmgmt_enter_stm32f7_stop_mode(30);
+  if(ret < 0)
+  {
+    syslog(2, "Error:mint_config_interrupt returned ret:%d\n", ret);
+  }
+
+  DEBUG_SET_LOW(DEBUG_PIN_V2_D14);
+  syslog(2, "%s@%d - Low-power sleep ended\n", __FILE__, __LINE__);
 }
 
 #endif    // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
