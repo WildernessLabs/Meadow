@@ -1,7 +1,7 @@
 /****************************************************************************
  * configs/stm32f777zit6-meadow/src/pwrmgmt/pwrmgmt_enter_stop_mode.c
  * 
- *   Copyright (C) 2022-2023 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2022-2024 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -108,7 +108,15 @@
  ************************************************************************************/
 // static char *thisFile = __FILE__;
 
+enum MeadowWakeupReason_e
+{
+  wake_reason_unknown             = 0,    // Wakeup reason not known
+  wake_reason_wakeup_time_reached = 1,    // Wakeup time reached
+  wake_reason_gpio_caused_wakeup  = 2,    // GPIO interrupt caused wakeup
+};
+
 static bool _meadowIsSleeping = false;
+static enum MeadowWakeupReason_e _wakeupReason = wake_reason_unknown;
 
 /************************************************************************************
  * Public Data
@@ -128,10 +136,20 @@ static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context, FAR void *a
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// This public function is executed from the local ISR and from Meadow
-// interrupt handling code. This allows a GPIO to be configured for wakeup.
+// This public function is executed from the local ISR for timeout and from
+// Meadow interrupt handling code. This allows a GPIO to be configured for
+// wakeup.
 int pwrmgmt_exit_stop_mode(bool gpioWakeup)
 {
+  if(gpioWakeup)
+  {
+    _wakeupReason = wake_reason_gpio_caused_wakeup;
+  }
+  else
+  {
+    _wakeupReason = wake_reason_wakeup_time_reached;
+  }
+
   // This check is primarily for GPIO wakeup, in the case it is interrupted
   // while not sleeping.
   if(!_meadowIsSleeping)
@@ -171,6 +189,9 @@ int pwrmgmt_exit_stop_mode(bool gpioWakeup)
 int pwrmgmt_enter_stop_mode(void)
 {
   uint32_t regval;
+
+  // Reset the wakeup reason
+  _wakeupReason = wake_reason_unknown;
 
   // ETHERNET POWERED DOWN
   // See Ref Man section 42.5.8, step-by-step in at the bottom.
@@ -368,6 +389,13 @@ int pwrmgmt_enter_stop_mode(void)
 #endif
 
   return OK;
+}
+
+//=========================================================
+// This public function returns the wakeup reason to managed code
+int pwrmgmt_most_recent_wakeup_reason(void)
+{
+  return (int)_wakeupReason;
 }
 
 #endif // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)

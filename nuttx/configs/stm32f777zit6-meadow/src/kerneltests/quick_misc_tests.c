@@ -151,8 +151,10 @@ void meadow_kt_quick_misc_tests(uint32_t userData)
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
-// These tests exercise the fix for the memory leak in meadow_interrupt.c
-// Meadow_Issue #346
+// Meadow_Issue #346 was related to a memory leak found in meadow_interrupt.c.
+// This leak would occure whenever a interrupt was configured as the memory
+// allocated for the configuration would not be freed when the GPIO
+// configuration was removed.
 void quick_misc_test_exercise_issue_346_alloc_1(void)
 {
   // Setup a GPIO
@@ -408,7 +410,10 @@ static void quick_misc_test_initialize_wakeup_and_sleep(void)
   }
 
   DEBUG_SET_LOW(DEBUG_PIN_V2_D14);
-  syslog(2, "%s@%d - Low-power sleep ended\n", __FILE__, __LINE__);
+  // Verify wakeup reason
+  int wakeReason = pwrmgmt_most_recent_wakeup_reason();
+  syslog(2, "%s@%d - Low-power sleep ended, reason:%d\n", __FILE__, __LINE__, wakeReason);
+  usleep(20 * 1000);
 }
 
 #endif  // #if defined(CONFIG_QUICK_MISC_TESTS)

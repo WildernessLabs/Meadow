@@ -209,6 +209,7 @@ namespace System.Net.NetworkInformation
 		// private IPv4InterfaceStatistics ipv4stats;
 		private IPInterfaceProperties _ipproperties;
 		private List<IPAddress> _addresses;
+		private IPAddressCollection _dns_servers;
 
 		string _name;
 		byte[]               _macAddress;
@@ -222,6 +223,7 @@ namespace System.Net.NetworkInformation
 			_ifa_flags = ifa_flags;
 			_type = NetworkInterfaceType.Unknown;
 			_addresses = new List<IPAddress>();
+			_dns_servers = new IPAddressCollection();
 		}
 
 		internal void AddAddress(IPAddress address)
@@ -241,7 +243,7 @@ namespace System.Net.NetworkInformation
 		{
 			if (_ipproperties == null)
 			{
-				_ipproperties = new NuttxIPInterfaceProperties(this, _addresses);
+				_ipproperties = new NuttxIPInterfaceProperties(this, _addresses, _dns_servers);
 			}
 			return _ipproperties;
 		}
