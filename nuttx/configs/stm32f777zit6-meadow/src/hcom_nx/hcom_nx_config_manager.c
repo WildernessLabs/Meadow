@@ -1150,39 +1150,6 @@ static void hcom_nx_config_setup_default_dns_servers(void)
 }
 
 /****************************************************************************
- * Name: hcom_nx_config_add_nameserver_dns_file
- *
- * Description:
- *  Add an address into DNS resover file.
- *
- * Input Parameters:
- *  server - pointer to a server.
- *
- * Returned Value:
- *  OK if successful, ERROR otherwise.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-static int hcom_nx_config_add_nameserver_dns_file(char *server)
-{
-    if (server != NULL)
-    {
-        FILE *dns_file = fopen(CONFIG_NETDB_RESOLVCONF_PATH, "a");
-        if (dns_file != NULL)
-        {
-            fputs("nameserver ", dns_file);
-            fputs(server, dns_file);
-            fputs("\n", dns_file);
-            fclose(dns_file);
-            return OK;
-        }
-    }
-    return ERROR;
-}
-
-/****************************************************************************
  * Name: hcom_nx_config_get_file_content
  *
  * Description:

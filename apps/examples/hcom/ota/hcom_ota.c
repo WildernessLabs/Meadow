@@ -125,7 +125,7 @@ int app_update(void)
     return 0;
 
   bool error = false;
-  int ret;
+  int  __attribute__((unused)) ret;
   ret = mkdir(ROLLBACK_DIR, 0777);
 
   // TODO: Recursive copying
