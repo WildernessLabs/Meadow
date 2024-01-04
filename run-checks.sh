@@ -40,5 +40,5 @@ if [ "$HELP" = true ]; then
   exit 0
 fi
 
-cppcheck --check-level=exhaustive --force --inline-suppr $CPPCHECK_NUTTX_IGNORE_LIST $scriptdir/nuttx/configs/stm32f777zit6-meadow/src
-cppcheck --check-level=exhaustive --force --inline-suppr $scriptdir/apps/examples/hcom
+cppcheck --error-exitcode=1 --quiet --check-level=exhaustive --force --inline-suppr $CPPCHECK_NUTTX_IGNORE_LIST $scriptdir/nuttx/configs/stm32f777zit6-meadow/src
+cppcheck --error-exitcode=1 --quiet --check-level=exhaustive --force --inline-suppr $scriptdir/apps/examples/hcom
