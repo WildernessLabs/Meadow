@@ -90,6 +90,10 @@
 
 #include "stm32_alarm.h"
 
+#if defined (CONFIG_POWER_MANAGEMENT_TESTS)
+#pragma message "(--) pwrmgmt_enter_stop_mode.c"
+#endif
+
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
 // Diagnostic only
@@ -391,8 +395,12 @@ int pwrmgmt_enter_stop_mode(void)
   return OK;
 }
 
-//=========================================================
-// This public function returns the wakeup reason to managed code
+//================================================================
+// This public function returns the wakeup reason to managed code or any
+// other caller. It returns a simple integer.
+// 0 = Wakeup reason not known
+// 1 = Wakeup time reached
+// 2 = GPIO interrupt caused wakeup
 int pwrmgmt_most_recent_wakeup_reason(void)
 {
   return (int)_wakeupReason;

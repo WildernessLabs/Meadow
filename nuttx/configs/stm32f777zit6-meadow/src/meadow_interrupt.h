@@ -1,7 +1,7 @@
 /****************************************************************************
- * meadow_kernel_tests.h
+ * nuttx\configs\stm32f777zit6-meadow\src\meadow_interrupt.c
  * 
- *   Copyright (C) 2023-2024 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,21 +31,15 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ****************************************************************************/
+ *  ****************************************************************************/
+#ifndef __CONFIGS_MEADOW_SRC_MEADOW_INTERRUPT__H
+#define __CONFIGS_MEADOW_SRC_MEADOW_INTERRUPT__H
 
-void meadow_kt_espcp_tests(uint32_t);
-void meadow_kt_espcp_load_test_web_page(uint32_t);
-void meadow_kt_espcp_load_test_large_file_download(uint32_t);
+enum GPIOInterruptCfgType_e
+{
+  gpio_intrpt_cfg_type_remove = 0,
+  gpio_intrpt_cfg_type_new = 1,
+  gpio_intrpt_cfg_type_wakeup = 2
+};
 
-void meadow_kt_ethernet_tests(uint32_t);
-void meadow_kt_ethernet_load_test_large_file_download(uint32_t);
-void meadow_kt_ethernet_load_test_web_page(uint32_t);
-
-void meadow_kt_bg77_tests(uint32_t);
-void meadow_kt_sd_card_tests(uint32_t);
-void meadow_kt_power_management_tests(uint32_t);
-void meadow_kt_iso8601_tests(uint32_t);
-void meadow_kt_quick_misc_tests(uint32_t);
-void meadow_kt_adc_tests(uint32_t);
-void meadow_kt_dac_tests(uint32_t);
-void meadow_kt_meadow_interrupt_tests(uint32_t);
+#endif // __CONFIGS_MEADOW_SRC_MEADOW_INTERRUPT__H

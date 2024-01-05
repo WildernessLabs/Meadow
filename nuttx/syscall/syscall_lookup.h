@@ -422,6 +422,10 @@ SYSCALL_LOOKUP(meadow_adc_read_values,               0, STUB_meadow_adc_read_val
 SYSCALL_LOOKUP(meadow_adc_read_temp_vbat,            2, STUB_meadow_adc_read_temp_vbat)
 #endif
 
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+SYSCALL_LOOKUP(pwrmgmt_most_recent_wakeup_reason,               0, STUB_pwrmgmt_most_recent_wakeup_reason)
+#endif
+
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
   SYSCALL_LOOKUP(meadow_kt_espcp_load_test_large_file_download,   1, STUB_meadow_kt_espcp_load_test_large_file_download)
   SYSCALL_LOOKUP(meadow_kt_espcp_load_test_web_page,              1, STUB_meadow_kt_espcp_load_test_web_page)
@@ -460,6 +464,10 @@ SYSCALL_LOOKUP(meadow_adc_read_temp_vbat,            2, STUB_meadow_adc_read_tem
 
 #if defined(CONFIG_DAC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
   SYSCALL_LOOKUP(meadow_kt_dac_tests,      1, STUB_meadow_kt_dac_tests)
+#endif
+
+#if defined(CONFIG_MEADOW_INTERRUPT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_meadow_interrupt_tests,      1, STUB_meadow_kt_meadow_interrupt_tests)
 #endif
 
 #if defined(CONFIG_ARCH_BOARD_MEADOW)

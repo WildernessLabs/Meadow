@@ -1,7 +1,7 @@
 /****************************************************************************
  * nuttx\configs\stm32f777zit6-meadow\src\meadow_interrupt.c
  * 
- *   Copyright (C) 2020, 2021, 2023 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2020, 2021, 2023, 2024 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,8 +57,13 @@
 #include <nuttx/clock.h>    // for testing
 #include <nuttx/arch.h>
 #include "meadow-upd.h"
-#include "pwrmgmt/pwrmgmt_local.h"
+#include "hcom_nx/hcom_nx_common.h"
+#include "meadow_interrupt.h"
 #include <meadow/meadow_hw_version.h>
+
+#if defined (CONFIG_MEADOW_INTERRUPT_TESTS)
+#pragma message "(--) meadow_interrupt.c"
+#endif
 
 // #define USE_MEADOW_DEBUG_HELPERS
 #undef USE_MEADOW_DEBUG_HELPERS
@@ -126,13 +131,6 @@ enum GlitchDebouceReturnValues_e
 {
   glit_debo_ret_check_next_gpio,
   glit_debo_ret_no_timed_remain,
-};
-
-enum GPIOInterruptCfgType_e
-{
-  gpio_intrpt_cfg_type_remove = 0,
-  gpio_intrpt_cfg_type_new = 1,
-  gpio_intrpt_cfg_type_wakeup = 2
 };
 
 // All F7 possible input data registers addresses, used for ISR access to GPIO
@@ -729,7 +727,7 @@ int mint_meadow_debounce_notification_logic(struct interruptPinMap_s *gpioInfoAd
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 1
       syslog(LOG_INFO, "mint-(debounce)-0x%02x--Notifying 0x%02x rqstdintmode_rising\n", gpioInfoAddr->PinId, 1);
 #endif
-      mint_forward_interrupt_to_core(gpioInfoAddr, 1);  
+      mint_forward_interrupt_to_core(gpioInfoAddr, 1);
       break;
 
     case rqstdintmode_none:
