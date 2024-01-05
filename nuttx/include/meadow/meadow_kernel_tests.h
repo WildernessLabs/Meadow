@@ -1,7 +1,7 @@
 /****************************************************************************
  * meadow_kernel_tests.h
  * 
- *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2023-2024 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,3 +48,4 @@ void meadow_kt_iso8601_tests(uint32_t);
 void meadow_kt_quick_misc_tests(uint32_t);
 void meadow_kt_adc_tests(uint32_t);
 void meadow_kt_dac_tests(uint32_t);
+void meadow_kt_meadow_interrupt_tests(uint32_t);

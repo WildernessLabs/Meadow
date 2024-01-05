@@ -26,6 +26,7 @@ extern int meadow_adc_read_values(void);
 extern int meadow_adc_read_temp_vbat(double *batteryVoltage, double *temperatureValue);
 extern int meadow_read_file_total_free_flash_size(uint32_t *totalBytes,  uint32_t *freeBytes);
 extern int statfs(FAR const char *path, FAR struct statfs *buf);
+extern int pwrmgmt_most_recent_wakeup_reason(void);
 int shim_open_void(char *pathname, int flags);
 
 MonoDlMapping meadow_mappings[] = {
@@ -83,7 +84,7 @@ MonoDlMapping meadow_mappings[] = {
        { "meadow_adc_read_values", meadow_adc_read_values},
        { "meadow_adc_read_temp_vbat", meadow_adc_read_temp_vbat},
        { "meadow_read_file_total_free_flash_size", meadow_read_file_total_free_flash_size},
-
+       { "pwrmgmt_most_recent_wakeup_reason", pwrmgmt_most_recent_wakeup_reason},
 //       { "poll", poll },
 
 /*

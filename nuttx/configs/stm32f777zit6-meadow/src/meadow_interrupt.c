@@ -57,8 +57,13 @@
 #include <nuttx/clock.h>    // for testing
 #include <nuttx/arch.h>
 #include "meadow-upd.h"
+#include "hcom_nx/hcom_nx_common.h"
 #include "meadow_interrupt.h"
 #include <meadow/meadow_hw_version.h>
+
+#if defined (CONFIG_MEADOW_INTERRUPT_TESTS)
+#pragma message "(--) meadow_interrupt.c"
+#endif
 
 // #define USE_MEADOW_DEBUG_HELPERS
 #undef USE_MEADOW_DEBUG_HELPERS

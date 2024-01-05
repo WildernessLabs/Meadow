@@ -59,4 +59,6 @@ int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount, double *userDat
 int meadow_adc_read_values(void);
 int meadow_adc_read_temp_vbat(double *batteryVoltage, double *temperatureValue);
 
+int pwrmgmt_most_recent_wakeup_reason(void);
+
 #endif // __CONFIG_MEADOW_SRC_MEADOW_SYSCALL_SUPPORT__H

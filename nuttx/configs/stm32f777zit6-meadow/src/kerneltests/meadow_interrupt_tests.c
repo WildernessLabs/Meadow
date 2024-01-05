@@ -41,8 +41,7 @@
 #include <meadow/hcom_shared_common.h>
 
 // Only build if configured
-//#if defined(CONFIG_MEADOW_INTERRUPT_TESTS)
-#if 1
+#if defined(CONFIG_MEADOW_INTERRUPT_TESTS)
 #pragma message "(--) meadow_interrupt_tests.c"
 
 #include "stm32_gpio.h"   // stm32_configgpio
@@ -53,6 +52,7 @@
 #include "meadow-upd.h"   // mint_config_interrupt(cfg);
 #include "meadow_interrupt.h"
 #include "pwrmgmt/pwrmgmt_local.h"
+#include <meadow/meadow_syscall_support.h>
 
 // Diagnostic always as this is test code
 // #define USE_MEADOW_DEBUG_HELPERS
@@ -78,10 +78,10 @@
 /************************************************************************************
  * Private Function Prototypes
  ************************************************************************************/
-static void meadow_interrupt_test_exercise_issue_346_free_1(void);
-static void meadow_interrupt_test_exercise_issue_346_alloc_1(void);
-static void meadow_interrupt_test_exercise_issue_346_alloc_5(void);
-static void meadow_interrupt_test_exercise_issue_346_free_5(void);
+static void meadow_interrupt_test_test_mem_leak_fix_free_1(void);
+static void meadow_interrupt_test_test_mem_leak_fix_alloc_1(void);
+static void meadow_interrupt_test_test_mem_leak_fix_alloc_5(void);
+static void meadow_interrupt_test_test_mem_leak_fix_free_5(void);
 static void meadow_interrupt_test_initialize_interrupt_for_wakeup(void);
 static void meadow_interrupt_test_initialize_wakeup_and_sleep(void);
 
@@ -90,12 +90,12 @@ int mint_config_interrupt(struct mint_gpio_int_config* cfg);    // This is a dup
 /************************************************************************************
  * Public Functions
  ************************************************************************************/
-// set developer -d 1? come here
+// set developer -d 16 comes here
 void meadow_kt_meadow_interrupt_tests(uint32_t userData)
 {
   static bool firstTime = true;
 
-  syslog(2, "Meadow interrupt tests received 'set developer -d 1? -v %lu'\n", userData);
+  syslog(2, "Meadow interrupt tests received 'set developer -d 16 -v %lu'\n", userData);
 
   switch(userData)
   {
@@ -123,19 +123,19 @@ void meadow_kt_meadow_interrupt_tests(uint32_t userData)
       break;
 
     case 4:
-      meadow_interrupt_test_exercise_issue_346_alloc_1();
+      meadow_interrupt_test_test_mem_leak_fix_alloc_1();
       break;
 
     case 5:
-      meadow_interrupt_test_exercise_issue_346_free_1();
+      meadow_interrupt_test_test_mem_leak_fix_free_1();
       break;
       
     case 6:
-      meadow_interrupt_test_exercise_issue_346_alloc_5();
+      meadow_interrupt_test_test_mem_leak_fix_alloc_5();
       break;
 
     case 7:
-      meadow_interrupt_test_exercise_issue_346_free_5();
+      meadow_interrupt_test_test_mem_leak_fix_free_5();
       break;
       
     default:
@@ -151,7 +151,7 @@ void meadow_kt_meadow_interrupt_tests(uint32_t userData)
 // This leak would occure whenever a interrupt was configured as the memory
 // allocated for the configuration would not be freed when the GPIO
 // configuration was removed.
-void meadow_interrupt_test_exercise_issue_346_alloc_1(void)
+void meadow_interrupt_test_test_mem_leak_fix_alloc_1(void)
 {
   // Setup a GPIO
   int ret;
@@ -189,7 +189,7 @@ void meadow_interrupt_test_exercise_issue_346_alloc_1(void)
 
 // ============================================================================
 // Delete one GPIO
-void meadow_interrupt_test_exercise_issue_346_free_1(void)
+void meadow_interrupt_test_test_mem_leak_fix_free_1(void)
 {
   // Setup a GPIO
   int ret;
@@ -224,7 +224,7 @@ void meadow_interrupt_test_exercise_issue_346_free_1(void)
 // ============================================================================
 // These tests exercise the fix for the memory leak in meadow_interrupt.c
 // Meadow_Issue #346
-void meadow_interrupt_test_exercise_issue_346_alloc_5(void)
+void meadow_interrupt_test_test_mem_leak_fix_alloc_5(void)
 {
   // Setup a GPIO
   int ret;
@@ -270,7 +270,7 @@ void meadow_interrupt_test_exercise_issue_346_alloc_5(void)
 
 // ============================================================================
 // Delete one GPIO
-void meadow_interrupt_test_exercise_issue_346_free_5(void)
+void meadow_interrupt_test_test_mem_leak_fix_free_5(void)
 {
   // Setup a GPIO
   int ret;
@@ -305,7 +305,7 @@ void meadow_interrupt_test_exercise_issue_346_free_5(void)
     }
   }
 
-  syslog(2, "EXITING meadow_interrupt_test_exercise_issue_346_free_5\n");
+  syslog(2, "EXITING meadow_interrupt_test_test_mem_leak_fix_free_5\n");
   free (cfg);
 }
 
@@ -416,4 +416,4 @@ static void meadow_interrupt_test_initialize_wakeup_and_sleep(void)
   usleep(20 * 1000);
 }
 
-#endif  // #if defined(CONFIG_QUICK_MISC_TESTS)
+#endif  // #if defined(CONFIG_MEADOW_INTERRUPT_TESTS)

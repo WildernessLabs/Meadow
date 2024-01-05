@@ -57,6 +57,7 @@
 #include "meadow-upd.h"   // mint_config_interrupt(cfg);
 #include "meadow_interrupt.h"
 #include <meadow/meadow_kernel_tests.h>
+#include <meadow/meadow_syscall_support.h>
 
 #include "../pwrmgmt/pwrmgmt_local.h"
 
@@ -461,13 +462,14 @@ void pwmmgmt_test_initialize_wakeup_and_sleep(void)
     return;
   }
 
-  // Only used by this module
+  // Only used by this module to time stop mode
   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D14); // On while sleeping
   DEBUG_SET_LOW(DEBUG_PIN_V2_D14);
   
   // D05 - PB4 Input for GPIO wakeup pin
   stm32_configgpio(GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTB | GPIO_PIN4);
   
+  // GPIO for wakeup
   // Populate config structure for GPIO wakeup of PB4 (D05 in FeatherV2).
   // This is what Meadow.Core will do when it's been enhanced to support this
   // feature.
@@ -509,5 +511,5 @@ void pwmmgmt_test_initialize_wakeup_and_sleep(void)
 }
 
 #endif    // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
-#endif    // #if defined (CONFIG_POWER_MANAGEMENT_TESTS)
 
+#endif    // #if defined (CONFIG_POWER_MANAGEMENT_TESTS)

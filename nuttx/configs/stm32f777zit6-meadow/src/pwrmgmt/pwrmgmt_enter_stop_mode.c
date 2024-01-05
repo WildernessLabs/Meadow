@@ -90,6 +90,10 @@
 
 #include "stm32_alarm.h"
 
+#if defined (CONFIG_POWER_MANAGEMENT_TESTS)
+#pragma message "(--) pwrmgmt_enter_stop_mode.c"
+#endif
+
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
 // Diagnostic only
@@ -107,6 +111,13 @@
  * Private Data
  ************************************************************************************/
 // static char *thisFile = __FILE__;
+
+enum MeadowWakeupReason_e
+{
+  wake_reason_unknown             = 0,    // Wakeup reason not known
+  wake_reason_wakeup_time_reached = 1,    // Wakeup time reached
+  wake_reason_gpio_caused_wakeup  = 2,    // GPIO interrupt caused wakeup
+};
 
 static bool _meadowIsSleeping = false;
 static enum MeadowWakeupReason_e _wakeupReason = wake_reason_unknown;
@@ -384,8 +395,12 @@ int pwrmgmt_enter_stop_mode(void)
   return OK;
 }
 
-//=========================================================
-// This public function returns the wakeup reason to managed code
+//================================================================
+// This public function returns the wakeup reason to managed code or any
+// other caller. It returns a simple integer.
+// 0 = Wakeup reason not known
+// 1 = Wakeup time reached
+// 2 = GPIO interrupt caused wakeup
 int pwrmgmt_most_recent_wakeup_reason(void)
 {
   return (int)_wakeupReason;
