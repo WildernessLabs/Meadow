@@ -61,6 +61,11 @@
 #endif
 
 #if STM32F7_NGPIO < 6
+//
+//  This condition should not manifest itself so suppress the cppcheck message and 
+//  let the compiler deal with it if it does.
+//
+// cppcheck-suppress preprocessorErrorDirective
 #  error "Required GPIO ports not enabled"
 #endif
 
