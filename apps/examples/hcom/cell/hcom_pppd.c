@@ -671,6 +671,10 @@ int meadow_cell_scanner(char *response)
       hcom_logging_syslog(LOG_INFO, "%s-%d-AT commands output: %s\n", thisFile, __LINE__, response);
     }
   }
+  else
+  {
+    ret = -ENOMEM;
+  }
 
   meadow_os_config_free_resources(config);
   free(offline_scanner_script);

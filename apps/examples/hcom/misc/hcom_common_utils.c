@@ -131,7 +131,7 @@ int hcom_common_utils_snprintf_chk(FAR char *buf, size_t size, char *fileName, i
 
 //===================================================================
 // Erase the DNS resolver file, a.k.a. dns.conf file. 
-void hcom_common_utils_erase_dns_resolver_file()
+void hcom_common_utils_erase_dns_resolver_file(void)
 {
     // Open the file in write mode
     FILE *dns_file = fopen(CONFIG_NETDB_RESOLVCONF_PATH, "w");

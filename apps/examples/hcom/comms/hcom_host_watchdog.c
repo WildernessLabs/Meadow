@@ -149,7 +149,7 @@ void hcom_host_watchdog_cleanup_wdog_timeout()
   // Setting the download state to none allows future downloads.
   _dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
   
-  return ret;
+  // return ret;
 }
 
 //=================================================================

@@ -74,15 +74,15 @@ static void checknode(struct mm_allocnode_s *node)
 void mm_checkcorruption(FAR struct mm_heap_s *heap)
 {
   FAR struct mm_allocnode_s *node;
-  FAR struct mm_allocnode_s *prev;
-  size_t nodesize;
+  // FAR struct mm_allocnode_s *prev;
+  // size_t nodesize;
   int region;
 
   mm_takesemaphore(heap);
 
   for (region = 0; region < heap->mm_nregions; region++)
     {
-      prev = NULL;
+      // prev = NULL;
       for (node = heap->mm_heapstart[region];
            node < heap->mm_heapend[region];
            node = (FAR struct mm_allocnode_s *)((FAR char *)node + node->size))
