@@ -827,4 +827,10 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 // via a once / second syslog output message
 #define MEADOW_INCLUDE_IDLE_MONITOR_TESTS_IN_BUILD    0
 
+// Build test code for rotary encoder
+#define MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER        1
+
+// TEMPORARY FOR TESTING
+void rotary_encoder_test_exercise_test(void);
+
 #endif  // __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H
