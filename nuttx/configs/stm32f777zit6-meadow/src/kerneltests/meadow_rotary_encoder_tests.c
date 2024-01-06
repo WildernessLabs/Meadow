@@ -47,7 +47,6 @@
 
 // Only build if configured
 #if defined(CONFIG_ROTARY_ENCODER_TESTS)
-
 #pragma message "(--) rotary_encoder_tests.c"
 
 #include "stm32_gpio.h"   // stm32_configgpio
@@ -77,10 +76,10 @@
 // Copied from meadow_interrupt.c
 enum GPIORotaryEncoderCfgType_e
 {
-  gpio_intrpt_cfg_type_rotenc_1a = 1,
-  gpio_intrpt_cfg_type_rotenc_1b = 2,
-  gpio_intrpt_cfg_type_rotenc_2a = 3,
-  gpio_intrpt_cfg_type_rotenc_2b = 4
+  gpio_intrpt_cfg_type_rotenc_1 = 1,
+  gpio_intrpt_cfg_type_rotenc_2 = 2,
+  gpio_intrpt_cfg_type_rotenc_3 = 3,
+  gpio_intrpt_cfg_type_rotenc_4 = 4
 };
 
 /************************************************************************************
@@ -131,9 +130,11 @@ void rotary_encoder_test_exercise_test(void)
   stm32_configgpio(QUICK_MISC_PIN_V2_D06_INPUT);
 
   // For Prototype testing need to initialize 2 GPIOs as inputs
-  cfg->port = 1;              // port B (D05 in FeatherV2)
-  cfg->pin = 4;               // pin 4  (D05 in FeatherV2)
-  cfg->configType = gpio_intrpt_cfg_type_rotenc_1a;
+  cfg->portA = 1;              // port B (D05 in FeatherV2)
+  cfg->pinA = 4;               // pin 4  (D05 in FeatherV2)
+  cfg->portB = 1;              // port B (D06 in FeatherV2)
+  cfg->pinB = 13;              // pin 13  (D06 in FeatherV2)
+  cfg->configType = gpio_intrpt_cfg_type_rotenc_1;
   cfg->resistorMode = 2;      // 2 = pull down
 
   // Call meadow_rotenc.c configuration function used by managed code
@@ -143,10 +144,8 @@ void rotary_encoder_test_exercise_test(void)
     syslog(2, "Error:rotenc_config_interrupt returned ret:%d\n", ret);
   }
 
-  cfg->port = 1;              // port B (D06 in FeatherV2)
-  cfg->pin = 13;              // pin 13  (D06 in FeatherV2)
-  cfg->configType = gpio_intrpt_cfg_type_rotenc_1b;
-  cfg->resistorMode = 2;      // 2 = pull down
+  // cfg->configType = gpio_intrpt_cfg_type_rotenc_1;
+  // cfg->resistorMode = 2;      // 2 = pull down
 
   // Call meadow_rotenc.c configuration function used by managed code
   ret = rotenc_config_interrupt(cfg);

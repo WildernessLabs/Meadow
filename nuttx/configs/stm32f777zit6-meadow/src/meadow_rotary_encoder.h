@@ -50,9 +50,11 @@
 // Caller must populate this
 struct rotenc_gpio_config
 {
-  uint32_t port;                // 0 - 15 (A-K)
-  uint32_t pin;                 // 0 - 15
-  uint32_t configType;          // 0=remove, 1=new
+  uint32_t portA;                // 0 - 15 (A-K)
+  uint32_t pinA;                 // 0 - 15
+  uint32_t portB;                // 0 - 15 (A-K)
+  uint32_t pinB;                 // 0 - 15
+  uint32_t configType;          // 0=remove, 1-n=new
   uint32_t resistorMode;        // 0 = float, 1 = pull up, 2 = pull down
 };
 
