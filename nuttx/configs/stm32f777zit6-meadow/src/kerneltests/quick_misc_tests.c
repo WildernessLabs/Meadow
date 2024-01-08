@@ -39,6 +39,7 @@
 
 #include "../hcom_nx/hcom_nx_common.h"
 #include <meadow/hcom_shared_common.h>
+#include "meadow_rotary_encoder.h"
 
 // Only build if configured
 #if defined(CONFIG_QUICK_MISC_TESTS)
@@ -48,6 +49,7 @@
 // #define USE_MEADOW_DEBUG_HELPERS
 #undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
+
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/

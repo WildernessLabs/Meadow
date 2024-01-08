@@ -54,8 +54,8 @@
 #include "stm32_rcc.h"    // stm32_clockenable
 #include "up_arch.h"      // putreg32
 #include "nvic.h"         // NVIC access
-#include "meadow-upd.h"   // NEEDED UNTIL REPLACED WITH ROTENC TEST INFRASTRUCTURE
-#include "meadow_rotary_encoder.h"  // rotenc_config_interrupt(cfg);
+// #include "meadow-upd.h"   // NEEDED UNTIL REPLACED WITH ROTENC TEST INFRASTRUCTURE
+#include "meadow_rotary_encoder.h" 
 
 // Diagnostic always as this is test code
 // #define USE_MEADOW_DEBUG_HELPERS
@@ -74,13 +74,6 @@
  * Private Data
  ************************************************************************************/
 // Copied from meadow_interrupt.c
-enum GPIORotaryEncoderCfgType_e
-{
-  gpio_intrpt_cfg_type_rotenc_1 = 1,
-  gpio_intrpt_cfg_type_rotenc_2 = 2,
-  gpio_intrpt_cfg_type_rotenc_3 = 3,
-  gpio_intrpt_cfg_type_rotenc_4 = 4
-};
 
 /************************************************************************************
  * Public Data
@@ -93,6 +86,7 @@ enum GPIORotaryEncoderCfgType_e
 /************************************************************************************
  * Public Functions
  ************************************************************************************/
+// IF ROTARY ENCODER HAS ITS OWN TESTS CREATED
 // // set developer -d ?? come here
 // void meadow_kt_rotary_encoder_tests(uint32_t userData)
 // {
@@ -115,7 +109,7 @@ enum GPIORotaryEncoderCfgType_e
  ************************************************************************************/
 
 //==================================================================
-// Well public for now
+
 // Rotary Encoder PROTOTYPE testing
 void rotary_encoder_test_exercise_test(void)
 {
@@ -130,29 +124,20 @@ void rotary_encoder_test_exercise_test(void)
   stm32_configgpio(QUICK_MISC_PIN_V2_D06_INPUT);
 
   // For Prototype testing need to initialize 2 GPIOs as inputs
-  cfg->portA = 1;              // port B (D05 in FeatherV2)
-  cfg->pinA = 4;               // pin 4  (D05 in FeatherV2)
-  cfg->portB = 1;              // port B (D06 in FeatherV2)
-  cfg->pinB = 13;              // pin 13  (D06 in FeatherV2)
-  cfg->configType = gpio_intrpt_cfg_type_rotenc_1;
-  cfg->resistorMode = 2;      // 2 = pull down
+  cfg->portA = 1;           // port B (D05 in FeatherV2)
+  cfg->pinA = 4;            // pin 4  (D05 in FeatherV2)
+  cfg->portB = 1;           // port B (D06 in FeatherV2)
+  cfg->pinB = 13;           // pin 13  (D06 in FeatherV2)
+  cfg->rotencConfig = true; // New rotary encoder
+  cfg->resistorMode = 2;    // 2 = pull down
 
   // Call meadow_rotenc.c configuration function used by managed code
-  ret = rotenc_config_interrupt(cfg);
+  ret = meadow_config_rotary_encoder(cfg);
   if(ret < 0)
   {
-    syslog(2, "Error:rotenc_config_interrupt returned ret:%d\n", ret);
+    syslog(2, "Error:meadow_config_rotary_encoder returned ret:%d\n", ret);
   }
 
-  // cfg->configType = gpio_intrpt_cfg_type_rotenc_1;
-  // cfg->resistorMode = 2;      // 2 = pull down
-
-  // Call meadow_rotenc.c configuration function used by managed code
-  ret = rotenc_config_interrupt(cfg);
-  if(ret < 0)
-  {
-    syslog(2, "Error:rotenc_config_interrupt returned ret:%d\n", ret);
-  }
   free (cfg);
 }
 

@@ -73,59 +73,19 @@
 
 //============================================================
 // Set == 0 to disable diagnostic output via syslog
-// Set == 1 for I/O and config diagnostic output
-// Set == 2 or > to output all diagnostic output
+// Set == 1 to enable some syslog output in build
 #define MEADOW_ROTENC_INCLUDE_DIAGNOSTIC_SYSLOG (0)
 
-// Defines the maximum number of gpios that can be monitored.
-// Since the F7 + Nuttx only have 16-interrupt groups there's no point in
-// having more that 8 retary encoders connected
+// Defines the maximum number of encoders that can be monitored.
+// Since the F7 + Nuttx only have 16-interrupt groups there's no point
+// in having more that 8 rotary encoders
 #define MEADOW_ROTARY_ENCODERS_MAX_SUPPORTED (8)
-
-// FOR ROTARY ENCODER SPEED WILL NEED A TIMER UNLESS SOMEOTHER SCHEME IS USED
-// THE TIMER CODE IS COPIED FROM 
-// Timer 13 isn't much used in Meadow
-// #define MEADOW_ROTENC_STM32F7_TIMER_NUMBER (13)
-
-// Prescaler is be between 0 and 0xffff. A prescaler value of 0 to will
-// not divide the input clock and a prescaler value of 1 will divide
-// the clock by 2 etc.
-// Timer 7's input clock is 96 MHz (1/2 of the STM32_SYSCLK_FREQUENCY speed).
-// (prescaler + 1) * (auto reload register + 1) = TimerClock / frequency.
-// The following values will give us a timer overflow interrupt every 0.1
-// millisecond, which is the desired frequency
-// #define MEADOW_ROTENC_RUNNING_PSC (959)
-// #define MEADOW_ROTENC_RUNNING_ARR (9)
-
-#if CONFIG_USEC_PER_TICK == 1000
-#define MEADOW_ROTENC_TICK_MILLISEC_FACTOR (10)
-#else
-#define MEADOW_ROTENC_TICK_MILLISEC_FACTOR (1)
-#endif
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
 static bool _firstTimeConfig = true;
-// static struct stm32_tim_dev_s *_periodicTimer;
-
-enum RequestedInterruptMode_e
-{
-  rqstdintmode_none,
-  rqstdintmode_rising,
-  rqstdintmode_falling,
-  rqstdintmode_both
-};
-
-enum GPIOInterruptCfgType_e
-{
-  gpio_intrpt_cfg_type_remove   = 0,
-  gpio_intrpt_cfg_type_rotenc_1 = 1,
-  gpio_intrpt_cfg_type_rotenc_2 = 2,
-  gpio_intrpt_cfg_type_rotenc_3 = 3,
-  gpio_intrpt_cfg_type_rotenc_4 = 4
-};
 
 // All F7 possible input data registers addresses, used for ISR access to GPIO
 // state value.
@@ -362,93 +322,12 @@ static int rotenc_free_config_in_allocation_list(uint8_t pinId)
   return -ENODATA;
 }
 
-//=============================================================================
-// Timer setup is here. This should only be called once to prepare timer for
-// for periodic operation.
-// Note: Timers 6 & 7 are Basic Timers. Timer 6 can be used to measure CPU idle
-// time and Timer 7 is used here. Since neither timer has any GPIO this means
-// other timers can be used for GPIO related work.
-// static int rotenc_config_interrupt_prep_timer(int stm32_timer_numb)
-// {
-//   // int ret;
-  
-//   // Setup the clock enable
-//   modifyreg32(STM32_RCC_APB1ENR, 0, RCC_APB1ENR_TIM7EN);
-  
-//   // Set prescaler and auto reload register to determine timer interrupt period
-//   putreg16(MEADOW_ROTENC_RUNNING_PSC, STM32_TIM7_BASE + STM32_BTIM_PSC_OFFSET);
-//   putreg16(MEADOW_ROTENC_RUNNING_ARR, STM32_TIM7_BASE + STM32_BTIM_ARR_OFFSET);
-
-//   uint16_t regval = getreg16(STM32_TIM7_BASE + STM32_BTIM_CR1_OFFSET);
-//   regval |= BTIM_CR1_ARPE;    // Auto Reload Pre-Load enable bit
-//   putreg16(regval, STM32_TIM7_BASE + STM32_BTIM_CR1_OFFSET);
-
-//   // Timer 7 only supports UIE interrupt
-//   putreg16(BTIM_DIER_UIE, STM32_TIM7_BASE + STM32_BTIM_DIER_OFFSET);
-
-//   // The ISR for periodic interupt for timing, will roll-over every 65536
-//   // counts.
-// // REMOVED SO IT WOULD BUILD
-// //   ret = irq_attach(STM32_IRQ_TIM7, mint_isr_periodic, NULL);
-// //   if(ret < 0)
-// //   {
-// //     syslog(LOG_ERR, "%s@%d-irq_attach failed, ret:%d, errno:%d\n",
-// //           __FILE__, __LINE__, ret, errno);
-// //     return ret;
-// //   }
-
-//   // Clear interrupt bit
-//   uint16_t timStatusReg = getreg16(STM32_TIM7_BASE + STM32_GTIM_SR_OFFSET);
-//   timStatusReg &= ~BTIM_SR_UIF;
-//   putreg16(timStatusReg, STM32_TIM7_BASE + STM32_GTIM_SR_OFFSET);
-
-//   up_enable_irq(STM32_IRQ_TIM7);
-
-//   meadow_rotenc_timer_enable(STM32_TIM7_BASE);
-
-//   return OK;
-// }
-
-//=============================================================
-// Enables the timer
-// void meadow_rotenc_timer_enable(uint32_t timerBase)
-// {
-//   // Why this order? tryed to copy the NUTTX order
-//   uint16_t cr1Val = getreg16(timerBase + STM32_GTIM_CR1_OFFSET);
-//   cr1Val |= GTIM_CR1_CEN;
-  
-//   uint16_t egrVal = getreg16(timerBase + STM32_GTIM_EGR_OFFSET);
-//   egrVal |= GTIM_EGR_UG;
-
-//   putreg16(egrVal, timerBase + STM32_GTIM_EGR_OFFSET);
-
-//   putreg16(cr1Val, timerBase + STM32_GTIM_CR1_OFFSET);
-// }
-
-// NOT USED YET
-// //=====================================================================
-// // Setting the Counter Enable bit
-// static void rotenc_turn_periodic_timer_on(void)
-// {
-//   uint16_t cr1Val = getreg16(STM32_TIM7_BASE + STM32_BTIM_CR1_OFFSET);
-//   cr1Val |= BTIM_CR1_CEN;   // counter enable
-//   putreg16(cr1Val, STM32_TIM7_BASE + STM32_BTIM_CR1_OFFSET);
-// }
-
-// //=====================================================================
-// static void rotenc_turn_periodic_timer_off(void)
-// {
-//   uint16_t cr1Val = getreg16(STM32_TIM7_BASE + STM32_BTIM_CR1_OFFSET);
-//   cr1Val &= ~BTIM_CR1_CEN;   // counter enable
-//   putreg16(cr1Val, STM32_TIM7_BASE + STM32_BTIM_CR1_OFFSET);
-// }
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 // Called from meadow-upd.c to configure or remove a gpio for monitoring
 // CALLED TWICE ONCE FOR EACH PIN A & B
-int rotenc_config_interrupt(struct rotenc_config_parms* cfg)
+int meadow_config_rotary_encoder(struct rotenc_config_parms* cfg)
 {
   int ret = OK;
   int i;
@@ -457,7 +336,7 @@ int rotenc_config_interrupt(struct rotenc_config_parms* cfg)
   uint8_t pinDesignationA = cfg->portA << 4 | cfg->pinA;
   uint8_t pinDesignationB = cfg->portB << 4 | cfg->pinB;
 
-  syslog(1, "Entered rotenc_config_interrupt\n");
+  syslog(1, "Entered meadow_config_rotary_encoder\n");
 
   if(_firstTimeConfig)
   {
@@ -483,14 +362,6 @@ int rotenc_config_interrupt(struct rotenc_config_parms* cfg)
     // DEBUG_SET_LOW(DEBUG_PIN_V2_A3);
     // DEBUG_SET_LOW(DEBUG_PIN_V2_A4);
     // DEBUG_SET_LOW(DEBUG_PIN_V2_A5);
-
-    // // Setup the timer once, the first time
-    // ret = rotenc_config_interrupt_prep_timer(MEADOW_ROTENC_STM32F7_TIMER_NUMBER);
-    // if(ret < 0)
-    // {
-    //   syslog(LOG_ERR, "rotenc(cfg)-rotenc_config_interrupt_prep_timer failed, ret:%d\n", ret);
-    //   return ret;
-    // }
   }
   
   // Initialize all elements
@@ -557,13 +428,13 @@ int rotenc_config_interrupt(struct rotenc_config_parms* cfg)
 
 #if MEADOW_ROTENC_INCLUDE_DIAGNOSTIC_SYSLOG > 0
   syslog(LOG_INFO, "rotenc(cfg)- 0x%02x (P%c%d)-Cfg cfgset:0x%08x\n",
-            rotaryEncoderAddr->PinId,
-            ((rotaryEncoderAddr->PinId) >> 4) + 'A', rotaryEncoderAddr->PinId & 0x0f,
+            rotaryEncoderAddr->PinInfoA,
+            ((rotaryEncoderAddr->PinInfoA) >> 4) + 'A',
+            rotaryEncoderAddr->PinInfoA & 0x0f,
             cfgset);
 #endif
 
-  // Tell Nuttx about interrupt parameters
-  if(cfg->configType == gpio_intrpt_cfg_type_remove)
+  if(cfg->rotencConfig == false)
   {
     ret = rotenc_config_interrupt_remove(cfg, rotaryEncoderAddr);
     return ret;
@@ -576,8 +447,8 @@ int rotenc_config_interrupt(struct rotenc_config_parms* cfg)
   1,                            // risingEdge,
   1,                            // fallingEdge,
   0,                            // event
-  rotenc_gpio_rot_enc_isr_a,      // ISR A
-  rotaryEncoderAddr);              // Encoder information address
+  rotenc_gpio_rot_enc_isr_a,    // ISR A
+  rotaryEncoderAddr);           // Encoder information address
 
   rotaryEncoderAddr->cfgIsRotEncA = false;
   ret = stm32_gpiosetevent(
@@ -585,8 +456,8 @@ int rotenc_config_interrupt(struct rotenc_config_parms* cfg)
   1,                            // risingEdge,
   1,                            // fallingEdge,
   0,                            // event
-  rotenc_gpio_rot_enc_isr_b,      // ISR B
-  rotaryEncoderAddr);              // Encoder information address
+  rotenc_gpio_rot_enc_isr_b,    // ISR B
+  rotaryEncoderAddr);           // Encoder information address
 
   return ret;
 }
@@ -597,25 +468,27 @@ int rotenc_config_interrupt_remove(struct rotenc_config_parms* cfg,
           rotaryEncoderInfo_t *rotaryEncoderAddr)
 {
   int ret;
+  uint8_t PinInfoA = rotaryEncoderAddr->PinInfoA;
+  uint8_t PinInfoB = rotaryEncoderAddr->PinInfoB;
 
   // Disable - remove a GPIO from being monitored
 #if MEADOW_ROTENC_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-  syslog(LOG_INFO, "rotenc(cfg)-0x%02x (P%c%d)--Removing GPIO\n", rotaryEncoderAddr->PinId,
-              ((rotaryEncoderAddr->PinId) >> 4) + 'A', rotaryEncoderAddr->PinId & 0x0f);
+  syslog(LOG_INFO, "P%c%d--Removing associated rotary encoder\n",
+            (PinInfoA >> 4) + 'A', PinInfoA & 0x0f);
 #endif
 
-  // Tell Nuttx to forget about these interrupts
-  ret = stm32_gpiosetevent(rotaryEncoderAddr->PinInfoA, 0, 0, 0, NULL, NULL);
-  ret = stm32_gpiosetevent(rotaryEncoderAddr->PinInfoB, 0, 0, 0, NULL, NULL);
-
-  // This call will free the memory allocated
+  // This call will insure at least Pin A is correct and free allocated
+  // memory
   ret = rotenc_free_config_in_allocation_list(rotaryEncoderAddr->PinInfoA);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-rotenc_free_gpio_in_allocation_list returned, ret:%d\n",
               __FILE__, __LINE__, ret);
-    // Reported error might as well finish removing GPIO
   }
+
+  // Tell Nuttx to forget about these interrupts
+  ret = stm32_gpiosetevent(PinInfoA, 0, 0, 0, NULL, NULL);
+  ret = stm32_gpiosetevent(PinInfoB, 0, 0, 0, NULL, NULL);
 
   free(rotaryEncoderAddr);
   return ret;

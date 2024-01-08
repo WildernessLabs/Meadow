@@ -50,19 +50,18 @@
 // Caller must populate this
 struct rotenc_config_parms
 {
-  uint32_t portA;                // 0 - 15 (A-K)
-  uint32_t pinA;                 // 0 - 15
-  uint32_t portB;                // 0 - 15 (A-K)
-  uint32_t pinB;                 // 0 - 15
-  uint32_t configType;          // 0=remove, 1-new
-  uint32_t resistorMode;        // 0 = float, 1 = pull up, 2 = pull down
+  uint32_t portA;             // 0 - 15 (A-K)
+  uint32_t pinA;              // 0 - 15
+  uint32_t portB;             // 0 - 15 (A-K)
+  uint32_t pinB;              // 0 - 15
+  bool rotencConfig;          // true=add, false=remove
+  uint32_t resistorMode;      // 0 = float, 1 = pull up, 2 = pull down
 };
 
-int rotenc_config_interrupt(struct rotenc_config_parms* rotencCfg);
+int meadow_config_rotary_encoder(struct rotenc_config_parms* rotencCfg);
 
-// DEFINE HERE UNTIL ROTARY ENCODER INFRASTRUCTOR IS COMPLETE
-// THIS ALLOWS quick_misc_tests to call into rotenc test to execute the test.
-void quick_misc_test_exercise_rotary_encoder_test(void);
+// Test function follow
+void rotary_encoder_test_exercise_test(void);
 
 #endif      // #if MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER > 0
 
