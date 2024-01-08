@@ -48,17 +48,17 @@
 #include "stm32_gpio.h"   // stm32_configgpio
 
 // Caller must populate this
-struct rotenc_gpio_config
+struct rotenc_config_parms
 {
   uint32_t portA;                // 0 - 15 (A-K)
   uint32_t pinA;                 // 0 - 15
   uint32_t portB;                // 0 - 15 (A-K)
   uint32_t pinB;                 // 0 - 15
-  uint32_t configType;          // 0=remove, 1-n=new
+  uint32_t configType;          // 0=remove, 1-new
   uint32_t resistorMode;        // 0 = float, 1 = pull up, 2 = pull down
 };
 
-int rotenc_config_interrupt(struct rotenc_gpio_config* rotencCfg);
+int rotenc_config_interrupt(struct rotenc_config_parms* rotencCfg);
 
 // DEFINE HERE UNTIL ROTARY ENCODER INFRASTRUCTOR IS COMPLETE
 // THIS ALLOWS quick_misc_tests to call into rotenc test to execute the test.

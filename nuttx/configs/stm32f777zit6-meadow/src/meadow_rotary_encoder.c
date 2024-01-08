@@ -77,9 +77,10 @@
 // Set == 2 or > to output all diagnostic output
 #define MEADOW_ROTENC_INCLUDE_DIAGNOSTIC_SYSLOG (0)
 
-// Arbitrary, large value, defining the maximum number of gpios that can be
-// monitored.
-#define MEADOW_ROTENC_MAX_SUPPORTED_GPIOS (32)
+// Defines the maximum number of gpios that can be monitored.
+// Since the F7 + Nuttx only have 16-interrupt groups there's no point in
+// having more that 8 retary encoders connected
+#define MEADOW_ROTARY_ENCODERS_MAX_SUPPORTED (8)
 
 // FOR ROTARY ENCODER SPEED WILL NEED A TIMER UNLESS SOMEOTHER SCHEME IS USED
 // THE TIMER CODE IS COPIED FROM 
@@ -144,61 +145,44 @@ static uint32_t inputDataRegAddrs[] =
 };
 #define MEADOW_HW_INPUT_DATA_REGS_TOTAL (sizeof(inputDataRegAddrs) / sizeof(uint32_t))
 
-struct rotencGpioInfo
+struct rotaryEncoderInfo_s
 {
-  // Represents the CPU Pin identifier (e.g. PD9, D=3 so 39)
-  uint8_t PinIdA;              // Supplied by configuration
-  uint8_t PinIdB;              // Supplied by configuration
+  bool isBeingUsed;
 
-  // What is the configuration type for this?
-  // 0 = remove, 1 = new, 2 = low-power sleep wakeup
-  // uint8_t gpioUsage;         // Supplied by configuration
+  // Represents the CPU Pin identifier (e.g. PD9, D=3 so 39)
+  uint8_t PinInfoA;              // Supplied by configuration
+  uint8_t PinInfoB;              // Supplied by configuration
 
   // Address of correct "Input Data Register" which holds GPIO's hardware port
   // state bits
   uint32_t IDRAddressA;        // Calculated during configuration
   uint32_t IDRAddressB;        // Calculated during configuration
 
-  uint8_t cfgEncoderNumb;        // 1-n
+  // uint8_t cfgEncoderNumb;        // 1-n
   bool cfgIsRotEncA;             // Interrupt for GPIO A = true 
   uint32_t prevCondBits;
   uint32_t prevOff;
   int activeCnt;
 };
+typedef struct rotaryEncoderInfo_s rotaryEncoderInfo_t;
 
 // This is the list of the GPIOs currently being timed. The entries in this
 // list are very short lived, begin added as soon as the GPIO ISR is called and
 // removed as soon as the glitch or debounce period has elapsed.
-// static struct rotencGpioInfo *_allGpiosBeingTimed[MEADOW_ROTENC_MAX_SUPPORTED_GPIOS];
-
-// This list keeps the address of all the allocated structures so they can be
-// removed when the GPIO is removed
-static struct rotencGpioInfo *_allRotaryEncodedGpios[MEADOW_ROTENC_MAX_SUPPORTED_GPIOS];
-
-// // Indicates the total number of GPIOs currently being timed.
-// static volatile int _allGpiosBeingTimedCnt = 0;
-
-// Incremented and decrementd during configuration to indicate how many GPIOs
-// need to be timed (only glitch and debounce GPIOs need to be timed).
-static volatile int _totalGpiosCanBeTimed = 0;
+static rotaryEncoderInfo_t *_allRotaryEncodersList[MEADOW_ROTARY_ENCODERS_MAX_SUPPORTED];
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-
-// static int rotenc_config_interrupt_prep_timer(int stm32_timer_numb);
-// static void meadow_rotenc_timer_enable(uint32_t timerBase);
-// static inline int rotenc_forward_interrupt_to_core(struct rotencGpioInfo *rotencInfoAddr, uint8_t state);
-static void rotenc_remove_from_timed_list_and_decr(struct rotencGpioInfo *rotencInfoAddr);
-static int rotenc_config_interrupt_remove(struct rotenc_gpio_config* cfg,
-          struct rotencGpioInfo *rotencInfoAddr);
 
 // Basic timers need to turn on/off the timer a different way 
 // NOT USED YET
 // static void rotenc_turn_periodic_timer_on(void);
 // static void rotenc_turn_periodic_timer_off(void);
 
-static bool rotenc_get_current_gpio_state(struct rotencGpioInfo *rotencInfoAddr, bool isPinA);
+static int rotenc_config_interrupt_remove(struct rotenc_config_parms* cfg,
+          rotaryEncoderInfo_t *rotaryEncoderAddr);
+// static bool rotenc_get_current_gpio_state(rotaryEncoderInfo_t *rotaryEncoderAddr, bool isPinA);
 
 // The rotary encoder has 2 inputs, called A and B. Because of its design
 // either A or B changes but not both when the encoder is rotated. This is
@@ -227,352 +211,155 @@ static int RotEncLookup[] =
  * Private Functions
  ****************************************************************************/
 
-static void FindDirection(struct rotencGpioInfo *rotencInfoAddr, uint32_t newCondBits, char *pinUpDown)
+// This finds the direction (CW or CCW) and adds/subtracts the count.
+static void LookupDir(rotaryEncoderInfo_t *rotaryEncoderAddr,
+          uint32_t newCondBits)
 {
-  char *newDirStr;
-  uint32_t prevOff = rotencInfoAddr->prevOff;
-
-  // Shift 2 LS bits from previous to MS
+  uint32_t prevOff = rotaryEncoderAddr->prevOff;
   prevOff <<= 2;           // Move previous A & B to bits 2 & 3
   prevOff |= newCondBits;  // Add the new A or B in bits 0 & 1
   prevOff &= 0x0000000f;   // Save only lowest 4 bits
-  
+  rotaryEncoderAddr->prevOff = prevOff;
+
   // Use the new state bits to lookup direction
   int newDir = RotEncLookup[prevOff];
-  rotencInfoAddr->prevOff = prevOff;
 
-  int activeCnt = rotencInfoAddr->activeCnt;
   switch (newDir)
   {
     case 0: // no change
     default:
       return;
-      // newDirStr = "-";
-      // break; // show output even for 0
 
     case 1: // CW
-      rotencInfoAddr->activeCnt++;
-      newDirStr = "^";
+      rotaryEncoderAddr->activeCnt++;
       break;
 
     case -1: // CCW
-      rotencInfoAddr->activeCnt--;
-      newDirStr = "v";
+      rotaryEncoderAddr->activeCnt--;
       break;
   }
 
-// if((_activeCnt1 % 9973) == 0)  // Only output text every x counts
-//   {
-    syslog(2, "%s-Total:%08d, %s\n",
-                    pinUpDown,
-                    rotencInfoAddr->activeCnt,
-                    newDirStr);
-//   }
+  // if((rotaryEncoderAddr->activeCnt % 9973) == 0)  // Only output text every x counts
+  // {
+    syslog(2, "Total:%08d\n", rotaryEncoderAddr->activeCnt);
+  // }
 }
 
-// //===========================================================================
-// // What is irq and context used for?
-// static int rotenc_gpio_rot_enc_isr(int irq, void *context, void *arg)
-// {
-//   char *pinUpDown;
-//   uint32_t newCondBits;
-//   bool gpioState;
-//   struct rotencGpioInfo *rotencInfoAddr = (struct rotencGpioInfo *)arg;
-
-//   if(rotencInfoAddr->cfgIsRotEncA)
-//   {
-//     newCondBits = (rotencInfoAddr->prevCondBits) & 0x02;   // Save previous B state
-//     gpioState = rotenc_get_current_gpio_state(rotencInfoAddr, true);
-//     if(gpioState)
-//     {
-//       pinUpDown = "a^";
-//       newCondBits |= 0x01;    // Set bit A
-//     }
-//     else
-//     {
-//       pinUpDown = "av";
-//     }
-//   }
-//   else
-//   {
-//     newCondBits = (rotencInfoAddr->prevCondBits) & 0x01;
-//     gpioState = rotenc_get_current_gpio_state(rotencInfoAddr, false);
-//     if(gpioState)
-//     {
-//       pinUpDown = "b^";
-//       newCondBits |= 0x02;    // Set bit B
-//     }
-//     else
-//     {
-//       pinUpDown = "bv";
-//     }
-//   }
-
-//   // Only saves 2 ls bits
-//   rotencInfoAddr->prevCondBits  = newCondBits;
-
-//   FindDirection(rotencInfoAddr, newCondBits, pinUpDown);
-//   return OK;
-// }
-
-
 //===========================================================================
+// Rotary encoder input A
 int rotenc_gpio_rot_enc_isr_a(int irq, void *context, void *arg)
 {
-  char *pinUpDown;
-  struct rotencGpioInfo *rotencInfoAddr = (struct rotencGpioInfo *)arg;
+  uint8_t pinNumb;
+  uint32_t idrRegister;
+  rotaryEncoderInfo_t *rotaryEncoderAddr = (rotaryEncoderInfo_t *)arg;
+   
+  // Get previous B state
+  uint32_t newCondBits = (rotaryEncoderAddr->prevCondBits) & 0x02;
 
-  uint32_t newCondBits = (rotencInfoAddr->prevCondBits) & 0x02;   // Save previous B state
-  bool gpioState = rotenc_get_current_gpio_state(rotencInfoAddr, true);
+  // Find the current GPIO state 
+  idrRegister = *((uint32_t *)(rotaryEncoderAddr->IDRAddressA));
+  pinNumb = rotaryEncoderAddr->PinInfoA & 0x0f;
+  bool gpioState = (idrRegister & (1 << pinNumb)) > 0 ? true : false;
+  
   if(gpioState)
   {
-    pinUpDown = "a^";
-    newCondBits |= 0x01;    // Set bit A
-  }
-  else
-  {
-    pinUpDown = "av";
+    newCondBits |= 0x01;    // Set bit A if high
   }
 
   // Only saves 2 ls bits
-  rotencInfoAddr->prevCondBits  = newCondBits;
+  rotaryEncoderAddr->prevCondBits  = newCondBits;
 
-  FindDirection(rotencInfoAddr, newCondBits, pinUpDown);
+  LookupDir(rotaryEncoderAddr, newCondBits);
   return OK;
 }
 
 // ===========================================================================
+// Rotary encoder input B
 int rotenc_gpio_rot_enc_isr_b(int irq, void *context, void *arg)
 {
-  char *pinUpDown;
-  struct rotencGpioInfo *rotencInfoAddr = (struct rotencGpioInfo *)arg;
+  uint8_t pinNumb;
+  uint32_t idrRegister;
+  
+  rotaryEncoderInfo_t *rotaryEncoderAddr = (rotaryEncoderInfo_t *)arg;
 
-  uint32_t newCondBits = (rotencInfoAddr->prevCondBits) & 0x01;
-  bool gpioState = rotenc_get_current_gpio_state(rotencInfoAddr, false);
+  // Get previous A state
+  uint32_t newCondBits = (rotaryEncoderAddr->prevCondBits) & 0x01;
+
+  // Find the current GPIO state 
+  idrRegister = *((uint32_t *)(rotaryEncoderAddr->IDRAddressB));
+  pinNumb = rotaryEncoderAddr->PinInfoB & 0x0f;
+  bool gpioState =  (idrRegister & (1 << pinNumb)) > 0 ? true : false;
   if(gpioState)
   {
-    pinUpDown = "b^";
     newCondBits |= 0x02;    // Set bit B
   }
-  else
-  {
-    pinUpDown = "bv";
-  }
-  
-  // Only saves 2 ls bits
-  rotencInfoAddr->prevCondBits  = newCondBits;
 
-  FindDirection(rotencInfoAddr, newCondBits, pinUpDown);
+  // Only saves 2 ls bits
+  rotaryEncoderAddr->prevCondBits  = newCondBits;
+
+  LookupDir(rotaryEncoderAddr, newCondBits);
   return OK;
 }
 
-// static void FindDirection1(uint32_t newStateBits, char *pinUpDown)
-// {
-//   // Move 2 LS bits from previous to MS
-//   _prevOff1 <<= 2;           // Move previous A & B to bits 2 & 3
-//   _prevOff1 |= newStateBits; // Add the new A or B in bits 0 & 1
-//   _prevOff1 &= 0x0000000f;   // Save only lowest 4 bits
-
-//   // Use the new state bits to lookup direction
-//   int newDir = RotEncLookup[_prevOff1];
-//   switch (newDir)
-//   {
-//     case 0: // no change
-//     default:
-//       return;
-
-//     case 1: // CW
-//       _activeCnt1++;
-//       break;
-
-//     case -1: // CCW
-//       _activeCnt1--;
-//      break;
-//   }
-
-// if((_activeCnt1 % 9973) == 0)  // Only output text every x counts
-//   {
-    // syslog(2, "%s-(+1) Total:%08d, %s\n",
-    //                 pinUpDown, _activeCnt1, newDir == 1 ? " CW" : "CCW");
-//   }
-// }
-
-// // These ISRs the 2 inputs from the rotary encoders
-// int rotenc_gpio_rot_enc_isr_1a(int irq, void *context, void *arg)
-// {
-//   char *pinUpDown;
-//   struct rotencGpioInfo *rotencInfoAddr = (struct rotencGpioInfo *)arg;
-
-//   // Clear bit A, keep bit B
-//   uint32_t newCondBits = _prevState1 & 0x02;   // Save previous B state
-
-//   // GPIO now high?
-//   if (rotenc_get_current_gpio_state(rotencInfoAddr))
-//   {
-//     pinUpDown = "a^";
-//     newCondBits |= 0x01;    // Set bit A
-//   }
-//   else
-//   {
-//     pinUpDown = "av";
-//   }
-
-//   FindDirection1(newCondBits, pinUpDown);
-//   return OK;
-// }
-
-// //===========================================================================
-// int rotenc_gpio_rot_enc_isr_1b(int irq, void *context, void *arg)
-// {
-//   char *pinUpDown;
-//   struct rotencGpioInfo *rotencInfoAddr = (struct rotencGpioInfo *)arg;
-
-//   // Clear bit B bit, keep bit A
-//   uint32_t newBBit = _prevState1 & 0x01;   // Save previous A state
-
-//   // GPIO now high?
-//   if (rotenc_get_current_gpio_state(rotencInfoAddr))
-//   {
-//     pinUpDown = "b^";
-//     newBBit |= 0x02;              // Set bit B
-//   }
-//   else
-//   {
-//     pinUpDown = "bv";
-//   }
-
-//   FindDirection1(newBBit, pinUpDown);
-//   return OK;
-// }
-
 // //===============================================================
-// // Forward interrupt info to Meadow.Core
-// int rotenc_forward_interrupt_to_core(struct rotencGpioInfo *rotencInfoAddr, uint8_t state)
+// // Read the pin that generated this interrupt. This assumes the pin's state
+// // has not changed since the interrupt was generated.
+// bool rotenc_get_current_gpio_state(rotaryEncoderInfo_t *rotaryEncoderAddr, bool isPinA)
 // {
-//   int ret;
-//   extern mqd_t s_int_queue;
-  
-//   // Timing must be finished
-//   DEBUG_SET_LOW(DEBUG_PIN_V2_A3);
+//   uint8_t pinNumb;
+//   uint32_t idrRegister;
 
-//   // Forward to Meadow.Core
-//   char queue_buffer[MINT_MSG_QUEUE_MSG_SIZE];
-//   queue_buffer[0] = rotencInfoAddr->PinId;
-//   queue_buffer[1] = state;
-
-//   // This message queue is opened in
-//   // /Meadow/nuttx/configs/stm32f777zit6-meadow/src/meadow-upd.c when the upd
-//   // is opened
-//   ret = mq_send(s_int_queue, queue_buffer, MINT_MSG_QUEUE_MSG_SIZE, 0);
-//   if(ret < 0)
+//   if(isPinA)
 //   {
-//     if(errno == ENOMEM)
-//     {
-//       syslog(LOG_ERR, "0x%02x Queue overflow (too fast?)\n", rotencInfoAddr->PinId);
-//     }
-//     else
-//     {
-//       syslog(LOG_ERR, "%s@%d-0x%02x mq_send failed:%d, errno:%d\n", __FILE__, __LINE__, 
-//           rotencInfoAddr->PinId, ret, get_errno());
-//     }
+//     pinNumb = rotaryEncoderAddr->PinInfoA & 0x0f;
+//     idrRegister = *((uint32_t *)(rotaryEncoderAddr->IDRAddressA));
 //   }
-
-//   return ret;
+//   else
+//   {
+//     pinNumb = rotaryEncoderAddr->PinInfoB & 0x0f;
+//     idrRegister = *((uint32_t *)(rotaryEncoderAddr->IDRAddressB));
+//   }
+//   return (idrRegister & (1 << pinNumb)) > 0 ? true : false;
 // }
 
 //===============================================================
-bool rotenc_get_current_gpio_state(struct rotencGpioInfo *rotencInfoAddr, bool isPinA)
+// We need to save the address of all allocated memory so it can be freed
+// when the GPIO is removed.
+static int rotenc_add_new_config_to_allocation_list(
+            rotaryEncoderInfo_t *rotaryEncoderAddr)
 {
-  uint8_t pinNumb;
-  uint32_t idrRegisterValues;
-
-  if(isPinA)
+  for(int i = 0; i < MEADOW_ROTARY_ENCODERS_MAX_SUPPORTED; i++)
   {
-    pinNumb = rotencInfoAddr->PinIdA & 0x0f;
-    idrRegisterValues = *((uint32_t *)(rotencInfoAddr->IDRAddressA));
+    // Find unused slot
+    if(_allRotaryEncodersList[i] == NULL)
+    {
+      _allRotaryEncodersList[i] = rotaryEncoderAddr;
+      return OK;
+    }
   }
-  else
-  {
-    pinNumb = rotencInfoAddr->PinIdB & 0x0f;
-    idrRegisterValues = *((uint32_t *)(rotencInfoAddr->IDRAddressB));
-  }
-  return (idrRegisterValues & (1 << pinNumb)) > 0 ? true : false;
+  return -ENOSPC;   // No space
 }
-
-// //===============================================================
-// // We need to save the address of all allocated memory so it can be freed
-// // when the GPIO is removed.
-// static int rotenc_add_new_gpio_to_allocation_list(
-//             struct rotencGpioInfo *rotencInfoAddr)
-// {
-//   for(int i = 0; i < MEADOW_ROTENC_MAX_SUPPORTED_GPIOS; i++)
-//   {
-//     // Find unused slot
-//     if(_allRotaryEncodedGpios[i] == NULL)
-//     {
-//       _allRotaryEncodedGpios[i] = rotencInfoAddr;
-//       return OK;
-//     }
-//   }
-//   return -ENOSPC;   // No space
-// }
 
 //===============================================================
 // When removing a GPIO we must find it's memory so it can be freed
-static int rotenc_free_gpio_in_allocation_list(uint8_t pinId)
+static int rotenc_free_config_in_allocation_list(uint8_t pinId)
 {
-  for(int i = 0; i < MEADOW_ROTENC_MAX_SUPPORTED_GPIOS; i++)
+  for(int i = 0; i < MEADOW_ROTARY_ENCODERS_MAX_SUPPORTED; i++)
   {
     // If NULL continue
-    if(_allRotaryEncodedGpios[i] == NULL)
+    if(_allRotaryEncodersList[i] == NULL)
       continue;
 
-    // Match the allocation
-    // (--) THIS IS WRONG! A or B
-    if(_allRotaryEncodedGpios[i]->PinIdA == pinId)
+    // Match the allocation. Matching 1 GPIO should be good enough
+    if(_allRotaryEncodersList[i]->PinInfoA == pinId)
     {
-      free(_allRotaryEncodedGpios[i]);
-      _allRotaryEncodedGpios[i] = NULL;
+      free(_allRotaryEncodersList[i]);
+      _allRotaryEncodersList[i] = NULL;
       return OK;
     }
   }
 
   return -ENODATA;
-}
-
-//===============================================================
-// Removes from the timer isr
-void rotenc_remove_from_timed_list_and_decr(struct rotencGpioInfo *rotencInfoAddr)
-{
-//   int activeOffset;
-
-  // Find the entry specified
-//   for(activeOffset = 0; activeOffset < MEADOW_ROTENC_MAX_SUPPORTED_GPIOS; activeOffset++)
-//   {
-//     if(_allGpiosBeingTimed[activeOffset] == rotencInfoAddr)
-//       break;
-//   }
-
-  // Was the item in the list?
-//   if(activeOffset == MEADOW_ROTENC_MAX_SUPPORTED_GPIOS)
-//     return;  // Not found
-
-//   // Keep tally of entries
-//   _allGpiosBeingTimedCnt--;
-
-  // Is this the only entry?
-//   if(activeOffset == _allGpiosBeingTimedCnt)
-//   {
-//     // Remove the last entry in the array
-//     _allGpiosBeingTimed[activeOffset] = NULL;
-//     return;
-//   }
- 
-  // Compress the list by moving the last entry in the list to the slot we
-  // are about to remove and then clearing the last slot.
-//   _allGpiosBeingTimed[activeOffset] = _allGpiosBeingTimed[_allGpiosBeingTimedCnt];
-//   _allGpiosBeingTimed[_allGpiosBeingTimedCnt] = NULL;
-  return;
 }
 
 //=============================================================================
@@ -661,11 +448,12 @@ void rotenc_remove_from_timed_list_and_decr(struct rotencGpioInfo *rotencInfoAdd
  ****************************************************************************/
 // Called from meadow-upd.c to configure or remove a gpio for monitoring
 // CALLED TWICE ONCE FOR EACH PIN A & B
-int rotenc_config_interrupt(struct rotenc_gpio_config* cfg)
+int rotenc_config_interrupt(struct rotenc_config_parms* cfg)
 {
   int ret = OK;
+  int i;
 
-  struct rotencGpioInfo *rotencInfoAddr;
+  rotaryEncoderInfo_t *rotaryEncoderAddr;
   uint8_t pinDesignationA = cfg->portA << 4 | cfg->pinA;
   uint8_t pinDesignationB = cfg->portB << 4 | cfg->pinB;
 
@@ -676,9 +464,10 @@ int rotenc_config_interrupt(struct rotenc_gpio_config* cfg)
     // _allGpiosBeingTimedCnt = 0;
     _firstTimeConfig = false;
 
-    for(int i = 0; i < MEADOW_ROTENC_MAX_SUPPORTED_GPIOS; i++)
+    // Empty list of all active rotary encoders
+    for(i = 0; i < MEADOW_ROTARY_ENCODERS_MAX_SUPPORTED; i++)
     {
-      _allRotaryEncodedGpios[i] = NULL;
+      _allRotaryEncodersList[i] = NULL;
     }
 
     // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_A0);    // True while in periodic isr
@@ -699,40 +488,44 @@ int rotenc_config_interrupt(struct rotenc_gpio_config* cfg)
     // ret = rotenc_config_interrupt_prep_timer(MEADOW_ROTENC_STM32F7_TIMER_NUMBER);
     // if(ret < 0)
     // {
-    //   syslog(LOG_ERR, "mint-(cfg)-rotenc_config_interrupt_prep_timer failed, ret:%d\n", ret);
+    //   syslog(LOG_ERR, "rotenc(cfg)-rotenc_config_interrupt_prep_timer failed, ret:%d\n", ret);
     //   return ret;
     // }
   }
-
-  // Allocate memory for this GPIO's configuration and data storage needs
-  rotencInfoAddr = (struct rotencGpioInfo *) zalloc(sizeof (struct rotencGpioInfo));
-  if(rotencInfoAddr == NULL)
+  
+  // Initialize all elements
+  for(i = 0; i < MEADOW_ROTARY_ENCODERS_MAX_SUPPORTED; i++)
   {
-    syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", __FILE__, __LINE__);
-    return -ENOMEM;
+    if(_allRotaryEncodersList[i] == NULL)
+      break;
+  }
+
+  if(i == MEADOW_ROTARY_ENCODERS_MAX_SUPPORTED)
+  {
+    // Handle error
   }
   
-  // We must set a few elements in the struct for this configuration
-  rotencInfoAddr->PinIdA = pinDesignationA;
-  rotencInfoAddr->PinIdB = pinDesignationB;
-  // rotencInfoAddr->prevCondBits = 0;
-  // rotencInfoAddr->prevOff = 0;
-  // rotencInfoAddr->activeCnt = 0;
+  rotaryEncoderAddr = zalloc(sizeof(rotaryEncoderInfo_t));
+  if(rotaryEncoderAddr == NULL)
+  {
+    // Handle error
+  }
 
-  // Find the correct offset for this GPIO
-  rotencInfoAddr->IDRAddressA = inputDataRegAddrs[cfg->portA];
-  rotencInfoAddr->IDRAddressB = inputDataRegAddrs[cfg->portB];
+  // Add allocated memory to array
+  ret = rotenc_add_new_config_to_allocation_list(rotaryEncoderAddr);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "No room for allocated memory, ret:%d\n", ret);
+    return ret;
+  }
 
-  // rotencInfoAddr->gpioUsage = cfg->configType;
+  // Save the 2 GPIO inputs. These will be used to identify this encoder when deleted
+  rotaryEncoderAddr->PinInfoA = pinDesignationA;
+  rotaryEncoderAddr->PinInfoB = pinDesignationB;
 
-  // Save the allocated memory so it can be freed when/if GPIO interrupt is
-  // disposed of.
-  // ret = rotenc_add_new_gpio_to_allocation_list(rotencInfoAddr);
-  // if(ret < 0)
-  // {
-  //   syslog(LOG_ERR, "mint-(cfg)-rotenc_add_new_gpio_to_allocation_list, ret:%d\n", ret);
-  //   return ret;
-  // }
+  // Find the correct offset for both GPIOs
+  rotaryEncoderAddr->IDRAddressA = inputDataRegAddrs[cfg->portA];
+  rotaryEncoderAddr->IDRAddressB = inputDataRegAddrs[cfg->portB];
 
   // cfgset contains 20-bits of data. It is required by the Nuttx stm32_gpiosetevent
   // function. If the 20 bits of data are not correct, this Nuttx function will
@@ -763,80 +556,60 @@ int rotenc_config_interrupt(struct rotenc_gpio_config* cfg)
   }
 
 #if MEADOW_ROTENC_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-  syslog(LOG_INFO, "mint-(cfg)- 0x%02x (P%c%d)-Cfg cfgset:0x%08x\n",
-            rotencInfoAddr->PinId,
-            ((rotencInfoAddr->PinId) >> 4) + 'A', rotencInfoAddr->PinId & 0x0f,
+  syslog(LOG_INFO, "rotenc(cfg)- 0x%02x (P%c%d)-Cfg cfgset:0x%08x\n",
+            rotaryEncoderAddr->PinId,
+            ((rotaryEncoderAddr->PinId) >> 4) + 'A', rotaryEncoderAddr->PinId & 0x0f,
             cfgset);
 #endif
 
   // Tell Nuttx about interrupt parameters
-#if MEADOW_ROTENC_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-  syslog(LOG_INFO, "mint-(cfg)-0x%02x (P%c%d)--Config Glitch\n", rotencInfoAddr->PinId,
-              ((rotencInfoAddr->PinId) >> 4) + 'A', rotencInfoAddr->PinId & 0x0f);
-#endif
-
-  switch (cfg->configType)
+  if(cfg->configType == gpio_intrpt_cfg_type_remove)
   {
-  case gpio_intrpt_cfg_type_remove:
-    ret = rotenc_config_interrupt_remove(cfg, rotencInfoAddr);
-    break;
-
-  case gpio_intrpt_cfg_type_rotenc_1:
-    rotencInfoAddr->cfgEncoderNumb = 1;
-    break;
-
-  case gpio_intrpt_cfg_type_rotenc_2:
-    rotencInfoAddr->cfgEncoderNumb = 2;
-    break;
-
-  default:
-    break;
+    ret = rotenc_config_interrupt_remove(cfg, rotaryEncoderAddr);
+    return ret;
   }
 
   // Setup both input points to trigger isr
-  rotencInfoAddr->cfgIsRotEncA = true;
+  rotaryEncoderAddr->cfgIsRotEncA = true;
   ret = stm32_gpiosetevent(
   cfgsetA,                      // Nuttx cfgset
   1,                            // risingEdge,
   1,                            // fallingEdge,
   0,                            // event
   rotenc_gpio_rot_enc_isr_a,      // ISR A
-  rotencInfoAddr);              // Encoder information address
+  rotaryEncoderAddr);              // Encoder information address
 
-  rotencInfoAddr->cfgIsRotEncA = false;
+  rotaryEncoderAddr->cfgIsRotEncA = false;
   ret = stm32_gpiosetevent(
   cfgsetB,                      // Nuttx cfgset
   1,                            // risingEdge,
   1,                            // fallingEdge,
   0,                            // event
   rotenc_gpio_rot_enc_isr_b,      // ISR B
-  rotencInfoAddr);              // Encoder information address
+  rotaryEncoderAddr);              // Encoder information address
 
   return ret;
 }
 
 //========================================================================
 // Remove an existing interrupt entry
-int rotenc_config_interrupt_remove(struct rotenc_gpio_config* cfg,
-          struct rotencGpioInfo *rotencInfoAddr)
+int rotenc_config_interrupt_remove(struct rotenc_config_parms* cfg,
+          rotaryEncoderInfo_t *rotaryEncoderAddr)
 {
   int ret;
 
   // Disable - remove a GPIO from being monitored
 #if MEADOW_ROTENC_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-  syslog(LOG_INFO, "mint-(cfg)-0x%02x (P%c%d)--Removing GPIO\n", rotencInfoAddr->PinId,
-              ((rotencInfoAddr->PinId) >> 4) + 'A', rotencInfoAddr->PinId & 0x0f);
+  syslog(LOG_INFO, "rotenc(cfg)-0x%02x (P%c%d)--Removing GPIO\n", rotaryEncoderAddr->PinId,
+              ((rotaryEncoderAddr->PinId) >> 4) + 'A', rotaryEncoderAddr->PinId & 0x0f);
 #endif
 
-  // Small chance but it might be actively timing
-  rotenc_remove_from_timed_list_and_decr(rotencInfoAddr);
+  // Tell Nuttx to forget about these interrupts
+  ret = stm32_gpiosetevent(rotaryEncoderAddr->PinInfoA, 0, 0, 0, NULL, NULL);
+  ret = stm32_gpiosetevent(rotaryEncoderAddr->PinInfoB, 0, 0, 0, NULL, NULL);
 
-  // Tell Nuttx to forget about this interrupt
-  ret = stm32_gpiosetevent(rotencInfoAddr->PinIdA, 0, 0, 0, NULL, NULL);
-
-  // This call will free the memory allocated when this GPIO was originally
-  // configured
-  ret = rotenc_free_gpio_in_allocation_list(rotencInfoAddr->PinIdA);
+  // This call will free the memory allocated
+  ret = rotenc_free_config_in_allocation_list(rotaryEncoderAddr->PinInfoA);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-rotenc_free_gpio_in_allocation_list returned, ret:%d\n",
@@ -844,7 +617,7 @@ int rotenc_config_interrupt_remove(struct rotenc_gpio_config* cfg,
     // Reported error might as well finish removing GPIO
   }
 
-  free(rotencInfoAddr);
+  free(rotaryEncoderAddr);
   return ret;
 }
 

@@ -124,7 +124,7 @@ void rotary_encoder_test_exercise_test(void)
 
   syslog(1, "Entered rotary_encoder_tests\n");
 
-  struct rotenc_gpio_config* cfg = malloc(sizeof(struct rotenc_gpio_config));
+  struct rotenc_config_parms* cfg = malloc(sizeof(struct rotenc_config_parms));
 
   stm32_configgpio(QUICK_MISC_PIN_V2_D05_INPUT);
   stm32_configgpio(QUICK_MISC_PIN_V2_D06_INPUT);
