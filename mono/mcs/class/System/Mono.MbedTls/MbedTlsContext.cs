@@ -41,6 +41,9 @@ namespace Mono.MbedTls
 		[DllImport("mbedtls", EntryPoint = "mono_mbedtls_init")]
 		internal static extern int mono_mbedtls_init();
 
+		[DllImport("mbedtls", EntryPoint = "mono_mbedtls_handshake")]
+		internal static extern int mono_mbedtls_handshake(IntPtr ctx);
+
 		//Managed resources
 		SafeHandle socket_handle;
 		bool socket_release;
@@ -51,6 +54,7 @@ namespace Mono.MbedTls
 		IntPtr write_buf;
 		bool isAuthenticated;
 		bool disposed;
+	 bool closed;
 
 		const int buffer_size = 4096;
 
@@ -77,14 +81,16 @@ namespace Mono.MbedTls
 			native_context = mono_mbedtls_connect (mono_fd, read_buf, write_buf, hostname);
 
 			if (native_context == IntPtr.Zero)
-				throw new IOException ("TLS initialization or handshake failed");
-			isAuthenticated = true;
+			{
+				throw new IOException ("TLS connection failed");
+			}
 		}
 
 		public override void StartHandshake ()
 		{
-			// we immediately start/complete a handshake on construction of the context
-			return;
+			int ret = mono_mbedtls_handshake(native_context);
+			if (ret != 0)
+				throw new IOException ("Handshake failed");
 		}
 
 		public override void Flush ()
@@ -114,7 +120,7 @@ namespace Mono.MbedTls
 
 		public override void Shutdown ()
 		{
-			Dispose (true);
+				closed = true;
 		}
 
 		public override bool PendingRenegotiation ()
@@ -127,9 +133,14 @@ namespace Mono.MbedTls
 			if (disposed)
 				throw  new ObjectDisposedException ("TLS Context was disposed.");
 
+			if (closed)
+				return (0, false);
+
 			if (size > buffer_size)
 				size = buffer_size;
+
 			int ret = mono_mbedtls_read (native_context, size);
+
 			if (ret > 0) {
 				Marshal.Copy (read_buf, buffer, offset, ret);
 			}
@@ -155,12 +166,11 @@ namespace Mono.MbedTls
 
 		public override void FinishHandshake ()
 		{
-			// we immediately start/complete a handshake on construction of the context
-			return;
+			isAuthenticated = true;
 		}
 
 		public override bool HasContext {
-			get { return true; }
+				get { return !disposed && native_context != IntPtr.Zero; }
 		}
 
 		internal override bool IsRemoteCertificateAvailable {
