@@ -107,9 +107,6 @@
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
-
-//==================================================================
-
 // Rotary Encoder PROTOTYPE testing
 void rotary_encoder_test_exercise_test(void)
 {
@@ -124,6 +121,7 @@ void rotary_encoder_test_exercise_test(void)
   stm32_configgpio(QUICK_MISC_PIN_V2_D06_INPUT);
 
   // For Prototype testing need to initialize 2 GPIOs as inputs
+  cfg->encoderNumber = 0;   // Encoder number 0 - 7
   cfg->portA = 1;           // port B (D05 in FeatherV2)
   cfg->pinA = 4;            // pin 4  (D05 in FeatherV2)
   cfg->portB = 1;           // port B (D06 in FeatherV2)

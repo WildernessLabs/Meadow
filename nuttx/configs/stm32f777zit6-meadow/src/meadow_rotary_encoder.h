@@ -50,6 +50,7 @@
 // Caller must populate this
 struct rotenc_config_parms
 {
+  uint32_t encoderNumber;     // 0 - 7 to identify for collections
   uint32_t portA;             // 0 - 15 (A-K)
   uint32_t pinA;              // 0 - 15
   uint32_t portB;             // 0 - 15 (A-K)

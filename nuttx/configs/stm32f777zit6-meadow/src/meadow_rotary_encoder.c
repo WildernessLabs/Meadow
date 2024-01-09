@@ -139,8 +139,7 @@ static rotaryEncoderInfo_t *_allRotaryEncodersList[MEADOW_ROTARY_ENCODERS_MAX_SU
 // static void rotenc_turn_periodic_timer_on(void);
 // static void rotenc_turn_periodic_timer_off(void);
 
-static int rotenc_config_interrupt_remove(struct rotenc_config_parms* cfg,
-          rotaryEncoderInfo_t *rotaryEncoderAddr);
+static int rotenc_config_interrupt_remove(struct rotenc_config_parms* cfg);
 // static bool rotenc_get_current_gpio_state(rotaryEncoderInfo_t *rotaryEncoderAddr, bool isPinA);
 
 // The rotary encoder has 2 inputs, called A and B. Because of its design
@@ -260,46 +259,6 @@ int rotenc_gpio_rot_enc_isr_b(int irq, void *context, void *arg)
   return OK;
 }
 
-//===============================================================
-// We need to save the address of all allocated memory so it can be freed
-// when the GPIO is removed.
-static int rotenc_add_new_config_to_allocation_list(
-            rotaryEncoderInfo_t *rotaryEncoderAddr)
-{
-  for(int i = 0; i < MEADOW_ROTARY_ENCODERS_MAX_SUPPORTED; i++)
-  {
-    // Find unused slot
-    if(_allRotaryEncodersList[i] == NULL)
-    {
-      _allRotaryEncodersList[i] = rotaryEncoderAddr;
-      return OK;
-    }
-  }
-  return -ENOSPC;   // No space
-}
-
-//===============================================================
-// When removing a GPIO we must find it's memory so it can be freed
-static int rotenc_free_config_in_allocation_list(uint8_t pinId)
-{
-  for(int i = 0; i < MEADOW_ROTARY_ENCODERS_MAX_SUPPORTED; i++)
-  {
-    // If NULL continue
-    if(_allRotaryEncodersList[i] == NULL)
-      continue;
-
-    // Match the allocation. Matching 1 GPIO should be good enough
-    if(_allRotaryEncodersList[i]->PinInfoA == pinId)
-    {
-      free(_allRotaryEncodersList[i]);
-      _allRotaryEncodersList[i] = NULL;
-      return OK;
-    }
-  }
-
-  return -ENODATA;
-}
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -308,7 +267,6 @@ int meadow_config_rotary_encoder(struct rotenc_config_parms* cfg)
 {
   int ret = OK;
   int i;
-
   rotaryEncoderInfo_t *rotaryEncoderAddr;
   uint8_t pinDesignationA = cfg->portA << 4 | cfg->pinA;
   uint8_t pinDesignationB = cfg->portB << 4 | cfg->pinB;
@@ -320,26 +278,27 @@ int meadow_config_rotary_encoder(struct rotenc_config_parms* cfg)
     // _allGpiosBeingTimedCnt = 0;
     _firstTimeConfig = false;
 
-    // Empty list of all active rotary encoders
+    // Empty list of all data
     for(i = 0; i < MEADOW_ROTARY_ENCODERS_MAX_SUPPORTED; i++)
     {
       _allRotaryEncodersList[i] = NULL;
     }
   }
-  
-  // Initialize all elements
-  for(i = 0; i < MEADOW_ROTARY_ENCODERS_MAX_SUPPORTED; i++)
+
+  // Request to remove an entry?
+  if(! cfg->rotencConfig)
   {
-    if(_allRotaryEncodersList[i] == NULL)
-      break;
+    ret = rotenc_config_interrupt_remove(cfg);
+    return ret;
   }
 
-  if(i == MEADOW_ROTARY_ENCODERS_MAX_SUPPORTED)
+  // Check the requested slot 
+  if(_allRotaryEncodersList[cfg->encoderNumber] != NULL)
   {
-    syslog(LOG_ERR, "Reached to maximum number of rotary encoders\n");
-    return -ENOSPC;   // No space
+    syslog(LOG_ERR, "Slot %d is in use\n", cfg->encoderNumber);
+    return -ENOTEMPTY;    // Not empty
   }
-  
+
   rotaryEncoderAddr = zalloc(sizeof(rotaryEncoderInfo_t));
   if(rotaryEncoderAddr == NULL)
   {
@@ -347,13 +306,8 @@ int meadow_config_rotary_encoder(struct rotenc_config_parms* cfg)
     return -ENOMEM;
   }
 
-  // Add allocated memory to array
-  ret = rotenc_add_new_config_to_allocation_list(rotaryEncoderAddr);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "No room for config info, ret:%d\n", ret);
-    return ret;
-  }
+  // Add allocated memory to an empty array slot
+  _allRotaryEncodersList[cfg->encoderNumber] = rotaryEncoderAddr;
 
   // Save the 2 GPIO inputs. These will be used to identify this encoder when deleted
   rotaryEncoderAddr->PinInfoA = pinDesignationA;
@@ -399,12 +353,6 @@ int meadow_config_rotary_encoder(struct rotenc_config_parms* cfg)
             cfgsetA);
 #endif
 
-  if(cfg->rotencConfig == false)
-  {
-    ret = rotenc_config_interrupt_remove(cfg, rotaryEncoderAddr);
-    return ret;
-  }
-
   // Setup both input points to trigger isr
   rotaryEncoderAddr->cfgIsRotEncA = true;
   ret = stm32_gpiosetevent(
@@ -428,34 +376,36 @@ int meadow_config_rotary_encoder(struct rotenc_config_parms* cfg)
 }
 
 //========================================================================
-// Remove an existing interrupt entry
-int rotenc_config_interrupt_remove(struct rotenc_config_parms* cfg,
-          rotaryEncoderInfo_t *rotaryEncoderAddr)
+// Remove an existing rotary encoder entry
+int rotenc_config_interrupt_remove(struct rotenc_config_parms* cfg)
 {
   int ret;
-  uint8_t PinInfoA = rotaryEncoderAddr->PinInfoA;
-  uint8_t PinInfoB = rotaryEncoderAddr->PinInfoB;
+  uint8_t PinInfoA;
+  uint8_t PinInfoB;
+  rotaryEncoderInfo_t *rotaryEncoderAddr;
 
-  // Disable - remove a GPIO from being monitored
-#if MEADOW_ROTENC_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-  syslog(LOG_INFO, "PinA P%c%d--Removing associated rotary encoder\n",
-            (PinInfoA >> 4) + 'A', PinInfoA & 0x0f);
-#endif
-
-  // This call will insure at least Pin A is correct and free allocated
-  // memory
-  ret = rotenc_free_config_in_allocation_list(rotaryEncoderAddr->PinInfoA);
-  if(ret < 0)
+  syslog(1, "Removing rotenc configuration #%lu\n", cfg->encoderNumber);
+  
+  // Requested to remove existing configuration
+  rotaryEncoderAddr = _allRotaryEncodersList[cfg->encoderNumber];
+  if(rotaryEncoderAddr == NULL)
   {
-    syslog(LOG_ERR, "%s@%d-rotenc_free_gpio_in_allocation_list returned, ret:%d\n",
-              __FILE__, __LINE__, ret);
+    syslog(LOG_ERR, "Slot %d is not configured\n", cfg->encoderNumber);
+    return -ENODATA;   // No Data
   }
+
+  // Get the configuration memory
+  rotaryEncoderAddr = _allRotaryEncodersList[cfg->encoderNumber];
+
+  PinInfoA = rotaryEncoderAddr->PinInfoA;
+  PinInfoB = rotaryEncoderAddr->PinInfoB;
 
   // Tell Nuttx to forget about these interrupts
   ret = stm32_gpiosetevent(PinInfoA, 0, 0, 0, NULL, NULL);
   ret = stm32_gpiosetevent(PinInfoB, 0, 0, 0, NULL, NULL);
 
   free(rotaryEncoderAddr);
+  _allRotaryEncodersList[cfg->encoderNumber] = NULL;
   return ret;
 }
 
