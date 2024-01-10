@@ -3438,13 +3438,6 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
     mbedtls_net_context *server_fd = NULL;
     mbedtls_ssl_context *ssl = NULL;
 
-    SocketHandle *sockethandle;
-    if (!mono_fdhandle_lookup_and_ref (mono_fd, (MonoFDHandle**) &sockethandle)) 
-    {
-        printf ("Socket FD not found!\n");
-        return NULL;
-    }
-
     server_fd = g_malloc (sizeof(mbedtls_net_context));
     if (server_fd == NULL)
     {
@@ -3454,7 +3447,7 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
 
     // Wrapper of the socket descriptor
     mbedtls_net_init( server_fd );
-    server_fd->fd = sockethandle->fdhandle.fd;
+    server_fd->fd = mono_fd;
 
     ssl = g_malloc (sizeof(mbedtls_ssl_context));
     if (ssl == NULL)
@@ -3516,7 +3509,6 @@ error:
         g_free (ssl);
     }
     if (server_fd) {
-        mbedtls_net_free (server_fd);
         g_free (server_fd);
     }
     return NULL;
@@ -3593,7 +3585,6 @@ void mono_mbedtls_close (MonoMbedTlsContext * ctx)
 
         if (ctx->mbedtls_fd)
         {
-            mbedtls_net_free (ctx->mbedtls_fd);
             g_free (ctx->mbedtls_fd);
         }
         g_free (ctx);
