@@ -72,12 +72,8 @@
 #include <meadow/meadow_debug_helpers.h>
 
 //============================================================
-// Set == 0 to disable diagnostic output via syslog
-// Set == 1 to enable some syslog output in build
-#define MEADOW_ROTENC_INCLUDE_DIAGNOSTIC_SYSLOG (0)
-
 // Defines the maximum number of encoders that can be monitored.
-// Since the F7 + Nuttx only have 16-interrupt groups there's no point
+// Since the F7 with Nuttx only have 16 "interrupt groups" there's no point
 // in having more that 8 rotary encoders
 #define MEADOW_ROTARY_ENCODERS_MAX_SUPPORTED (8)
 
@@ -87,8 +83,8 @@
 
 static bool _firstTimeConfig = true;
 
-// All F7 possible input data registers addresses, used for ISR access to GPIO
-// state value.
+// All F7 possible input data registers addresses, used for ISR access to read
+// GPIO state value.
 static uint32_t rotencInputDataReg[] = 
 {
   STM32_GPIOA_IDR,
@@ -106,19 +102,17 @@ static uint32_t rotencInputDataReg[] =
 
 struct rotaryEncoderInfo_s
 {
-  bool isBeingUsed;
+  uint8_t EncoderNumb;
 
   // Represents the CPU Pin identifier (e.g. PD9, D=3 so 39)
-  uint8_t PinInfoA;              // Supplied by configuration
-  uint8_t PinInfoB;              // Supplied by configuration
+  uint8_t PinInfoA;             // Supplied by configuration
+  uint8_t PinInfoB;             // Supplied by configuration
 
   // Address of correct "Input Data Register" which holds GPIO's hardware port
   // state bits
-  uint32_t IDRAddressA;        // Calculated during configuration
-  uint32_t IDRAddressB;        // Calculated during configuration
+  uint32_t IDRAddressA;         // Calculated during configuration
+  uint32_t IDRAddressB;         // Calculated during configuration
 
-  // uint8_t cfgEncoderNumb;        // 1-n
-  bool cfgIsRotEncA;             // Interrupt for GPIO A = true 
   uint32_t prevCondBits;
   uint32_t prevOff;
   int activeCnt;
@@ -133,14 +127,7 @@ static rotaryEncoderInfo_t *_allRotaryEncodersList[MEADOW_ROTARY_ENCODERS_MAX_SU
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-
-// Basic timers need to turn on/off the timer a different way 
-// NOT USED YET
-// static void rotenc_turn_periodic_timer_on(void);
-// static void rotenc_turn_periodic_timer_off(void);
-
 static int rotenc_config_interrupt_remove(struct rotenc_config_parms* cfg);
-// static bool rotenc_get_current_gpio_state(rotaryEncoderInfo_t *rotaryEncoderAddr, bool isPinA);
 
 // The rotary encoder has 2 inputs, called A and B. Because of its design
 // either A or B changes but not both when the encoder is rotated. This is
@@ -153,12 +140,12 @@ static int rotenc_config_interrupt_remove(struct rotenc_config_parms* cfg);
 //  3 2 1 0
 // Bits 0 and 1 represent the current state of A and B and bits 2 and 3
 // represent previous states of A and B. This 4-bit number yields 16 possible
-// combination., however, there are combination that for which no change is
-// represent. For example, the if bits 0-3 are all 0, this would mean that A
-// was Low and is Low, and that B was Low and is Low (nothing changed.)
+// combinations. However, there are combination that for which no change is
+// desired. For example, the if bits 0-3 are all 0, this would mean that A
+// is Low and was Low, and that B is Low and was Low (nothing changed.)
 
-// This array of values determine the action to take with the current rotary
-// count. Either add 1 or subtract 1 or do nothing.
+// The array of values determine the direction, which in turn determines how
+// this transition effects the count. Either add 1 or subtract 1 or do nothing
 static int RotEncLookup[] =
 {
   // Notice the values forward and backward match
@@ -199,7 +186,8 @@ static void LookupDir(rotaryEncoderInfo_t *rotaryEncoderAddr,
 
   // if((rotaryEncoderAddr->activeCnt % 9973) == 0)  // Only output text every x counts
   // {
-    syslog(2, "Total:%08d\n", rotaryEncoderAddr->activeCnt);
+    // syslog(2, "Encoder:%u, Total:%08d\n", rotaryEncoderAddr->EncoderNumb,
+    //           rotaryEncoderAddr->activeCnt);
   // }
 }
 
@@ -259,10 +247,53 @@ int rotenc_gpio_rot_enc_isr_b(int irq, void *context, void *arg)
   return OK;
 }
 
+//========================================================================
+// Remove an existing rotary encoder entry
+int rotenc_config_interrupt_remove(struct rotenc_config_parms* cfg)
+{
+  int ret;
+  uint8_t PinInfoA;
+  uint8_t PinInfoB;
+  rotaryEncoderInfo_t *rotaryEncoderAddr;
+
+  // Requested to remove existing configuration
+  rotaryEncoderAddr = _allRotaryEncodersList[cfg->encoderNumb];
+  if(rotaryEncoderAddr == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-Slot %d is not configured\n",
+              __FILE__, __LINE__, cfg->encoderNumb);
+    return -ENODATA;   // No Data
+  }
+
+  // Get info from the configuration memory before freeing it
+  PinInfoA = rotaryEncoderAddr->PinInfoA;
+  PinInfoB = rotaryEncoderAddr->PinInfoB;
+
+  // Tell Nuttx to forget about these interrupts
+  ret = stm32_gpiosetevent(PinInfoA, 0, 0, 0, NULL, NULL);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Error removing encoder:%d Pin A interrupt, ret:%d\n",
+              __FILE__, __LINE__, cfg->encoderNumb, ret);
+  }
+
+  ret = stm32_gpiosetevent(PinInfoB, 0, 0, 0, NULL, NULL);
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Error removing encoder:%d Pin B interrupt, ret:%d\n",
+              __FILE__, __LINE__, cfg->encoderNumb, ret);
+  }
+
+  free(rotaryEncoderAddr);
+  _allRotaryEncodersList[cfg->encoderNumb] = NULL;
+
+  return ret;
+}
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// Will be called from .Net app to configure rotary encoder
+// To be called from .Net app to configure rotary encoder
 int meadow_config_rotary_encoder(struct rotenc_config_parms* cfg)
 {
   int ret = OK;
@@ -271,11 +302,8 @@ int meadow_config_rotary_encoder(struct rotenc_config_parms* cfg)
   uint8_t pinDesignationA = cfg->portA << 4 | cfg->pinA;
   uint8_t pinDesignationB = cfg->portB << 4 | cfg->pinB;
 
-  syslog(1, "Entered meadow_config_rotary_encoder\n");
-
   if(_firstTimeConfig)
   {
-    // _allGpiosBeingTimedCnt = 0;
     _firstTimeConfig = false;
 
     // Empty list of all data
@@ -285,31 +313,43 @@ int meadow_config_rotary_encoder(struct rotenc_config_parms* cfg)
     }
   }
 
-  // Request to remove an entry?
-  if(! cfg->rotencConfig)
+  // Request to remove or add an encoder?
+  if(! cfg->isAddEncoder)
   {
     ret = rotenc_config_interrupt_remove(cfg);
     return ret;
   }
 
-  // Check the requested slot 
-  if(_allRotaryEncodersList[cfg->encoderNumber] != NULL)
+  // Check the encoder number
+  if(cfg->encoderNumb > (MEADOW_ROTARY_ENCODERS_MAX_SUPPORTED - 1))
   {
-    syslog(LOG_ERR, "Slot %d is in use\n", cfg->encoderNumber);
+    syslog(LOG_ERR, "%s@%d-Encoder %lu not available. Encoder range is 0 - %lu.\n",
+              __FILE__, __LINE__, cfg->encoderNumb,
+              (MEADOW_ROTARY_ENCODERS_MAX_SUPPORTED - 1));
+    return -ERANGE;    // Out of Range
+  }
+
+  // Is requested slot free?
+  if(_allRotaryEncodersList[cfg->encoderNumb] != NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-Slot %d is in use\n",
+              __FILE__, __LINE__, cfg->encoderNumb);
     return -ENOTEMPTY;    // Not empty
   }
 
   rotaryEncoderAddr = zalloc(sizeof(rotaryEncoderInfo_t));
   if(rotaryEncoderAddr == NULL)
   {
-    syslog(LOG_ERR, "Memory allocation failed\n");
+    syslog(LOG_ERR, "%s@%d-Memory allocation failed\n", __FILE__, __LINE__);
     return -ENOMEM;
   }
 
-  // Add allocated memory to an empty array slot
-  _allRotaryEncodersList[cfg->encoderNumber] = rotaryEncoderAddr;
+  // Add allocated memory to free array slot
+  _allRotaryEncodersList[cfg->encoderNumb] = rotaryEncoderAddr;
 
-  // Save the 2 GPIO inputs. These will be used to identify this encoder when deleted
+  rotaryEncoderAddr->EncoderNumb = cfg->encoderNumb;
+
+  // The 2 GPIO inputs are used to configure and remove interrupt handling
   rotaryEncoderAddr->PinInfoA = pinDesignationA;
   rotaryEncoderAddr->PinInfoB = pinDesignationB;
 
@@ -345,68 +385,66 @@ int meadow_config_rotary_encoder(struct rotenc_config_parms* cfg)
       break;
   }
 
-#if MEADOW_ROTENC_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-  syslog(LOG_INFO, "rotenc(cfg)-0x%02x (P%c%d)-Cfg cfgsetA:0x%08x (B not shown)\n",
-            rotaryEncoderAddr->PinInfoA,
-            ((rotaryEncoderAddr->PinInfoA) >> 4) + 'A',
-            rotaryEncoderAddr->PinInfoA & 0x0f,
-            cfgsetA);
-#endif
-
   // Setup both input points to trigger isr
-  rotaryEncoderAddr->cfgIsRotEncA = true;
   ret = stm32_gpiosetevent(
   cfgsetA,                      // Nuttx cfgset
-  1,                            // risingEdge,
-  1,                            // fallingEdge,
+  1,                            // rising edge,
+  1,                            // falling edge,
   0,                            // event
   rotenc_gpio_rot_enc_isr_a,    // ISR A
-  rotaryEncoderAddr);           // Encoder information address
-
-  rotaryEncoderAddr->cfgIsRotEncA = false;
+  rotaryEncoderAddr);           // information address
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Error encoder:%d Pin A interrupt, ret:%d\n",
+              __FILE__, __LINE__, cfg->encoderNumb, ret);
+  }
+  
   ret = stm32_gpiosetevent(
   cfgsetB,                      // Nuttx cfgset
-  1,                            // risingEdge,
-  1,                            // fallingEdge,
+  1,                            // rising edge,
+  1,                            // falling edge,
   0,                            // event
   rotenc_gpio_rot_enc_isr_b,    // ISR B
-  rotaryEncoderAddr);           // Encoder information address
+  rotaryEncoderAddr);           // information address
+  if(ret < 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Error encoder:%d Pin B interrupt, ret:%d\n",
+              __FILE__, __LINE__, cfg->encoderNumb, ret);
+  }
 
   return ret;
 }
 
 //========================================================================
-// Remove an existing rotary encoder entry
-int rotenc_config_interrupt_remove(struct rotenc_config_parms* cfg)
+// Return the current rotary encoder count.
+// Note: using int for count int with a 10,000 counts/second input will
+// rollover in about 59 days. If longer is needed can be converted to
+// use int64.
+int meadow_rotary_encoder_read_count(uint8_t encoderNumb, int *encoderCount)
 {
-  int ret;
-  uint8_t PinInfoA;
-  uint8_t PinInfoB;
   rotaryEncoderInfo_t *rotaryEncoderAddr;
 
-  syslog(1, "Removing rotenc configuration #%lu\n", cfg->encoderNumber);
-  
-  // Requested to remove existing configuration
-  rotaryEncoderAddr = _allRotaryEncodersList[cfg->encoderNumber];
-  if(rotaryEncoderAddr == NULL)
+  // Check for valid encoder number
+  if(encoderNumb > (MEADOW_ROTARY_ENCODERS_MAX_SUPPORTED - 1))
   {
-    syslog(LOG_ERR, "Slot %d is not configured\n", cfg->encoderNumber);
-    return -ENODATA;   // No Data
+    syslog(LOG_ERR, "%s@%d-Encoder %lu not available. Encoder range is 0 - %lu.\n",
+              __FILE__, __LINE__, encoderNumb,
+              (MEADOW_ROTARY_ENCODERS_MAX_SUPPORTED - 1));
+    return -ERANGE;    // Out of Range
   }
 
-  // Get the configuration memory
-  rotaryEncoderAddr = _allRotaryEncodersList[cfg->encoderNumber];
+  // Is requested slot valid?
+  if(_allRotaryEncodersList[encoderNumb] == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-Slot %d is not configured\n",
+              __FILE__, __LINE__, encoderNumb);
+    return -ENODATA;    // No Data
+  }
 
-  PinInfoA = rotaryEncoderAddr->PinInfoA;
-  PinInfoB = rotaryEncoderAddr->PinInfoB;
-
-  // Tell Nuttx to forget about these interrupts
-  ret = stm32_gpiosetevent(PinInfoA, 0, 0, 0, NULL, NULL);
-  ret = stm32_gpiosetevent(PinInfoB, 0, 0, 0, NULL, NULL);
-
-  free(rotaryEncoderAddr);
-  _allRotaryEncodersList[cfg->encoderNumber] = NULL;
-  return ret;
+  // Get the encoders data and return
+  rotaryEncoderAddr = _allRotaryEncodersList[encoderNumb];
+  *encoderCount = rotaryEncoderAddr->activeCnt;
+  return OK;
 }
 
 #endif      // #if MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER > 0

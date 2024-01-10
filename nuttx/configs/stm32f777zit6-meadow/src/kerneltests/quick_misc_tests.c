@@ -75,16 +75,20 @@ void meadow_kt_quick_misc_tests(uint32_t userData)
 {
   syslog(2, "Quick and Misc tests received 'set developer -d 10 -v %lu'.\n", userData);
 
-  switch(userData)
-  {
-    case 1:
-      rotary_encoder_test_exercise_test();
-      break;
+#if MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER > 0
+  // Temporary until rotary encoder is make official
+  rotary_encoder_test_exercise_test(userData);
+#endif
 
-    default:
-      syslog(2, "Undefined test for meadow_kt_quick_misc_tests, userData:%lu\n", userData);
-      break;
-  }
+  // switch(userData)
+  // {
+  //   case 1:
+  //     break;
+
+  //   default:
+  //     syslog(2, "Undefined test for meadow_kt_quick_misc_tests, userData:%lu\n", userData);
+  //     break;
+  // }
 }
  
 /************************************************************************************

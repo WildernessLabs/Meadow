@@ -50,19 +50,20 @@
 // Caller must populate this
 struct rotenc_config_parms
 {
-  uint32_t encoderNumber;     // 0 - 7 to identify for collections
+  uint32_t encoderNumb;     // 0 - 7 to identify for collections
+  bool isAddEncoder;          // true=add, false=remove
   uint32_t portA;             // 0 - 15 (A-K)
   uint32_t pinA;              // 0 - 15
   uint32_t portB;             // 0 - 15 (A-K)
   uint32_t pinB;              // 0 - 15
-  bool rotencConfig;          // true=add, false=remove
   uint32_t resistorMode;      // 0 = float, 1 = pull up, 2 = pull down
 };
 
 int meadow_config_rotary_encoder(struct rotenc_config_parms* rotencCfg);
+int meadow_rotary_encoder_read_count(uint8_t encoderNumb, int *encoderCount);
 
 // Test function follow
-void rotary_encoder_test_exercise_test(void);
+void rotary_encoder_test_exercise_test(uint32_t userData);
 
 #endif      // #if MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER > 0
 
