@@ -73,6 +73,8 @@ namespace Mono.MbedTls
 			if (!socket_release)
 				throw new IOException ("Could not add a reference to underlying socket");
 			IntPtr mono_fd = socket_handle.DangerousGetHandle ();
+			if (mono_fd == IntPtr.Zero)
+				throw new InvalidOperationException("Invalid socket handle");
 			//create I/O buffers and give the to mbedTLS
 			read_buf = Marshal.AllocHGlobal (buffer_size);
 			write_buf = Marshal.AllocHGlobal (buffer_size);
@@ -201,6 +203,7 @@ namespace Mono.MbedTls
 				return;
 			try {
 				mono_mbedtls_close (native_context);
+				socket_handle.Dispose();
 			}
 			finally {
 				disposed = true;
