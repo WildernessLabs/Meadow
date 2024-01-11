@@ -34,7 +34,7 @@
  ****************************************************************************/
 
 // This module contains code to handle rotary encoders at a higher speed than
-// can be achieved using C#
+// can be achieved using C# and interrupts
 
 /****************************************************************************
  * Included Files
