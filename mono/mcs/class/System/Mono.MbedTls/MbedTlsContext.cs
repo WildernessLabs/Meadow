@@ -203,7 +203,6 @@ namespace Mono.MbedTls
 				return;
 			try {
 				mono_mbedtls_close (native_context);
-				socket_handle.Dispose();
 			}
 			finally {
 				disposed = true;
