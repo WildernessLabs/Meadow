@@ -38,7 +38,8 @@
 ASRCS =
 CSRCS = stm32_boot.c stm32_spi.c stm32_extmem.c stm32_i2c.c \
  meadow-upd.c meadow_interrupt.c meadow_adc.c misc/meadow_cirbuf.c \
- meadow_hw_version.c misc/parse_iso8601_time.c
+ meadow_hw_version.c misc/parse_iso8601_time.c \
+ meadow_rotary_encoder.c
 
 ifeq ($(CONFIG_ARCH_LEDS),y)
 CSRCS += stm32_autoleds.c
@@ -154,7 +155,9 @@ CSRCS += kerneltests/espcp_tests.c \
 		 kerneltests/quick_misc_tests.c \
 		 kerneltests/ana_to_dig_conv_tests.c \
 		 kerneltests/dig_to_ana_conv_tests.c \
-		 kerneltests/meadow_interrupt_tests.c
+		 kerneltests/meadow_interrupt_tests.c \
+		 kerneltests/meadow_rotary_encoder_tests.c
+
 #
 #	Add the NTP client.
 #
