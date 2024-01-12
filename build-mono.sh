@@ -30,7 +30,7 @@ case $i in
     -d|--debug)
     DEBUG=true
     ;;
-    --net core)
+    --netcore)
     NETCORE=true
     ;;
     *)
