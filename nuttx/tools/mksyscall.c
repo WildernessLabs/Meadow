@@ -62,6 +62,28 @@ static FILE *g_stubstream;
  * Private Functions
  ****************************************************************************/
 
+static void check_if_itm_prologue_needed(FILE *stream, const char *name)
+{
+  if ((strcmp(name, "sem_wait") == 0) || (strcmp(name, "sem_post") == 0))
+    {
+      fprintf(stream, "#if defined(CONFIG_MEADOW_ITM_SEM_ENABLED)\n");
+      fprintf(stream, "  uint32_t words[3];\n");
+      if (strcmp(name, "sem_wait") == 0)
+        {
+          fprintf(stream, "  words[0] = MEADOW_ITM_SEM_USER | MEADOW_ITM_SEM_WAIT;\n");
+        }
+      else
+        {
+          fprintf(stream, "  words[0] = MEADOW_ITM_SEM_USER | MEADOW_ITM_SEM_POST;\n");
+        }
+      fprintf(stream, "  MEADOW_GET_RETURN_ADDRESS(words[1]);\n");
+      fprintf(stream, "  words[2] = (unsigned int) parm1;\n");
+      fprintf(stream, "  hcom_itm_send_words(MEADOW_ITM_SEMAPHORE_CHANNEL, words, 3);\n");
+
+      fprintf(stream, "#endif\n");
+    }
+}
+
 static bool is_vararg(const char *type, int ndx, int nparms)
 {
   if (strcmp(type,"...") == 0)
@@ -255,6 +277,8 @@ static void generate_proxy(int nparms)
     }
 
   fprintf(stream, "#include <syscall.h>\n\n");
+  fprintf(stream, "#include <meadow/meadow_os.h>\n\n");
+  fprintf(stream, "#include <meadow/hcom_itm.h>\n\n");
 
 #ifdef PROXY_SEMIHOSTING_SYSCALLS
   syscall_name = (char *)malloc(strlen(g_parm[NAME_INDEX]));
@@ -340,6 +364,8 @@ static void generate_proxy(int nparms)
   /* Generate the system call.  Functions that do not return or return void
    * are special cases.
    */
+
+  check_if_itm_prologue_needed(stream, g_parm[NAME_INDEX]);
 
   nactual = bvarargs ? 6 : nparms;
   if (strcmp(g_parm[RETTYPE_INDEX], "void") == 0)

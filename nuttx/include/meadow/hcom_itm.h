@@ -1,8 +1,8 @@
-/****************************************************************************
- * mm/kmm_heap/kmm_free.c
- *
- *   Copyright (C) 2007, 2009, 2013-2014 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+/*************************************************************************
+ * \include\meadow\hcom_itm.h
+ * 
+ *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
+ *   Author:  Wilderness Labs (Mark Stevens)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,56 +32,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-
-/****************************************************************************
- * Included Files
- ****************************************************************************/
-
-#include <nuttx/config.h>
-
-#include <assert.h>
-#include <debug.h>
-
-#include <nuttx/mm/mm.h>
-#include <meadow/meadow_os.h>
-
-#ifdef CONFIG_MM_KERNEL_HEAP
+#ifndef __INCLUDE_MEADOW_HCOM_ITM_H
+#define __INCLUDE_MEADOW_HCOM_ITM_H
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-/****************************************************************************
- * Name: kmm_free
- *
- * Description:
- *   Returns a chunk of kernel memory to the list of free nodes, merging
- *   with adjacent free chunks if possible.
- *
- * Input Parameters:
- *   None
- *
- * Returned Value:
- *   None
- *
- ****************************************************************************/
+void hcom_itm_send_word(volatile uint32_t *, uint32_t);
+void hcom_itm_send_string(char *str);
+void hcom_itm_send_words(volatile uint32_t *, uint32_t *, uint32_t);
 
-void kmm_free(FAR void *mem)
-{
-  DEBUGASSERT(kmm_heapmember(mem));
-
-  mm_free(&g_kmmheap, mem);
-
-#if defined(CONFIG_MEADOW_ITM_MALLOC_ENABLED)
-  uint32_t words[4];
-
-  words[0] = MEADOW_ITM_MALLOC_SIGNATURE | MEADOW_ITM_MALLOC_KERNEL_HEAP |
-             MEADOW_ITM_FREE;
-  MEADOW_GET_RETURN_ADDRESS(words[1]);
-  words[2] = 0;
-  words[3] = mem;
-  meadow_os_itm_send_words(MEADOW_ITM_MALLOC_CHANNEL, words, 4);
-#endif
-}
-
-#endif /* CONFIG_MM_KERNEL_HEAP */
+#endif /* __INCLUDE_MEADOW_HCOM_ITM_H */

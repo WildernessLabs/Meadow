@@ -28,6 +28,7 @@ ENABLE_STACK_DUMP=false
 MAKE_OPTIONS=
 UNIT_TESTS=
 BOOTLOADER_OPTIONS=
+SWO_OPTIONS=
 
 for i in "$@"
 do
@@ -83,6 +84,9 @@ case $i in
     -u=*|--unittests=*)
     UNIT_TESTS="${i#*=}"
     ;;
+    -swo=*|--swo=*)
+    SWO_OPTIONS="${i#*=}"
+    ;;
     *)
     echo "${0##*/} - Unknown option $i"
     exit 1
@@ -107,6 +111,7 @@ if [ "$HELP" = true ]; then
   echo "  --config=mono|netcore        Select Mono or .NET Core builds (default Mono)"
   echo "  -mfd|--makefiledebugging     Turn on debug options for make"
   echo "  -u|--unittests=*             Build the specified unit tests into the system"
+  echo "  -swo|--swo=*                 Enable SWO tracing"
   exit 0
 fi
 
@@ -310,6 +315,36 @@ fi
 #   # In case we need some global action to build tests or change config...
 #   #
 # fi
+
+#
+#   Work out if we want to enable SWO tracing and if we do for which option(s).
+#
+SWO_ENABLED=false
+if [ ! -z "$SWO_OPTIONS" ]; then
+    swooptions=$(echo $SWO_OPTIONS | tr "," "\n")
+    for swooption in $swooptions
+    do
+        case $swooption in
+            malloc)
+            echo "SWO: malloc tracing enabled."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable MEADOW_ITM_MALLOC_ENABLED
+            SWO_ENABLED=true
+            ;;
+            sem)
+            echo "SWO: semaphore tracing enabled."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable MEADOW_ITM_SEM_ENABLED
+            SWO_ENABLED=true
+            ;;
+            *)
+            printf "Uknown SWO option $swooption."
+            exit 1
+            ;;
+        esac
+    done
+fi
+if $SWO_ENABLED; then
+    kconfig-tweak --file $NUTTX_CONFIG_FILE --enable MEADOW_ITM_ENABLED
+fi
 
 if $ENABLE_STACK_DUMP; then
   #

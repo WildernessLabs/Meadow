@@ -227,6 +227,14 @@ int sem_post(FAR sem_t *sem)
 {
   int ret;
 
+ #if defined(MEADOW_ITM_SEM_ENABLED)
+  uint32_t words[3];
+  words[0] = MEADOW_ITM_SEM_KERNEL | MEADOW_ITM_SEM_POST;
+  MEADOW_GET_RETURN_ADDRESS(words[1]);
+  words[2] = (unsigned int) sem;
+  meadow_os_itm_send_words(MEADOW_ITM_SEMAPHORE_CHANNEL, words, 3);
+#endif
+
   ret = nxsem_post(sem);
   if (ret < 0)
     {

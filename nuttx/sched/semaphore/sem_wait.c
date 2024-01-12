@@ -51,6 +51,8 @@
 #include "sched/sched.h"
 #include "semaphore/semaphore.h"
 
+#include <meadow/meadow_os.h>
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -239,6 +241,14 @@ int sem_wait(FAR sem_t *sem)
 {
   int errcode;
   int ret;
+
+ #if defined(CONFIG_MEADOW_ITM_SEM_ENABLED)
+  uint32_t words[3];
+  words[0] = MEADOW_ITM_SEM_KERNEL | MEADOW_ITM_SEM_WAIT;
+  MEADOW_GET_RETURN_ADDRESS(words[1]);
+  words[2] = (unsigned int) sem;
+  meadow_os_itm_send_words(MEADOW_ITM_SEMAPHORE_CHANNEL, words, 3);
+#endif
 
   /* sem_wait() is a cancellation point */
 

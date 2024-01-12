@@ -40,6 +40,7 @@
 #include <nuttx/config.h>
 
 #include <nuttx/mm/mm.h>
+#include <meadow/meadow_os.h>
 
 #ifdef CONFIG_MM_KERNEL_HEAP
 
@@ -63,7 +64,23 @@
 
 FAR void *kmm_malloc(size_t size)
 {
-  return mm_malloc(&g_kmmheap, size);
+#if defined(CONFIG_MEADOW_ITM_MALLOC_ENABLED)
+  uint32_t words[4];
+
+  words[0] = MEADOW_ITM_MALLOC_SIGNATURE | MEADOW_ITM_MALLOC_KERNEL_HEAP |
+             MEADOW_ITM_MALLOC;
+  MEADOW_GET_RETURN_ADDRESS(words[1]);
+  words[2] = size;
+#endif
+
+  FAR void *mem = mm_malloc(&g_kmmheap, size);
+
+#if defined(CONFIG_MEADOW_ITM_MALLOC_ENABLED)
+  words[3] = mem;
+  meadow_os_itm_send_words(MEADOW_ITM_MALLOC_CHANNEL, words, 4);
+#endif
+
+  return(mem);
 }
 
 #endif /* CONFIG_MM_KERNEL_HEAP */
