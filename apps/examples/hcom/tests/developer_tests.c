@@ -151,6 +151,10 @@ static meadow_test_t _tests[] =
     { 16, "Meadow interrupt tests", meadow_kt_meadow_interrupt_tests },
 #endif
 
+#if defined(CONFIG_SPI_DMA_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { 17, "SPI DMA tests", meadow_kt_spi_dma_tests },
+#endif
+
   //
   //  ESP tests 1000 - 1200
   //

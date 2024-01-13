@@ -293,6 +293,11 @@ if [ ! -z "$UNIT_TESTS" ]; then
             kconfig-tweak --file $NUTTX_CONFIG_FILE --enable DAC_TESTS
             BUILD_TESTS=true
             ;;
+            spidma)
+            echo "SPI DMA tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SPI_DMA_TESTS
+            BUILD_TESTS=true
+            ;;
             all)
             echo "All tests requested."
             kconfig-tweak --file $NUTTX_CONFIG_FILE --enable ALL_MEADOW_TESTS
