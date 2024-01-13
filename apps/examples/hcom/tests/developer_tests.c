@@ -155,6 +155,10 @@ static meadow_test_t _tests[] =
     { 17, "SPI DMA tests", meadow_kt_spi_dma_tests },
 #endif
 
+#if defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { 18, "Rotary Encoder tests", meadow_kt_rotary_encoder_tests },
+#endif
+
   //
   //  ESP tests 1000 - 1200
   //
