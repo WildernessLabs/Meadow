@@ -92,12 +92,13 @@
 static int pwrmgmt_enter_test_alarm_timer_parsing(void);
 #endif
 
+#if defined (CONFIG_POWER_MANAGEMENT_TESTS)
+
 static void pwmmgmt_test_initialize_wakeup_and_sleep(void);
 
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
-#if defined (CONFIG_POWER_MANAGEMENT_TESTS)
 
 static int pwrmgmt_enter_test_sleep_x_times_for_y_seconds(void);
 
