@@ -66,6 +66,7 @@
 "meadow_kt_meadow_interrupt_tests","meadow/meadow_kernel_tests.h","defined(CONFIG_MEADOW_INTERRUPT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)","void","uint32_t"
 "meadow_kt_power_management_tests","meadow/meadow_kernel_tests.h","defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)","void","uint32_t"
 "meadow_kt_quick_misc_tests","meadow/meadow_kernel_tests.h","defined(CONFIG_QUICK_MISC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)","void","uint32_t"
+"meadow_kt_rotary_encoder_tests","meadow/meadow_kernel_tests.h","defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)","void","uint32_t"
 "meadow_kt_sd_card_tests","meadow/meadow_kernel_tests.h","defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)","void","uint32_t"
 "meadow_kt_spi_dma_tests","meadow/meadow_kernel_tests.h","defined(CONFIG_SPI_DMA_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)","void","uint32_t"
 "meadow_os_config_free_resources","meadow/meadow_os.h","defined(CONFIG_ARCH_BOARD_MEADOW)","void","meadow_configuration_t *"

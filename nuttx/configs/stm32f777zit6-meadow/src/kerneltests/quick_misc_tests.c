@@ -39,7 +39,6 @@
 
 #include "../hcom_nx/hcom_nx_common.h"
 #include <meadow/hcom_shared_common.h>
-#include "meadow_rotary_encoder.h"
 
 // Only build if configured
 #if defined(CONFIG_QUICK_MISC_TESTS)
@@ -75,22 +74,15 @@ void meadow_kt_quick_misc_tests(uint32_t userData)
 {
   syslog(2, "Quick and Misc tests received 'set developer -d 10 -v %lu'.\n", userData);
 
-#if MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER > 0
-  // Temporary until rotary encoder is make official
-  rotary_encoder_test_exercise_test(userData);
-#endif
-
-  // switch(userData)
-  // {
-  //   case 1:
-  //     break;
-
-  //   default:
-  //     syslog(2, "Undefined test for meadow_kt_quick_misc_tests, userData:%lu\n", userData);
-  //     break;
-  // }
+  switch(userData)
+  {
+    case 1:
+    default:
+      syslog(2, "Undefined test for meadow_kt_quick_misc_tests, userData:%lu. NO TEST DEFINED\n", userData);
+      break;
+  }
 }
- 
+
 /************************************************************************************
  * Private Functions
  ************************************************************************************/

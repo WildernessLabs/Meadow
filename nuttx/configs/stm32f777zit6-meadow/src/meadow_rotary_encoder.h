@@ -47,7 +47,7 @@
 #include <stdint.h>
 #include "stm32_gpio.h"   // stm32_configgpio
 
-// Caller must populate this
+// Caller must populate this struct
 struct rotenc_config_parms
 {
   uint32_t encoderNumb;       // 0 - 7 to identify for collections

@@ -63,7 +63,7 @@
 
 #include "meadow_rotary_encoder.h"
 
-#if defined(CONFIG_QUICK_MISC_TESTS)
+#if defined(CONFIG_ROTARY_ENCODER_TESTS)
 #pragma message "(--) meadow_rotary_encoder.c"
 #endif
 
@@ -184,8 +184,10 @@ static void rotenc_lookup_direction(rotaryEncoderInfo_t *rotaryEncoderAddr,
       break;
   }
 
-#if defined(CONFIG_QUICK_MISC_TESTS)
-  // if((rotaryEncoderAddr->activeCnt % 9973) == 0)  // Only output text every x counts
+#if defined(CONFIG_ROTARY_ENCODER_TESTS)
+  // For fast inputs, don't show every entry. The following was about right
+  // for hall effect sensor on the shaft of a brushed motor.
+  // if((rotaryEncoderAddr->activeCnt % 9973) == 0)
   // {
     syslog(2, "Encoder:%u, Total:%08d\n", rotaryEncoderAddr->EncoderNumb,
               rotaryEncoderAddr->activeCnt);

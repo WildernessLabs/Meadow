@@ -39,13 +39,11 @@
 
 #include <meadow/hcom_shared_common.h>
 
+// Not yet active in Meadow.OS until needed by .Net
 #if MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER > 0
 #include "../hcom_nx/hcom_nx_common.h"
 #include "meadow_rotary_encoder.h" 
 #include "stm32_gpio.h"   // stm32_configgpio
-
-// FUTURE will be defined based on Unit Test infrastructure
-#define CONFIG_ROTARY_ENCODER_TESTS
 
 // Only build if configured
 #if defined(CONFIG_ROTARY_ENCODER_TESTS)
@@ -88,16 +86,13 @@ static void rotary_encoder_config_test_remove_n(uint32_t userData);
  * Public Functions
  ************************************************************************************/
 // FUTURE-For when rotary encoder has it own unit test infrastructure
-// // set developer -d ?? come here
-// void meadow_kt_rotary_encoder_tests(uint32_t userData)
-// {
-//   syslog(2, "Rotary Encoder tests received 'set developer -d ?? -v %lu'\n", userData);
-// }
-
-void rotary_encoder_test_exercise_test(uint32_t userData)
-{  
+// // set developer -d 18 come here
+void meadow_kt_rotary_encoder_tests(uint32_t userData)
+{
   int ret;
   int currentCount;
+  
+  syslog(2, "Rotary Encoder tests received 'set developer -d 18 -v %lu'\n", userData);
 
   switch(userData)
   {
