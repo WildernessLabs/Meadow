@@ -77,14 +77,12 @@ void meadow_kt_quick_misc_tests(uint32_t userData)
   switch(userData)
   {
     case 1:
-      break;
-
     default:
-      syslog(2, "Undefined test for meadow_kt_quick_misc_tests, userData:%lu\n", userData);
+      syslog(2, "Undefined test for meadow_kt_quick_misc_tests, userData:%lu. NO TEST DEFINED\n", userData);
       break;
   }
 }
- 
+
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
