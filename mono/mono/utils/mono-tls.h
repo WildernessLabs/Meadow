@@ -35,7 +35,8 @@ typedef enum {
 	TLS_KEY_LMF_ADDR	 = 2,
 	TLS_KEY_SGEN_THREAD_INFO = 3,
 	TLS_KEY_THREAD		 = 4, // mono_thread_internal_current ()
-	TLS_KEY_NUM		 = 5
+	TLS_KEY_LMF_ADDR_CLEAN = 5,
+	TLS_KEY_NUM		 = 6
 } MonoTlsKey;
 
 #if __cplusplus
