@@ -2190,117 +2190,121 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
         }
         else
         {
-            uint32_t message_result = espcp_queue_message(message, true);
-            if (message_result == espcp_status_codes_completed_ok)
+            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
             {
-                espcp_get_sock_opt_response_t *response = espcp_extract_get_sock_opt_response(message->payload);
-                if (response == NULL)
+                switch (message->status_code)
                 {
-                    result = -ENOMEM;
-                }
-                else
-                {
-                    result = (response->result < 0) ? -response->response_errno : response->result;
-                    if (result == 0)
-                    {
-                        void *source = NULL;
-                        int source_size = 0;
-                        switch (option)
+                    case espcp_status_codes_completed_ok:
                         {
-                            case SO_LINGER:
+                            espcp_get_sock_opt_response_t *response = espcp_extract_get_sock_opt_response(message->payload);
+                            if (response == NULL)
+                            {
+                                result = -ENOMEM;
+                            }
+                            else
+                            {
+                                result = (response->result < 0) ? -response->response_errno : response->result;
+                                if (result == 0)
                                 {
-                                    espcp_linger_t *esp_lv = espcp_extract_linger(response->option_value);
-                                    if (esp_lv == NULL)
+                                    void *source = NULL;
+                                    int source_size = 0;
+                                    switch (option)
                                     {
-                                        result = -ENOMEM;
+                                        case SO_LINGER:
+                                            {
+                                                espcp_linger_t *esp_lv = espcp_extract_linger(response->option_value);
+                                                if (esp_lv == NULL)
+                                                {
+                                                    result = -ENOMEM;
+                                                }
+                                                else
+                                                {
+                                                    source_size = sizeof(struct linger);
+                                                    source = zalloc(source_size);
+                                                    if (source == NULL)
+                                                    {
+                                                        result = -ENOMEM;
+                                                    }
+                                                    else
+                                                    {
+                                                        struct linger *lv = (struct linger *) source;
+                                                        lv->l_linger = esp_lv->l_linger;
+                                                        lv->l_onoff = esp_lv->l_on_off;
+                                                    }
+                                                    free(esp_lv);
+                                                }
+                                            }
+                                            break;
+                                        case SO_SNDTIMEO:
+                                        case SO_RCVTIMEO:
+                                            {
+                                                espcp_time_val_t *esp_tv = espcp_extract_time_val(response->option_value);
+                                                if (esp_tv == NULL)
+                                                {
+                                                    result = -ENOMEM;
+                                                }
+                                                else
+                                                {
+                                                    source_size = sizeof(struct timeval);
+                                                    source = zalloc(source_size);
+                                                    if (source == NULL)
+                                                    {
+                                                        result = -ENOMEM;
+                                                    }
+                                                    else
+                                                    {
+                                                        struct timeval *tv = (struct timeval *) source;
+                                                        tv->tv_sec = esp_tv->tv_sec;
+                                                        tv->tv_usec = esp_tv->tv_usec;
+                                                    }
+                                                    free(esp_tv);
+                                                }
+                                            }
+                                            break;
+                                        case SO_RCVBUF:
+                                            {
+                                                espcp_integer_response_t *esp_iv = espcp_extract_integer_response(response->option_value);
+                                                if (esp_iv == NULL)
+                                                {
+                                                    result = -ENOMEM;
+                                                }
+                                                else
+                                                {
+                                                    source_size = sizeof(int);
+                                                    source = zalloc(source_size);
+                                                    if (source == NULL)
+                                                    {
+                                                        result = -ENOMEM;
+                                                    }
+                                                    else
+                                                    {
+                                                        *((int *) source) = esp_iv->result;
+                                                    }
+                                                    free(esp_iv);
+                                                }
+                                            }
+                                            break;
                                     }
-                                    else
+                                    if (*value_len < source_size)
                                     {
-                                        source_size = sizeof(struct linger);
-                                        source = zalloc(source_size);
-                                        if (source == NULL)
-                                        {
-                                            result = -ENOMEM;
-                                        }
-                                        else
-                                        {
-                                            struct linger *lv = (struct linger *) source;
-                                            lv->l_linger = esp_lv->l_linger;
-                                            lv->l_onoff = esp_lv->l_on_off;
-                                        }
-                                        free(esp_lv);
+                                        source_size = *value_len;
                                     }
+                                    memcpy(value, source, source_size);
+                                    free(source);
+                                    *value_len = source_size;
                                 }
-                                break;
-                            case SO_SNDTIMEO:
-                            case SO_RCVTIMEO:
-                                {
-                                    espcp_time_val_t *esp_tv = espcp_extract_time_val(response->option_value);
-                                    if (esp_tv == NULL)
-                                    {
-                                        result = -ENOMEM;
-                                    }
-                                    else
-                                    {
-                                        source_size = sizeof(struct timeval);
-                                        source = zalloc(source_size);
-                                        if (source == NULL)
-                                        {
-                                            result = -ENOMEM;
-                                        }
-                                        else
-                                        {
-                                            struct timeval *tv = (struct timeval *) source;
-                                            tv->tv_sec = esp_tv->tv_sec;
-                                            tv->tv_usec = esp_tv->tv_usec;
-                                        }
-                                        free(esp_tv);
-                                    }
-                                }
-                                break;
-                            case SO_RCVBUF:
-                                {
-                                    espcp_integer_response_t *esp_iv = espcp_extract_integer_response(response->option_value);
-                                    if (esp_iv == NULL)
-                                    {
-                                        result = -ENOMEM;
-                                    }
-                                    else
-                                    {
-                                        source_size = sizeof(int);
-                                        source = zalloc(source_size);
-                                        if (source == NULL)
-                                        {
-                                            result = -ENOMEM;
-                                        }
-                                        else
-                                        {
-                                            *((int *) source) = esp_iv->result;
-                                        }
-                                        free(esp_iv);
-                                    }
-                                }
-                                break;
+                                free(response);
+                            }
                         }
-                        if (*value_len < source_size)
-                        {
-                            source_size = *value_len;
-                        }
-                        memcpy(value, source, source_size);
-                        free(source);
-                        *value_len = source_size;
-                    }
-                    free(response);
+                        break;
+                    case espcp_status_codes_thread_pool_is_full:
+                        result = -ENOMEM;
+                        break;
+                    default:
+                        result = -1;
+                        break;
                 }
-            }
-            else if (message_result == espcp_status_codes_thread_pool_is_full)
-            {
-                result = -ENOMEM;
-            }
-            else
-            {
-                result = -1;
-            }
+            }                
         }
     }
 
@@ -2590,27 +2594,31 @@ int espcp_usrsock_setsockopt(struct socket *psock, int level, int option,
             }
             else
             {
-                uint32_t message_result = espcp_queue_message(message, true);
-                if (message_result == espcp_status_codes_completed_ok)
+                if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
                 {
-                    espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
-                    if (response == NULL)
+                    switch (message->status_code)
                     {
-                        result = -ENOMEM;
+                        case espcp_status_codes_completed_ok:
+                            {
+                                espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
+                                if (response == NULL)
+                                {
+                                    result = -ENOMEM;
+                                }
+                                else
+                                {
+                                    result = (response->result < 0) ? -response->response_errno : response->result;
+                                    free(response);
+                                }
+                            }
+                            break;
+                        case espcp_status_codes_thread_pool_is_full:
+                            result = -ENOMEM;
+                            break;
+                        default:
+                            result = -1;
+                            break;
                     }
-                    else
-                    {
-                        result = (response->result < 0) ? -response->response_errno : response->result;
-                        free(response);
-                    }
-                }
-                else if (message_result == espcp_status_codes_thread_pool_is_full)
-                {
-                    result = -ENOMEM;
-                }
-                else
-                {
-                    result = -1;
                 }
             }
         }
@@ -2712,37 +2720,41 @@ int espcp_usrsock_socket(int domain, int type, int protocol, struct socket *psoc
     }
     else
     {
-        uint32_t message_result = espcp_queue_message(message, true);
-        if (message_result == espcp_status_codes_completed_ok)
+        if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
         {
-            espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
-            if (response == NULL)
+            switch (message->status_code)
             {
-                result = -ENOMEM;
+                case espcp_status_codes_completed_ok:
+                    {
+                        espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
+                        if (response == NULL)
+                        {
+                            result = -ENOMEM;
+                        }
+                        else
+                        {
+                            if (response->result < 0)
+                            {
+                                result = -response->response_errno;
+                            }
+                            else
+                            {
+                                result = response->result;
+                            }
+                            free(response);
+                            psock->s_domain = domain;
+                            psock->s_type = type;
+                            psock->s_esp32_sockfd = result;
+                        }
+                    }
+                    break;
+                case espcp_status_codes_thread_pool_is_full:
+                    result = -ENOMEM;
+                    break;
+                default:
+                    result = -1;
+                    break;
             }
-            else
-            {
-                if (response->result < 0)
-                {
-                    result = -response->response_errno;
-                }
-                else
-                {
-                    result = response->result;
-                }
-                free(response);
-                psock->s_domain = domain;
-                psock->s_type = type;
-                psock->s_esp32_sockfd = result;
-            }
-        }
-        else if (message_result == espcp_status_codes_thread_pool_is_full)
-        {
-            result = -ENOMEM;
-        }
-        else
-        {
-            result = -1;
         }
     }
 
@@ -2829,32 +2841,36 @@ int32_t espcp_usrsock_read(struct socket *psock, const void *buffer, size_t coun
         }
         else
         {
-            uint32_t message_result = espcp_queue_message(message, true);
-            if (message_result == espcp_status_codes_completed_ok)
+            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
             {
-                espcp_read_response_t *response = espcp_extract_read_response(message->payload);
-                if (response == NULL)
+                switch (message->status_code)
                 {
-                    result = -ENOMEM;
+                    case espcp_status_codes_completed_ok:
+                        {
+                            espcp_read_response_t *response = espcp_extract_read_response(message->payload);
+                            if (response == NULL)
+                            {
+                                result = -ENOMEM;
+                            }
+                            else
+                            {
+                                if (response->buffer_length > 0)
+                                {
+                                    memcpy((void *) buffer, response->buffer, response->buffer_length);
+                                    free(response->buffer);
+                                }
+                                result = (response->read_response_result < 0) ? -response->read_response_errno : response->read_response_result;
+                                free(response);
+                            }
+                        }
+                        break;
+                    case espcp_status_codes_thread_pool_is_full:
+                        result = -ENOMEM;
+                        break;
+                    default:
+                        result = -1;
+                        break;
                 }
-                else
-                {
-                    if (response->buffer_length > 0)
-                    {
-                        memcpy((void *) buffer, response->buffer, response->buffer_length);
-                        free(response->buffer);
-                    }
-                    result = (response->read_response_result < 0) ? -response->read_response_errno : response->read_response_result;
-                    free(response);
-                }
-            }
-            else if (message_result == espcp_status_codes_thread_pool_is_full)
-            {
-                result = -ENOMEM;
-            }
-            else
-            {
-                result = -1;
             }
         }
     }
