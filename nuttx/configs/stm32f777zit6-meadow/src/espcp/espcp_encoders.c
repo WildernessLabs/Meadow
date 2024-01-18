@@ -829,6 +829,67 @@ espcp_access_point_information_t *espcp_extract_access_point_information(uint8_t
 }
 
 /****************************************************************************
+* Name: espcp_encode_access_point_information
+*
+* Description:
+*  Convert the espcp_access_point_information_t object into a byte stream that can 
+*  be sent to the ESP32.
+*
+* Input Parameters:
+*  access_point_information - object to be encoded.
+*
+* Returned Value:
+*  None
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+void espcp_encode_access_point_information(espcp_access_point_information_t *access_point_information, uint8_t *buffer)
+{
+    espcp_encode_string(access_point_information->network_name, buffer);
+    buffer += espcp_string_length(access_point_information->network_name) + 1;
+    espcp_encode_string(access_point_information->password, buffer);
+    buffer += espcp_string_length(access_point_information->password) + 1;
+    espcp_encode_uint32(access_point_information->ip_address, buffer);
+    buffer += 4;
+    espcp_encode_uint32(access_point_information->subnet_mask, buffer);
+    buffer += 4;
+    espcp_encode_uint32(access_point_information->gateway, buffer);
+    buffer += 4;
+    *buffer = access_point_information->wi_fi_authentication_mode;
+    buffer += 1;
+    *buffer = access_point_information->channel;
+    buffer += 1;
+    *buffer = access_point_information->hidden;
+}
+
+/****************************************************************************
+* Name: espcp_encoded_espcp_access_point_information_t_buffer_size
+*
+* Description:
+*  Calculate the amount of memory needed to store and encoded version of an
+*  espcp_espcp_access_point_information_t_t object.
+*
+* Input Parameters:
+*  espcp_access_point_information_t - espcp_espcp_access_point_information_t_t object to be encoded.
+*
+* Returned Value:
+*  Number of bytes required to hold the encoded espcp_espcp_access_point_information_t_t object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_access_point_information_buffer_size(espcp_access_point_information_t *access_point_information)
+{
+    int result = 0;
+    result += espcp_string_length(access_point_information->network_name);
+    result += espcp_string_length(access_point_information->password);
+    return(result + 17);
+}
+
+/****************************************************************************
 * Name: espcp_encode_connect_event_data
 *
 * Description:
