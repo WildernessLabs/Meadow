@@ -418,7 +418,7 @@ ssize_t espcp_usrsock_send(struct socket *psock, const void *buffer, size_t len,
     //
     //  According to: https://man7.org/linux/man-pages/man2/send.2.html
     //
-    //  send if equivalent to sendto with the two default parameters added at the
+    //  send is equivalent to sendto with the two default parameters added at the
     //  end of the parameter list.
     //
     MEADOW_TRACE_INFORMATION("Passing on to sendto\n");
@@ -510,57 +510,61 @@ int espcp_usrsock_accept(struct socket *psock, struct sockaddr *addr, socklen_t 
         }
         else
         {
-            uint32_t message_result = espcp_queue_message(message, true);
-            if (message_result == espcp_status_codes_completed_ok)
+            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
             {
-                espcp_accept_response_t *response = espcp_extract_accept_response(message->payload);
-                if (response == NULL)
+                switch (message->status_code)
                 {
-                    result = -ENOMEM;
-                }
-                else
-                {
-                    result = response->result;
-                    if (result > 0)
-                    {
-                        newsock->s_esp32_sockfd = result;
-                        newsock->s_domain = psock->s_domain;
-                        newsock->s_type = psock->s_type;
-                        newsock->s_sockif = psock->s_sockif;
-                        espcp_sock_addr_t *sockAddr = espcp_extract_sock_addr(response->addr);
-                        if (sockAddr == NULL)
+                    case espcp_status_codes_completed_ok:
                         {
-                            result = -ENOMEM;
-                        }
-                        else
-                        {
-                            if ((addr != NULL) && (addrlen != NULL))
+                            espcp_accept_response_t *response = espcp_extract_accept_response(message->payload);
+                            if (response == NULL)
                             {
-                                struct sockaddr_in sai = {};
-                                sai.sin_family = sockAddr->family;
-                                memcpy(&sai.sin_addr, &sockAddr->ip4_address, sizeof(sai.sin_addr));
-                                sai.sin_port = sockAddr->port;
-                                int copyAmount = (sizeof(struct sockaddr_in) <= *addrlen) ? sizeof(struct sockaddr_in) : *addrlen;
-                                memcpy(addr, &sai, copyAmount);
-                                *addrlen = sizeof(struct sockaddr);
+                                result = -ENOMEM;
                             }
-                            free(sockAddr);
+                            else
+                            {
+                                result = response->result;
+                                if (result > 0)
+                                {
+                                    newsock->s_esp32_sockfd = result;
+                                    newsock->s_domain = psock->s_domain;
+                                    newsock->s_type = psock->s_type;
+                                    newsock->s_sockif = psock->s_sockif;
+                                    espcp_sock_addr_t *sockAddr = espcp_extract_sock_addr(response->addr);
+                                    if (sockAddr == NULL)
+                                    {
+                                        result = -ENOMEM;
+                                    }
+                                    else
+                                    {
+                                        if ((addr != NULL) && (addrlen != NULL))
+                                        {
+                                            struct sockaddr_in sai = {};
+                                            sai.sin_family = sockAddr->family;
+                                            memcpy(&sai.sin_addr, &sockAddr->ip4_address, sizeof(sai.sin_addr));
+                                            sai.sin_port = sockAddr->port;
+                                            int copyAmount = (sizeof(struct sockaddr_in) <= *addrlen) ? sizeof(struct sockaddr_in) : *addrlen;
+                                            memcpy(addr, &sai, copyAmount);
+                                            *addrlen = sizeof(struct sockaddr);
+                                        }
+                                        free(sockAddr);
+                                    }
+                                }
+                                else
+                                {
+                                    result = -response->response_errno;
+                                }
+                                free(response);
+                            }
                         }
-                    }
-                    else
-                    {
-                        result = -response->response_errno;
-                    }
-                    free(response);
+                        break;
+                    case espcp_status_codes_thread_pool_is_full:
+                        result = -ENOMEM;
+                        break;
+                    default:
+                        result = -1;
+                        break;
                 }
-            }
-            else if (message_result == espcp_status_codes_thread_pool_is_full)
-            {
-                result = -ENOMEM;
-            }
-            else
-            {
-                result = -1;
             }
         }
     }
@@ -672,27 +676,31 @@ int espcp_usrsock_bind(struct socket *psock, const struct sockaddr *addr, sockle
         }
         else
         {
-            uint32_t message_result = espcp_queue_message(message, true);
-            if (message_result == espcp_status_codes_completed_ok)
+            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
             {
-                espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
-                if (response == NULL)
+                switch (message->status_code)
                 {
-                    result = -ENOMEM;
+                    case espcp_status_codes_completed_ok:
+                        {
+                            espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
+                            if (response == NULL)
+                            {
+                                result = -ENOMEM;
+                            }
+                            else
+                            {
+                                result = -response->response_errno;
+                                free(response);
+                            }
+                        }
+                        break;
+                    case espcp_status_codes_thread_pool_is_full:
+                        result = -ENOMEM;
+                        break;
+                    default:
+                        result = -1;
+                        break;
                 }
-                else
-                {
-                    result = -response->response_errno;
-                    free(response);
-                }
-            }
-            else if (message_result == espcp_status_codes_thread_pool_is_full)
-            {
-                result = -ENOMEM;
-            }
-            else
-            {
-                result = -1;
             }
         }
     }
@@ -767,31 +775,35 @@ int espcp_usrsock_close(struct socket *psock)
         }
         else
         {
-            uint32_t message_result = espcp_queue_message(message, true);
-            if (message_result == espcp_status_codes_completed_ok)
+            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
             {
-                espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
-                if (response == NULL)
+                switch (message->status_code)
                 {
-                    result = -ENOMEM;
+                    case espcp_status_codes_completed_ok:
+                        {
+                            espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
+                            if (response == NULL)
+                            {
+                                result = -ENOMEM;
+                            }
+                            else
+                            {
+                                result = response->result;
+                                if (result < 0)
+                                {
+                                    result = -response->response_errno;
+                                }
+                                free(response);
+                            }
+                        }
+                        break;
+                    case espcp_status_codes_thread_pool_is_full:
+                        result = -ENOMEM;
+                        break;
+                    default:
+                        result = -1;
+                        break;
                 }
-                else
-                {
-                    result = response->result;
-                    if (result < 0)
-                    {
-                        result = -response->response_errno;
-                    }
-                    free(response);
-                }
-            }
-            else if (message_result == espcp_status_codes_thread_pool_is_full)
-            {
-                result = -ENOMEM;
-            }
-            else
-            {
-                result = -1;
             }
         }
     }
@@ -887,27 +899,31 @@ int espcp_usrsock_connect(struct socket *psock, const struct sockaddr *addr, soc
         }
         else
         {
-            uint32_t message_result = espcp_queue_message(message, true);
-            if (message_result == espcp_status_codes_completed_ok)
+            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
             {
-                espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
-                if (response == NULL)
+                switch (message->status_code)
                 {
-                    result = -ENOMEM;
+                    case espcp_status_codes_completed_ok:
+                        {
+                            espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
+                            if (response == NULL)
+                            {
+                                result = -ENOMEM;
+                            }
+                            else
+                            {
+                                result = -response->response_errno;
+                                free(response);
+                            }
+                        }
+                        break;
+                    case espcp_status_codes_thread_pool_is_full:
+                        result = -ENOMEM;
+                        break;
+                    default:
+                        result = -1;
+                        break;
                 }
-                else
-                {
-                    result = -response->response_errno;
-                    free(response);
-                }
-            }
-            else if (message_result == espcp_status_codes_thread_pool_is_full)
-            {
-                result = -ENOMEM;
-            }
-            else
-            {
-                result = -EFAULT;
             }
         }
     }
@@ -987,53 +1003,57 @@ static int espcp_usrsock_getsockpeername(struct socket *psock, struct sockaddr *
         }
         else
         {
-            uint32_t message_result = espcp_queue_message(message, true);
-            if (message_result == espcp_status_codes_completed_ok)
+            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
             {
-                espcp_get_sock_peer_name_response_t *response = espcp_extract_get_sock_peer_name_response(message->payload);
-                if (response == NULL)
+                switch (message->status_code)
                 {
-                    result = -ENOMEM;
-                }
-                else
-                {
-                    result = response->result;
-                    if (result == 0)
-                    {
-                        espcp_sock_addr_t *sockAddr = espcp_extract_sock_addr(response->addr);
-                        if (sockAddr == NULL)
+                    case espcp_status_codes_completed_ok:
                         {
-                            result = -ENOMEM;
-                        }
-                        else
-                        {
-                            if ((addr != NULL) && (addrlen != NULL))
+                            espcp_get_sock_peer_name_response_t *response = espcp_extract_get_sock_peer_name_response(message->payload);
+                            if (response == NULL)
                             {
-                                struct sockaddr_in sai = {};
-                                sai.sin_family = sockAddr->family;
-                                memcpy(&sai.sin_addr, &sockAddr->ip4_address, sizeof(sai.sin_addr));
-                                sai.sin_port = sockAddr->port;
-                                int copyAmount = (sizeof(struct sockaddr_in) <= *addrlen) ? sizeof(struct sockaddr_in) : *addrlen;
-                                memcpy(addr, &sai, copyAmount);
-                                *addrlen = sizeof(sai);
+                                result = -ENOMEM;
                             }
-                            free(sockAddr);
+                            else
+                            {
+                                result = response->result;
+                                if (result == 0)
+                                {
+                                    espcp_sock_addr_t *sockAddr = espcp_extract_sock_addr(response->addr);
+                                    if (sockAddr == NULL)
+                                    {
+                                        result = -ENOMEM;
+                                    }
+                                    else
+                                    {
+                                        if ((addr != NULL) && (addrlen != NULL))
+                                        {
+                                            struct sockaddr_in sai = {};
+                                            sai.sin_family = sockAddr->family;
+                                            memcpy(&sai.sin_addr, &sockAddr->ip4_address, sizeof(sai.sin_addr));
+                                            sai.sin_port = sockAddr->port;
+                                            int copyAmount = (sizeof(struct sockaddr_in) <= *addrlen) ? sizeof(struct sockaddr_in) : *addrlen;
+                                            memcpy(addr, &sai, copyAmount);
+                                            *addrlen = sizeof(sai);
+                                        }
+                                        free(sockAddr);
+                                    }
+                                }
+                                else
+                                {
+                                    result = -response->response_errno;
+                                }
+                                free(response);
+                            }
                         }
-                    }
-                    else
-                    {
-                        result = -response->response_errno;
-                    }
-                    free(response);
+                        break;
+                    case espcp_status_codes_thread_pool_is_full:
+                        result = -ENOMEM;
+                        break;
+                    default:
+                        result = -1;
+                        break;
                 }
-            }
-            else if (message_result == espcp_status_codes_thread_pool_is_full)
-            {
-                result = -ENOMEM;
-            }
-            else
-            {
-                result = -1;
             }
         }
     }
@@ -1179,72 +1199,76 @@ static int espcp_usrsock_send_ioctl_to_esp(struct socket *psock, int cmd, void *
             MEADOW_TRACE_DEBUG("espcp_usrsock_send_ioctl_to_esp - result ENOMEM\n");
             return(-ENOMEM);
         }
-        uint32_t message_result = espcp_queue_message(message, true);
-        if (message_result == espcp_status_codes_completed_ok)
+        if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
         {
-            espcp_ioctl_response_t *response = espcp_extract_ioctl_response(message->payload);
-            if (response != NULL)
+            switch (message->status_code)
             {
-                if (response->result != -1)
-                {
-                    struct sockaddr sa;
-                    memset(&sa, 0, sizeof(struct sockaddr));
-                    sa.sa_family = AF_INET;
-                    switch (cmd)
+                case espcp_status_codes_completed_ok:
                     {
-                        case SIOCGIFCONF:
-                            if (arglen < (sizeof(struct ifconf)))
+                        espcp_ioctl_response_t *response = espcp_extract_ioctl_response(message->payload);
+                        if (response != NULL)
+                        {
+                            if (response->result != -1)
                             {
-                                ifc->ifc_len = 0;
+                                struct sockaddr sa;
+                                memset(&sa, 0, sizeof(struct sockaddr));
+                                sa.sa_family = AF_INET;
+                                switch (cmd)
+                                {
+                                    case SIOCGIFCONF:
+                                        if (arglen < (sizeof(struct ifconf)))
+                                        {
+                                            ifc->ifc_len = 0;
+                                        }
+                                        else
+                                        {
+                                            ifc->ifc_len = sizeof(struct ifreq);
+                                            struct ifreq *ifr = ifc->ifc_req;
+                                            result = espcp_sock_addr_to_sockaddr((void *) &ifr->ifr_ifru.ifru_addr, response->addr);
+                                        }
+                                        break;
+                                    case SIOCGIFADDR:       /* Get IP address */
+                                    case SIOCGIFNETMASK:    /* Get network mask */
+                                        //
+                                        //  This relies upon the fact that the ifru_addr and ifru_netmask are in a union.
+                                        //
+                                        result = espcp_sock_addr_to_sockaddr((void *) &lifr->lifr_ifru.lifru_addr, response->addr);
+                                        break;
+                                    case SIOCGIFHWADDR:     /* Get hardware address */
+                                        memset(&lifr->lifr_ifru.lifru_hwaddr, 0, sizeof(&lifr->lifr_ifru.lifru_hwaddr));
+                                        lifr->lifr_ifru.lifru_hwaddr.sa_family = AF_INET;
+                                        memcpy((void *) &lifr->lifr_ifru.lifru_hwaddr.sa_data, (void *) response->addr, MEADOW_MAC_ADDRESS_SIZE);
+                                        // memcpy((void *) &lifr->lifr_ifru.lifru_hwaddr, (void *) , sizeof(sa));
+                                        break;
+                                    case SIOCGIFFLAGS:
+                                        lifr->lifr_flags = response->flags;
+                                        lifr->lifr_flags |= IFF_WIFI;
+                                        break;
+                                    default:
+                                        MEADOW_TRACE_CRITICAL("%s@%d Unknown ioctl command %08x.\n", _thisFile, __LINE__, cmd);
+                                        result = -EINVAL;
+                                        break;
+                                }
                             }
                             else
                             {
-                                ifc->ifc_len = sizeof(struct ifreq);
-                                struct ifreq *ifr = ifc->ifc_req;
-                                result = espcp_sock_addr_to_sockaddr((void *) &ifr->ifr_ifru.ifru_addr, response->addr);
+                                result = -response->response_errno;
                             }
-                            break;
-                        case SIOCGIFADDR:       /* Get IP address */
-                        case SIOCGIFNETMASK:    /* Get network mask */
-                            //
-                            //  This relies upon the fact that the ifru_addr and ifru_netmask are in a union.
-                            //
-                            result = espcp_sock_addr_to_sockaddr((void *) &lifr->lifr_ifru.lifru_addr, response->addr);
-                            break;
-                        case SIOCGIFHWADDR:     /* Get hardware address */
-                            memset(&lifr->lifr_ifru.lifru_hwaddr, 0, sizeof(&lifr->lifr_ifru.lifru_hwaddr));
-                            lifr->lifr_ifru.lifru_hwaddr.sa_family = AF_INET;
-                            memcpy((void *) &lifr->lifr_ifru.lifru_hwaddr.sa_data, (void *) response->addr, MEADOW_MAC_ADDRESS_SIZE);
-                            // memcpy((void *) &lifr->lifr_ifru.lifru_hwaddr, (void *) , sizeof(sa));
-                            break;
-                        case SIOCGIFFLAGS:
-                            lifr->lifr_flags = response->flags;
-                            lifr->lifr_flags |= IFF_WIFI;
-                            break;
-                        default:
-                            MEADOW_TRACE_CRITICAL("%s@%d Unknown ioctl command %08x.\n", _thisFile, __LINE__, cmd);
+                            free(response);
+                        }
+                        else
+                        {
                             result = -EINVAL;
-                            break;
+                        }
                     }
-                }
-                else
-                {
-                    result = -response->response_errno;
-                }
-                free(response);
+                    break;
+                case espcp_status_codes_thread_pool_is_full:
+                    result = -ENOMEM;
+                    break;
+                default:
+                    result = -1;
+                    break;
             }
-            else
-            {
-                result = -EINVAL;
-            }
-        }
-        else if (message_result == espcp_status_codes_thread_pool_is_full)
-        {
-            result = -ENOMEM;
-        }
-        else
-        {
-            result = -1;
         }
         espcp_delete_message_and_payload(message);
     }
@@ -1390,27 +1414,31 @@ int espcp_usrsock_listen(struct socket *psock, int backlog)
         }
         else
         {
-            uint32_t message_result = espcp_queue_message(message, true);
-            if (message_result == espcp_status_codes_completed_ok)
+            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
             {
-                espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
-                if (response == NULL)
+                switch (message->status_code)
                 {
-                    result = -ENOMEM;
+                    case espcp_status_codes_completed_ok:
+                        {
+                            espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
+                            if (response == NULL)
+                            {
+                                result = -ENOMEM;
+                            }
+                            else
+                            {
+                                result = -response->response_errno;
+                                free(response);
+                            }
+                        }
+                        break;
+                    case espcp_status_codes_thread_pool_is_full:
+                        result = -ENOMEM;
+                        break;
+                    default:
+                        result = -1;
+                        break;
                 }
-                else
-                {
-                    result = -response->response_errno;
-                    free(response);
-                }
-            }
-            else if (message_result == espcp_status_codes_thread_pool_is_full)
-            {
-                result = -ENOMEM;
-            }
-            else
-            {
-                result = -1;
             }
         }
     }
