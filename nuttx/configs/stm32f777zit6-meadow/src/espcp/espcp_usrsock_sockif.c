@@ -1769,64 +1769,67 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
     }
     else
     {
-        uint32_t message_result = espcp_queue_message(message, true);
-        if (message_result == espcp_status_codes_completed_ok)
+        if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
         {
-            espcp_recv_from_response_t *response = espcp_extract_recv_from_response(message->payload);
-            if (response == NULL)
+            switch (message->status_code)
             {
-                MEADOW_TRACE_DEBUG("recvfrom - result ENOMEM\n");
-                result = -ENOMEM;       // Message and payload deleted at the end of the method.
-            }
-            else
-            {
-                if (response->result > 0)
-                {
-                    if (from != NULL)
+                case espcp_status_codes_completed_ok:
                     {
-                        espcp_sock_addr_t *sa = espcp_extract_sock_addr(response->source_address);
-                        if (sa == NULL)
+                        espcp_recv_from_response_t *response = espcp_extract_recv_from_response(message->payload);
+                        if (response == NULL)
                         {
                             MEADOW_TRACE_DEBUG("recvfrom - result ENOMEM\n");
-                            result = -ENOMEM;   // Message and payload deleted at the end of the method.
+                            result = -ENOMEM;       // Message and payload deleted at the end of the method.
                         }
                         else
                         {
-                            struct sockaddr_in sin;
-                            sin.sin_family = sa->family;
-                            sin.sin_port = sa->port;
-                            memcpy(&sin.sin_addr, &sa->ip4_address, sizeof(sin.sin_addr));
-                            if (*fromlen > (sizeof(struct sockaddr_in)))
-                            {                                                
-                                *fromlen = sizeof(struct sockaddr);
+                            if (response->result > 0)
+                            {
+                                if (from != NULL)
+                                {
+                                    espcp_sock_addr_t *sa = espcp_extract_sock_addr(response->source_address);
+                                    if (sa == NULL)
+                                    {
+                                        MEADOW_TRACE_DEBUG("recvfrom - result ENOMEM\n");
+                                        result = -ENOMEM;   // Message and payload deleted at the end of the method.
+                                    }
+                                    else
+                                    {
+                                        struct sockaddr_in sin;
+                                        sin.sin_family = sa->family;
+                                        sin.sin_port = sa->port;
+                                        memcpy(&sin.sin_addr, &sa->ip4_address, sizeof(sin.sin_addr));
+                                        if (*fromlen > (sizeof(struct sockaddr_in)))
+                                        {                                                
+                                            *fromlen = sizeof(struct sockaddr);
+                                        }
+                                        memcpy(from, &sin, *fromlen);
+                                        free(sa);
+                                    }
+                                }
+                                result = response->result;
+                                if (response->result > len)
+                                {
+                                    result = len;
+                                }
+                                memcpy(buffer, response->buffer, result);   // response->buffer freed below.
                             }
-                            memcpy(from, &sin, *fromlen);
-                            free(sa);
+                            else
+                            {
+                                result = -response->response_errno;
+                            }
+                            free(response->buffer);
+                            free(response);
                         }
                     }
-                    result = response->result;
-                    if (response->result > len)
-                    {
-                        result = len;
-                    }
-                    memcpy(buffer, response->buffer, result);   // response->buffer freed below.
-                }
-                else
-                {
-                    result = -response->response_errno;
-                }
-                free(response->buffer);
-                free(response);
+                    break;
+                case espcp_status_codes_thread_pool_is_full:
+                    result = -ENOMEM;
+                    break;
+                default:
+                    result = -1;
+                    break;
             }
-        }
-        else if (message_result == espcp_status_codes_thread_pool_is_full)
-        {
-            MEADOW_TRACE_DEBUG("recvfrom - result ENOMEM\n");
-            result = -ENOMEM;
-        }
-        else
-        {
-            result = -1;
         }
     }
 
@@ -1948,29 +1951,33 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
         }
         else
         {
-            uint32_t message_result = espcp_queue_message(message, true);
-            if (message_result == espcp_status_codes_completed_ok)
+            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
             {
-                espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
-                if (response == NULL)
+                switch (message->status_code)
                 {
-                    free(payload);
-                    free(message);
-                    result = -ENOMEM;
+                    case espcp_status_codes_completed_ok:
+                        {
+                            espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
+                            if (response == NULL)
+                            {
+                                free(payload);
+                                free(message);
+                                result = -ENOMEM;
+                            }
+                            else
+                            {
+                                result = (response->result < 0) ? -response->response_errno : response->result;
+                                free(response);
+                            }
+                        }
+                        break;
+                    case espcp_status_codes_thread_pool_is_full:
+                        result = -ENOMEM;
+                        break;
+                    default:
+                        result = -1;
+                        break;
                 }
-                else
-                {
-                    result = (response->result < 0) ? -response->response_errno : response->result;
-                    free(response);
-                }
-            }
-            else if (message_result == espcp_status_codes_thread_pool_is_full)
-            {
-                result = -ENOMEM;
-            }
-            else
-            {
-                result = -1;
             }
         }
     }
