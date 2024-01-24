@@ -2215,5 +2215,130 @@ FAR struct spi_dev_s *stm32_spibus_initialize(int bus)
   return (FAR struct spi_dev_s *)priv;
 }
 
+/************************************************************************************
+ * Name: stm32_spibus_uninitialize
+ *
+ * Description:
+ *   Uninitialize the selected SPI bus
+ *
+ * Input Parameters:
+ *   Valid SPI device structure reference
+ *
+ * Returned Value:
+ *   none
+ *
+ ************************************************************************************/
+
+void stm32_spibus_uninitialize(FAR struct spi_dev_s *_priv)
+{
+  FAR struct stm32_spidev_s *priv = (FAR struct stm32_spidev_s *)_priv;
+
+  if (!priv->initialized)
+    return;
+
+  /* Disable SPI */
+
+  spi_modifycr1(priv, 0, SPI_CR1_SPE);
+
+#ifdef CONFIG_PM
+  /* Unregister power management callbacks */
+
+  pm_unregister(&master->pm_cb);
+#endif
+
+  /* Release resources. */
+
+#ifdef CONFIG_STM32F7_SPI_DMA
+  if (priv->rxch && priv->txch)
+    {
+      nxsem_destroy(&priv->rxsem);
+      nxsem_destroy(&priv->txsem);
+    }
+
+  priv->rxdma = NULL;
+  priv->txdma = NULL;
+#endif
+
+  nxsem_destroy(&priv->exclsem);
+  priv->initialized = false;
+
+#ifdef CONFIG_STM32F7_SPI1
+  if(priv->spibase == STM32_SPI1_BASE)
+    {
+
+      /* Unconfigure SPI1 pins: SCK, MISO, and MOSI */
+
+      stm32_unconfiggpio(GPIO_SPI1_SCK);
+      stm32_unconfiggpio(GPIO_SPI1_MISO);
+      stm32_unconfiggpio(GPIO_SPI1_MOSI);
+    }
+  else
+#endif
+#ifdef CONFIG_STM32F7_SPI2
+  if(priv->spibase == STM32_SPI2_BASE)
+    {
+
+      /* Unconfigure SPI2 pins: SCK, MISO, and MOSI */
+
+      stm32_unconfiggpio(GPIO_SPI2_SCK);
+      stm32_unconfiggpio(GPIO_SPI2_MISO);
+      stm32_unconfiggpio(GPIO_SPI2_MOSI);
+    }
+  else
+#endif
+#ifdef CONFIG_STM32F7_SPI3
+  if(priv->spibase == STM32_SPI3_BASE)
+    {
+
+      /* Unconfigure SPI3 pins: SCK, MISO, and MOSI */
+
+      stm32_unconfiggpio(GPIO_SPI3_SCK);
+      stm32_unconfiggpio(GPIO_SPI3_MISO);
+      stm32_unconfiggpio(GPIO_SPI3_MOSI);
+    }
+  else
+#endif
+#ifdef CONFIG_STM32F7_SPI4
+  if(priv->spibase == STM32_SPI4_BASE)
+    {
+
+      /* Unconfigure SPI4 pins: SCK, MISO, and MOSI */
+
+      stm32_unconfiggpio(GPIO_SPI4_SCK);
+      stm32_unconfiggpio(GPIO_SPI4_MISO);
+      stm32_unconfiggpio(GPIO_SPI4_MOSI);
+    }
+  else
+#endif
+#ifdef CONFIG_STM32F7_SPI5
+  if(priv->spibase == STM32_SPI5_BASE)
+    {
+
+      /* Unconfigure SPI5 pins: SCK, MISO, and MOSI */
+
+      stm32_unconfiggpio(GPIO_SPI5_SCK);
+      stm32_unconfiggpio(GPIO_SPI5_MISO);
+      stm32_unconfiggpio(GPIO_SPI5_MOSI);
+    }
+  else
+#endif
+#ifdef CONFIG_STM32F7_SPI6
+  if(priv->spibase == STM32_SPI6_BASE)
+    {
+
+      /* Unconfigure SPI6 pins: SCK, MISO, and MOSI */
+
+      stm32_unconfiggpio(GPIO_SPI6_SCK);
+      stm32_unconfiggpio(GPIO_SPI6_MISO);
+      stm32_unconfiggpio(GPIO_SPI6_MOSI);
+    }
+  else
+#endif
+    {
+      spierr("ERROR: Unsupported SPI bus\n");
+      return;
+    }
+}
+
 #endif /* CONFIG_STM32F7_SPI1 || CONFIG_STM32F7_SPI2 || CONFIG_STM32F7_SPI3 || \
         * CONFIG_STM32F7_SPI4 || CONFIG_STM32F7_SPI5 || CONFIG_STM32F7_SPI6 */

@@ -137,6 +137,7 @@ static int upd_close(struct file *filep);
 static int upd_handle_pwm(int cmd, unsigned long arg);
 static int upd_handle_i2c(int cmd, struct upd_i2c_cmd*);
 static struct spi_dev_s * get_spi_bus(int busNumber);
+static void uninit_spi_bus(struct spi_dev_s * priv);
 static int upd_handle_spi_data(int cmd, struct upd_spi_data_cmd*);
 static int upd_handle_spi_speed(int cmd, struct upd_spi_speed_cmd*);
 static int upd_handle_spi_mode(int cmd, struct upd_spi_mode_cmd*);
@@ -303,6 +304,13 @@ static struct spi_dev_s * get_spi_bus(int busNumber)
       }
       return g_spi5;
   }
+
+  return NULL;
+}
+
+static void uninit_spi_bus(struct spi_dev_s * priv)
+{
+  stm32_spibus_uninitialize(priv);
 
   return NULL;
 }

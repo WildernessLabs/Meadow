@@ -82,6 +82,22 @@ struct spi_dev_s; /* Forward reference */
 FAR struct spi_dev_s *stm32_spibus_initialize(int bus);
 
 /************************************************************************************
+ * Name: stm32_spibus_uninitialize
+ *
+ * Description:
+ *   Uninitialize the selected SPI bus
+ *
+ * Input Parameters:
+ *   Valid SPI device structure reference
+ *
+ * Returned Value:
+ *   none
+ *
+ ************************************************************************************/
+
+void stm32_spibus_uninitialize(FAR struct spi_dev_s *priv);
+
+/************************************************************************************
  * Name:  stm32_spi1/2/...select and stm32_spi1/2/...status
  *
  * Description:
