@@ -546,6 +546,12 @@ static int upd_open(struct file *filep)
       return -errcode;
     }
   }
+
+  g_spi5 = NULL;
+  g_spi3 = NULL;
+  g_i2c1 = NULL;
+  g_i2c3 = NULL;
+
   return OK;
 }
 
