@@ -139,7 +139,7 @@ build_cross_compiler() {
       --enable-cooperative-suspend 
       --enable-interpreter 
       --enable-nls=no 
-      --enable-minimal=profiler,pinvoke,debug,appdomains,verifier,large_code,com,attach,perfcounters,normalization,desktop_loader,shared_perfcounters,remoting,security,lldb,mdb,shadowcopy
+      --enable-minimal=pinvoke,debug,appdomains,verifier,large_code,com,attach,perfcounters,normalization,desktop_loader,shared_perfcounters,remoting,security,lldb,mdb,shadowcopy
       --enable-maintainer-mode
       --enable-compile-warnings"
   

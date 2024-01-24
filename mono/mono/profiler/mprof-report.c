@@ -15,9 +15,9 @@
 #include <assert.h>
 #include <stdio.h>
 #include <time.h>
-#if !defined(__APPLE__) && !defined(__FreeBSD__) && !defined(__OpenBSD__)
-#include <malloc.h>
-#endif
+// #if !defined(__APPLE__) && !defined(__FreeBSD__) && !defined(__OpenBSD__)
+// #include <malloc.h>
+// #endif
 #include <unistd.h>
 #include <stdlib.h>
 #if defined (HAVE_SYS_ZLIB)

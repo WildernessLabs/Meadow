@@ -3,6 +3,7 @@
 
 #ifndef HOST_WIN32
 #include <sys/select.h>
+#include <arpa/inet.h>
 #endif
 #ifdef HOST_WIN32
 #include <winsock2.h>
