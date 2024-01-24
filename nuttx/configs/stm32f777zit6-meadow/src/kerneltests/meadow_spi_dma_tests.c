@@ -47,6 +47,7 @@
 #include <nuttx/kthread.h>
 #include <nuttx/spi/spi.h>
 #include "stm32_spi.h"
+#include <up_arch.h>
 
 // Only build if configured
 #if defined(CONFIG_SPI_DMA_TESTS)
@@ -77,7 +78,7 @@ struct spi_dev_s *_spiDev5 = NULL;
  ************************************************************************************/
 
 static void spi_dma_tests_no_dma_loopback(uint32_t userData);
-static int spi_dma_tests_set_bus_params(struct spi_dev_s **spiDev, int bus);
+static int spi_dma_tests_set_bus_params(struct spi_dev_s **spiDev, int bus, bool isPeriph);
 static void spi_dma_tests_send_data_via_spi(struct spi_dev_s *spiDev,
           void *txBuf, size_t txSize);
 static void spi_dma_tests_recv_data_via_spi(struct spi_dev_s *spiDev,
@@ -155,28 +156,28 @@ void *spi_dma_test_kthread_func(int argc, char *argv[])
 #if defined(CONFIG_STM32F7_SPI3)
   // Initialize SPI3
   syslog(2, "%s@%d-Executing config for SPI 3\n", __FILE__, __LINE__); usleep(30 * 1000);
-  ret = spi_dma_tests_set_bus_params(&_spiDev3, 3);
+  ret = spi_dma_tests_set_bus_params(&_spiDev3, 3, false);
   if(ret < 0)
   {
     syslog(2, "%s@%d-Could not setup bus%d\n", __FILE__, __LINE__, 3);
-    return ret;
+    return NULL;
   }
 
   if(_spiDev3 == NULL)
   {
     syslog(2, "%s@%d-Setup returned spiDev:%p\n", __FILE__, __LINE__, _spiDev3);
-    return -ENOMEM;
+    return NULL;
   }
 #endif
 
 #if defined(CONFIG_STM32F7_SPI5)
   // Initialize SPI5
   syslog(2, "%s@%d-Executing config for SPI 5\n", __FILE__, __LINE__); usleep(30 * 1000);
-  ret = spi_dma_tests_set_bus_params(&_spiDev5, 5);
+  ret = spi_dma_tests_set_bus_params(&_spiDev5, 5, true);
   if(ret < 0)
   {
     syslog(2, "%s@%d-Could not setup bus%d\n", __FILE__, __LINE__, 5);
-    return ret;
+    return NULL;
   }
 #endif
 
@@ -204,7 +205,7 @@ void *spi_dma_test_kthread_func(int argc, char *argv[])
 }
 
 //=====================================================================
-int spi_dma_tests_set_bus_params(struct spi_dev_s **spiDev, int bus)
+int spi_dma_tests_set_bus_params(struct spi_dev_s **spiDev, int bus, bool isPeriph)
 {
   // uint32_t desiredFreq = 8000000UL;   // 8MHz
   // uint32_t desiredFreq = 1000000UL;   // 1MHz
@@ -244,6 +245,27 @@ int spi_dma_tests_set_bus_params(struct spi_dev_s **spiDev, int bus)
   //   syslog(2, "%s@%d-Could not unlock bus\n", __FILE__, __LINE__);
   //   return ret;
   // }
+
+  // (--) THIS IS UNTESTED!!
+  if(isPeriph)
+  {
+    // Modify the configuration to make this not a controller but a peripheral
+    // by clearing the master bit
+    uint16_t setbits = 0;
+    uint16_t clrbits = SPI_CR1_MSTR;
+    uint16_t cr1;
+
+    cr1 = getreg16(STM32_SPI_CR1_OFFSET);
+    cr1 &= ~clrbits;
+    cr1 |= setbits;
+    putreg16(cr1, STM32_SPI_CR1_OFFSET);
+    
+    // from /nuttx/arch/arm/src/stm32f7/stm32_spi.c line 1962
+    // clrbits = SPI_CR1_CPHA | SPI_CR1_CPOL | SPI_CR1_BR_MASK | SPI_CR1_LSBFIRST |
+    //           SPI_CR1_RXONLY | SPI_CR1_BIDIOE | SPI_CR1_BIDIMODE;
+    // setbits = SPI_CR1_MSTR | SPI_CR1_SSI | SPI_CR1_SSM;
+    // spi_modifycr1(priv, setbits, clrbits);
+  }
   return OK;
 }
 
@@ -302,14 +324,14 @@ void execute_loopback_test(int numbLoops)
   // Send repeatedly
   for(int loopCnt = 0; loopCnt < numbLoops; loopCnt++)
   {
-    // syslog(2, "%s@%d-Loop:%d\n", __FILE__, __LINE__, loopCnt); usleep(30 * 1000);
+    syslog(2, "%s@%d-Loop:%d\n", __FILE__, __LINE__, loopCnt); usleep(30 * 1000);
     spi_dma_tests_send_data_via_spi(_spiDev3, txBuff3, exchangeSize);
 
-    // spi_dma_tests_recv_data_via_spi(_spiDev5, echoBuff5, exchangeSize);
+    spi_dma_tests_recv_data_via_spi(_spiDev5, echoBuff5, exchangeSize);
 
-    // spi_dma_tests_send_data_via_spi(_spiDev5, echoBuff5, exchangeSize);
+    spi_dma_tests_send_data_via_spi(_spiDev5, echoBuff5, exchangeSize);
 
-    // spi_dma_tests_recv_data_via_spi(_spiDev3, rxBuff3, exchangeSize);
+    spi_dma_tests_recv_data_via_spi(_spiDev3, rxBuff3, exchangeSize);
 
     // Compare data sent with data received
     int cmpResult = memcmp(txBuff3, rxBuff3, exchangeSize);
