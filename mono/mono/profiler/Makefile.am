@@ -11,7 +11,7 @@ glib_libs = $(top_builddir)/mono/eglib/libeglib.la
 if !HOST_WIN32
 if !DISABLE_LIBRARIES
 if !DISABLE_PROFILER
-
+if !NUTTX
 bin_PROGRAMS = mprof-report
 
 if HAVE_VTUNE
@@ -40,6 +40,7 @@ if !ENABLE_COOP_SUSPEND
 check_targets = run-test
 endif
 
+endif
 endif
 endif
 endif

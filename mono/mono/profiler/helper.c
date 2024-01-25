@@ -28,6 +28,9 @@
 #endif
 
 #include "helper.h"
+#ifdef __NuttX__
+#include <arpa/inet.h>
+#endif
 
 void
 mono_profhelper_close_socket_fd (int fd)
