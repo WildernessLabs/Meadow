@@ -142,7 +142,7 @@ static int upd_close(struct file *filep);
 static int upd_handle_pwm(int cmd, unsigned long arg);
 static int upd_handle_i2c(int cmd, struct upd_i2c_cmd*);
 static struct spi_dev_s * get_spi_bus(int busNumber);
-static void upd_unconfig_spi_bus(struct spi_dev_s * priv);
+static int upd_unconfig_spi_bus(int cmd, struct upd_spi_unconfig_cmd *);
 static int upd_handle_spi_data(int cmd, struct upd_spi_data_cmd*);
 static int upd_handle_spi_speed(int cmd, struct upd_spi_speed_cmd*);
 static int upd_handle_spi_mode(int cmd, struct upd_spi_mode_cmd*);
@@ -230,7 +230,7 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     case MUPD_SPI_BITS:
         return upd_handle_spi_bits(cmd, (struct upd_spi_bits_cmd*)arg);
     case MUPD_SPI_UNCONFIG:
-      return upd_unconfig_spi_bus(cmd, (struct upd_spi_unconfig_cmd*)arg);
+        return upd_unconfig_spi_bus(cmd, (struct upd_spi_unconfig_cmd*)arg);
 
     case MUPD_DIR_ENUM:
       return upd_handle_dir_enum((struct upd_dir_enum_cmd*)arg);
@@ -315,9 +315,10 @@ static struct spi_dev_s * get_spi_bus(int busNumber)
   return NULL;
 }
 
-static int upd_unconfig_spi_bus(struct upd_spi_unconfig_cmd data)
+static int upd_unconfig_spi_bus(int cmd, struct upd_spi_unconfig_cmd* data)
 {
   struct spi_dev_s *target = get_spi_bus(data->busNumber);
+
   if(target == NULL)
   {
     return ENODEV;
