@@ -27,6 +27,10 @@
 #include <ws2tcpip.h>
 #endif
 
+#ifdef __NuttX__
+#include <arpa/inet.h>
+#endif
+
 #include "helper.h"
 
 void
