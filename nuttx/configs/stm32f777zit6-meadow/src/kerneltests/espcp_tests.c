@@ -1111,7 +1111,7 @@ static void espcp_test_file_system_delete_file(char *name, char *remainingFile)
 static void espcp_test_fill_file_system(void)
 {
     #define MAXIMUM_FILE_SIZE   16384
-    #define NUMBER_OF_FILES     13
+    #define NUMBER_OF_FILES     12
     char name[20];
     uint8_t *file_contents;
 
@@ -1142,9 +1142,11 @@ static void espcp_test_fill_file_system(void)
     {
         sprintf(name, "File%d", index);
         syslog(LOGGING_LEVEL, "    Info: Writing file %s file to the file system.\n", name);
-        if (espcp_file_system_write_file(name, file_contents, MAXIMUM_FILE_SIZE) < 0)
+        int result = espcp_file_system_write_file(name, file_contents, MAXIMUM_FILE_SIZE);
+        if (result < 0)
         {
-            syslog(LOGGING_LEVEL, "    FAIL: Filling the file system (writing file %d)\n", index);
+            syslog(LOGGING_LEVEL, "    FAIL: Filling the file system (writing file %d), result: %d\n", index, result);
+            free(file_contents);
             return;
         }
     }
@@ -1156,8 +1158,10 @@ static void espcp_test_fill_file_system(void)
     if (espcp_file_system_write_file(name, file_contents, MAXIMUM_FILE_SIZE) == 0)
     {
         syslog(LOGGING_LEVEL, "    FAIL: Filling the file system (writing file %d as 16K file)\n", index);
+        free(file_contents);
         return;
     }
+    free(file_contents);
 
     if (espcp_file_system_format() != 0)
     {
@@ -1166,8 +1170,6 @@ static void espcp_test_fill_file_system(void)
     }
 
     syslog(LOGGING_LEVEL, "    PASS: Filling the file system\n");
-
-    free(file_contents);
 }
 
 /****************************************************************************
