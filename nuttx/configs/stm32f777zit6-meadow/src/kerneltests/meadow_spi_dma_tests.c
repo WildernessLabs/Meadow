@@ -33,9 +33,7 @@
  *
  ****************************************************************************/
 
-// This file contains SPI test and were developed when adding DMA to SPI for
-// Meadow. Some of these test use 2 F7 SPIs and therefore require a Project
-// Lab V3.x or equal. As this makes SPI3 and SPI5 available.
+// This file contains SPI test developed when adding DMA to SPI for Meadow.
 
 /****************************************************************************
  * Included Files
@@ -62,12 +60,15 @@
  * Pre-processor Definitions
  ************************************************************************************/
 
+#define MEADOW_SPI_TEST_ECHO_SPI_FREQ (400000)   // 400KHz
+#define MEADOW_SPI_TEST_ECHO_BUF_SIZE (32)
+#define MEADOW_SPI_TEST_ECHO_LOOP_CNT (1)
+
 /************************************************************************************
  * Private Data
  ************************************************************************************/
 static bool _canLoopback;
 struct spi_dev_s *_spiDev3 = NULL;
-struct spi_dev_s *_spiDev5 = NULL;
 
 /************************************************************************************
  * Public Data
@@ -77,16 +78,10 @@ struct spi_dev_s *_spiDev5 = NULL;
  * Private Function Prototypes
  ************************************************************************************/
 
-static void spi_dma_tests_no_dma_loopback(uint32_t userData);
+static void spi_loopback_test(uint32_t userData);
 static int spi_dma_tests_set_bus_params(struct spi_dev_s **spiDev, int bus, bool isPeriph);
-static void spi_dma_tests_send_data_via_spi(struct spi_dev_s *spiDev,
-          void *txBuf, size_t txSize);
-static void spi_dma_tests_recv_data_via_spi(struct spi_dev_s *spiDev,
-          void *rxBuf, size_t rxSize);
-// static void spi_dma_tests_xchg_data_via_spi(struct spi_dev_s *spiDev,
-//           void *txBuf, void *rxBuf, size_t xchgSize);
-static void *spi_dma_test_kthread_func(int argc, char *argv[]);
-static void execute_loopback_test(int numbLoops);
+static void *spi_test_main_thread_func(int argc, char *argv[]);
+static void execute_loopback_test(void);
 
 /************************************************************************************
  * Public Functions
@@ -99,7 +94,7 @@ void meadow_kt_spi_dma_tests(uint32_t userData)
   switch(userData)
   {
     case 1:
-      spi_dma_tests_no_dma_loopback(userData);
+      spi_loopback_test(userData);
       break;
 
     default:
@@ -111,7 +106,7 @@ void meadow_kt_spi_dma_tests(uint32_t userData)
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
-void spi_dma_tests_no_dma_loopback(uint32_t userData)
+void spi_loopback_test(uint32_t userData)
 {
 #if defined(CONFIG_STM32F7_SPI_DMA)
   syslog(2, "CONFIG_STM32F7_SPI_DMA configured. Can only run SPI tests using DMA\n");
@@ -119,39 +114,39 @@ void spi_dma_tests_no_dma_loopback(uint32_t userData)
   syslog(2, "CONFIG_STM32F7_SPI_DMA not configured. Can only run non-DMA SPI test\n");
 #endif
 
-#if defined(CONFIG_STM32F7_SPI3) && (CONFIG_STM32F7_SPI5)
+#if defined(CONFIG_STM32F7_SPI3)
   _canLoopback = true;
-  syslog(2, "%s@%d-Both SPI3 and SPI5 configured\n", __FILE__, __LINE__); usleep(30 * 1000);
+  syslog(2, "%s@%d-SPI3 configured\n", __FILE__, __LINE__); usleep(30 * 1000);
 #else
   _canLoopback = false;
-  syslog(2, "%s@%d-Either SPI3 or SPI 5 not defined\n", __FILE__, __LINE__); usleep(30 * 1000);
+  syslog(2, "%s@%d-SPI3 not defined\n", __FILE__, __LINE__); usleep(30 * 1000);
 #endif
 
-  // Create a thread to do testing 
-  int thread_id = kthread_create("SPI DMA Test",
+  // Create a thread to run the testing 
+  int thread_id = kthread_create("SPI Send Test",
                                 100,      // Priority
                                 2048,     // Stack
-                                (main_t) spi_dma_test_kthread_func,
+                                (main_t) spi_test_main_thread_func,
                                 (char *const *) NULL);
   if (thread_id <= 0)
   {
     syslog(LOG_ERR, "%s@%d-Creation of %s kthread FAILED\n",
-              __FILE__, __LINE__, "ADC Test Thread");
+              __FILE__, __LINE__, "SPI DMA Test 1");
     return;
   }
 }
 
 //===================================================================
-void *spi_dma_test_kthread_func(int argc, char *argv[])
+// This thread will manage the test and create a secondary thread to handle
+// echoing the data
+void *spi_test_main_thread_func(int argc, char *argv[])
 {
   int ret;
   _spiDev3 = NULL;
-  _spiDev5 = NULL;
 
   // We want to measure the time to do an exchange between SPI3 and SPI5
-  // First without DMA and then with DMA
-  
-  syslog(2, "%s@%d-kthread started\n", __FILE__, __LINE__); usleep(30 * 1000);
+  // First without DMA and then rebuild with DMA
+  syslog(2, "%s@%d-kthread %s started\n", __FILE__, __LINE__, "SPI Send Test started"); usleep(30 * 1000);
 
 #if defined(CONFIG_STM32F7_SPI3)
   // Initialize SPI3
@@ -170,17 +165,6 @@ void *spi_dma_test_kthread_func(int argc, char *argv[])
   }
 #endif
 
-#if defined(CONFIG_STM32F7_SPI5)
-  // Initialize SPI5
-  syslog(2, "%s@%d-Executing config for SPI 5\n", __FILE__, __LINE__); usleep(30 * 1000);
-  ret = spi_dma_tests_set_bus_params(&_spiDev5, 5, true);
-  if(ret < 0)
-  {
-    syslog(2, "%s@%d-Could not setup bus%d\n", __FILE__, __LINE__, 5);
-    return NULL;
-  }
-#endif
-
 #if defined (CONFIG_STM32F7_SPI_DMA)
   // DMA testing
 #else
@@ -189,16 +173,12 @@ void *spi_dma_test_kthread_func(int argc, char *argv[])
 
   if(_canLoopback)
   {
-    syslog(2, "%s@%d-kthread starting loopback\n", __FILE__, __LINE__); usleep(30 * 1000);
-    execute_loopback_test(1);
+    execute_loopback_test();
   }
   else
   {
     syslog(2, "%s@%d-kthread cannot run loopback test, exiting\n", __FILE__, __LINE__); usleep(30 * 1000);
   }
-
-  // spi_close(_spiDev3);
-  // spi_close(_spiDev5);
 
   syslog(2, "%s@%d-kthread about to exit\n", __FILE__, __LINE__); usleep(30 * 1000);
   return NULL;    // Thread exit
@@ -207,10 +187,6 @@ void *spi_dma_test_kthread_func(int argc, char *argv[])
 //=====================================================================
 int spi_dma_tests_set_bus_params(struct spi_dev_s **spiDev, int bus, bool isPeriph)
 {
-  // uint32_t desiredFreq = 8000000UL;   // 8MHz
-  // uint32_t desiredFreq = 1000000UL;   // 1MHz
-  uint32_t desiredFreq    = 400000;   // 400KHz
-
   *spiDev = stm32_spibus_initialize(bus);  // Nuttx function
   if(*spiDev == NULL)
   {
@@ -218,15 +194,7 @@ int spi_dma_tests_set_bus_params(struct spi_dev_s **spiDev, int bus, bool isPeri
     return -ENODEV;
   }
 
-  // Lock the bus for access
-  // ret = SPI_LOCK(spiDev, true);
-  // if(ret < 0)
-  // {
-  //   syslog(2, "%s@%d-Could not lock bus\n", __FILE__, __LINE__);
-  //   return ret;
-  // }
-
-  SPI_SETFREQUENCY(*spiDev, desiredFreq);
+  SPI_SETFREQUENCY(*spiDev, MEADOW_SPI_TEST_ECHO_SPI_FREQ);
 
   // Set the mode 0-4
   // SPIDEV_MODE0: /* CPOL=0; CPHA=0 */
@@ -237,151 +205,74 @@ int spi_dma_tests_set_bus_params(struct spi_dev_s **spiDev, int bus, bool isPeri
 
   // Set the number of bits per word. 4 - 32 is legal
   SPI_SETBITS(*spiDev, 8);
-
-  // Unlock the bus, we're done
-  // ret = SPI_LOCK(spiDev, false);
-  // if(ret < 0)
-  // {
-  //   syslog(2, "%s@%d-Could not unlock bus\n", __FILE__, __LINE__);
-  //   return ret;
-  // }
-
-  // (--) THIS IS UNTESTED!!
-  if(isPeriph)
-  {
-    // Modify the configuration to make this not a controller but a peripheral
-    // by clearing the master bit
-    uint16_t setbits = 0;
-    uint16_t clrbits = SPI_CR1_MSTR;
-    uint16_t cr1;
-
-    cr1 = getreg16(STM32_SPI_CR1_OFFSET);
-    cr1 &= ~clrbits;
-    cr1 |= setbits;
-    putreg16(cr1, STM32_SPI_CR1_OFFSET);
-    
-    // from /nuttx/arch/arm/src/stm32f7/stm32_spi.c line 1962
-    // clrbits = SPI_CR1_CPHA | SPI_CR1_CPOL | SPI_CR1_BR_MASK | SPI_CR1_LSBFIRST |
-    //           SPI_CR1_RXONLY | SPI_CR1_BIDIOE | SPI_CR1_BIDIMODE;
-    // setbits = SPI_CR1_MSTR | SPI_CR1_SSI | SPI_CR1_SSM;
-    // spi_modifycr1(priv, setbits, clrbits);
-  }
   return OK;
 }
 
 //==================================================================
-//
-void execute_loopback_test(int numbLoops)
+// This function is responsible for sending and receiving as a Controller
+void execute_loopback_test()
 {
-  size_t exchangeSize = 32;
+  int bufOff;
   uint8_t *txBuff3;
   uint8_t *rxBuff3;
-  uint8_t *echoBuff5;
   int score = 0;
 
-  syslog(2, "%s@%d-About to allocate buffer memory.\n", __FILE__, __LINE__); usleep(30 * 1000);
-  txBuff3 = malloc(exchangeSize);
+  syslog(2, "%s@%d-About to allocate buffer memory.\n", __FILE__, __LINE__);
+  txBuff3 = memalign(ARMV7M_DCACHE_LINESIZE, MEADOW_SPI_TEST_ECHO_BUF_SIZE);
   if(txBuff3 == NULL)
   {
     syslog(2, "%s@%d-Couldn't allocate mem for txBuff3\n", __FILE__, __LINE__);
     return;
   }
-  rxBuff3 = malloc(exchangeSize);
+  rxBuff3 = memalign(ARMV7M_DCACHE_LINESIZE, MEADOW_SPI_TEST_ECHO_BUF_SIZE);
   if(rxBuff3 == NULL)
   {
     syslog(2, "%s@%d-Couldn't allocate mem for rxBuff3\n", __FILE__, __LINE__);
     return;
   }
-  echoBuff5 = malloc(exchangeSize);
-  if(echoBuff5 == NULL)
-  {
-    syslog(2, "%s@%d-Couldn't allocate mem for echoBuff5\n", __FILE__, __LINE__);
-    return;
-  }
+  syslog(2, "%s@%d-Controller memory allocated, txBuff3:%p, rxBuff3:%p\n",
+            __FILE__, __LINE__, txBuff3, rxBuff3);
 
-  syslog(2, "%s@%d-All memory allocated, _spiDev3:%p, _spiDev5:%p \n",
-            __FILE__, __LINE__, _spiDev3, _spiDev5); usleep(30 * 1000);
-
-  // Fill final buffer with "data"
-  int bufOff;
-  for(bufOff = 0; bufOff < exchangeSize; bufOff++)
+  // Fill the initial send buffer with "data"
+  for(bufOff = 0; bufOff < MEADOW_SPI_TEST_ECHO_BUF_SIZE; bufOff++)
   {
-    // 0-0xff 
+    // 0x00-0xff 
     txBuff3[bufOff] = bufOff & 0xff;
   }
 
-  for(bufOff = 0; bufOff < exchangeSize; bufOff++)
-  {
-
-    echoBuff5[bufOff] = 0xaa;
-  }
-
-  for(bufOff = 0; bufOff < exchangeSize; bufOff++)
+  // Fill the final receive buffer with a different pattern
+  for(bufOff = 0; bufOff < MEADOW_SPI_TEST_ECHO_BUF_SIZE; bufOff++)
   {
     rxBuff3[bufOff] = 0x55;
   }
 
   // Send repeatedly
-  for(int loopCnt = 0; loopCnt < numbLoops; loopCnt++)
+  for(int loopCnt = 0; loopCnt < MEADOW_SPI_TEST_ECHO_LOOP_CNT; loopCnt++)
   {
-    syslog(2, "%s@%d-Loop:%d\n", __FILE__, __LINE__, loopCnt); usleep(30 * 1000);
-    spi_dma_tests_send_data_via_spi(_spiDev3, txBuff3, exchangeSize);
-
-    spi_dma_tests_recv_data_via_spi(_spiDev5, echoBuff5, exchangeSize);
-
-    spi_dma_tests_send_data_via_spi(_spiDev5, echoBuff5, exchangeSize);
-
-    spi_dma_tests_recv_data_via_spi(_spiDev3, rxBuff3, exchangeSize);
+    SPI_EXCHANGE(_spiDev3, txBuff3, rxBuff3, MEADOW_SPI_TEST_ECHO_BUF_SIZE);
 
     // Compare data sent with data received
-    int cmpResult = memcmp(txBuff3, rxBuff3, exchangeSize);
+    int cmpResult = memcmp(txBuff3, rxBuff3, MEADOW_SPI_TEST_ECHO_BUF_SIZE);
     if(cmpResult == 0)
     {
       score++;
     }
   }
-  syslog(2, "Successful transfers:%d of %d\n",score, numbLoops);
-  
-  syslog(2, "------------------------ txBuff3 ---------------------------\n");
-  hcom_nx_diag_print_buffer(txBuff3, exchangeSize, 1);
-  syslog(2, "------------------------ rxBuff3 ---------------------------\n");
-  hcom_nx_diag_print_buffer(rxBuff3, exchangeSize, 1);
-  syslog(2, "------------------------ echoBuff5 ---------------------------\n");
-  hcom_nx_diag_print_buffer(echoBuff5, exchangeSize, 1);
 
-  syslog(2, "Successful transfers:%d of %d\n",score, numbLoops);
+  syslog(2, "Successful transfered:%d of %d\n", score, MEADOW_SPI_TEST_ECHO_LOOP_CNT);
+
+#if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
+  syslog(2, "------------------------ txBuff3 ---------------------------\n");
+  hcom_nx_diag_print_buffer(txBuff3, MEADOW_SPI_TEST_ECHO_BUF_SIZE, 1);
+  syslog(2, "------------------------ rxBuff3 ---------------------------\n");
+  hcom_nx_diag_print_buffer(rxBuff3, MEADOW_SPI_TEST_ECHO_BUF_SIZE, 1);
+#endif
+  usleep(30 * 1000);
 
   free(txBuff3);
   free(rxBuff3);
-  free(echoBuff5);
-}
 
-//==================================================================
-// Send
-void spi_dma_tests_send_data_via_spi(struct spi_dev_s *spiDev,
-          void *txBuf, size_t txSize)
-{
-  syslog(2, "%s@%d-Sending %d bytes, spiDev:%p\n", __FILE__, __LINE__, txSize, spiDev); usleep(30 * 1000);
-  
-  SPI_EXCHANGE(spiDev, txBuf, NULL, txSize);
+  syslog(2, "Aligned memory freed\n"); usleep(30 * 1000);
 }
-
-//==================================================================
-// Receive
-void spi_dma_tests_recv_data_via_spi(struct spi_dev_s *spiDev,
-          void *rxBuf, size_t rxSize)
-{
-  SPI_EXCHANGE(spiDev, NULL, rxBuf, rxSize);
-}
-
-//==================================================================
-// Exchange
-// void spi_dma_tests_xchg_data_via_spi(struct spi_dev_s *spiDev,
-//           void *txBuf, void *rxBuf, size_t xchgSize)
-// {
-//   // Select ignored /nuttx/configs/stm32f777zit6-meadow/src/stm32_spi.c
-//   // We don't support multiply peripheral devices on a bus.
-//   SPI_EXCHANGE(spiDev, txBuf, rxBuf, xchgSize);
-// }
 
 #endif  // #if defined(CONFIG_SPI_DMA_TESTS)
