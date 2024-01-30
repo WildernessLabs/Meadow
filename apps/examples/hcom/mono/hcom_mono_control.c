@@ -107,7 +107,7 @@ static valid_mono_options_t _mono_options[] =
   { "--trace=", false },
   { "--debug", true },
   { "--soft-breakpoints", true },
-  { "--profile=", true}
+  { "--profile=", false}
 };
 
 /****************************************************************************
