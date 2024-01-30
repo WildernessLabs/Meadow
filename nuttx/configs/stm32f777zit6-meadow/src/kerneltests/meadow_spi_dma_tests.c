@@ -42,6 +42,10 @@
 #include "../hcom_nx/hcom_nx_common.h"
 #include <meadow/hcom_shared_common.h>
 #include <meadow/meadow_kernel_tests.h>
+#include <nuttx/kthread.h>
+#include <nuttx/spi/spi.h>
+#include "stm32_spi.h"
+#include <up_arch.h>
 
 #include <nuttx/spi/spi.h>
 #include "stm32_spi.h"
@@ -64,15 +68,25 @@
  * Pre-processor Definitions
  ************************************************************************************/
 
+<<<<<<< HEAD
 #define MEADOW_SPI_TEST_ECHO_SPI_FREQ (25000000)   // Want 24MHz for testing
 #define MEADOW_SPI_TEST_ECHO_BUF_SIZE (2048)
+=======
+#define MEADOW_SPI_TEST_ECHO_SPI_FREQ (400000)   // 400KHz
+#define MEADOW_SPI_TEST_ECHO_BUF_SIZE (32)
+>>>>>>> 35abb627e1f4e8ee766293b718fc64b24a4f5b5e
 #define MEADOW_SPI_TEST_ECHO_LOOP_CNT (1)
 
 /************************************************************************************
  * Private Data
  ************************************************************************************/
+<<<<<<< HEAD
 struct spi_dev_s *_spiDev3 = NULL;
 static struct work_s spi_test_work;
+=======
+static bool _canLoopback;
+struct spi_dev_s *_spiDev3 = NULL;
+>>>>>>> 35abb627e1f4e8ee766293b718fc64b24a4f5b5e
 
 /************************************************************************************
  * Public Data
@@ -84,7 +98,11 @@ static struct work_s spi_test_work;
 
 static void spi_loopback_test(uint32_t userData);
 static int spi_dma_tests_set_bus_params(struct spi_dev_s **spiDev, int bus, bool isPeriph);
+<<<<<<< HEAD
 static void spi_test_main_work_function(FAR void *arg);
+=======
+static void *spi_test_main_thread_func(int argc, char *argv[]);
+>>>>>>> 35abb627e1f4e8ee766293b718fc64b24a4f5b5e
 static void execute_loopback_test(void);
 
 /************************************************************************************
