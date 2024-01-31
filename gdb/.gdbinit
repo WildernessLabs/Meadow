@@ -63,15 +63,49 @@ source NuttxHeap.py
 source Tracing.py
 
 target extended-remote :4242
+eval "monitor nuttx.pid_offset %d", &((struct tcb_s *)(0))->pid
+eval "monitor nuttx.xcpreg_offset %d", &((struct tcb_s *)(0))->xcp.regs
+eval "monitor nuttx.state_offset %d", &((struct tcb_s *)(0))->task_state
+eval "monitor nuttx.name_offset %d", &((struct tcb_s *)(0))->name
+eval "monitor nuttx.name_size %d", sizeof(((struct tcb_s *)(0))->name)
 mon gdb_breakpoint_override hard
 #reset-qemu
-monitor nuttx.pid_offset 12
-monitor nuttx.xcpreg_offset 332
-monitor nuttx.state_offset 26
-monitor nuttx.name_offset 540
-monitor nuttx.name_size 64
+
 monitor nuttx.g_tasklisttable_size 72
 
+define armex
+  printf "EXEC_RETURN (LR):\n",
+  info registers $lr
+    if ($lr & (0x4 == 0x4))
+      printf "Uses MSP 0x%x return.\n", $msp
+      set $armex_base = $psp
+    else
+      printf "Uses PSP 0x%x return.\n", $psp
+      set $armex_base = $psp
+    end
+    printf "xPSR            0x%x\n", *(((uint32_t*)$armex_base)+7)
+    printf "ReturnAddress   0x%x\n", *(((uint32_t*)$armex_base)+6)
+    printf "LR (R14)        0x%x\n", *(((uint32_t*)$armex_base)+5)
+    printf "R12             0x%x\n", *(((uint32_t*)$armex_base)+4)
+    printf "R3              0x%x\n", *(((uint32_t*)$armex_base)+3)
+    printf "R2              0x%x\n", *(((uint32_t*)$armex_base)+2)
+    printf "R1              0x%x\n", *(((uint32_t*)$armex_base)+1)
+    printf "R0              0x%x\n", *((uint32_t*)$armex_base)
+    printf "Return instruction:\n"
+    x/i *((uint32_t*)$armex_base+6)
+    printf "LR instruction:\n"
+    x/i *((uint32_t*)$armex_base+5)
+
+    printf "SP 0x%x\n", *((uint32_t*)$r4)
+    printf "EXC_RETURN 0x%x\n", *((uint32_t*)$r4+10)
+end
+  
+document armex
+ARMv7 Exception entry behavior.
+xPSR, ReturnAddress, LR (R14), R12, R3, R2, R1, and R0
+end
+
+break up_assert
 #
 #   Commands specific to your debug scenario should be placed here.  The following
 #   may be useful for debugging sessions and so have been left as commants with
