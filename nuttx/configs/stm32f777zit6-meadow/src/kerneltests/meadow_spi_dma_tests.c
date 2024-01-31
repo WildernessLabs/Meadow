@@ -69,8 +69,7 @@
  ************************************************************************************/
 
 #define MEADOW_SPI_TEST_ECHO_SPI_FREQ (25000000)   // Want 24MHz for testing
-#define MEADOW_SPI_TEST_ECHO_BUF_SIZE (2048)
-#define MEADOW_SPI_TEST_ECHO_LOOP_CNT (1)
+#define MEADOW_SPI_TEST_ECHO_BUF_SIZE (32)
 
 /************************************************************************************
  * Private Data
@@ -81,14 +80,16 @@ static struct work_s spi_test_work;
 struct SPITestingOptions_s
 {
   struct spi_dev_s *spiDev;
-  uint32_t spiNumber;   // SPI3 or SPI5
+  uint32_t repeatSendRecv;
+  uint32_t spiNumber;
   size_t msgBits;
   size_t bufferSize;
   bool isMemAligned;
 };
 typedef struct SPITestingOptions_s SPITestingOptions;
 
-SPITestingOptions *_testOps;
+SPITestingOptions SpiTestOps;
+SPITestingOptions *_testOps = &SpiTestOps;
 
 /************************************************************************************
  * Public Data
@@ -98,7 +99,7 @@ SPITestingOptions *_testOps;
  * Private Function Prototypes
  ************************************************************************************/
 
-static int spi_loopback_test(SPITestingOptions *testOps);
+static int spi_initiate_loopback_test(SPITestingOptions *testOps);
 static void spi_test_main_work_function(FAR void *arg);
 
 /************************************************************************************
@@ -107,38 +108,32 @@ static void spi_test_main_work_function(FAR void *arg);
 // developer -d 17 comes here
 void meadow_kt_spi_dma_tests(uint32_t userData)
 {
-  _testOps = zalloc(sizeof(SPITestingOptions));
-  if(_testOps == NULL)
-  {
-    syslog(2, "%s@%d-Initial Mem allocation failed, errno:%d\n",
-              __FILE__, __LINE__, errno); usleep(30 * 1000);
-    return;
-  }
+  memset(_testOps, 0, sizeof(SPITestingOptions));
 
   switch(userData)
   {
     case 1:
+      _testOps->repeatSendRecv = 1;
       _testOps->spiNumber = 3;
       _testOps->isMemAligned = true;
-      _testOps->bufferSize = 2048;
+      _testOps->bufferSize = 256;
       _testOps->msgBits = 8;
       _testOps->spiDev = NULL;
-
-      spi_loopback_test(_testOps);
       break;
 
     default:
       syslog(2, "Undefined test for meadow_kt_spi_dma_tests, userData:%lu\n", userData); usleep(30 * 1000);
-      break;
+      return;
   }
 
-  free(_testOps);
+  if(_testOps->repeatSendRecv)
+    spi_initiate_loopback_test(_testOps);
 }
 
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
-int spi_loopback_test(SPITestingOptions *testOps)
+int spi_initiate_loopback_test(SPITestingOptions *testOps)
 {
   int ret;
 
@@ -150,13 +145,11 @@ int spi_loopback_test(SPITestingOptions *testOps)
 
   syslog(2, "%s@%d-Testing SPI%lu\n", __FILE__, __LINE__, testOps->spiNumber); usleep(30 * 1000);
 
-  // Also set GPIO low
+  // Also sets GPIO low
   DEBUG_CONFIGURE_PIN(DEBUG_PIN_CCM_A04_PB1);
 
-
-#if defined(CONFIG_STM32F7_SPI3)
   _spiDev = NULL;
-  _spiDev = stm32_spibus_initialize(3);  // Nuttx function
+  _spiDev = stm32_spibus_initialize(testOps->spiNumber);  // Nuttx function
   if(_spiDev == NULL)
   {
     syslog(2, "%s@%d-SPI%d failed to initialize\n", __FILE__, __LINE__, 3);
@@ -173,10 +166,9 @@ int spi_loopback_test(SPITestingOptions *testOps)
   SPI_SETMODE(_spiDev, SPIDEV_MODE0);
 
   // Set the number of bits per word. 4 - 32 is legal
-  SPI_SETBITS(_spiDev, 8);
-#endif
+  SPI_SETBITS(_spiDev, testOps->msgBits);
 
-  ret = work_queue(HPWORK, &spi_test_work, spi_test_main_work_function, NULL, 0);
+  ret = work_queue(HPWORK, &spi_test_work, spi_test_main_work_function, testOps, 0);
   if(ret < 0)
   {
     syslog(2, "%s@%d-Error work_queue returned with error:%d\n", __FILE__, __LINE__, ret); usleep(30 * 1000);
@@ -186,77 +178,78 @@ int spi_loopback_test(SPITestingOptions *testOps)
 }
 
 //==================================================================
-// This function is responsible for sending and receiving as a Controller
-// void execute_loopback_test()
+// This function is responsible for sending and receiving data to the SPI bus
 void spi_test_main_work_function(FAR void *arg)
 {
-  // SPITestingOptions *testOps = (SPITestingOptions *)arg;
+  SPITestingOptions *testOps = (SPITestingOptions *)arg;
 
-  int bufOff;
-  uint8_t *txBuff3;
-  uint8_t *rxBuff3;
+  syslog(1, "%s@%d-testOps@%p\n", __FILE__, __LINE__, testOps);
+
+  size_t bufOff;
+  uint8_t *txBuff;
+  uint8_t *rxBuff;
   int score = 0;
 
-  syslog(2, "%s@%d-About to allocate buffer memory.\n", __FILE__, __LINE__); usleep(30 * 1000);
-  txBuff3 = memalign(ARMV7M_DCACHE_LINESIZE, MEADOW_SPI_TEST_ECHO_BUF_SIZE);
-  if(txBuff3 == NULL)
-  {
-    syslog(2, "%s@%d-Couldn't allocate mem for txBuff3\n", __FILE__, __LINE__); usleep(30 * 1000);
-    return;
-  }
-  rxBuff3 = memalign(ARMV7M_DCACHE_LINESIZE, MEADOW_SPI_TEST_ECHO_BUF_SIZE);
-  if(rxBuff3 == NULL)
-  {
-    syslog(2, "%s@%d-Couldn't allocate mem for rxBuff3\n", __FILE__, __LINE__);
-    return;
-  }
-  syslog(2, "%s@%d-memory allocated, txBuff3:%p, rxBuff3:%p\n",
-            __FILE__, __LINE__, txBuff3, rxBuff3); usleep(30 * 1000);
+  syslog(2, "%s@%d-About to allocate %lu byte buffers for SPI%lu testing\n",
+          __FILE__, __LINE__, testOps->bufferSize, testOps->spiNumber); usleep(30 * 1000);
 
-  // Fill the initial send buffer with "data"
-  for(bufOff = 0; bufOff < MEADOW_SPI_TEST_ECHO_BUF_SIZE; bufOff++)
+  txBuff = memalign(ARMV7M_DCACHE_LINESIZE, testOps->bufferSize);
+  if(txBuff == NULL)
+  {
+    syslog(2, "%s@%d-Couldn't allocate mem for txBuff\n", __FILE__, __LINE__); usleep(30 * 1000);
+    return;
+  }
+
+  rxBuff = memalign(ARMV7M_DCACHE_LINESIZE, testOps->bufferSize);
+  if(rxBuff == NULL)
+  {
+    syslog(2, "%s@%d-Couldn't allocate mem for rxBuff\n", __FILE__, __LINE__);
+    return;
+  }
+
+  syslog(2, "%s@%d-%lu bytes in each buffer, testOps:%p, txBuff:%p, rxBuff:%p\n",
+            __FILE__, __LINE__, testOps->bufferSize,
+            testOps, txBuff, rxBuff); usleep(30 * 1000);
+
+  // Fill send buffer with "data"
+  for(bufOff = 0; bufOff < testOps->bufferSize; bufOff++)
   {
     // 0x00-0xff and repeat pattern
-    txBuff3[bufOff] = bufOff & 0xff;
-  }
-
-  // Fill the final receive buffer with a different pattern
-  // memset?
-  for(bufOff = 0; bufOff < MEADOW_SPI_TEST_ECHO_BUF_SIZE; bufOff++)
-  {
-    rxBuff3[bufOff] = 0x55;
+    txBuff[bufOff] = bufOff & 0xff;
   }
 
   // Send repeatedly
-  for(int loopCnt = 0; loopCnt < MEADOW_SPI_TEST_ECHO_LOOP_CNT; loopCnt++)
+  for(int loopCnt = 0; loopCnt < testOps->repeatSendRecv; loopCnt++)
   {
-    syslog(2, "%s@%d-Executing test.\n", __FILE__, __LINE__); usleep(30 * 1000);
+    // Fill the receive buffer with different pattern from txBuff
+    memset(rxBuff, 0x5a, testOps->bufferSize);
+
     DEBUG_SET_HIGH(DEBUG_PIN_CCM_A04_PB1);
 
-    SPI_EXCHANGE(_spiDev, txBuff3, rxBuff3, MEADOW_SPI_TEST_ECHO_BUF_SIZE);
+    SPI_EXCHANGE(_spiDev, txBuff, rxBuff, testOps->bufferSize);
 
     DEBUG_SET_LOW(DEBUG_PIN_CCM_A04_PB1);
 
     // Compare data sent with data received
-    int cmpResult = memcmp(txBuff3, rxBuff3, MEADOW_SPI_TEST_ECHO_BUF_SIZE);
+    int cmpResult = memcmp(txBuff, rxBuff, testOps->bufferSize);
     if(cmpResult == 0)
     {
       score++;
     }
   }
 
-  syslog(2, "Successful transfered:%d of %d\n", score, MEADOW_SPI_TEST_ECHO_LOOP_CNT);
+  syslog(2, "Successful transfered:%d of %d\n", score, testOps->repeatSendRecv);
 
 #if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
-  syslog(2, "------------------------ txBuff3 ---------------------------\n");
-  hcom_nx_diag_print_buffer(txBuff3, MEADOW_SPI_TEST_ECHO_BUF_SIZE, 1);
-  syslog(2, "------------------------ rxBuff3 ---------------------------\n");
-  hcom_nx_diag_print_buffer(rxBuff3, MEADOW_SPI_TEST_ECHO_BUF_SIZE, 1);
-#endif
+  syslog(2, "------------------------ txBuff ---------------------------\n");
+  hcom_nx_diag_print_buffer(txBuff, testOps->bufferSize, 1);
+  syslog(2, "------------------------ rxBuff ---------------------------\n");
+  hcom_nx_diag_print_buffer(rxBuff, testOps->bufferSize, 1);
   usleep(30 * 1000);
+#endif
 
-  free(txBuff3);
-  free(rxBuff3);
+  free(txBuff);
+  free(rxBuff);
 
   syslog(2, "Aligned memory freed\n"); usleep(30 * 1000);
 }
