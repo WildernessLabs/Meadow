@@ -75,8 +75,20 @@
 /************************************************************************************
  * Private Data
  ************************************************************************************/
-struct spi_dev_s *_spiDev3 = NULL;
+struct spi_dev_s *_spiDev = NULL;
 static struct work_s spi_test_work;
+
+struct SPITestingOptions_s
+{
+  struct spi_dev_s *spiDev;
+  uint32_t spiNumber;   // SPI3 or SPI5
+  size_t msgBits;
+  size_t bufferSize;
+  bool isMemAligned;
+};
+typedef struct SPITestingOptions_s SPITestingOptions;
+
+SPITestingOptions *_testOps;
 
 /************************************************************************************
  * Public Data
@@ -86,122 +98,100 @@ static struct work_s spi_test_work;
  * Private Function Prototypes
  ************************************************************************************/
 
-static void spi_loopback_test(uint32_t userData);
-static int spi_dma_tests_set_bus_params(struct spi_dev_s **spiDev, int bus, bool isPeriph);
+static int spi_loopback_test(SPITestingOptions *testOps);
 static void spi_test_main_work_function(FAR void *arg);
-static void execute_loopback_test(void);
 
 /************************************************************************************
  * Public Functions
  ************************************************************************************/
-// set developer -d 17 come here
+// developer -d 17 comes here
 void meadow_kt_spi_dma_tests(uint32_t userData)
 {
-  syslog(2, "SPI DMA tests received 'set developer -d 17 -v %lu'.\n", userData);
+  _testOps = zalloc(sizeof(SPITestingOptions));
+  if(_testOps == NULL)
+  {
+    syslog(2, "%s@%d-Initial Mem allocation failed, errno:%d\n",
+              __FILE__, __LINE__, errno); usleep(30 * 1000);
+    return;
+  }
 
   switch(userData)
   {
     case 1:
-      spi_loopback_test(userData);
+      _testOps->spiNumber = 3;
+      _testOps->isMemAligned = true;
+      _testOps->bufferSize = 2048;
+      _testOps->msgBits = 8;
+      _testOps->spiDev = NULL;
+
+      spi_loopback_test(_testOps);
       break;
 
     default:
-      syslog(2, "Undefined test for meadow_kt_spi_dma_tests, userData:%lu\n", userData);
+      syslog(2, "Undefined test for meadow_kt_spi_dma_tests, userData:%lu\n", userData); usleep(30 * 1000);
       break;
   }
+
+  free(_testOps);
 }
 
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
-void spi_loopback_test(uint32_t userData)
+int spi_loopback_test(SPITestingOptions *testOps)
 {
+  int ret;
+
 #if defined(CONFIG_STM32F7_SPI_DMA)
-  syslog(2, "CONFIG_STM32F7_SPI_DMA configured. Running test using DMA\n");
+  syslog(2, "CONFIG_STM32F7_SPI_DMA configured. Running test using DMA\n"); usleep(30 * 1000);
 #else
   syslog(2, "CONFIG_STM32F7_SPI_DMA not configured. Running test without DMA\n");
 #endif
 
-#if !defined(CONFIG_STM32F7_SPI3)
-  syslog(2, "%s@%d-SPI3 not defined, cannot run test\n", __FILE__, __LINE__); usleep(30 * 1000);
-  return;
-#endif
-
-  work_queue(HPWORK, &spi_test_work, spi_test_main_work_function, NULL, 0);
-}
-
-//===================================================================
-// This thread will manage the test and create a secondary thread to handle
-// echoing the data
-static void spi_test_main_work_function(FAR void *arg)
-{
-  int ret;
-  _spiDev3 = NULL;
+  syslog(2, "%s@%d-Testing SPI%lu\n", __FILE__, __LINE__, testOps->spiNumber); usleep(30 * 1000);
 
   // Also set GPIO low
   DEBUG_CONFIGURE_PIN(DEBUG_PIN_CCM_A04_PB1);
 
-  // We want to measure the time to do a SPI data exchange
-  syslog(2, "%s@%d-Work thread executing\n", __FILE__, __LINE__); usleep(30 * 1000);
 
 #if defined(CONFIG_STM32F7_SPI3)
-  // Initialize SPI3
-  syslog(2, "%s@%d-Executing config for SPI 3\n", __FILE__, __LINE__); usleep(30 * 1000);
-  ret = spi_dma_tests_set_bus_params(&_spiDev3, 3, false);
-  if(ret < 0)
+  _spiDev = NULL;
+  _spiDev = stm32_spibus_initialize(3);  // Nuttx function
+  if(_spiDev == NULL)
   {
-    syslog(2, "%s@%d-Could not setup bus%d\n", __FILE__, __LINE__, 3);
-    return NULL;
-  }
-
-  if(_spiDev3 == NULL)
-  {
-    syslog(2, "%s@%d-Setup returned spiDev:%p\n", __FILE__, __LINE__, _spiDev3);
-    return NULL;
-  }
-#endif
-
-#if defined (CONFIG_STM32F7_SPI_DMA)
-  // DMA testing
-#else
-  // No DMA Testing
-#endif
-
-  syslog(2, "%s@%d-Executing config for SPI 3\n", __FILE__, __LINE__); usleep(30 * 1000);
-  execute_loopback_test();
-
-  syslog(2, "%s@%d-worker queue exiting\n", __FILE__, __LINE__); usleep(30 * 1000);
-  return NULL;    // Thread exit
-}
-
-//=====================================================================
-int spi_dma_tests_set_bus_params(struct spi_dev_s **spiDev, int bus, bool isPeriph)
-{
-  *spiDev = stm32_spibus_initialize(bus);  // Nuttx function
-  if(*spiDev == NULL)
-  {
-    syslog(2, "%s@%d-SPI%d failed to initialize\n", __FILE__, __LINE__, bus);
+    syslog(2, "%s@%d-SPI%d failed to initialize\n", __FILE__, __LINE__, 3);
     return -ENODEV;
   }
 
-  SPI_SETFREQUENCY(*spiDev, MEADOW_SPI_TEST_ECHO_SPI_FREQ);
+  SPI_SETFREQUENCY(_spiDev, MEADOW_SPI_TEST_ECHO_SPI_FREQ);
 
   // Set the mode 0-4
   // SPIDEV_MODE0: /* CPOL=0; CPHA=0 */
   // SPIDEV_MODE1: /* CPOL=0; CPHA=1 */
   // SPIDEV_MODE2: /* CPOL=1; CPHA=0 */
   // SPIDEV_MODE3: /* CPOL=1; CPHA=1 */
-  SPI_SETMODE(*spiDev, SPIDEV_MODE0);
+  SPI_SETMODE(_spiDev, SPIDEV_MODE0);
 
   // Set the number of bits per word. 4 - 32 is legal
-  SPI_SETBITS(*spiDev, 8);
-  return OK;
+  SPI_SETBITS(_spiDev, 8);
+#endif
+
+  ret = work_queue(HPWORK, &spi_test_work, spi_test_main_work_function, NULL, 0);
+  if(ret < 0)
+  {
+    syslog(2, "%s@%d-Error work_queue returned with error:%d\n", __FILE__, __LINE__, ret); usleep(30 * 1000);
+  }
+
+  return ret;
 }
 
 //==================================================================
 // This function is responsible for sending and receiving as a Controller
-void execute_loopback_test()
+// void execute_loopback_test()
+void spi_test_main_work_function(FAR void *arg)
 {
+  // SPITestingOptions *testOps = (SPITestingOptions *)arg;
+
   int bufOff;
   uint8_t *txBuff3;
   uint8_t *rxBuff3;
@@ -243,7 +233,7 @@ void execute_loopback_test()
     syslog(2, "%s@%d-Executing test.\n", __FILE__, __LINE__); usleep(30 * 1000);
     DEBUG_SET_HIGH(DEBUG_PIN_CCM_A04_PB1);
 
-    SPI_EXCHANGE(_spiDev3, txBuff3, rxBuff3, MEADOW_SPI_TEST_ECHO_BUF_SIZE);
+    SPI_EXCHANGE(_spiDev, txBuff3, rxBuff3, MEADOW_SPI_TEST_ECHO_BUF_SIZE);
 
     DEBUG_SET_LOW(DEBUG_PIN_CCM_A04_PB1);
 
