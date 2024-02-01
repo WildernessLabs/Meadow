@@ -15,6 +15,7 @@
 #include <mono/utils/mono-dl.h>
 #include <mono/utils/mono-error-internals.h>
 #include <mono/utils/mono-logger-internals.h>
+#include <mono/profiler/log.h>
 
 MonoProfilerState mono_profiler_state;
 
@@ -140,43 +141,27 @@ load_profiler_from_installation (const char *libname, const char *name, const ch
  * This function may \b only be called by embedders prior to running managed
  * code.
  */
-void
-mono_profiler_load (const char *desc)
-{
-	const char *col;
-	char *mname, *libname;
 
-	mname = libname = NULL;
+void mono_profiler_load(const char *desc) {
+    const char *col;
+    char *mname;
 
-	if (!desc || !strcmp ("default", desc))
-		desc = "log:report";
+    mname = NULL;
 
-	if ((col = strchr (desc, ':')) != NULL) {
-		mname = (char *) g_memdup (desc, col - desc + 1);
-		mname [col - desc] = 0;
-	} else {
-		mname = g_strdup (desc);
-	}
+    if (!desc || !strcmp("default", desc))
+        desc = "log:report";
 
-	if (load_profiler_from_executable (mname, desc))
-		goto done;
+    if ((col = strchr(desc, ':')) != NULL) {
+        mname = (char *)g_memdup(desc, col - desc + 1);
+        mname[col - desc] = 0;
+    } else {
+        mname = g_strdup(desc);
+    }
 
-	libname = g_strdup_printf ("mono-profiler-%s", mname);
+    // Call the profiler initialization function directly
+    mono_profiler_init_log(desc);
 
-	if (load_profiler_from_installation (libname, mname, desc))
-		goto done;
-
-	if (mono_config_get_assemblies_dir () && load_profiler_from_directory (mono_assembly_getrootdir (), libname, mname, desc))
-		goto done;
-
-	if (load_profiler_from_directory (NULL, libname, mname, desc))
-		goto done;
-
-	mono_trace (G_LOG_LEVEL_CRITICAL, MONO_TRACE_PROFILER, "The '%s' profiler wasn't found in the main executable nor could it be loaded from '%s'.", mname, libname);
-
-done:
-	g_free (mname);
-	g_free (libname);
+    g_free(mname);
 }
 
 /**

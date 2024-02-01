@@ -1051,6 +1051,13 @@ dump_header (void)
 	{
 		fwrite (hbuf, p - hbuf, 1, log_profiler.file);
 		fflush (log_profiler.file);
+
+		FILE *test = fopen("/meadow0/test.mlpd", "ab");
+
+		fwrite (hbuf, p - hbuf, 1, test);
+		fflush (test);
+
+		fclose(test);
 	}
 
 	g_free (hbuf);
@@ -1144,6 +1151,14 @@ dump_buffer (LogBuffer *buf)
 			fwrite (hbuf, p - hbuf, 1, log_profiler.file);
 			fwrite (buf->buf, buf->cursor - buf->buf, 1, log_profiler.file);
 			fflush (log_profiler.file);
+
+    		FILE *test = fopen("/meadow0/test.mlpd", "ab");
+
+			fwrite (hbuf, p - hbuf, 1, test);
+			fwrite (buf->buf, buf->cursor - buf->buf, 1, test);
+			fflush (test);
+
+			fclose(test);
 		}
 	}
 
@@ -3065,7 +3080,7 @@ log_shutdown (MonoProfiler *prof)
 		gzclose (prof->gzfile);
 #endif
 	if (prof->pipe_output)
-		pclose (prof->file);
+    	fclose(prof->file); // TODO: Adjust this hack to remove pclose
 	else
 		fclose (prof->file);
 
@@ -4089,7 +4104,7 @@ create_profiler (const char *args, const char *filename, GPtrArray *filters)
 		if (log_config.do_report)
 			filename = "|mprof-report -";
 		else
-			filename = "output.mlpd";
+            filename = "/meadow0/output.mlpd";  // Specify the full path here
 		nf = (char*)filename;
 	} else {
 		nf = new_filename (filename);
@@ -4102,7 +4117,7 @@ create_profiler (const char *args, const char *filename, GPtrArray *filters)
 		}
 	}
 	if (*nf == '|') {
-		log_profiler.file = popen (nf + 1, "w");
+		log_profiler.file = fopen (nf + 1, "w"); // TODO: Adjust this hack to remove popen
 		log_profiler.pipe_output = 1;
 	} else if (*nf == '#') {
 		int fd = strtol (nf + 1, NULL, 10);
