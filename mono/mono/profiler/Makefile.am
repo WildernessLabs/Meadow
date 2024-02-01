@@ -12,8 +12,8 @@ if !HOST_WIN32
 if !DISABLE_LIBRARIES
 if !DISABLE_PROFILER
 if !NUTTX
-
 bin_PROGRAMS = mprof-report
+endif
 
 if HAVE_VTUNE
 vtune_libs = \
@@ -41,7 +41,6 @@ if !ENABLE_COOP_SUSPEND
 check_targets = run-test
 endif
 
-endif
 endif
 endif
 endif
