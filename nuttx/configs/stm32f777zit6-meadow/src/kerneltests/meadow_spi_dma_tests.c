@@ -173,6 +173,9 @@ void meadow_kt_spi_dma_tests(uint32_t userData)
       _testOps->bufferSize = 1;
       break;
 
+    case 14:      // 100k buffer
+      _testOps->bufferSize = 102400;
+      break;
 
     case 21:      // Misaligned 4k buffer
       _testOps->isMemAligned = false;
@@ -321,9 +324,9 @@ void spi_test_main_work_function(FAR void *arg)
     rxBuff += MEADOW_SPI_TESTING_RX_ALIGN_OFF;
   }
 
-  // syslog(2, "%s@%d-%lu bytes in each buffer, testOps:%p, txBuff:%p, rxBuff:%p\n",
-  //           __FILE__, __LINE__, testOps->bufferSize,
-  //           testOps, txBuff, rxBuff); usleep(20 * 1000);
+  syslog(2, "%s@%d- 24 MHz, %lu bytes in buffers, testOps:%p, txBuff:%p, rxBuff:%p\n",
+            __FILE__, __LINE__, testOps->bufferSize,
+            testOps, txBuff, rxBuff); usleep(20 * 1000);
 
   // Fill send buffer with pseudo "data"
   for(bufOff = 0; bufOff < testOps->bufferSize; bufOff++)
