@@ -1049,15 +1049,16 @@ dump_header (void)
 	} else
 #endif
 	{
+		if (log_profiler.file == NULL)
+		{
+			log_profiler.file = fopen("/meadow0/output.mlpd", "ab");
+		}	
+			
 		fwrite (hbuf, p - hbuf, 1, log_profiler.file);
 		fflush (log_profiler.file);
 
-		FILE *test = fopen("/meadow0/test.mlpd", "ab");
-
-		fwrite (hbuf, p - hbuf, 1, test);
-		fflush (test);
-
-		fclose(test);
+		fclose(log_profiler.file);
+		log_profiler.file = NULL;
 	}
 
 	g_free (hbuf);
@@ -1148,17 +1149,18 @@ dump_buffer (LogBuffer *buf)
 		} else
 #endif
 		{
+
+			if (log_profiler.file == NULL)
+			{
+				log_profiler.file = fopen("/meadow0/output.mlpd", "ab");
+			}	
+		
 			fwrite (hbuf, p - hbuf, 1, log_profiler.file);
 			fwrite (buf->buf, buf->cursor - buf->buf, 1, log_profiler.file);
 			fflush (log_profiler.file);
-
-    		FILE *test = fopen("/meadow0/test.mlpd", "ab");
-
-			fwrite (hbuf, p - hbuf, 1, test);
-			fwrite (buf->buf, buf->cursor - buf->buf, 1, test);
-			fflush (test);
-
-			fclose(test);
+			
+			fclose(log_profiler.file);
+			log_profiler.file = NULL;
 		}
 	}
 
