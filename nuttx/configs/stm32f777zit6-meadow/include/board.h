@@ -566,13 +566,10 @@
 #define GPIO_SPI2_MISO        GPIO_SPI2_MISO_3
 #define GPIO_SPI2_MOSI        GPIO_SPI2_MOSI_3
 
-// We use SPI2, SPI3 and SPI5
-// SPI2 only has one options and this is baked into stm32_spi.c
+// Meadow uses 3 SPI devices SPI2, SPI3 and SPI5
+// SPI2 only has one option for RX and TX this is baked into stm32_spi.c
 // #define DMAMAP_SPI2_RX             STM32_DMA_MAP(DMA1,DMA_STREAM3,DMA_CHAN0)
 // #define DMAMAP_SPI2_TX             STM32_DMA_MAP(DMA1,DMA_STREAM4,DMA_CHAN0)
-
-// (--) VERIFY THIS STATMENT AND THE THINKING BEHIND IT!!!!!
-//Since SPI2 uses DMA1, Stream3 Channel0 SPI3 and 5 cannot use Stream 3 or 4
 
 // Mapping for SPI3.
 // #define DMAMAP_SPI3_RX_1  STM32_DMA_MAP(DMA1,DMA_STREAM0,DMA_CHAN0)
@@ -582,9 +579,14 @@
 #define DMAMAP_SPI3_RX  DMAMAP_SPI3_RX_2
 #define DMAMAP_SPI3_TX  DMAMAP_SPI3_TX_2
 
-// Mapping for SPI5 - NOT TESTED YET
-#define DMAMAP_SPI5_RX  DMAMAP_SPI5_RX_1  // DMA2,DMA_STREAM3,DMA_CHAN2
-#define DMAMAP_SPI5_TX  DMAMAP_SPI5_TX_1  // DMA2,DMA_STREAM4,DMA_CHAN2
+// Mapping for SPI5, Note uses DMA2
+// #define DMAMAP_SPI5_RX_1  STM32_DMA_MAP(DMA2,DMA_STREAM3,DMA_CHAN2)
+// #define DMAMAP_SPI5_TX_1  STM32_DMA_MAP(DMA2,DMA_STREAM4,DMA_CHAN2)
+// #define DMAMAP_SPI5_RX_2  STM32_DMA_MAP(DMA2,DMA_STREAM5,DMA_CHAN7)
+// #define DMAMAP_SPI5_TX_2  STM32_DMA_MAP(DMA2,DMA_STREAM6,DMA_CHAN7)
+// #define DMAMAP_SPI5_RX_3  STM32_DMA_MAP(DMA2,DMA_STREAM5,DMA_CHAN9)
+#define DMAMAP_SPI5_RX  DMAMAP_SPI5_RX_1
+#define DMAMAP_SPI5_TX  DMAMAP_SPI5_TX_1
 
 /************************************************************************************
  * Public Data

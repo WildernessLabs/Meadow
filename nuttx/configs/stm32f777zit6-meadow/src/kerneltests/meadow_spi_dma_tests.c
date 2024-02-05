@@ -69,8 +69,6 @@
  ************************************************************************************/
 
 #define MEADOW_SPI_TESTING_SPI_FREQ (25000000)   // Want 24MHz for testing
-#define MEADOW_SPI_TESTING_TX_ALIGN_OFF (7)   // Want 24MHz for testing
-#define MEADOW_SPI_TESTING_RX_ALIGN_OFF (3)   // Want 24MHz for testing
 
 /************************************************************************************
  * Private Data
@@ -84,7 +82,6 @@ struct SPITestingOptions_s
   uint32_t spiNumber;
   size_t msgBits;
   size_t bufferSize;
-  bool isMemAligned;
 };
 typedef struct SPITestingOptions_s SPITestingOptions;
 
@@ -112,7 +109,7 @@ void meadow_kt_spi_dma_tests(uint32_t userData)
   // Default values SPI3, aligned 2k buffer, 8 byte message, no repeat
   _testOps->repeatExchange = 1;
   _testOps->spiNumber = 3;
-  _testOps->isMemAligned = true;
+  // _testOps->isMemAligned = true;
   _testOps->bufferSize = 2048;
   _testOps->msgBits = 8;
 
@@ -173,47 +170,124 @@ void meadow_kt_spi_dma_tests(uint32_t userData)
       _testOps->bufferSize = 1;
       break;
 
-    case 14:      // 100k buffer
-      _testOps->bufferSize = 102400;
+    case 14:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 1024 * 10;
       break;
 
-    case 21:      // Misaligned 4k buffer
-      _testOps->isMemAligned = false;
-      _testOps->bufferSize = 4096;
+    case 15:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 1024 * 20;
       break;
 
-    case 22:      // Misaligned 2k buffer (default)
-      _testOps->isMemAligned = false;
+    case 16:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 1024 * 40;
+      break;
+
+    case 17:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 1024 * 50;
+      break;
+
+    case 18:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 1024 * 60;
+      break;
+
+    case 19:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 1024 * 70;
+      break;
+
+    case 20:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 1024 * 80;
+      break;
+
+    case 21:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 1024 * 90;
+      break;
+
+    case 22:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 1024 * 100;
+      break;
+
+    case 23:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 1024 * 110;
+      break;
+
+    case 24:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 1024 * 120;
+      break;
+
+    case 25:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 1024 * 130;
+      break;
+
+    case 26:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 1024 * 140;
+      break;
+
+    case 27:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 1024 * 150;
+      break;
+
+    case 28:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 1024 * 160;
+      break;
+
+    case 29:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 1024 * 170;
+      break;
+
+    case 30:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 1024 * 180;
+      break;
+
+    case 31:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 1024 * 190;
       break;
       
-    case 23:      // Misaligned 1k buffer
-      _testOps->isMemAligned = false;
-      _testOps->bufferSize = 1024;
+    case 32:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 1024 * 200;
+      break;
+//-----------------------------
+    case 33:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 65534;
       break;
 
-    case 24:      // Misaligned 512 buffer
-      _testOps->isMemAligned = false;
-      _testOps->bufferSize = 512;
+    case 34:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 65535;
       break;
 
-    case 25:      // Misaligned 256 buffer
-      _testOps->isMemAligned = false;
-      _testOps->bufferSize = 256;
+    case 35:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 65536;
       break;
 
-    case 26:      // Misaligned 128 buffer
-      _testOps->isMemAligned = false;
-      _testOps->bufferSize = 128;
+    case 36:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 65537;
       break;
 
-    case 27:      // Misaligned 64 buffer
-      _testOps->isMemAligned = false;
-      _testOps->bufferSize = 64;
-      break;
-
-    case 28:      // Misaligned 32 buffer
-      _testOps->isMemAligned = false;
-      _testOps->bufferSize = 32;
+    case 37:
+      // _testOps->repeatExchange = 20;
+      _testOps->bufferSize = 65538;
       break;
 
     default:
@@ -255,13 +329,13 @@ int spi_initiate_loopback_test(SPITestingOptions *testOps)
   SPI_SETBITS(testOps->spiDev, testOps->msgBits);
 
 #if defined (CONFIG_STM32F7_SPI_DMA)
-  syslog(2, "%s@%d-DMA test, SPI%lu, allocate %lu bytes %sligned\n",
+  syslog(2, "%s@%d-DMA test, SPI%lu, allocate %lu bytes\n",
           __FILE__, __LINE__, testOps->spiNumber,
-          testOps->bufferSize, testOps->isMemAligned ? "A" : "Una");
+          testOps->bufferSize);
 #else
-  syslog(2, "%s@%d-Non-DMA test, SPI%lu, allocate %lu bytes %sligned\n",
+  syslog(2, "%s@%d-Non-DMA test, SPI%lu, allocate %lu bytes\n",
           __FILE__, __LINE__, testOps->spiNumber,
-          testOps->bufferSize, testOps->isMemAligned ? "A" : "Una");
+          testOps->bufferSize);
 #endif
 
   ret = work_queue(HPWORK, &spi_test_work, spi_test_main_work_function, testOps, 0);
@@ -282,99 +356,142 @@ void spi_test_main_work_function(FAR void *arg)
   size_t bufOff;
   uint8_t *txBuff;
   uint8_t *rxBuff;
-  int score = 0;
 
-  if(testOps->isMemAligned)
+  // Allocate buffers
+  txBuff = malloc(testOps->bufferSize);
+  if(txBuff == NULL)
   {
-    txBuff = memalign(ARMV7M_DCACHE_LINESIZE, testOps->bufferSize);
-    if(txBuff == NULL)
-    {
-      syslog(2, "%s@%d-Couldn't allocate mem for txBuff\n", __FILE__, __LINE__);
-      usleep(20 * 1000);
-      return;
-    }
-
-    rxBuff = memalign(ARMV7M_DCACHE_LINESIZE, testOps->bufferSize);
-    if(rxBuff == NULL)
-    {
-      syslog(2, "%s@%d-Couldn't allocate mem for rxBuff\n", __FILE__, __LINE__);
-      return;
-    }
-  }
-  else
-  {
-    // Allocate a bit too much
-    txBuff = malloc(testOps->bufferSize + 16);
-    if(txBuff == NULL)
-    {
-      syslog(2, "%s@%d-Couldn't allocate mem for txBuff\n", __FILE__, __LINE__);
-      usleep(20 * 1000);
-      return;
-    }
-
-    rxBuff = malloc(testOps->bufferSize + 16);
-    if(rxBuff == NULL)
-    {
-      syslog(2, "%s@%d-Couldn't allocate mem for rxBuff\n", __FILE__, __LINE__);
-      return;
-    }
-
-    // Insure memory is not aligned to any reasonable boundary
-    txBuff += MEADOW_SPI_TESTING_TX_ALIGN_OFF;
-    rxBuff += MEADOW_SPI_TESTING_RX_ALIGN_OFF;
+    syslog(2, "%s@%d-Couldn't allocate mem for txBuff\n", __FILE__, __LINE__);
+    usleep(20 * 1000);
+    return;
   }
 
-  syslog(2, "%s@%d- 24 MHz, %lu bytes in buffers, testOps:%p, txBuff:%p, rxBuff:%p\n",
-            __FILE__, __LINE__, testOps->bufferSize,
-            testOps, txBuff, rxBuff); usleep(20 * 1000);
+  rxBuff = malloc(testOps->bufferSize);
+  if(rxBuff == NULL)
+  {
+    syslog(2, "%s@%d-Couldn't allocate mem for rxBuff\n", __FILE__, __LINE__);
+    return;
+  }
+
+  // syslog(2, "%s@%d- 24 MHz, sending:%lu (0x%08x) bytes, testOps:%p, txBuff:%p, rxBuff:%p\n",
+  //           __FILE__, __LINE__, testOps->bufferSize, testOps->bufferSize,
+  //           testOps, txBuff, rxBuff); usleep(20 * 1000);
 
   // Fill send buffer with pseudo "data"
   for(bufOff = 0; bufOff < testOps->bufferSize; bufOff++)
   {
-    // 0x00-0xff and repeat pattern
-    txBuff[bufOff] = bufOff & 0xff;
+    // Use a prime number to create a pattern that repeats
+    txBuff[bufOff] = bufOff % 11;
+    // // 0x00-0xff and repeat pattern
+    // txBuff[bufOff] = bufOff & 0xff;
   }
 
-  // Send repeatedly
-  for(int loopCnt = 0; loopCnt < testOps->repeatExchange; loopCnt++)
+  int firstMismatch[testOps->repeatExchange];
+  int failCount[testOps->repeatExchange];
+  int successCount[testOps->repeatExchange];
+  int loopOff;
+
+  for(loopOff = 0; loopOff < testOps->repeatExchange; loopOff++)
   {
-    // Fill the receive buffer with different pattern from txBuff
+    firstMismatch[loopOff] = 0;
+    failCount[loopOff] = 0;
+    successCount[loopOff] = 0;
+  }
+  
+  // Send repeatedly
+  for(loopOff = 0; loopOff < testOps->repeatExchange; loopOff++)
+  {
+    // Refill the entire receive buffer
     memset(rxBuff, 0x5a, testOps->bufferSize);
 
     DEBUG_SET_HIGH(DEBUG_PIN_CCM_A04_PB1);
-    SPI_EXCHANGE(testOps->spiDev, txBuff, rxBuff, testOps->bufferSize);
+    if(testOps->bufferSize <= 0xffff)
+    {
+      SPI_EXCHANGE(testOps->spiDev, txBuff, rxBuff, testOps->bufferSize);
+    }
+    else
+    {
+      // There is also a requirement that the number be mulitple of 4,
+      // in some cases.
+      uint32_t numbToSend = testOps->bufferSize;
+      uint8_t *txTempBuf = txBuff;
+      uint8_t *rxTempBuf = rxBuff;
+
+      while(numbToSend > 65532)
+      {
+        // syslog(1, "->Send Loop-to send %lu bytes, tx:%p->rx:%p\n",
+        //           numbToSend, txTempBuf, rxTempBuf);
+        SPI_EXCHANGE(testOps->spiDev, txTempBuf, rxTempBuf, 65532);
+        txTempBuf += 65532;
+        rxTempBuf += 65532;
+        numbToSend -= 65532;
+      }
+      // syslog(1, "->Send Last-%lu bytes, tx:%p->rx:%p\n",
+      //             numbToSend, txTempBuf, rxTempBuf);
+      SPI_EXCHANGE(testOps->spiDev, txTempBuf, rxTempBuf, numbToSend);
+    }
     DEBUG_SET_LOW(DEBUG_PIN_CCM_A04_PB1);
 
     // Compare data sent with data received
-    int cmpResult = memcmp(txBuff, rxBuff, testOps->bufferSize);
-    if(cmpResult == 0)
+    for(bufOff = 0; bufOff < testOps->bufferSize; bufOff++)
     {
-      score++;
+      // Quit on error and show buffers
+      if(txBuff[bufOff] != rxBuff[bufOff])
+      {
+        syslog(2, "-->Loop:%02d - Error sent:%lu(0x%08x) bytes, err@bufOff:%lu(0x%08x), txBuff:%p, rxBuff:%p [txBuff:0x%02x(%p) != rxBuff:0x%02x(%p)]\n",
+                loopOff,
+                testOps->bufferSize, testOps->bufferSize,
+                bufOff, bufOff,
+                txBuff, rxBuff,
+                txBuff[bufOff], &txBuff[bufOff],
+                rxBuff[bufOff], &rxBuff[bufOff]);
+
+// #if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
+//         // Show bytes before and after error
+//         syslog(2, "------------------------ txBuff ---------------------------\n");
+//         hcom_nx_diag_print_buffer((&txBuff[bufOff]) - 24, 48, 1);
+//         syslog(2, "------------------------ rxBuff ---------------------------\n");
+//         hcom_nx_diag_print_buffer((&rxBuff[bufOff]) - 24, 48, 1);
+//         syslog(2, "-------------------- End of rxBuff ------------------------\n");
+//         hcom_nx_diag_print_buffer(rxBuff + (testOps->bufferSize - 16), 16, 1);
+        
+//         usleep(30 * 1000);
+// #endif
+        // Count the error
+        if(firstMismatch[loopOff] == 0)
+          firstMismatch[loopOff] = bufOff;
+
+        failCount[loopOff]++;
+
+        break;        // Continue with outer loop
+      }
+      else
+      {
+        // Success count
+        successCount[loopOff]++;
+      }
     }
   }
 
-  syslog(2, "Successful transfered:%d of %d\n", score, testOps->repeatExchange);
-
-#if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
-  syslog(2, "------------------------ txBuff ---------------------------\n");
-  hcom_nx_diag_print_buffer(txBuff, testOps->bufferSize, 1);
-  syslog(2, "------------------------ rxBuff ---------------------------\n");
-  hcom_nx_diag_print_buffer(rxBuff, testOps->bufferSize, 1);
-  usleep(30 * 1000);
-#endif
-
-  if(testOps->isMemAligned)
+  // Final results
+  for(loopOff = 0; loopOff < testOps->repeatExchange; loopOff++)
   {
-    free(txBuff);
-    free(rxBuff);
-    // syslog(2, "Aligned memory freed\n"); usleep(10 * 1000);
+    if(failCount[loopOff] == 0)
+    {
+      syslog(2, "Loop:%02d - Successful transfer of:%d bytes\n", loopOff + 1, successCount[loopOff]);
+    }
+    else
+    {
+      syslog(2, "Loop:%02d - Transfer failed. First offset:%d, total errors:%d, total success:%d\n",
+                loopOff, firstMismatch[loopOff], failCount[loopOff], successCount[loopOff]);
+    }
   }
-  else
-  {
-    free(txBuff -= MEADOW_SPI_TESTING_TX_ALIGN_OFF);
-    free(rxBuff -= MEADOW_SPI_TESTING_RX_ALIGN_OFF);
-    // syslog(2, "Unaligned memory freed\n"); usleep(10 * 1000);
-  }
+
+  // syslog(2, "Successful transfered:%d of %d\n", score, testOps->repeatExchange);
+
+  free(txBuff);
+  free(rxBuff);
+  // syslog(2, "Memory freed\n"); usleep(10 * 1000);
 }
 
 #endif  // #if defined(CONFIG_SPI_DMA_TESTS)
