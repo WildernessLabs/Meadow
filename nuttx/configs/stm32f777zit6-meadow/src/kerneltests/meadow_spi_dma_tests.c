@@ -67,8 +67,10 @@
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
-
-#define MEADOW_SPI_TESTING_SPI_FREQ (25000000)   // Want 24MHz for testing
+// The actual frequency is related to the F7's PCLK frequency and multiples
+// thereof. So this choice will be around 24 or 48MHz. SPI2 and SPI3 have a
+// maximum of 24MHz and all others 48MHz.
+#define MEADOW_SPI_TESTING_SPI_FREQ (50000000)
 
 /************************************************************************************
  * Private Data
@@ -106,10 +108,9 @@ static void spi_test_main_work_function(FAR void *arg);
 void meadow_kt_spi_dma_tests(uint32_t userData)
 {
   memset(_testOps, 0, sizeof(SPITestingOptions));
-  // Default values SPI3, aligned 2k buffer, 8 byte message, no repeat
+  // Default values SPI3/5, aligned 2k buffer, 8 byte message, no repeat
   _testOps->repeatExchange = 1;
-  _testOps->spiNumber = 3;
-  // _testOps->isMemAligned = true;
+  _testOps->spiNumber = 5;
   _testOps->bufferSize = 2048;
   _testOps->msgBits = 8;
 
@@ -264,7 +265,12 @@ void meadow_kt_spi_dma_tests(uint32_t userData)
       // _testOps->repeatExchange = 20;
       _testOps->bufferSize = 1024 * 200;
       break;
-//-----------------------------
+    
+    // The following are for testing the workaround needed to exceed the F7's
+    // DMA limit of 65535 bytes. For more information see Ref Man section
+    // 8.3.6 and 8.3.16 the last bullet,"This means that a maximum of 65535
+    // data items can be managed by the DMA in a single transaction."
+
     case 33:
       // _testOps->repeatExchange = 20;
       _testOps->bufferSize = 65534;
@@ -382,7 +388,8 @@ void spi_test_main_work_function(FAR void *arg)
   {
     // Use a prime number to create a pattern that repeats
     txBuff[bufOff] = bufOff % 11;
-    // // 0x00-0xff and repeat pattern
+    // // 0x00-0xff and repeat pattern. This pattern didn't find the 65535
+    // byte DMA limit, because it landed on a boundry 
     // txBuff[bufOff] = bufOff & 0xff;
   }
 
@@ -405,6 +412,8 @@ void spi_test_main_work_function(FAR void *arg)
     memset(rxBuff, 0x5a, testOps->bufferSize);
 
     DEBUG_SET_HIGH(DEBUG_PIN_CCM_A04_PB1);
+
+    // Note: There is code like the following in meadow-upd.c. This is a workaround for the 65535 byte SPI DMA limit.
     if(testOps->bufferSize <= 0xffff)
     {
       SPI_EXCHANGE(testOps->spiDev, txBuff, rxBuff, testOps->bufferSize);

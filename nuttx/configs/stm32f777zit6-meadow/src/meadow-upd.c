@@ -360,7 +360,9 @@ static int upd_handle_spi_data(int cmd, struct upd_spi_data_cmd* data)
 
 #if defined (CONFIG_STM32F7_SPI_DMA)
   // The STM32F777 used in Meadow has a DMA transfer size limit of 65535
-  // bytes. To workaround this limitation we'll do multiple 
+  // bytes. For more information see Ref Man section 8.3.6 and 8.3.16 the
+  // last bullet,"...This means that a maximum of 65535 data items can be
+  // managed by the DMA in a single transaction."
   if(data->txBuffer || data->rxBuffer)
   {
     if(data->length <= 0xffff)
