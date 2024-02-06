@@ -91,6 +91,8 @@
     defined(CONFIG_STM32F7_SPI3) || defined(CONFIG_STM32F7_SPI4) || \
     defined(CONFIG_STM32F7_SPI5) || defined(CONFIG_STM32F7_SPI6)
 
+#define CONFIG_STM32F7_SPI_DMA_THRESHOLD (32)
+
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/

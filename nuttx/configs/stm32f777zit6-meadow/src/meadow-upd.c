@@ -358,6 +358,46 @@ static int upd_handle_spi_data(int cmd, struct upd_spi_data_cmd* data)
     return ENODEV;
   }
 
+#if defined (CONFIG_STM32F7_SPI_DMA)
+  // The STM32F777 used in Meadow has a DMA transfer size limit of 65535
+  // bytes. For more information see Ref Man section 8.3.6 and 8.3.16 the
+  // last bullet,"...This means that a maximum of 65535 data items can be
+  // managed by the DMA in a single transaction."
+  if(data->txBuffer || data->rxBuffer)
+  {
+    if(data->length <= 0xffff)
+    {
+      SPI_EXCHANGE(target, data->txBuffer, data->rxBuffer, data->length);
+    }
+    else
+    {
+      uint32_t numbToSend = data->length;
+      uint8_t *txTempBuf = data->txBuffer;
+      uint8_t *rxTempBuf = data->rxBuffer;
+
+      // There is also a DMA requirement that the number be mulitple of 4 or 2,
+      // in some cases.
+      while(numbToSend > 65532)
+      {
+        // syslog(1, "->Send Loop-to send %lu bytes, tx:%p->rx:%p\n",
+        //           numbToSend, txTempBuf, rxTempBuf);
+        SPI_EXCHANGE(target, txTempBuf, rxTempBuf, 65532);
+        if(txTempBuf) txTempBuf += 65532;
+        if(rxTempBuf) rxTempBuf += 65532;
+        numbToSend -= 65532;
+      }
+
+      // syslog(1, "->Send Last-%lu bytes, tx:%p->rx:%p\n",
+      //             numbToSend, txTempBuf, rxTempBuf);
+      SPI_EXCHANGE(target, txTempBuf, rxTempBuf, numbToSend);
+    }
+  }
+  else
+  {
+    // no read or write buffer
+    return EINVAL;
+  }
+#else
   // if we have only outbuffer, it's a write
   if(data->txBuffer)
   {
@@ -382,7 +422,7 @@ static int upd_handle_spi_data(int cmd, struct upd_spi_data_cmd* data)
     // no read or write buffer
     return EINVAL;
   }
-  
+#endif
   return OK;
 }
 

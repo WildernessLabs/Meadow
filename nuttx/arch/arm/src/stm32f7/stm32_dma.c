@@ -986,6 +986,8 @@ bool stm32_dmacapable(uint32_t maddr, uint32_t count, uint32_t ccr)
       case STM32_FMC_BANK2:
       case STM32_FMC_BANK3:
       case STM32_FMC_BANK4:
+      case STM32_FMC_BASE5:
+      case STM32_FMC_BASE6:
       case STM32_SRAM_BASE:
 
         /* All RAM is supported */
