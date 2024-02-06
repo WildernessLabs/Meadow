@@ -84,6 +84,8 @@
 #define HAVE_COMMAND_PIPES 1
 #endif
 
+static int profiler_out_fd;
+
 // Statistics for internal profiler data structures.
 static gint32 sample_allocations_ctr,
               buffer_allocations_ctr;
@@ -1049,16 +1051,7 @@ dump_header (void)
 	} else
 #endif
 	{
-		if (log_profiler.file == NULL)
-		{
-			log_profiler.file = fopen("/meadow0/output.mlpd", "ab");
-		}	
-			
-		fwrite (hbuf, p - hbuf, 1, log_profiler.file);
-		fflush (log_profiler.file);
-
-		fclose(log_profiler.file);
-		log_profiler.file = NULL;
+		write(profiler_out_fd, hbuf, p - hbuf);
 	}
 
 	g_free (hbuf);
@@ -1149,18 +1142,8 @@ dump_buffer (LogBuffer *buf)
 		} else
 #endif
 		{
-
-			if (log_profiler.file == NULL)
-			{
-				log_profiler.file = fopen("/meadow0/output.mlpd", "ab");
-			}	
-		
-			fwrite (hbuf, p - hbuf, 1, log_profiler.file);
-			fwrite (buf->buf, buf->cursor - buf->buf, 1, log_profiler.file);
-			fflush (log_profiler.file);
-			
-			fclose(log_profiler.file);
-			log_profiler.file = NULL;
+			write(profiler_out_fd, hbuf, p - hbuf);
+			write(profiler_out_fd, buf->buf, buf->cursor - buf->buf);
 		}
 	}
 
@@ -4094,6 +4077,13 @@ static void
 create_profiler (const char *args, const char *filename, GPtrArray *filters)
 {
 	char *nf;
+
+	profiler_out_fd = open("/dev/ttyS0", O_WRONLY); // TODO: Use HCOM_TRACE_RAMLOG_SERIAL_NAME instead of a hardcode
+    if (profiler_out_fd < 0)
+    {
+		mono_profiler_printf_err ("Error opening the ttyS0 for profiling %d\n", profiler_out_fd);
+        return;
+    }
 
 	log_profiler.args = pstrdup (args);
 	log_profiler.command_port = log_config.command_port;

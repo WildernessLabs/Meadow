@@ -1577,6 +1577,7 @@ static meadow_configuration_t *hcom_nx_config_process_meadow_config_file(void)
                         meadow_configuration->trace_level = 0;
                     }
                     meadow_configuration->use_uart1_for_trace = (strcmp(configuration->internal_debug->uart1_use, "trace") == 0);
+                    meadow_configuration->use_uart1_for_profiling = (strcmp(configuration->internal_debug->uart1_use, "profiler") == 0);
                     meadow_configuration->reset_esp32_at_startup = !hcom_nx_config_parse_boolean(configuration->internal_debug->debugger_attached_to_esp, false);
                 }
                 else
