@@ -55,9 +55,9 @@
 #if defined(CONFIG_SPI_DMA_TESTS)
 #pragma message "(--) spi_dma_tests.c"
 
-// Diagnostic always as this is test code
-#define USE_MEADOW_DEBUG_HELPERS
-// #undef USE_MEADOW_DEBUG_HELPERS
+// This #define is needed to time the SPI DMA send/receive time
+// #define USE_MEADOW_DEBUG_HELPERS
+#undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 #if defined (USE_MEADOW_DEBUG_HELPERS)

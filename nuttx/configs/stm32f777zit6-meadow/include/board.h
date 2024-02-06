@@ -446,7 +446,8 @@
 
 /* Stream selections are arbitrary for now but might become important in the future
  * if we set aside more DMA channels/streams.
- * (--) THE FOLLOWING ARE WRONG FOR F7
+ *
+ * THE FOLLOWING ARE WRONG FOR F7. Issue written (PWM 5Feb23)
  * SDIO DMA
  *   DMAMAP_SDMMC1_1 = Channel 4, Stream 3
  *   DMAMAP_SDMMC1_2 = Channel 4, Stream 6
@@ -454,9 +455,6 @@
  *   DMAMAP_SDMMC2_1 = Channel 11, Stream 0
  *   DMAMAP_SDMMC2_2 = Channel 11, Stream 5
  */
-
-// (--) VERIFY THIS LINE I ADDED
-// #define DMAMAP_SDMMC2_1  STM32_DMA_MAP(DMA2, DMA_STREAM0, DMA_CHAN11)
 
 // #define DMAMAP_SDMMC1  DMAMAP_SDMMC1_1
 #define DMAMAP_SDMMC2  DMAMAP_SDMMC2_1
