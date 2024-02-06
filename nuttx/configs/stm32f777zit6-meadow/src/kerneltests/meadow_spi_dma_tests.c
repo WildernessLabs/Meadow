@@ -375,6 +375,7 @@ void spi_test_main_work_function(FAR void *arg)
   rxBuff = malloc(testOps->bufferSize);
   if(rxBuff == NULL)
   {
+    free(txBuff);
     syslog(2, "%s@%d-Couldn't allocate mem for rxBuff\n", __FILE__, __LINE__);
     return;
   }
