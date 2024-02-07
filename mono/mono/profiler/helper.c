@@ -29,6 +29,7 @@
 
 #ifdef __NuttX__
 #include <arpa/inet.h>
+#include <sys/un.h>
 #endif
 
 #include "helper.h"
@@ -46,6 +47,24 @@ mono_profhelper_close_socket_fd (int fd)
 void
 mono_profhelper_setup_command_server (int *server_socket, int *command_port, const char* profiler_name)
 {
+
+#ifdef __NuttX__
+
+	*server_socket = socket (PF_LOCAL, SOCK_STREAM, 0);
+
+	if (*server_socket == -1) {
+		mono_profiler_printf_err ("Could not create log profiler server socket: %s", g_strerror (errno));
+		exit (1);
+	}
+
+	struct sockaddr_un server_address;
+	memset(&server_address, 0, sizeof(server_address));
+	server_address.sun_family = AF_UNIX;
+	strcpy(server_address.sun_path, PROFILER_SOCKET_NAME);
+
+
+#else
+
 	*server_socket = socket (PF_INET, SOCK_STREAM, 0);
 
 	if (*server_socket == -1) {
@@ -59,6 +78,8 @@ mono_profhelper_setup_command_server (int *server_socket, int *command_port, con
 	server_address.sin_family = AF_INET;
 	server_address.sin_addr.s_addr = INADDR_ANY;
 	server_address.sin_port = htons (*command_port);
+
+#endif
 
 	if (bind (*server_socket, (struct sockaddr *) &server_address, sizeof (server_address)) == -1) {
 		mono_profiler_printf_err ("Could not bind %s profiler server socket on port %d: %s", profiler_name, *command_port, g_strerror (errno));
@@ -80,7 +101,11 @@ mono_profhelper_setup_command_server (int *server_socket, int *command_port, con
 		exit (1);
 	}
 
+#ifndef __NuttX__
+
 	*command_port = ntohs (server_address.sin_port);
+#endif
+
 }
 
 void
