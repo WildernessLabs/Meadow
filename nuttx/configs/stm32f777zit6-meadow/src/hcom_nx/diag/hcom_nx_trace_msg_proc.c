@@ -1047,6 +1047,67 @@ int hcom_nx_exec_trace_do_not_send_to_uart1(struct hcom_nx_cmd_data *cmdData)
 }
 
 //======================================================================================
+// Called from Meadow.CLI to enable profiling data output to uart1.
+int hcom_nx_exec_profiler_forward_to_uart1(struct hcom_nx_cmd_data *cmdData)
+{
+  char *sendMsgToHost;
+  
+   // Set the appropriate battery backed register bit
+  modifyreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER,
+              0, HCOM_BBREG_ROUTE_PROFILER_BINS_TO_UART1_BIT);
+
+  // If ramlog configured, need to init ramlog now. This insures
+  // that Meadow.CLI is listening
+#if defined (CONFIG_RAMLOG_SYSLOG)
+  if(_profiler_log_to_uart1)
+  {
+    sendMsgToHost = "No change. Profiling data already sent to UART1";
+  }
+  else
+  {
+    _profiler_log_to_uart1 = true;
+    sendMsgToHost = "Profiling data now sent to UART1";
+  }
+#else
+  sendMsgToHost = "Profiler logging not available";
+#endif
+
+  cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost,
+          thisFile, __LINE__);
+
+  return OK;
+}
+
+//======================================================================================
+// Called from Meadow.CLI to disable profiling data output to uart1
+int hcom_nx_exec_profiler_do_not_send_to_uart1(struct hcom_nx_cmd_data *cmdData)
+{
+  char *sendMsgToHost;
+
+  // Clear the appropriate battery backed register bit
+  modifyreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER,
+              HCOM_BBREG_ROUTE_PROFILER_BINS_TO_UART1_BIT, 0);
+
+#if defined (CONFIG_RAMLOG_SYSLOG)
+  if(_profiler_log_to_uart1)
+  {
+    _profiler_log_to_uart1 = false;
+    sendMsgToHost = "Will no longer send profiling data to UART1";
+  }
+  else
+  {
+    sendMsgToHost = "No change. Profiling data still not sent to UART1";
+  }
+#else
+  sendMsgToHost = "Profiler logging not available";
+#endif
+  cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+            sendMsgToHost, thisFile, __LINE__);
+  
+  return OK;
+}
+
+//======================================================================================
 // Called by meadow configuration after it has started. Once the meadow configuration
 // has been parsed this method is called if it determines tracing should be enabled.
 void hcom_nx_trace_insure_correct_config(bool uartTracing, bool cliTracing, bool uartProfiling)
