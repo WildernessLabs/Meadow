@@ -2432,22 +2432,21 @@ mono_gc_pthread_create (pthread_t *new_thread, const pthread_attr_t *attr, void 
 	MONO_ENTER_GC_SAFE;
 	mono_threads_join_lock ();
 	res = pthread_create (new_thread, attr, start_routine, arg);
-	if (res != 0)
-		return res;
 #if defined(__NuttX__)
-	//
-	//	**** IMPORTANT ****
-	//	This priority must match the defintion in meadow/mono_thread_config.h
-	//
+	if (res == 0) {
+		//
+		//      **** IMPORTANT ****
+		//      This priority must match the defintion in meadow/mono_thread_config.h
+		//
 #define MONO_TASK_PRIORITY 80
-	struct sched_param param = { .sched_priority = MONO_TASK_PRIORITY};
-	int rr_policy = SCHED_FIFO;
+		struct sched_param param = { .sched_priority = MONO_TASK_PRIORITY};
+		int rr_policy = SCHED_FIFO;
 
-	res = pthread_setschedparam (*new_thread, rr_policy, &param);
-	if (res != 0)
-		printf("Meadow OS: GC thread %d is NOT round-robin (error %d)\n", *new_thread, res);
+		res = pthread_setschedparam (*new_thread, rr_policy, &param);
+		if (res != 0)
+			printf("Meadow OS: GC thread %d is NOT round-robin (error %d)\n", *new_thread, res);
+	}
 #endif
-
 	mono_threads_join_unlock ();
 	MONO_EXIT_GC_SAFE;
 
