@@ -50,6 +50,7 @@
 
 #include <nuttx/arch.h>
 #include <nuttx/mtd/mtd.h>
+#include <sys/stat.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -330,5 +331,127 @@ void hcom_file_dnld_esp32_file_end(uint32_t userData)
 
   // Shutdown all of ESP32 comms
   hcom_esp32_stop_and_prep_for_restart();
+}
+/* Firmware Updates  */
+
+/* ESP32 Firmware metadata */
+
+struct meadow_esp32_firmware_desc {
+  char *filename;
+  uint32_t target_addr;
+} meadow_esp32_firmware[3] = {
+{
+  .filename = "MeadowComms.bin",
+  .target_addr = 0x10000
+},
+{
+  .filename = "bootloader.bin",
+  .target_addr = 0x1000
+},
+{
+  .filename = "partition-table.bin",
+  .target_addr = 0x8000
+}
+};
+
+int hcom_nx_exec_ex_update_ESP32()
+{
+  int filecount = sizeof(meadow_esp32_firmware) / sizeof(meadow_esp32_firmware[0]);
+  int result = 0;
+
+  for (int i = 0; i < filecount; i++)
+  {
+    char firmware_fullpath[PATH_MAX] = UPDATE_FIRMWARE_DIR;
+    strncat(firmware_fullpath, meadow_esp32_firmware[i].filename, PATH_MAX);
+    char firmware_fullpath_md5[PATH_MAX];
+    strncpy(firmware_fullpath_md5, firmware_fullpath, PATH_MAX);
+    strncat(firmware_fullpath_md5, ".md5", PATH_MAX);
+    uint8_t *file_ptr = NULL;
+    uint8_t *md5_hash_buf = NULL;
+    FILE *firmware = NULL;
+    FILE *firmware_md5 = NULL;
+
+
+    // get firmware file size
+    struct stat stat_buf;
+    if (stat(firmware_fullpath, &stat_buf) < 0)
+      return -1; // required firmware file not found
+    off_t file_size = stat_buf.st_size;
+
+    // load file into user heap buffer
+    firmware = fopen(firmware_fullpath, "r");
+    if (!firmware)
+      return -2; // file exists, but other error while opening
+    uint8_t *file_buf = malloc(file_size);
+    if (!file_buf) {
+      result = -3; // out of memory
+      goto cleanup;
+    }
+
+    int bytes_read = 0;
+    file_ptr = file_buf;
+    while (bytes_read < file_size)
+    {
+      int n = fread(file_ptr, sizeof(uint8_t), file_size - bytes_read, firmware);
+      if (n < 0) {
+        result = -4; // error while reading
+        goto cleanup;
+      }
+      file_ptr += n;
+      bytes_read += n;
+    }
+
+    // get firmware md5 file size
+    if (stat(firmware_fullpath_md5, &stat_buf) < 0) {
+      result = -5; // required firmware file's .md5 not found
+      goto cleanup;
+    }
+    off_t md5_file_size = stat_buf.st_size;
+
+    // load md5 into user heap buffer
+    firmware_md5 = fopen(firmware_fullpath_md5, "r");
+    if (!firmware_md5) {
+      result = -6; // file exists, but other error while opening
+      goto cleanup;
+    }
+    md5_hash_buf = malloc(file_size);
+    if (!md5_hash_buf) {
+      result = -3; // out of memory
+      goto cleanup;
+    }
+
+    bytes_read = 0;
+    file_ptr = md5_hash_buf;
+    while (bytes_read < md5_file_size)
+    {
+      int n = fread(file_ptr, sizeof(uint8_t), file_size - bytes_read, firmware_md5);
+      if (n < 0) {
+        result =  -7; // error while reading md5 file
+        goto cleanup;
+      }
+      file_ptr += n;
+      bytes_read += n;
+    }
+
+    // flash file
+    int flash_result = hcom_esp32_exec_flash_file(file_buf, file_size, meadow_esp32_firmware[i].target_addr , (char *) md5_hash_buf);
+    if (flash_result < 0) {
+      result =  -8 * (i + 1); // 8 -> first file failed, 16 -> second file failed, etc.
+      goto cleanup;
+    }
+
+cleanup:
+    if (firmware)
+      fclose(firmware);
+    if (file_buf)
+      free(file_buf);
+    if (firmware_md5)
+      fclose(firmware_md5);
+    if (md5_hash_buf)
+      free(md5_hash_buf);
+    if (result != 0)
+      break;
+  }
+  return result;
 }
 #endif

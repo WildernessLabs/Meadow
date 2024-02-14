@@ -230,7 +230,11 @@ int os_update(void)
   return -2;
 }
 
-
+int firmware_update(void)
+{
+  hcom_nx_exec_ex_update_ESP32();
+  deltree(UPDATE_FIRMWARE_DIR);
+}
 
 
 
