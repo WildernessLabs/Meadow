@@ -37,3 +37,7 @@
 
 void meadow_os_config_free_resources(meadow_configuration_t *);
 meadow_configuration_t *meadow_os_deep_copy_config(void);
+uint32_t meadow_os_power_cycle_count(void);
+uint32_t meadow_os_reset_cycle_count(void);
+uint32_t meadow_os_reset_reason(void);
+uint32_t meadow_os_hardware_version(void);

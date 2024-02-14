@@ -28,6 +28,10 @@ extern int meadow_read_file_total_free_flash_size(uint32_t *totalBytes,  uint32_
 extern int statfs(FAR const char *path, FAR struct statfs *buf);
 extern int pwrmgmt_most_recent_wakeup_reason(void);
 int shim_open_void(char *pathname, int flags);
+extern uint32_t meadow_os_power_cycle_count(void);
+extern uint32_t meadow_os_reset_cycle_count(void);
+extern uint32_t meadow_os_reset_reason(void);
+extern uint32_t meadow_os_hardware_version(void);
 
 MonoDlMapping meadow_mappings[] = {
        { "open", open },
@@ -85,6 +89,10 @@ MonoDlMapping meadow_mappings[] = {
        { "meadow_adc_read_temp_vbat", meadow_adc_read_temp_vbat},
        { "meadow_read_file_total_free_flash_size", meadow_read_file_total_free_flash_size},
        { "pwrmgmt_most_recent_wakeup_reason", pwrmgmt_most_recent_wakeup_reason},
+       { "meadow_os_power_cycle_count", meadow_os_power_cycle_count},
+       { "meadow_os_reset_cycle_count", meadow_os_reset_cycle_count},
+       { "meadow_os_reset_reason", meadow_os_reset_reason},
+       { "meadow_os_hardware_version", meadow_os_hardware_version},
 //       { "poll", poll },
 
 /*

@@ -410,6 +410,10 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
 #if defined(CONFIG_ARCH_BOARD_MEADOW)
   SYSCALL_LOOKUP(meadow_os_deep_copy_config,      0, STUB_meadow_os_deep_copy_config)
   SYSCALL_LOOKUP(meadow_os_config_free_resources, 1, STUB_meadow_os_config_free_resources)
+  SYSCALL_LOOKUP(meadow_os_power_cycle_count,     0, STUB_meadow_os_power_cycle_count)
+  SYSCALL_LOOKUP(meadow_os_reset_cycle_count,     0, STUB_meadow_os_reset_cycle_count)
+  SYSCALL_LOOKUP(meadow_os_reset_reason,          0, STUB_meadow_os_reset_reason)
+  SYSCALL_LOOKUP(meadow_os_hardware_version,      0, STUB_meadow_os_hardware_version)
 #endif
 
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)

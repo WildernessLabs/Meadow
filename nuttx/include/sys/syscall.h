@@ -580,6 +580,10 @@
 #if defined(CONFIG_ARCH_BOARD_MEADOW)
 #  define SYS_meadow_os_deep_copy_config        (SYS_meadow_cloud_release_private_key + 1)
 #  define SYS_meadow_os_config_free_resources   (SYS_meadow_cloud_release_private_key + 2)
+#  define SYS_meadow_os_power_cycle_count       (SYS_meadow_cloud_release_private_key + 3)
+#  define SYS_meadow_os_reset_cycle_count       (SYS_meadow_cloud_release_private_key + 4)
+#  define SYS_meadow_os_reset_reason            (SYS_meadow_cloud_release_private_key + 5)
+#  define SYS_meadow_os_hardware_version        (SYS_meadow_cloud_release_private_key + 6)
 #else
 #  define SYS_meadow_os_config_free_resources   SYS_meadow_cloud_release_private_key
 #endif
