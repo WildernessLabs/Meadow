@@ -846,7 +846,7 @@ mono_thread_internal_set_priority (MonoInternalThread *internal, MonoThreadPrior
 		param.sched_priority = MONO_TASK_PRIORITY; /* MONO_TASK_PRIORITY + 1 */
 	else
 		param.sched_priority = MONO_TASK_PRIORITY;
-	policy = SCHED_FIFO;
+	policy = SCHED_RR;
 #endif
 	res = pthread_setschedparam (tid, policy, &param);
 #endif
