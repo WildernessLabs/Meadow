@@ -39,6 +39,7 @@
 #include <nuttx/kmalloc.h>
 
 #include <meadow/meadow_os.h>
+#include <meadow/meadow_hw_version.h>
 
 #include "../hcom_nx/hcom_nx_config_manager.h"
 
@@ -136,7 +137,7 @@ uint32_t meadow_os_reset_reason(void)
  * Name: meadow_os_hardware_version
  *
  * Description:
- *  Hardware type/version that the OS is running on.
+ *  Hardware version / type that the OS is running on.
  *
  * Input Parameters:
  *  None.
@@ -150,5 +151,5 @@ uint32_t meadow_os_reset_reason(void)
  ****************************************************************************/
 uint32_t meadow_os_hardware_version(void)
 {
-    return(0);
+    return(meadow_hw_version_get());
 }
