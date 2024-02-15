@@ -452,7 +452,7 @@ pstrdup (const char *s)
 	return p;
 }
 
-#define BUFFER_SIZE (4096 * 16)
+#define BUFFER_SIZE (4096 * 4)
 
 /* Worst-case size in bytes of a 64-bit value encoded with LEB128. */
 #define LEB128_SIZE 10
