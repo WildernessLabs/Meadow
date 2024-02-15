@@ -585,13 +585,13 @@
 #  define SYS_meadow_os_reset_reason            (SYS_meadow_cloud_release_private_key + 5)
 #  define SYS_meadow_os_hardware_version        (SYS_meadow_cloud_release_private_key + 6)
 #else
-#  define SYS_meadow_os_config_free_resources   SYS_meadow_cloud_release_private_key
+#  define SYS_meadow_os_hardware_version        SYS_meadow_cloud_release_private_key
 #endif
 
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)
-#  define SYS_meadow_idle_monitor_get_value         (SYS_meadow_os_config_free_resources + 1)
+#  define SYS_meadow_idle_monitor_get_value         (SYS_meadow_os_hardware_version + 1)
 #else
-#  define SYS_meadow_idle_monitor_get_value           SYS_meadow_os_config_free_resources
+#  define SYS_meadow_idle_monitor_get_value         SYS_meadow_os_hardware_version
 #endif
 
 #if defined (CONFIG_STM32F7_DMA2)
