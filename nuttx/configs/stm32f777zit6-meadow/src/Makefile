@@ -190,6 +190,7 @@ CSRCS += meadow_cloud/meadow_cloud.c
 #
 #	Add Meadow OS syscall implementations.
 #
-CSRCS += meadow_os/meadow_os_config.c
+CSRCS += meadow_os/meadow_os_config.c \
+         meadow_os/meadow_os_info.c
 
 include $(TOPDIR)/configs/Board.mk
