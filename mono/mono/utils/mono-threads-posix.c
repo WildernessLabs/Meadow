@@ -248,7 +248,7 @@ mono_native_thread_create (MonoNativeThreadId *tid, gpointer func, gpointer arg)
 		//
 #define MONO_TASK_PRIORITY 80
 		struct sched_param param = { .sched_priority = MONO_TASK_PRIORITY};
-		int rr_policy = SCHED_FIFO;
+		int rr_policy = SCHED_RR;
 
 		res = pthread_setschedparam (*tid, rr_policy, &param);
 		if (res != 0)

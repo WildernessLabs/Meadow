@@ -2440,7 +2440,7 @@ mono_gc_pthread_create (pthread_t *new_thread, const pthread_attr_t *attr, void 
 		//
 #define MONO_TASK_PRIORITY 80
 		struct sched_param param = { .sched_priority = MONO_TASK_PRIORITY};
-		int rr_policy = SCHED_FIFO;
+		int rr_policy = SCHED_RR;
 
 		res = pthread_setschedparam (*new_thread, rr_policy, &param);
 		if (res != 0)
