@@ -83,12 +83,6 @@ int update_file(const char *srcpath, const char *destpath, const char *rollbackp
 
 int deltree(const char *path)
 {
-  if (!strncmp(path, ".", 1))
-    return 0;
-
-  if (!strncmp(path, "..", 2))
-    return 0;
-
   DIR *dir = opendir(path);
   struct dirent *entry;
 
@@ -101,7 +95,7 @@ int deltree(const char *path)
   {
     char full_path[PATH_MAX];
     snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
-    if (DIRENT_ISDIRECTORY(entry->d_type))
+    if (DIRENT_ISDIRECTORY(entry->d_type) && strncmp(entry->d_name, ".", 1) && strncmp(entry->d_name, "..", 1))
     {
       deltree(full_path);
     }
