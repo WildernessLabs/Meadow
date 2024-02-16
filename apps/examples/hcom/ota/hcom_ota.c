@@ -81,7 +81,8 @@ int update_file(const char *srcpath, const char *destpath, const char *rollbackp
   return ret;
 }
 
-int deltree(const char *path)
+// TODO: We have limited stack, convert to iterative
+static int deltree(const char *path)
 {
   DIR *dir = opendir(path);
   struct dirent *entry;
@@ -226,8 +227,9 @@ int os_update(void)
 
 int firmware_update(void)
 {
-  hcom_nx_exec_ex_update_ESP32();
+  int result = hcom_nx_exec_ex_update_ESP32();
   deltree(UPDATE_FIRMWARE_DIR);
+  return result;
 }
 
 
