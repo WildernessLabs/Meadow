@@ -452,7 +452,7 @@ pstrdup (const char *s)
 	return p;
 }
 
-#define BUFFER_SIZE (4096 * 4)
+#define BUFFER_SIZE (4096 * 3)
 
 /* Worst-case size in bytes of a 64-bit value encoded with LEB128. */
 #define LEB128_SIZE 10
@@ -725,7 +725,10 @@ buffer_lock_excl (void)
 	MONO_ENTER_GC_SAFE;
 
 	while (mono_atomic_cas_i32 (&log_profiler.buffer_lock_state, new_, 0))
+	{
+		usleep(1000);
 		mono_thread_info_yield ();
+	}
 
 	MONO_EXIT_GC_SAFE;
 
