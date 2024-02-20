@@ -84,6 +84,11 @@
 #define HAVE_COMMAND_PIPES 1
 #endif
 
+//      **** IMPORTANT ****
+//      This define must match the defintion in nuttx/arch/arm/src/board/hcom_nx/diag/hcom_nx_trace_msg_proc.c
+//
+#define HCOM_TRACE_RAMLOG_SERIAL_NAME ("/dev/ttyS0")    // UART 1
+
 static int profiler_out_fd;
 
 // Statistics for internal profiler data structures.
@@ -3067,8 +3072,16 @@ log_shutdown (MonoProfiler *prof)
 	if (prof->gzfile)
 		gzclose (prof->gzfile);
 #endif
+	/* 
+	*  The original cose uses pclose, which is breaking the current build. 
+	*  However, since pipes are only used when the profilling data is sent to the mprof-report, 
+	*  which is not build on Meadow, this condition should never be met.
+	*/
 	if (prof->pipe_output)
-    	fclose(prof->file); // TODO: Adjust this hack to remove pclose
+	{
+		mono_profiler_printf_err ("This log profiler doesn't support sending profilling data to mprof-report");
+		exit (1);
+	}
 	else
 		fclose (prof->file);
 
@@ -4081,12 +4094,12 @@ create_profiler (const char *args, const char *filename, GPtrArray *filters)
 {
 	char *nf;
 
-	profiler_out_fd = open("/dev/ttyS0", O_WRONLY); // TODO: Use HCOM_TRACE_RAMLOG_SERIAL_NAME instead of a hardcode
-    if (profiler_out_fd < 0)
-    {
+	profiler_out_fd = open(HCOM_TRACE_RAMLOG_SERIAL_NAME, O_WRONLY);
+	if (profiler_out_fd < 0)
+	{
 		mono_profiler_printf_err ("Error opening the ttyS0 for profiling %d\n", profiler_out_fd);
-        return;
-    }
+		return;
+	}
 
 	log_profiler.args = pstrdup (args);
 	log_profiler.command_port = log_config.command_port;
@@ -4099,7 +4112,7 @@ create_profiler (const char *args, const char *filename, GPtrArray *filters)
 		if (log_config.do_report)
 			filename = "|mprof-report -";
 		else
-            filename = "/meadow0/output.mlpd";  // Specify the full path here
+			filename = "/meadow0/output.mlpd";
 		nf = (char*)filename;
 	} else {
 		nf = new_filename (filename);
@@ -4112,8 +4125,13 @@ create_profiler (const char *args, const char *filename, GPtrArray *filters)
 		}
 	}
 	if (*nf == '|') {
-		log_profiler.file = fopen (nf + 1, "w"); // TODO: Adjust this hack to remove popen
-		log_profiler.pipe_output = 1;
+		/* 
+		*  The original cose uses popen, which is breaking the current build. 
+		*  However, since pipes are only used when the profilling data is sent to the mprof-report, 
+		*  which is not build on Meadow, this condition should never be met.
+		*/
+		mono_profiler_printf_err ("This log profiler doesn't support sending profilling data to mprof-report");
+		exit (1);
 	} else if (*nf == '#') {
 		int fd = strtol (nf + 1, NULL, 10);
 		log_profiler.file = fdopen (fd, "a");

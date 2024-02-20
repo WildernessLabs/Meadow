@@ -1061,12 +1061,12 @@ int hcom_nx_exec_profiler_forward_to_uart1(struct hcom_nx_cmd_data *cmdData)
 #if defined (CONFIG_RAMLOG_SYSLOG)
   if(_profiler_log_to_uart1)
   {
-    sendMsgToHost = "No change. Profiling data already sent to UART1";
+    sendMsgToHost = "No change. UART1 is still exclusive for profiling data";
   }
   else
   {
     _profiler_log_to_uart1 = true;
-    sendMsgToHost = "Profiling data now sent to UART1";
+    sendMsgToHost = "UART1 is now exclusive for profiling data";
   }
 #else
   sendMsgToHost = "Profiler logging not available";
@@ -1092,11 +1092,11 @@ int hcom_nx_exec_profiler_do_not_send_to_uart1(struct hcom_nx_cmd_data *cmdData)
   if(_profiler_log_to_uart1)
   {
     _profiler_log_to_uart1 = false;
-    sendMsgToHost = "Will no longer send profiling data to UART1";
+    sendMsgToHost = "UART1 not exclusive for profiler, profiling data might still be visible if enabled in Mono.";
   }
   else
   {
-    sendMsgToHost = "No change. Profiling data still not sent to UART1";
+    sendMsgToHost = "No change. UART1 still not exclusive for profiler, profiling data might still be visible if enabled in Mono";
   }
 #else
   sendMsgToHost = "Profiler logging not available";
@@ -1118,7 +1118,6 @@ void hcom_nx_trace_insure_correct_config(bool uartTracing, bool cliTracing, bool
   {
     _profiler_log_to_uart1 = true;
     _trace_log_to_uart1 = false;
-    _trace_log_to_host = false; // TODO: Check it
     return;
   }
 
