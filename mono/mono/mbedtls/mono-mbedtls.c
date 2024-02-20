@@ -7,6 +7,7 @@
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/debug.h"
+#include "meadow/meadow_client_cert.h"
 
 #define INVALID_SERVER_CERT_VALIDATION_MODE  1
 #define MBEDTLS_HAS_ALREADY_STARTED          2
@@ -20,9 +21,15 @@ typedef struct {
 
 static gboolean mono_mbedtls_initialized = FALSE;
 
-// File paths to client certificate and private key
-static const char* private_key_path = "/meadow0/private_key.pem";
-static const char* client_cert_path = "/meadow0/client_cert.pem";
+// Client certificate credentials
+static const char* private_key_path = CLIENT_CERT_PRIVATE_KEY_FILE_PATH;
+static const char* client_cert_path = CLIENT_CERT_FILE_PATH;
+static unsigned char *client_cert_retrieved;
+static unsigned char *private_key_retrieved;
+static unsigned char *private_key_pass_retrieved;
+static int client_cert_retrieved_len;
+static int private_key_retrieved_len;
+static int private_key_pass_retrieved_len;
 static mbedtls_pk_context *pkey = NULL;
 static mbedtls_x509_crt *clicert = NULL;
 static int server_cert_authmode = MBEDTLS_SSL_VERIFY_REQUIRED;
@@ -3346,40 +3353,42 @@ int mono_mbedtls_init (void)
     int ret;
     mbedtls_ssl_config_init( &conf );
     mbedtls_debug_set_threshold(DEBUG_THRESHOLD);
-    
-    FILE *client_cert_file = fopen( client_cert_path, "r" );
-    if ( client_cert_file )
-    {
-        clicert = g_malloc (sizeof(mbedtls_x509_crt));
-        mbedtls_x509_crt_init( clicert );
 
-        if ( ( ret = mbedtls_x509_crt_parse_file( clicert, client_cert_path ) ) != 0 ) {
-            printf( " failed to parse client certificate %d\n\n", ret);
-            goto error;
-        }
-        fclose(client_cert_file);
-    } 
-    else
-    {
-        client_cert_path = NULL;
-    }
+    // Retrieving credentials used on client certificate TLS authentication
+    meadow_client_cert_retrieve_certificate((const char**) &client_cert_retrieved, &client_cert_retrieved_len);
+    meadow_client_cert_retrieve_private_key((const char**) &private_key_retrieved, &private_key_retrieved_len);
+    meadow_client_cert_retrieve_private_key_pass((const char**) &private_key_pass_retrieved, &private_key_pass_retrieved_len);
 
-    FILE *private_key_file = fopen( private_key_path, "r" );
-    if ( private_key_file )
-    {
+    // Load client private key
+    if ( private_key_retrieved_len > 1 ) {
+
         pkey = g_malloc (sizeof(mbedtls_pk_context));
         mbedtls_pk_init( pkey );
 
-        if ( ( ret = mbedtls_pk_parse_keyfile( pkey, private_key_path, NULL, mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 ) {
+        // Handle empty private key passphrase file case
+        if ( private_key_pass_retrieved_len == 1 ) {
+            private_key_pass_retrieved = NULL;
+        } 
+
+        if ( ( ret = mbedtls_pk_parse_key( pkey, private_key_retrieved, private_key_retrieved_len, private_key_pass_retrieved, private_key_pass_retrieved_len - 1, mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 ) {
             printf( " failed to parse private key %d\n\n", ret );
             goto error;
         }
-        fclose( private_key_file );
     }
-    else
-    {
-        private_key_path = NULL;
+
+    // Load client certificate
+    if ( client_cert_retrieved_len > 1 ) {
+
+        clicert = g_malloc (sizeof(mbedtls_x509_crt));
+        mbedtls_x509_crt_init( clicert );
+
+        if ( ( ret = mbedtls_x509_crt_parse( clicert, client_cert_retrieved, client_cert_retrieved_len ) ) != 0 ) {
+            printf( " failed to parse client certificate %d\n\n", ret);
+            goto error;
+        }
     }
+
+    meadow_client_cert_release_credentials((const char**) &client_cert_retrieved, (const char**) &private_key_retrieved, (const char**) &private_key_pass_retrieved);
 
     if( ( ret = mbedtls_ssl_config_defaults( &conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT ) ) != 0 )
     {
@@ -3430,6 +3439,7 @@ int mono_mbedtls_init (void)
             mbedtls_x509_crt_free (clicert);
             g_free (clicert);
         }
+        meadow_client_cert_release_credentials((const char**) &client_cert_retrieved, (const char**) &private_key_retrieved, (const char**) &private_key_pass_retrieved);
         return ret;
 }
 
