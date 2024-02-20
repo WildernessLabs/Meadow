@@ -89,7 +89,7 @@ int hcom_nx_exec_ex_flash_erase_ex_flash(struct hcom_nx_cmd_data *cmdData)
   int ret;
 
   cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-          "Bulk erase begun. Will take 2-3 minutes.", thisFile, __LINE__);
+          "Bulk erase started (~2 minutes)", thisFile, __LINE__);
 
   syslog(LOG_INFO, "Bulk erase of External Flash begun\n");
 
@@ -103,14 +103,14 @@ int hcom_nx_exec_ex_flash_erase_ex_flash(struct hcom_nx_cmd_data *cmdData)
 
     char hostMsg[HCOM_NX_CMD_HOST_MSG_SIZE];
     snprintf_chk(hostMsg, HCOM_NX_CMD_HOST_MSG_SIZE,
-              "Bulk Erase of QSPI Flash error:%d.", ret);
+              "Bulk Erase of QSPI Flash error:%d", ret);
     cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
             thisFile, __LINE__);
     return ret;
   }
 
   cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-          "Bulk erase completed successfully", thisFile, __LINE__);
+          "Bulk erase complete", thisFile, __LINE__);
 
   syslog(LOG_INFO, "Bulk erase complete\n\n");
   return OK;
@@ -126,7 +126,7 @@ int hcom_nx_exec_ex_flash_verify_ex_flash(struct hcom_nx_cmd_data *cmdData)
   int ret;
 
   cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-          "External flash verification begun", thisFile, __LINE__);
+          "External flash verification started", thisFile, __LINE__);
 
   syslog(LOG_NOTICE, "Verification of External Flash Erased beginning\n");
 
@@ -460,7 +460,7 @@ int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
   free(verify);
   verify = NULL;
 
-  const char monoSuccessFlashMsg[] = "Mono runtime successfully flashed.\n";
+  const char monoSuccessFlashMsg[] = "Runtime flashed successfully\n";
   syslog(LOG_INFO, monoSuccessFlashMsg);
   cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
           (char*)monoSuccessFlashMsg, thisFile, __LINE__);
