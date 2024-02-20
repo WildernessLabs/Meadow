@@ -378,7 +378,7 @@ int hcom_nx_exec_ex_update_ESP32()
       return -1; // required firmware file not found
     off_t file_size = stat_buf.st_size;
 
-    // load file into user heap buffer
+    // load firmware file
     firmware = fopen(firmware_fullpath, "r");
     if (!firmware)
       return -2; // file exists, but other error while opening
@@ -408,13 +408,17 @@ int hcom_nx_exec_ex_update_ESP32()
     }
     off_t md5_file_size = stat_buf.st_size;
 
-    // load md5 into user heap buffer
+    if (md5_file_size < HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH)
+      return -6; // file not long enough for an md5 hash
+    md5_file_size = HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH;
+
+    // load md5 file
     firmware_md5 = fopen(firmware_fullpath_md5, "r");
     if (!firmware_md5) {
-      result = -6; // file exists, but other error while opening
+      result = -7; // file exists, but other error while opening
       goto cleanup;
     }
-    md5_hash_buf = malloc(file_size);
+    md5_hash_buf = malloc(HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH + 1);
     if (!md5_hash_buf) {
       result = -3; // out of memory
       goto cleanup;
@@ -424,19 +428,20 @@ int hcom_nx_exec_ex_update_ESP32()
     file_ptr = md5_hash_buf;
     while (bytes_read < md5_file_size)
     {
-      int n = fread(file_ptr, sizeof(uint8_t), file_size - bytes_read, firmware_md5);
+      int n = fread(file_ptr, sizeof(uint8_t), md5_file_size - bytes_read, firmware_md5);
       if (n < 0) {
-        result =  -7; // error while reading md5 file
+        result =  -8; // error while reading md5 file
         goto cleanup;
       }
       file_ptr += n;
       bytes_read += n;
     }
+    md5_hash_buf[HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH] = '\0';
 
     // flash file
     int flash_result = hcom_esp32_exec_flash_file(file_buf, file_size, meadow_esp32_firmware[i].target_addr , (char *) md5_hash_buf);
     if (flash_result < 0) {
-      result =  -8 * (i + 1); // 8 -> first file failed, 16 -> second file failed, etc.
+      result =  -9 * (i + 1); // 9 -> first file failed, 18 -> second file failed, etc.
       goto cleanup;
     }
 
