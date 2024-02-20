@@ -51,6 +51,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/mtd/mtd.h>
 #include <sys/stat.h>
+#include <dirent.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -332,7 +333,6 @@ void hcom_file_dnld_esp32_file_end(uint32_t userData)
   // Shutdown all of ESP32 comms
   hcom_esp32_stop_and_prep_for_restart();
 }
-/* Firmware Updates  */
 
 /* ESP32 Firmware metadata */
 
@@ -354,10 +354,23 @@ struct meadow_esp32_firmware_desc {
 }
 };
 
+/*
+  Flashes a full set of firmware binaries staged for an update 
+  Returns:
+    0 when no update applied
+    1 when update applied
+    < 0 when an error occured 
+*/
+
 int hcom_nx_exec_ex_update_ESP32()
 {
   int filecount = sizeof(meadow_esp32_firmware) / sizeof(meadow_esp32_firmware[0]);
   int result = 0;
+
+  DIR *dir = opendir(UPDATE_FIRMWARE_DIR);
+  if (!dir)
+    return 0;
+  closedir(dir);
 
   for (int i = 0; i < filecount; i++)
   {
@@ -444,6 +457,7 @@ int hcom_nx_exec_ex_update_ESP32()
       result =  -9 * (i + 1); // 9 -> first file failed, 18 -> second file failed, etc.
       goto cleanup;
     }
+    result = 1; // update good so far
 
 cleanup:
     if (firmware)
@@ -457,6 +471,8 @@ cleanup:
     if (result != 0)
       break;
   }
+  if (result == 1)
+    hcom_esp32_exec_add_flash_end();
   return result;
 }
 #endif
