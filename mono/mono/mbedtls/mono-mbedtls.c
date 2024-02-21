@@ -7,7 +7,9 @@
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/debug.h"
+#if defined(__NuttX__)
 #include "meadow/meadow_client_cert.h"
+#endif
 
 #define INVALID_SERVER_CERT_VALIDATION_MODE  1
 #define MBEDTLS_HAS_ALREADY_STARTED          2
@@ -22,8 +24,10 @@ typedef struct {
 static gboolean mono_mbedtls_initialized = FALSE;
 
 // Client certificate credentials
+#if defined(__NuttX__)
 static const char* private_key_path = CLIENT_CERT_PRIVATE_KEY_FILE_PATH;
 static const char* client_cert_path = CLIENT_CERT_FILE_PATH;
+#endif
 static unsigned char *client_cert_retrieved;
 static unsigned char *private_key_retrieved;
 static unsigned char *private_key_pass_retrieved;
@@ -3355,9 +3359,11 @@ int mono_mbedtls_init (void)
     mbedtls_debug_set_threshold(DEBUG_THRESHOLD);
 
     // Retrieving credentials used on client certificate TLS authentication
+#if defined(__NuttX__)
     meadow_client_cert_retrieve_certificate((const char**) &client_cert_retrieved, &client_cert_retrieved_len);
     meadow_client_cert_retrieve_private_key((const char**) &private_key_retrieved, &private_key_retrieved_len);
     meadow_client_cert_retrieve_private_key_pass((const char**) &private_key_pass_retrieved, &private_key_pass_retrieved_len);
+#endif
 
     // Load client private key
     if ( private_key_retrieved_len > 1 ) {
@@ -3388,7 +3394,9 @@ int mono_mbedtls_init (void)
         }
     }
 
+#if defined(__NuttX__)
     meadow_client_cert_release_credentials((const char**) &client_cert_retrieved, (const char**) &private_key_retrieved, (const char**) &private_key_pass_retrieved);
+#endif
 
     if( ( ret = mbedtls_ssl_config_defaults( &conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT ) ) != 0 )
     {
@@ -3439,7 +3447,9 @@ int mono_mbedtls_init (void)
             mbedtls_x509_crt_free (clicert);
             g_free (clicert);
         }
+#if defined(__NuttX__)
         meadow_client_cert_release_credentials((const char**) &client_cert_retrieved, (const char**) &private_key_retrieved, (const char**) &private_key_pass_retrieved);
+#endif
         return ret;
 }
 
