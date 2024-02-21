@@ -631,7 +631,7 @@ void hcom_mono_ctrl_disable_mono(uint32_t userData)
   hcom_bbreg_set_bbr_bits(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
 
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                   "Mono has been disabled - restarting Meadow", thisFile, __LINE__);
+                                   "Runtime disabled - restarting Meadow", thisFile, __LINE__);
 }
 
 //=======================================================================================
@@ -641,7 +641,7 @@ void hcom_mono_ctrl_enable_mono(uint32_t userData)
   hcom_bbreg_clear_bbr_bits(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
 
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                   "Mono has been enabled - restarting Meadow", thisFile, __LINE__);
+                                   "Runtime enabled - restarting Meadow", thisFile, __LINE__);
 }
 
 //======================================================================================
@@ -651,9 +651,9 @@ void hcom_mono_ctrl_report_mono_enabled_state(uint32_t userData)
   char *monoStartupMsg;
 
   if (hcom_mono_ctrl_is_mono_enabled())
-    monoStartupMsg = "Mono is enabled";
+    monoStartupMsg = "Runtime is enabled";
   else
-    monoStartupMsg = "Mono is disabled";
+    monoStartupMsg = "Runtime is disabled";
 
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
                                    monoStartupMsg, thisFile, __LINE__);
