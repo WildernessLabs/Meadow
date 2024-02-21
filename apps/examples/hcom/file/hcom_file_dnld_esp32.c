@@ -468,7 +468,7 @@ cleanup:
       fclose(firmware_md5);
     if (md5_hash_buf)
       free(md5_hash_buf);
-    if (result != 0)
+    if (result < 0)
       break;
   }
   if (result == 1)
