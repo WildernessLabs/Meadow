@@ -43,7 +43,7 @@ int meadow_cloud_release_private_key(FAR const char **private_key_buf_ptr)
     if (private_key_buf_size == 0)
         up_assert(__FILE__, __LINE__); // release without retrieve
 
-    memset(*private_key_buf_ptr, private_key_buf_size, 0);
+    memset(*private_key_buf_ptr, 0, private_key_buf_size);
     free(*private_key_buf_ptr);
     *private_key_buf_ptr = NULL;
     return 0;
