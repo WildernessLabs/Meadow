@@ -106,7 +106,8 @@ static valid_mono_options_t _mono_options[] =
   { "--llvmonly-interp", true },
   { "--trace=", false },
   { "--debug", true },
-  { "--soft-breakpoints", true }
+  { "--soft-breakpoints", true },
+  { "--profile=", false}
 };
 
 /****************************************************************************

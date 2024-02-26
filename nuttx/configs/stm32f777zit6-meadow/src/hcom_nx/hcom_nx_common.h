@@ -176,7 +176,7 @@ extern "C"
 #if defined (CONFIG_RAMLOG_SYSLOG)
   int hcom_nx_trace_msg_proc_setup(void);
   int hcom_nx_trace_msg_mono_started(void);
-  void hcom_nx_trace_insure_correct_config (bool uartTracing, bool cliTracing);
+  void hcom_nx_trace_insure_correct_config (bool uartTracing, bool cliTracing, bool uartProfiling);
   size_t hcom_nx_trace_cli_trace_transport(char *buff, size_t bufLen);
 #endif
 

@@ -106,6 +106,14 @@ int hcom_nx_route_in_bound_cli_command(struct hcom_nx_cmd_data *cmdData)
       ret = hcom_nx_exec_trace_forward_to_uart1(cmdData);
       return ret;
 
+    case HCOM_MDOW_REQUEST_NO_PROFILER_TO_UART:
+      ret = hcom_nx_exec_profiler_do_not_send_to_uart1(cmdData);
+      return ret;
+
+    case HCOM_MDOW_REQUEST_SEND_PROFILER_TO_UART:
+      ret = hcom_nx_exec_profiler_forward_to_uart1(cmdData);
+      return ret;
+
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
     case HCOM_MDOW_REQUEST_RTC_READ_TIME_CMD:
       ret = pwrmgmt_mono_cmd_time_read_clock(cmdData);

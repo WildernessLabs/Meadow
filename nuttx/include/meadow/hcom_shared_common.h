@@ -459,6 +459,11 @@ struct meadow_configuration_s
   uint8_t use_uart1_for_trace;
 
   /**
+   *  @brief Should profiler output be diverted to UART1?
+   */
+  uint8_t use_uart1_for_profiling;
+
+  /**
    *  @brief Clock speed of the SPI interface between the STM32 and the ESP32.
    */
   uint32_t esp_spi_speed_hz;

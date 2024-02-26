@@ -84,6 +84,15 @@
 #define HAVE_COMMAND_PIPES 1
 #endif
 
+#if defined(__NuttX__)
+//      **** IMPORTANT ****
+//      This define must match the defintion in nuttx/arch/arm/src/board/hcom_nx/diag/hcom_nx_trace_msg_proc.c
+//
+#define HCOM_TRACE_RAMLOG_SERIAL_NAME ("/dev/ttyS0")    // UART 1
+
+static int profiler_out_fd;
+#endif
+
 // Statistics for internal profiler data structures.
 static gint32 sample_allocations_ctr,
               buffer_allocations_ctr;
@@ -450,7 +459,12 @@ pstrdup (const char *s)
 	return p;
 }
 
+#if defined(__NuttX__)
+/* Reduced the buffer size to solve memalign issues. */
+#define BUFFER_SIZE (4096 * 3)
+#else
 #define BUFFER_SIZE (4096 * 16)
+#endif
 
 /* Worst-case size in bytes of a 64-bit value encoded with LEB128. */
 #define LEB128_SIZE 10
@@ -723,7 +737,13 @@ buffer_lock_excl (void)
 	MONO_ENTER_GC_SAFE;
 
 	while (mono_atomic_cas_i32 (&log_profiler.buffer_lock_state, new_, 0))
+	{
+#if defined(__NuttX__)
+		/* Added a small delay to solve lock issues */
+		usleep(1000);
+#endif
 		mono_thread_info_yield ();
+	}
 
 	MONO_EXIT_GC_SAFE;
 
@@ -1049,8 +1069,12 @@ dump_header (void)
 	} else
 #endif
 	{
+#if defined(__NuttX__)
+		write(profiler_out_fd, hbuf, p - hbuf);
+#else
 		fwrite (hbuf, p - hbuf, 1, log_profiler.file);
 		fflush (log_profiler.file);
+#endif
 	}
 
 	g_free (hbuf);
@@ -1141,9 +1165,14 @@ dump_buffer (LogBuffer *buf)
 		} else
 #endif
 		{
+#if defined(__NuttX__)
+			write(profiler_out_fd, hbuf, p - hbuf);
+			write(profiler_out_fd, buf->buf, buf->cursor - buf->buf);
+#else
 			fwrite (hbuf, p - hbuf, 1, log_profiler.file);
 			fwrite (buf->buf, buf->cursor - buf->buf, 1, log_profiler.file);
 			fflush (log_profiler.file);
+#endif
 		}
 	}
 
@@ -3065,7 +3094,19 @@ log_shutdown (MonoProfiler *prof)
 		gzclose (prof->gzfile);
 #endif
 	if (prof->pipe_output)
+#if defined(__NuttX__)
+	{
+		/* 
+		*  The original cose uses pclose, which is breaking the current build. 
+		*  However, since pipes are only used when the profilling data is sent to the mprof-report, 
+		*  which is not build on Meadow, this condition should never be met.
+		*/
+		mono_profiler_printf_err ("This log profiler doesn't support sending profilling data to mprof-report");
+		exit (1);
+	}
+#else
 		pclose (prof->file);
+#endif
 	else
 		fclose (prof->file);
 
@@ -4078,6 +4119,14 @@ create_profiler (const char *args, const char *filename, GPtrArray *filters)
 {
 	char *nf;
 
+#if defined(__NuttX__)
+	profiler_out_fd = open(HCOM_TRACE_RAMLOG_SERIAL_NAME, O_WRONLY);
+	if (profiler_out_fd < 0)
+	{
+		mono_profiler_printf_err ("Error opening the ttyS0 for profiling %d\n", profiler_out_fd);
+		return;
+	}
+#endif
 	log_profiler.args = pstrdup (args);
 	log_profiler.command_port = log_config.command_port;
 
@@ -4089,7 +4138,11 @@ create_profiler (const char *args, const char *filename, GPtrArray *filters)
 		if (log_config.do_report)
 			filename = "|mprof-report -";
 		else
+#if defined(__NuttX__)
+			filename = "/meadow0/output.mlpd";
+#else
 			filename = "output.mlpd";
+#endif
 		nf = (char*)filename;
 	} else {
 		nf = new_filename (filename);
@@ -4102,8 +4155,18 @@ create_profiler (const char *args, const char *filename, GPtrArray *filters)
 		}
 	}
 	if (*nf == '|') {
+#if defined(__NuttX__)
+		/* 
+		*  The original cose uses popen, which is breaking the current build. 
+		*  However, since pipes are only used when the profilling data is sent to the mprof-report, 
+		*  which is not build on Meadow, this condition should never be met.
+		*/
+		mono_profiler_printf_err ("This log profiler doesn't support sending profilling data to mprof-report");
+		exit (1);
+#else
 		log_profiler.file = popen (nf + 1, "w");
 		log_profiler.pipe_output = 1;
+#endif
 	} else if (*nf == '#') {
 		int fd = strtol (nf + 1, NULL, 10);
 		log_profiler.file = fdopen (fd, "a");
