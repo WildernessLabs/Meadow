@@ -43,7 +43,7 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
 int mono_mbedtls_read (MonoMbedTlsContext * ctx, int length);
 int mono_mbedtls_write (MonoMbedTlsContext * ctx, int length);
 void mono_mbedtls_close (MonoMbedTlsContext * ctx);
-int  (MonoMbedTlsContext *ctx);
+int mono_mbedtls_handshake (MonoMbedTlsContext *ctx);
 int mono_mbedtls_set_server_cert_authmode (int authmode);
 
 static void my_debug( void *ctx, int level, const char *file, int line, const char *str )
@@ -3361,9 +3361,7 @@ int mono_mbedtls_init (void)
 
     // Retrieving credentials used on client certificate TLS authentication
 #if defined(__NuttX__)
-    meadow_client_cert_retrieve_certificate((const char**) &client_cert_retrieved, &client_cert_retrieved_len);
-    meadow_client_cert_retrieve_private_key((const char**) &private_key_retrieved, &private_key_retrieved_len);
-    meadow_client_cert_retrieve_private_key_pass((const char**) &private_key_pass_retrieved, &private_key_pass_retrieved_len);
+    meadow_client_cert_retrieve_credentials((const char**) &client_cert_retrieved, &client_cert_retrieved_len, (const char**) &private_key_retrieved, &private_key_retrieved_len, (const char**) &private_key_pass_retrieved, &private_key_pass_retrieved_len);
 #endif
 
     // Load client private key
@@ -3376,6 +3374,7 @@ int mono_mbedtls_init (void)
         if ( private_key_pass_retrieved_len == 1 ) {
             private_key_pass_retrieved = NULL;
         } 
+        printf( " trying to use a pkey len: %d and pwd '%s' len: %d\n\n", private_key_retrieved_len, private_key_pass_retrieved, private_key_pass_retrieved_len - 1);
 
         if ( ( ret = mbedtls_pk_parse_key( pkey, private_key_retrieved, private_key_retrieved_len, private_key_pass_retrieved, private_key_pass_retrieved_len - 1, mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 ) {
             printf( " failed to parse private key %d\n\n", ret );
@@ -3555,7 +3554,7 @@ int mono_mbedtls_read (MonoMbedTlsContext * ctx, int length)
 {
     int ret = FAILED;
 
-    if (ctx->mbedtls_ctx != NULL && ctx->read_buf != NULL)
+    if (ctx->mbedtls_ctx != NULL && ctx->read_buf != 0)
     {
         char *buffer = (char *)ctx->read_buf;
         memset(buffer, 0, sizeof(buffer));

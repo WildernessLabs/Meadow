@@ -423,10 +423,7 @@ int STUB_meadow_cloud_retrieve_private_key(int nbr, uintptr_t parm1, uintptr_t p
 int STUB_meadow_cloud_release_private_key(int nbr, uintptr_t parm1);
 #endif
 
-int STUB_meadow_client_cert_store_credentials(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3, uintptr_t parm4, uintptr_t parm5, uintptr_t parm6, uintptr_t parm7);
-int STUB_meadow_client_cert_retrieve_certificate(int nbr, uintptr_t parm1, uintptr_t parm2);
-int STUB_meadow_client_cert_retrieve_private_key(int nbr, uintptr_t parm1, uintptr_t parm2);
-int STUB_meadow_client_cert_retrieve_private_key_pass(int nbr, uintptr_t parm1, uintptr_t parm2);
+int STUB_meadow_client_cert_retrieve_credentials(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3, uintptr_t parm4, uintptr_t parm5, uintptr_t parm6);
 int STUB_meadow_client_cert_release_credentials(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3);
 
 #if defined(CONFIG_ARCH_BOARD_MEADOW)
