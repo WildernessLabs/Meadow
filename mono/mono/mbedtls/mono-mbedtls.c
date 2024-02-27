@@ -3482,7 +3482,7 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
     int ret;
 
     //Assing the TLS config to the TLS context 
-    if (ret = mbedtls_ssl_setup (ssl, &conf) != 0)
+    if (( ret = mbedtls_ssl_setup (ssl, &conf) ) != 0)
     {
         printf( "mbedtls_ssl_setup returned -0x%x\n", -ret );
         goto error;

@@ -196,6 +196,8 @@ int meadow_client_cert_initialize() {
 
 int meadow_client_cert_store_credentials(FAR const char *client_cert_buf, int client_cert_len, FAR const char *private_key_buf, int private_key_len, FAR const char *private_key_pass_buf, int private_key_pass_len, FAR void *unused)
 {
+    syslog(LOG_INFO, "Storing client cert credentials on ESP32...\n");
+
     if (espcp_file_system_write_file(CLIENT_CERT_FILE, client_cert_buf, client_cert_len) < 0)
         return -1;
 
@@ -204,13 +206,19 @@ int meadow_client_cert_store_credentials(FAR const char *client_cert_buf, int cl
 
     if (espcp_file_system_write_file(CLIENT_CERT_PRIVATE_KEY_PASS_FILE, private_key_pass_buf, private_key_pass_len) < 0)
         return -3;
+
+    syslog(LOG_INFO, "All client cert credentials has been written to the ESP32...\n");
     return 0;
 }
 
 int meadow_client_cert_retrieve_certificate(FAR const char **client_cert_buf_ptr, int *len)
 {
+    syslog(LOG_INFO, "Retrieving client cert credentials from ESP32...\n");
+
     int16_t length;
     const char *buf = espcp_file_system_read_file(CLIENT_CERT_FILE, &length);
+    syslog(LOG_INFO, "Retrieved client cert: %s len: %d\n", buf, length);
+
     *client_cert_buf_ptr = buf;
     if (buf == NULL)
         return -1;
@@ -222,8 +230,12 @@ int meadow_client_cert_retrieve_certificate(FAR const char **client_cert_buf_ptr
 
 int meadow_client_cert_retrieve_private_key(FAR const char **private_key_buf_ptr, int *len)
 {
+    syslog(LOG_INFO, "Retrieving client cert private key from ESP32...\n");
+
     int16_t length;
     const char *buf = espcp_file_system_read_file(CLIENT_CERT_PRIVATE_KEY_FILE, &length);
+    syslog(LOG_INFO, "Retrieved client cert private key: %s len: %d\n", buf, length);
+
     *private_key_buf_ptr = buf;
     if (buf == NULL)
         return -1;
@@ -235,8 +247,12 @@ int meadow_client_cert_retrieve_private_key(FAR const char **private_key_buf_ptr
 
 int meadow_client_cert_retrieve_private_key_pass(FAR const char **private_key_pass_buf_ptr, int *len)
 {
+    syslog(LOG_INFO,"Retrieving client cert private key pass from ESP32...\n");
+
     int16_t length;
     const char *buf = espcp_file_system_read_file(CLIENT_CERT_PRIVATE_KEY_PASS_FILE, &length);
+    syslog(LOG_INFO, "Retrieved client cert private key pass: %s len: %d\n", buf, length);
+
     *private_key_pass_buf_ptr = buf;
     if (buf == NULL)
         return -1;
