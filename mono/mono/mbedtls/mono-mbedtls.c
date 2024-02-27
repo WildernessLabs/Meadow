@@ -39,10 +39,11 @@ static mbedtls_x509_crt *clicert = NULL;
 static int server_cert_authmode = MBEDTLS_SSL_VERIFY_REQUIRED;
 
 int mono_mbedtls_init (void);
-intptr_t mono_mbedtls_connect(intptr_t mono_fd, intptr_t readbuf, intptr_t writebuf, char * hostname);
+intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writebuf, char * hostname);
 int mono_mbedtls_read (MonoMbedTlsContext * ctx, int length);
 int mono_mbedtls_write (MonoMbedTlsContext * ctx, int length);
 void mono_mbedtls_close (MonoMbedTlsContext * ctx);
+int  (MonoMbedTlsContext *ctx);
 int mono_mbedtls_set_server_cert_authmode (int authmode);
 
 static void my_debug( void *ctx, int level, const char *file, int line, const char *str )
@@ -3558,7 +3559,7 @@ int mono_mbedtls_read (MonoMbedTlsContext * ctx, int length)
     {
         char *buffer = (char *)ctx->read_buf;
         memset(buffer, 0, sizeof(buffer));
-        ret = mbedtls_ssl_read(ctx->mbedtls_ctx, buffer, length);
+        ret = mbedtls_ssl_read(ctx->mbedtls_ctx, (unsigned char*)buffer, length);
     }
     return ret;
 }
