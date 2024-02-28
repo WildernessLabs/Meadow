@@ -24,10 +24,6 @@ typedef struct {
 static gboolean mono_mbedtls_initialized = FALSE;
 
 // Client certificate credentials
-#if defined(__NuttX__)
-static const char* private_key_path = CLIENT_CERT_PRIVATE_KEY_FILE_PATH;
-static const char* client_cert_path = CLIENT_CERT_FILE_PATH;
-#endif
 static unsigned char *client_cert_retrieved;
 static unsigned char *private_key_retrieved;
 static unsigned char *private_key_pass_retrieved;

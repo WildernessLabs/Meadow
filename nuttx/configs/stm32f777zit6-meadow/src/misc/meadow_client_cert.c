@@ -16,9 +16,9 @@ static int private_key_pass_buf_size = 0;
  *
  * Description:
  *  This function is responsible for loading the client certificate, client
- * private key, and the private key passphrase (if provided). It stores 
+ * private key, and the private key passphrase. It stores 
  * these values into ESP32, adding an extra security layer for the credentials.
- * After processing, the client credentials files are deleted.
+ * After processing, the client credentials files are removed from the STM.
  * 
  * Input Parameters:
  *  None.
@@ -48,7 +48,7 @@ int meadow_client_cert_initialize() {
     else
     {
         syslog(LOG_INFO, "Client certificate file found.\n");
-        // Add a null-terminator character add the end of the file
+        // Add a null-terminator character at the end of the file
         //  since it's required by mbedTLS
         fseek(client_cert_file, 0, SEEK_END);
         long client_cert_size = ftell(client_cert_file);
@@ -90,7 +90,7 @@ int meadow_client_cert_initialize() {
     else
     {
         syslog(LOG_INFO, "Client certificate private key file found.\n");
-        // Add a null-terminator character add the end of the file
+        // Add a null-terminator character at the end of the file
         //  since it's required by mbedTLS
         fseek(private_key_file, 0, SEEK_END);
         long private_key_size = ftell(private_key_file);
@@ -135,7 +135,7 @@ int meadow_client_cert_initialize() {
     else
     {
         syslog(LOG_INFO, "Client certificate private key passphrase file found.\n");
-        // Add a null-terminator character add the end of the file
+        // Add a null-terminator character at the end of the file
         //  since it's required by mbedTLS
         fseek(private_key_pass_file, 0, SEEK_END);
         long private_key_pass_size = ftell(private_key_pass_file);
@@ -176,7 +176,6 @@ int meadow_client_cert_initialize() {
 
     return OK;
 }
-
 
 int meadow_client_cert_retrieve_credentials(FAR const char **client_cert_buf_ptr, int *client_cert_len, FAR const char **private_key_buf_ptr, int *private_key_len, FAR const char **private_key_pass_buf_ptr, int *private_key_pass_len)
 {
@@ -251,5 +250,5 @@ int meadow_client_cert_release_credentials(FAR const char **client_cert_buf_ptr,
         *private_key_pass_buf_ptr = NULL;
     }
 
-    return 0;
+    return OK;
 }
