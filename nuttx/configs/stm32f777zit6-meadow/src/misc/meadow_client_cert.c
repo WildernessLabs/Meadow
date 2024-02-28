@@ -34,7 +34,7 @@ static int private_key_pass_buf_size = 0;
 int meadow_client_cert_initialize() {
 
     // Loading client certificate
-    syslog(LOG_INFO, "Loading client certificate.\n");
+    syslog(LOG_INFO, "Checking for a client certificate in STM storage.\n");
     int ret;
     char *client_cert = NULL;
     char *private_key = NULL;
@@ -43,10 +43,11 @@ int meadow_client_cert_initialize() {
     FILE *client_cert_file = fopen(CLIENT_CERT_FILE_PATH, "r");
     if (client_cert_file == NULL)
     {
-        syslog(LOG_INFO, "Failed to open client certificate file.\n");
+        syslog(LOG_INFO, "Client certificate not found. Failed to open file '%s'.\n", CLIENT_CERT_FILE_PATH);
     }
     else
     {
+        syslog(LOG_INFO, "Client certificate file found.\n");
         // Add a null-terminator character add the end of the file
         //  since it's required by mbedTLS
         fseek(client_cert_file, 0, SEEK_END);
@@ -79,15 +80,16 @@ int meadow_client_cert_initialize() {
     }
 
     // Loading client private key
-    syslog(LOG_INFO, "Loading client private key.\n");
+    syslog(LOG_INFO, "Checking for a client cert private key in STM storage.\n");
 
     FILE *private_key_file = fopen(CLIENT_CERT_PRIVATE_KEY_FILE_PATH, "r");
     if (private_key_file == NULL)
     {
-        syslog(LOG_ERR, "Failed to open the private key file.\n");
+        syslog(LOG_INFO, "Client cert private key not found. Failed to open file '%s'.\n", CLIENT_CERT_PRIVATE_KEY_FILE_PATH);
     }
     else
     {
+        syslog(LOG_INFO, "Client certificate private key file found.\n");
         // Add a null-terminator character add the end of the file
         //  since it's required by mbedTLS
         fseek(private_key_file, 0, SEEK_END);
@@ -122,16 +124,17 @@ int meadow_client_cert_initialize() {
     }
 
     // Loading client private key passphrase
-    syslog(LOG_INFO, "Loading private key passphrase.\n");
+    syslog(LOG_INFO, "Checking for a client cert private key passphrase in STM storage.\n");
 
     size_t private_key_pass_len = 0;
     FILE *private_key_pass_file = fopen(CLIENT_CERT_PRIVATE_KEY_PASS_FILE_PATH, "r");
     if (private_key_pass_file == NULL)
     {
-        syslog(LOG_WARNING, "Failed to open the private key passphrase file. The private key is assumed to be decrypted.\n");
+        syslog(LOG_INFO, "Client cert private key pass not found. Failed to open file '%s'.\n", CLIENT_CERT_PRIVATE_KEY_PASS_FILE_PATH);
     }
     else
     {
+        syslog(LOG_INFO, "Client certificate private key passphrase file found.\n");
         // Add a null-terminator character add the end of the file
         //  since it's required by mbedTLS
         fseek(private_key_pass_file, 0, SEEK_END);
@@ -171,7 +174,7 @@ int meadow_client_cert_initialize() {
     free(private_key);
     free(private_key_pass);
 
-    return 0;
+    return OK;
 }
 
 
