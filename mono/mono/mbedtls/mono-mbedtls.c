@@ -3367,7 +3367,7 @@ int mono_mbedtls_init (void)
         mbedtls_pk_init( pkey );
 
         // Handle empty private key passphrase file case
-        if ( private_key_pass_retrieved_len == 1 ) {
+        if ( private_key_pass_retrieved_len <= 1 ) {
             private_key_pass_retrieved = NULL;
         } 
 

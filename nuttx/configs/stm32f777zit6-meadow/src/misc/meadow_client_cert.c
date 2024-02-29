@@ -215,8 +215,8 @@ int meadow_client_cert_retrieve_credentials(FAR const char **client_cert_buf_ptr
     const char *private_key_pass_buf = espcp_file_system_read_file(CLIENT_CERT_PRIVATE_KEY_PASS_FILE, &private_key_pass_length);
     if (private_key_pass_buf == NULL)
     {
-        syslog(LOG_ERR, "Fail to retrieve client cert private key passphrase");
-        return -1;
+        // Do not return an error since the pkey passphrase might be optional
+        syslog(LOG_ERR, "Fail to retrieve client cert private key passphrase. Assuming that a decrypted pkey is used.");
     }
 
     syslog(LOG_INFO, "Retrieved client cert private key pass: %s len: %d\n", private_key_pass_buf, private_key_pass_length);
