@@ -1409,7 +1409,7 @@ typedef struct {
 } lspr32_t;
 
 #define OP_LSPR32	0x0000f800
-#define LDRPC_TEMPLATE	0xf000f8df
+#define LDRPC_TEMPLATE	0xc000f8df
 
 static __THUMB_INLINE__ void
 arm_lspr32(void **code, int rt, int rn, int ls, int size, int up, int imm, int sign)

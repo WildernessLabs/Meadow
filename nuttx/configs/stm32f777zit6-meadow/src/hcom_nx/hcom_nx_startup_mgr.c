@@ -43,9 +43,10 @@
 #include <meadow/meadow_ethnet_common.h>
 #include "../espcp/espcp_coprocessor.h"
 #include <assert.h>
-#include "hcom_nx_config_manager.h"
+#include "../misc/meadow_logging.h"
 
 #include "stm32f777zit6-meadow.h"
+#include "hcom_nx_config_manager.h"
 
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 #include <meadow/meadow_hw_version.h>
@@ -76,9 +77,9 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 
   // One GPIO (PB4) is used D05 for F7FeatherV2 and CCM. But, at reset it
   // isn't initialized all the other GPIOs. It's one of the debugging 5 pins.
-  // and therefore is configured as pull-up/pull-down at F7 restart. Howerver,
+  // and therefore is configured as pull-up/pull-down at F7 restart. However,
   // this pin isn't needed for our ST-Link debugging so it's free to use. But,
-  // being configured diffrently is seen as not ideal. The following is used
+  // being configured differently is seen as not ideal. The following is used
   // to reconfigure it like the other GPIOs.
   stm32_configgpio(MEADOW_DEBUG_NJTRST_NOT_USED_GPIO);
 
@@ -118,6 +119,11 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 
   //
+  //  Prepare the logging system and clear the log file.
+  //
+  meadow_logging_init_os_logging();
+
+  //
   //  Initialise the configuration system.
   //
   hcom_nx_config_init();
@@ -137,7 +143,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   bool reset_esp32 = config->reset_esp32_at_startup;
 
   // Start trace messaging if so configured
-  hcom_nx_trace_insure_correct_config((config->use_uart1_for_trace ? true : false), false);
+  hcom_nx_trace_insure_correct_config((config->use_uart1_for_trace ? true : false), false, (config->use_uart1_for_profiling ? true : false));
   hcom_nx_config_unlock();
 
   //
@@ -251,7 +257,8 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2,  "hcom_nx_setup_mgr 6b\n"); usleep(5 * 1000);
 #endif
-#if HCOM_INCLUDE_SD_CARD_TESTS_IN_BUILD > 0
+
+#if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
   ret = hcom_nx_exec_test_sdcard_setup();
   if (ret < 0)
   {
@@ -316,27 +323,78 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
       // in up_initialize.c's up_initialize() function (look for
       // CONFIG_NETDEV_LATEINIT).
       syslog(LOG_INFO, "Ethernet is being initialized\n");
-      (void)stm32_ethinitialize(0);
-
-      ret = meadow_eth_mgr_startup();
-      if (ret < 0)
+      ret = stm32_ethinitialize(0);
+      if(ret == OK)
       {
-        syslog(LOG_ERR, "ERROR: Failed to initialize ethernet:%d\n", ret);
-        return ret;
+        // Second phase of initialization, this is Meadow specific
+        ret = meadow_eth_mngr_startup();
+        if (ret < 0)
+        {
+          syslog(LOG_ERR, "ERROR: Failed to start ethernet:%d\n", ret);
+          return ret;
+        }
+      }
+      else
+      {
+        if(ret == -ENODEV)
+        {
+          // Seems that there's no PHY on this Meadow device.
+          char *ethErrMsg = "Error: CCM based device. Ethernet initialization"
+                            " failed. Ensure Ethernet not configured.";
+
+          syslog(LOG_ERR, "%s\n", ethErrMsg);
+
+          // Log the message to meadow.log for Meadow.Core consumption
+          meadow_logging_write(mfl_warning, ethErrMsg);
+        }
+        else
+        {
+          // Unknown problem, exit
+          syslog(LOG_ERR, "ERROR: Failed to fully initialize ethernet:%d\n", ret);
+          return ret;
+        }
       }
     }
     else
     {
       hcom_nx_config_unlock();
-      syslog(LOG_INFO, "CCM device with Ethernet is not enabled\n");
+      syslog(LOG_INFO, "CCM device but, Ethernet not enabled\n");
     }
   }
   else
   {
     syslog(LOG_INFO, "Ethernet not supported by this device\n");
   }
-
 #endif    // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD) && defined(CONFIG_NETDEV_LATEINIT)
+
+#if defined(CONFIG_NETUTILS_PPPD)
+  hcom_nx_config_lock();
+  config = hcom_nx_config_get_pointer();
+  if (config->default_interface->interface_type == MEADOW_IFT_CELL)
+    {
+      hcom_nx_config_unlock();
+      syslog(LOG_INFO, "Cell interface was selected\n");
+
+      hcom_nx_config_process_cell_config_file();
+      syslog(LOG_INFO, "Cell settings processed\n");
+
+      hcom_nx_config_turn_on_the_cell_module();
+    }
+    else {
+      hcom_nx_config_unlock();
+      syslog(LOG_INFO, "Cell interface is not enabled\n");
+    }
+#endif
+
+#if defined (CONFIG_ARCH_IDLE_CUSTOM)
+  ret = meadow_idle_monitor_setup();
+  if (ret < 0)
+  {
+    syslog(LOG_ERR, "ERROR: Failed to initialize idle monitor:%d\n", ret);
+    return ret;
+  }
+
+#endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2,  "hcom_nx_setup_mgr 8-Successful exit\n"); usleep(5 * 1000);

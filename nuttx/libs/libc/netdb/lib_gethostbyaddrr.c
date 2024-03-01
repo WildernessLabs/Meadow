@@ -168,7 +168,7 @@ static int lib_localhost(FAR const void *addr, socklen_t len, int type,
   socklen_t addrlen;
   FAR const uint8_t *src;
   FAR char *dest;
-  bool match;
+  // bool match;
   int herrnocode;
   int namelen;
 
@@ -392,9 +392,9 @@ int gethostbyaddr_r(FAR const void *addr, socklen_t len, int type,
                     FAR struct hostent *host, FAR char *buf,
                     size_t buflen, int *h_errnop)
 {
-  FAR FILE *stream;
-  int herrnocode;
-  int nread;
+  // FAR FILE *stream;
+  // int herrnocode;
+  // int nread;
 
   DEBUGASSERT(addr != NULL && host != NULL && buf != NULL);
   DEBUGASSERT(type == AF_INET || type == AF_INET6);

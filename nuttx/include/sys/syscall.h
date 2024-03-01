@@ -565,9 +565,132 @@
 
 #ifdef CONFIG_CRYPTO_RANDOM_POOL
 #  define SYS_getrandom                (SYS_prctl + 1)
-#  define SYS_maxsyscall               (SYS_prctl + 2)
 #else
-#  define SYS_maxsyscall               (SYS_prctl + 1)
+#  define SYS_getrandom                SYS_prctl
+#endif
+
+#ifdef CONFIG_MEADOW_CLOUD
+#  define SYS_meadow_cloud_provision   (SYS_getrandom + 1)
+#  define SYS_meadow_cloud_retrieve_private_key   (SYS_getrandom + 2)
+#  define SYS_meadow_cloud_release_private_key   (SYS_getrandom + 3)
+#else
+#  define SYS_meadow_cloud_release_private_key                SYS_getrandom
+#endif
+
+#if defined(CONFIG_ARCH_BOARD_MEADOW)
+#  define SYS_meadow_os_deep_copy_config        (SYS_meadow_cloud_release_private_key + 1)
+#  define SYS_meadow_os_config_free_resources   (SYS_meadow_cloud_release_private_key + 2)
+#  define SYS_meadow_os_power_cycle_count       (SYS_meadow_cloud_release_private_key + 3)
+#  define SYS_meadow_os_reset_cycle_count       (SYS_meadow_cloud_release_private_key + 4)
+#  define SYS_meadow_os_reset_reason            (SYS_meadow_cloud_release_private_key + 5)
+#  define SYS_meadow_os_hardware_version        (SYS_meadow_cloud_release_private_key + 6)
+#else
+#  define SYS_meadow_os_hardware_version        SYS_meadow_cloud_release_private_key
+#endif
+
+#if defined (CONFIG_ARCH_IDLE_CUSTOM)
+#  define SYS_meadow_idle_monitor_get_value         (SYS_meadow_os_hardware_version + 1)
+#else
+#  define SYS_meadow_idle_monitor_get_value         SYS_meadow_os_hardware_version
+#endif
+
+#if defined (CONFIG_STM32F7_DMA2)
+#  define SYS_meadow_adc_configure                  (SYS_meadow_idle_monitor_get_value + 1)
+#  define SYS_meadow_adc_read_values                (SYS_meadow_idle_monitor_get_value + 2)
+#  define SYS_meadow_adc_read_temp_vbat             (SYS_meadow_idle_monitor_get_value + 3)
+#else
+#  define SYS_meadow_adc_read_temp_vbat              SYS_meadow_idle_monitor_get_value
+#endif
+
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+#  define SYS_pwrmgmt_most_recent_wakeup_reason     (SYS_meadow_adc_read_temp_vbat + 1)
+#else
+#  define SYS_pwrmgmt_most_recent_wakeup_reason      SYS_meadow_adc_read_temp_vbat
+#endif
+
+#if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_espcp_load_test_large_file_download     (SYS_pwrmgmt_most_recent_wakeup_reason + 1)
+#  define SYS_meadow_kt_espcp_load_test_web_page                (SYS_pwrmgmt_most_recent_wakeup_reason + 2)
+#  define SYS_meadow_kt_espcp_tests                             (SYS_pwrmgmt_most_recent_wakeup_reason + 3)
+#else
+#  define SYS_meadow_kt_espcp_tests                              SYS_pwrmgmt_most_recent_wakeup_reason
+#endif
+
+#if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_ethernet_load_test_large_file_download  (SYS_meadow_kt_espcp_tests + 1)
+#  define SYS_meadow_kt_ethernet_load_test_web_page             (SYS_meadow_kt_espcp_tests + 2)
+#  define SYS_meadow_kt_ethernet_tests                          (SYS_meadow_kt_espcp_tests + 3)
+#else
+#  define SYS_meadow_kt_ethernet_tests SYS_meadow_kt_espcp_tests
+#endif
+
+#if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_sd_card_tests  (SYS_meadow_kt_ethernet_tests + 1)
+#else
+#  define SYS_meadow_kt_sd_card_tests  SYS_meadow_kt_ethernet_tests
+#endif
+
+#if defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_power_management_tests (SYS_meadow_kt_sd_card_tests + 1)
+#else
+#  define SYS_meadow_kt_power_management_tests SYS_meadow_kt_sd_card_tests
+#endif
+
+#if defined(CONFIG_ISO8601_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_iso8601_tests (SYS_meadow_kt_power_management_tests + 1)
+#else
+#  define SYS_meadow_kt_iso8601_tests SYS_meadow_kt_power_management_tests
+#endif
+
+#if defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_bg77_tests     (SYS_meadow_kt_iso8601_tests + 1)
+#else
+#  define SYS_meadow_kt_bg77_tests     (SYS_meadow_kt_iso8601_tests)
+#endif
+
+#if defined(CONFIG_QUICK_MISC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_quick_misc_tests     (SYS_meadow_kt_bg77_tests + 1)
+#else
+#  define SYS_meadow_kt_quick_misc_tests     (SYS_meadow_kt_bg77_tests)
+#endif
+
+#if defined(CONFIG_ADC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_adc_tests     (SYS_meadow_kt_quick_misc_tests + 1)
+#else
+#  define SYS_meadow_kt_adc_tests     (SYS_meadow_kt_quick_misc_tests)
+#endif
+
+#if defined(CONFIG_DAC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_dac_tests     (SYS_meadow_kt_adc_tests + 1)
+#else
+#  define SYS_meadow_kt_dac_tests     (SYS_meadow_kt_adc_tests)
+#endif
+
+#if defined(CONFIG_MEADOW_INTERRUPT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_meadow_interrupt_tests     (SYS_meadow_kt_dac_tests + 1)
+#else
+#  define SYS_meadow_kt_meadow_interrupt_tests     (SYS_meadow_kt_dac_tests)
+#endif
+
+#if defined(CONFIG_SPI_DMA_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_spi_dma_tests     (SYS_meadow_kt_meadow_interrupt_tests + 1)
+#else
+#  define SYS_meadow_kt_spi_dma_tests     (SYS_meadow_kt_meadow_interrupt_tests)
+#endif
+
+#if defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_rotary_encoder_tests     (SYS_meadow_kt_spi_dma_tests + 1)
+#else
+#  define SYS_meadow_kt_rotary_encoder_tests     (SYS_meadow_kt_spi_dma_tests)
+#endif
+
+#if defined(CONFIG_ARCH_BOARD_MEADOW)
+#  define SYS_stm32_gpiowrite           (SYS_meadow_kt_rotary_encoder_tests + 1)
+#  define SYS_stm32_configgpio          (SYS_meadow_kt_rotary_encoder_tests + 2)
+#  define SYS_stm32_unconfiggpio        (SYS_meadow_kt_rotary_encoder_tests + 3)
+#  define SYS_maxsyscall                (SYS_meadow_kt_rotary_encoder_tests + 4)
+#else
+#  define SYS_maxsyscall                (SYS_meadow_kt_rotary_encoder_tests)
 #endif
 
 /* Note that the reported number of system calls does *NOT* include the

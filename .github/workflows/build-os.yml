@@ -1,0 +1,23 @@
+name: Build OS and RT
+
+on:
+  repository_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout source code
+      uses: actions/checkout@v3
+
+    - name: Build Docker image for the OS build.
+      run: docker build -t nuttx-build -f ./DockerFiles/Build/Dockerfile .
+
+    - name: Build the OS and RT
+      run: docker run --rm -v $PWD:/project -w /project --user "$(id -u):$(id -g)" nuttx-build ./build.sh --force --clean

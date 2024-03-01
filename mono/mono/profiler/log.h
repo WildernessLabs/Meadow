@@ -527,4 +527,8 @@ typedef struct {
 
 void proflog_parse_args (ProfilerConfig *config, const char *desc);
 
+#if defined(__NuttX__)
+void mono_profiler_init_log (const char *desc);
+#endif
+
 #endif /* __MONO_PROFLOG_H__ */

@@ -1,7 +1,7 @@
 /****************************************************************************
  * \include\meadow\hcom_dnld_shared.h
  * 
- *   Copyright (C) 2022 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2022-2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,45 +42,88 @@
 
 #define HCOM_FILE_DNLD_STM32F7_WDOG_TIME (3)
 
+// 8 elements in path will allow up to 6 subdirectories
+// '/meadow0/filename' considered 2 mandatory elements
+#define HCOM_FILE_DNLD_MAX_NUMB_DIR_ELEMENTS (8)
+#define HCOM_FILE_DNLD_MANDATORY_DIR_ELEMENTS (2)
+#define HCOM_FILE_DNLD_MAX_NUMB_USER_SUBDIRS \
+  (HCOM_FILE_DNLD_MAX_NUMB_DIR_ELEMENTS-HCOM_FILE_DNLD_MANDATORY_DIR_ELEMENTS)
+
 // This enum defines the current processing state of the download code for a
 // specific download session. It is also used for file delete.
 // It is not used for ESP32 download, only external file system.
 // May decide to add ESP32 enum here too
 enum hcom_download_stm32f7_packet_state
 {
-  HcomStm32F7DnldStateNone = 0,
-  HcomStm32F7DnldStateStarting = 1,
-  HcomStm32F7DnldStateFileXfer = 2,
+  // The Invalid state indicates that there is no valid information in the
+  // hcom_dnld_shared_s structure.
+  HcomStm32F7DnldStateInvalid  = 0,
+  HcomStm32F7DnldStateNone     = 1,
+  HcomStm32F7DnldStateStarting = 2,
+  HcomStm32F7DnldStateFileXfer = 3,
 };
 
-// May need to add ESP32 info to struct
+enum hcom_download_dir_type_identifier
+{
+  HcomDnldDirTypeUnknown = 0,
+  HcomDnldDirTypeMeadow0 = 1,
+  HcomDnldDirTypeMmcsd0  = 2,
+};
+
+// This enum is used to catorgize CLI file/directory requests
+enum hcom_file_msg_cat_e
+{
+  pathnameNotUsed         = 0xff, // Flag to indicate cleaned
+  pathnameInvalid         = 0,    // Illegal format provided
+  pathnameInvalidNoSlash  = 1,    // No '/' found but needed
+  pathnameInvalidSlash    = 2,    // '/' found but not wanted
+  pathnameOriginal        = 3,    // No '/' found
+  pathnameMeadow          = 4,    // Starts with '/meadow0/'
+  pathnameSdcard          = 5,    // Starts with '/sdcard/'
+
+  // The following 2 path names ('/' and '/text/') where originally thought to
+  // be needed, but have been removed. This means that only '/meadow0' and
+  // /sdcard' are accessable to the HCOM user.
+  // e.g. '/' for file list to examine items from the root which are
+  // not '/meadow0/ or /sdcard/ (e.g. to find /dev).
+  // pathnameSingleSlash     = 6,    // Just '/' for file list to see root
+
+  // e.g. '/text/' Future - if file list is to examine items from the
+  // root (e.g. /dev/).
+  // pathnameSlashSlash      = 7
+};
+
 // This struct is memset to zero by processing during initialization
 struct hcom_dnld_shared_s
 {
   // Set by process and maintained during download by file handling
-  int dnldCurrentState;             // Tracks the state of the download
+  int dnldCurrentState;               // Tracks the state of the download
 
   // These are completely managed by file handling code
-  uint32_t dnldInitFileCrc;         // CRC that was received from CLI
-  uint32_t dnldCalcFileCrc;         // CRC calculated over while receiving
-  uint32_t dnldInitFileSize;        // File size based on received CLI data
-  uint32_t dnldCalcFileSize;        // This size calculated while receiving
-  int dnldFileFD;                   // For file write persisted fd
-  int dnldPercentSent;              // Used to calculate the % completed
-
-  // Set by processing and used by file handling
-  uint32_t dnldFilePartId;          // File partition from CLI
-  char *dnldOrigFileName;           // File name as provided by CLI
-  char *dnldFullFileName;           // Full file name (e.g. /meadow0/file.txt)
+  uint32_t dnldInitFileCrc;             // CRC that was received from CLI
+  uint32_t dnldCalcFileCrc;             // CRC calculated over while receiving
+  uint32_t dnldInitFileSize;            // File size based on received CLI data
+  uint32_t dnldCalcFileSize;            // This size calculated while receiving
+  uint32_t dnldPathNameEleCount;        // Number of elements in pathname
+  enum hcom_file_msg_cat_e dnldRqstCat; // Category of file rqst did CLI make?
+  int dnldFileFD;                       // For persisting fd
+  int dnldPercentSent;                  // Used to calculate the % completed
+  // Set by processing and used by file handling (This is always 1)
+  uint32_t dnldFilePartId;              // File partition from CLI
+  // These are allocated and may be exactly the same string
+  char *dnldOrigPathName;               // File name as provided by CLI
+  char *dnldFullPathName;               // Full file name (e.g. /meadow0/file.txt)
 };
-
 typedef struct hcom_dnld_shared_s hcom_dnld_shared_t;
 
-int hcom_host_process_free_dnld_share_mem(void);
+int hcom_dir_mgmt_free_file_info(hcom_dnld_shared_t *dnldShared);
+#if defined (CONFIG_DIR_MGMT_TESTS)
+char *hcom_file_dir_mgmt_find_category(enum hcom_file_msg_cat_e cat);
+#endif
 
-// The watchdog has a close relationship with hcom host process
-int hcom_host_watchdog_initialize(hcom_dnld_shared_t * dnldShared);
+// The watchdog has a close relationship with hcom CLI message process
+int hcom_host_watchdog_initialize(hcom_dnld_shared_t *dnldShared);
 void hcom_host_watchdog_stopping(void);
-void hcom_host_watchdog_check_execute_if_expired(void);
+int hcom_host_watchdog_check_execute_if_expired(void);
 
 #endif  // __INCLUDE_HCOM_DOWNLOAD_SHARED__H

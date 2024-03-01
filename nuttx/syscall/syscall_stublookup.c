@@ -417,6 +417,93 @@ uintptr_t STUB_prctl(int nbr, uintptr_t parm1, uintptr_t parm2,
 
 uintptr_t STUB_getrandom(int nbr, uintptr_t parm1, uintptr_t parm2);
 
+#if defined(CONFIG_MEADOW_CLOUD)
+int STUB_meadow_cloud_provision(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3, uintptr_t parm4, uintptr_t parm5);
+int STUB_meadow_cloud_retrieve_private_key(int nbr, uintptr_t parm1, uintptr_t parm2);
+int STUB_meadow_cloud_release_private_key(int nbr, uintptr_t parm1);
+#endif
+
+#if defined(CONFIG_ARCH_BOARD_MEADOW)
+uintptr_t STUB_meadow_os_deep_copy_config(int nbr);
+void STUB_meadow_os_config_free_resources(int nbr, uintptr_t param1);
+uintptr_t STUB_meadow_os_power_cycle_count(int nbr);
+uintptr_t STUB_meadow_os_reset_cycle_count(int nbr);
+uintptr_t STUB_meadow_os_reset_reason(int nbr);
+uintptr_t STUB_meadow_os_hardware_version(int nbr);
+#endif
+
+#if defined (CONFIG_ARCH_IDLE_CUSTOM)
+int STUB_meadow_idle_monitor_get_value(int nbr);
+#endif
+
+#if defined (CONFIG_STM32F7_DMA2)
+int STUB_meadow_adc_configure(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3);
+int STUB_meadow_adc_read_values(int nbr);
+int STUB_meadow_adc_read_temp_vbat(int nbr, uintptr_t parm1, uintptr_t parm2);
+#endif
+
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+int STUB_pwrmgmt_most_recent_wakeup_reason(int nbr);
+#endif
+
+#if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_espcp_load_test_large_file_download(int nbr, uint32_t param);
+void STUB_meadow_kt_espcp_load_test_web_page(int nbr, uint32_t param);
+void STUB_meadow_kt_espcp_tests(int nbr, uint32_t param);
+#endif
+
+#if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_ethernet_load_test_large_file_download(int nbr, uint32_t param);
+void STUB_meadow_kt_ethernet_load_test_web_page(int nbr, uint32_t param);
+void STUB_meadow_kt_ethernet_tests(int nbr, uint32_t param);
+#endif
+
+#if defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_bg77_tests(int nbr, uint32_t param);
+#endif
+
+#if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_sd_card_tests(int nbr, uint32_t param);
+#endif
+
+#if defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_power_management_tests(int nbr, uint32_t param);
+#endif
+
+#if defined(CONFIG_ISO8601_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_iso8601_tests(int nbr, uint32_t param);
+#endif
+
+#if defined(CONFIG_QUICK_MISC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_quick_misc_tests(int nbr, uint32_t param);
+#endif
+
+#if defined(CONFIG_ADC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_adc_tests(int nbr, uint32_t param);
+#endif
+
+#if defined(CONFIG_DAC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_dac_tests(int nbr, uint32_t param);
+#endif
+
+#if defined(CONFIG_MEADOW_INTERRUPT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_meadow_interrupt_tests(int nbr, uint32_t param);
+#endif
+
+#if defined(CONFIG_SPI_DMA_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_spi_dma_tests(int nbr, uint32_t param);
+#endif
+
+#if defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_rotary_encoder_tests(int nbr, uint32_t param);
+#endif
+
+#if defined(CONFIG_ARCH_BOARD_MEADOW)
+void STUB_stm32_gpiowrite(int nbr, uint32_t parm1, int parm2);
+int STUB_stm32_configgpio(int nbr, uint32_t parm1);
+int STUB_stm32_unconfiggpio(int nbr, uint32_t parm1);
+#endif
+
 /****************************************************************************
  * Public Data
  ****************************************************************************/

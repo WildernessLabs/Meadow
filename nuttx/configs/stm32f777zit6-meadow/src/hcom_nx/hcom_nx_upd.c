@@ -77,7 +77,6 @@
 
 #include "../espcp/espcp_coprocessor.h"
 #include "../espcp/espcp_usrsock.h"
-#include "../espcp/espcp_tests.h"
 #include "hcom_nx_config_manager.h"
 
 /****************************************************************************
@@ -137,15 +136,12 @@ int hcom_upd_nx_read(FAR struct file *filep, FAR char *buffer, size_t buflen)
 static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
   int ret;
-  int length;
   struct hcom_nx_upd_register_value *register_val;
   struct hcom_nx_upd_register_update *register_update;
   struct hcom_nx_upd_bbr_value *bbr_val;
   struct hcom_nx_upd_bbr_update *bbr_update;
   struct hcom_nx_cmd_data *cmdData;
   struct hcom_nx_upd_is_part_mounted *is_mounted;
-  struct hcom_nx_upd_gpio_write_s *gpio_write;
-  struct hcom_nx_upd_gpio_config_s *gpio_config;
   hcom_nx_upd_cli_trace_transport_t *trace_transport;
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
   hcom_nx_upd_host_text_transport_t *text_transport;
@@ -153,18 +149,20 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   hcom_nx_upd_get_hw_ver_t *hardwareVer;
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
   hcom_nx_upd_rtc_set_time_t *rtcSetTime;
-  // hcom_nx_upd_rtc_wakeup_time_t *rtcWakeupTime;
+#if HCOM_INCLUDE_ISO8601_SUPPORT > 0
+  hcom_nx_upd_rtc_wakeup_time_t *rtcWakeupTime;
+#endif
 #endif
 
-// At present (Sept 2021) The only use for this feature is with ethernet
+// At present (Sept 2021) The only use for this feature is with ethernet ping
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
   hcom_nx_upd_diag_app_command_t *diagAppCmd;
 #endif
 
   switch (cmd)
   {
-  // This work with any register
   case HCOM_NX_UPD_SET_REGISTER:
+    // This works with any register
     register_val = (struct hcom_nx_upd_register_value *)arg;
     putreg32(register_val->value, register_val->address);
     return OK;
@@ -266,10 +264,6 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     return OK;
 #endif
 
-  case HCOM_NX_UPD_EXECUTE_ESPCP_TESTS:
-    espcp_execute_tests(arg);
-    return(OK);
-
   case HCOM_NX_UPD_RESTORE_UART_CONFIG:
     return hcom_nx_restore_uart_reconfig(arg);
 
@@ -284,11 +278,6 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     hcom_nx_common_utils_only_restart_meadow();
     return OK;
 
-  case HCOM_NX_UPD_GET_CONFIG:
-    length = *((int *) arg);
-    ret = hcom_nx_config_copy_for_user_mode((uint8_t *) arg, length);
-    return ret;
-
   case HCOM_NX_UPD_GET_HW_VERSION:
     hardwareVer = (hcom_nx_upd_get_hw_ver_t*)arg;
     hardwareVer->hwVer = meadow_hw_version_get();
@@ -298,18 +287,6 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     *((unsigned long *)MEADOW_ENTER_DFU_MODE_MEMORY_ADDR) = MEADOW_ENTER_DFU_MODE_MAGIC_NUMB;
     return OK;
 
-  case HCOM_NX_UPD_GPIO_COMMAND:
-    // Execute a gpio digital write to output gpio 
-    gpio_write = (struct hcom_nx_upd_gpio_write_s*)arg;
-    stm32_gpiowrite(gpio_write->gpioPinDefn, gpio_write->cmdValue);
-    return OK;
-
-  case HCOM_NX_UPD_GPIO_CONFIG:
-    gpio_config = (struct hcom_nx_upd_gpio_config_s*)arg;
-    ret = stm32_configgpio(gpio_config->gpioPinDefn);
-    gpio_config->result = errno;
-    return ret;
-
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
   case HCOM_NX_UPD_RTC_SET_TIME:
     // Set the time in the RTC hardware from mono
@@ -318,14 +295,13 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
               rtcSetTime->msgLen);
     return ret;
 
-#if 0
+#if HCOM_INCLUDE_ISO8601_SUPPORT > 0
   case HCOM_NX_UPD_RTC_WAKEUP_TIME:
     // Set the wakeup time in the RTC hardware
     rtcWakeupTime = (hcom_nx_upd_rtc_wakeup_time_t*)arg;
     ret = pwrmgmt_mono_cmd_time_wakeup_period(rtcWakeupTime->hdrMsg,
               rtcWakeupTime->msgLen);
 #endif
-
   case HCOM_NX_UPD_UPDATE_OS1:
     // Stage a updated OS bin
     ret = hcom_nx_exec_ex_flash_OS_update_flash1();

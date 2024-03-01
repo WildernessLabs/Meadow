@@ -36,6 +36,7 @@
 /****************************************************************************
  * Included Files
  ****************************************************************************/
+#include <nuttx/config.h>
 
 #include "../hcom_common.h"
 #include <meadow/hcom_bbreg_defn.h>
@@ -43,10 +44,9 @@
 /*******************************************************************
 * TESTS OF REGISTER ACCESS ON THE NUTTX SIDE
  *******************************************************************/
-#if HCOM_INCLUDE_BATTERY_BACKED_REG_TEST > 0
 
 // Called from one of the Developer CLI commands
-void hcom_bbr_tests()
+void hcom_bbr_tests(uint32_t userData)
 {
   #define BBR_TEST_VALUE_DB (0xdeadbeef)
   #define BBR_TEST_VALUE_0x00010000 (0x00010000)
@@ -126,4 +126,3 @@ void hcom_bbr_tests()
   hcom_bbreg_write_bbr(0);
 }
 
-#endif

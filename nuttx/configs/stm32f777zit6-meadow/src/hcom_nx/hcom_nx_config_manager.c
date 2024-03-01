@@ -51,13 +51,14 @@
 #include "../espcp/espcp_coprocessor.h"
 #include "../espcp/espcp_message_dispatcher.h"
 #include "../espcp/espcp_shared_enums.h"
+#include "../espcp/espcp_usrsock.h"
+#include "../misc/meadow_logging.h"
 #include "stm32_uid.h" // stm32_get_uniqueid()
 
 #include "hcom_nx_common.h"
 
 #include "hcom_nx_config_manager.h"
-#include "../libcyaml/cyaml.h"
-
+#include "hcom_nx_config_manager_yaml.h"
 
 /****************************************************************************
  * Uncomment the #define below to turn on debug help macros.
@@ -73,7 +74,7 @@
  *  @brief Default entry in the network_interfaces array to be used if no interface
  *         is selected in the config file.
  */
-#define MEADOW_DEFAULT_NETWORK_INTERFACE    0
+#define MEADOW_DEFAULT_NETWORK_INTERFACE    MEADOW_IFT_ESP32
 
 /**
  * @brief String used for version numbers when the value is not available.
@@ -94,29 +95,36 @@
 static meadow_configuration_t *meadow_configuration = NULL;
 
 /**
- *  Definitions of the interface information locations in the network_interfaces array.
- */
-#define MEADOW_INTERFACE_INFORMATION_WIFI       0
-#define MEADOW_INTERFACE_INFORMATION_ETHERNET   1
-
-/**
  *  @brief Array of network interfaces available.
  */
 static meadow_network_interface_t network_interfaces[] = 
 {
     {
         .interface_type = MEADOW_IFT_ESP32,
+        .name = MEADOW_IFT_ESP32_NAME,
         .use_dhcp = 1,
         .ip_address = 0,
         .netmask = 0,
-        .gateway = 0
+        .gateway = 0,
+        .psock_methods = &g_usrsock_sockif_esp32
     },
     {
         .interface_type = MEADOW_IFT_ETHERNET,
+        .name = MEADOW_IFT_ETHERNET_NAME,
         .use_dhcp = 1,
         .ip_address = 0,
         .netmask = 0,
-        .gateway = 0
+        .gateway = 0,
+        .psock_methods = NULL
+    },
+    {
+        .interface_type = MEADOW_IFT_CELL,
+        .name = MEADOW_IFT_CELL_NAME,
+        .use_dhcp = 1,
+        .ip_address = 0,
+        .netmask = 0,
+        .gateway = 0,
+        .psock_methods = NULL
     }
 };
 
@@ -126,395 +134,285 @@ static meadow_network_interface_t network_interfaces[] =
 static sem_t config_lock = { };
 
 /**
- *  Configuration for the CYAML library.
+ *  Structure to hold the F7MicroV2 pin mappings
  */
-static const cyaml_config_t cyaml_config =
-{
-	.log_level = CYAML_LOG_WARNING, /* Logging errors and warnings only. */
-	.log_fn = cyaml_log,            /* Use the default logging function. */
-	.mem_fn = cyaml_mem,            /* Use the default memory allocator. */
-    .flags = CYAML_CFG_IGNORE_UNKNOWN_KEYS | CYAML_CFG_CASE_INSENSITIVE
+struct f7_micro_v2_pin_mapping_s {
+    const char* pin_name;
+    int pin_value;
 };
+typedef struct f7_micro_v2_pin_mapping_s f7_micro_v2_pin_mapping_t;
 
 /**
- *  Schema for string pointer values (used in sequences of strings).
- * 
- *  This is used in the DNS and NTP server sequences. 
+ *  Define the pin mappings as an array of structures.
  */
-static const cyaml_schema_value_t string_ptr_schema =
-{
-	CYAML_VALUE_STRING(CYAML_FLAG_POINTER, char, 0, CYAML_UNLIMITED),
+const f7_micro_v2_pin_mapping_t f7_micro_v2_pin_mappings[] = {
+    { F7_MICRO_V2_A00_PIN_NAME, F7_MICRO_V2_A00_PIN },
+    { F7_MICRO_V2_A01_PIN_NAME, F7_MICRO_V2_A01_PIN },
+    { F7_MICRO_V2_A02_PIN_NAME, F7_MICRO_V2_A02_PIN },
+    { F7_MICRO_V2_A03_PIN_NAME, F7_MICRO_V2_A03_PIN },
+    { F7_MICRO_V2_A04_PIN_NAME, F7_MICRO_V2_A04_PIN },
+    { F7_MICRO_V2_A05_PIN_NAME, F7_MICRO_V2_A05_PIN },
+    { F7_MICRO_V2_D00_PIN_NAME, F7_MICRO_V2_D00_PIN },
+    { F7_MICRO_V2_D01_PIN_NAME, F7_MICRO_V2_D01_PIN },
+    { F7_MICRO_V2_D02_PIN_NAME, F7_MICRO_V2_D02_PIN },
+    { F7_MICRO_V2_D03_PIN_NAME, F7_MICRO_V2_D03_PIN },
+    { F7_MICRO_V2_D04_PIN_NAME, F7_MICRO_V2_D04_PIN },
+    { F7_MICRO_V2_D05_PIN_NAME, F7_MICRO_V2_D05_PIN },
+    { F7_MICRO_V2_D06_PIN_NAME, F7_MICRO_V2_D06_PIN },
+    { F7_MICRO_V2_D07_PIN_NAME, F7_MICRO_V2_D07_PIN },
+    { F7_MICRO_V2_D08_PIN_NAME, F7_MICRO_V2_D08_PIN },
+    { F7_MICRO_V2_D09_PIN_NAME, F7_MICRO_V2_D09_PIN },
+    { F7_MICRO_V2_D10_PIN_NAME, F7_MICRO_V2_D10_PIN },
+    { F7_MICRO_V2_D11_PIN_NAME, F7_MICRO_V2_D11_PIN },
+    { F7_MICRO_V2_D12_PIN_NAME, F7_MICRO_V2_D12_PIN },
+    { F7_MICRO_V2_D13_PIN_NAME, F7_MICRO_V2_D13_PIN },
+    { F7_MICRO_V2_D14_PIN_NAME, F7_MICRO_V2_D14_PIN },
+    { F7_MICRO_V2_D15_PIN_NAME, F7_MICRO_V2_D15_PIN },
 };
 
-/**
- *  Device configuration options from the YAML file.
- */
-struct yaml_device_s
-{
-    /**
-     *  @brief Name of the device.
-     */
-    char *name;
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
 
-    /**
-     *  @brief Should the system reboot if the .NET application encounter an unhandled exception?
-     */
-    char *reboot_on_unhandled_exceptions;
-
-    /**
-     *  @brief Maximum amount of time the initialisation method in the .NET application can run
-     *         before it is assumed to have failed.
-     */
-    char *initialisation_timeout_seconds;
-
-    /**
-     * @brief Does the system have SD card hardware installed (CCM).
-     */
-    char *sd_storage_supported;
-};
-typedef struct yaml_device_s yaml_device_t;
-
-/**
- *  Defintion of the fields in the yaml_device_s structure.
+/****************************************************************************
+ * Name: hcom_nx_config_populate_cell_module_id
  *
- *  This is an array of the field definitions.
- */
-static const cyaml_schema_field_t configuration_device_section_schema[] =
-{
-    CYAML_FIELD_STRING_PTR("Name", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, name, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("InitializationTimeoutSeconds", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, initialisation_timeout_seconds, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("RebootOnUnhandledException", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, reboot_on_unhandled_exceptions, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("SdStorageSupported", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_device_t, sd_storage_supported, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_END
-    
-};
-
-/**
- *  Mono startup configuration as defined in the YAML configuration file.
- */
-struct yaml_mono_control_s
-{
-    /**
-     *  Pointer to a string containing the command line options that will be
-     *  passed to Mono.
-     */
-    char *options;
-};
-typedef struct yaml_mono_control_s yaml_mono_control_t;
-
-/**
- *  Defintion of the fields in the yaml_mono_control_s structure.
+ * Description:
+ *  Populate the cell module id according to the cell module name set in
+ *  the cell.config.yaml
  *
- *  This is an array of the field definitions.
- */
-static const cyaml_schema_field_t configuration_mono_control_section_schema[] =
-{
-    CYAML_FIELD_STRING_PTR("Options", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_mono_control_t, options, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_END
-};
-
-/**
- *  Configuration of the coprocessor from the YAML configuration file.
- */
-struct yaml_coprocessor_s
-{
-    /**
-     *  @brief Clock speed of the SPI interface between the STM32 and the ESP32.
-     */
-    char *spi_speed_hz;
-
-    /**
-     * Automatically start the WiFi adapter?
-     */
-    char *automatically_start_network;
-
-    /**
-     * Automatically reconnect to access point if the connection is lost.
-     */
-    char *automatically_reconnect;
-
-    /**
-     * Maximum number of retry attempts before the system should return an error condition.
-     */
-    char *maximum_retry_count;
-};
-typedef struct yaml_coprocessor_s yaml_coprocessor_t;
-
-/**
- *  Defintion of the fields in the yaml_coprocessor_s structure.
+ * Input Parameters:
+ *  config - Pointer to the system config object
  *
- *  This is an array of the field definitions.
- */
-static const cyaml_schema_field_t configuration_coprocessor_section_schema[] =
-{
-    CYAML_FIELD_STRING_PTR("SpiSpeedHz", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, spi_speed_hz, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("AutomaticallyStartNetwork", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_start_network, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("AutomaticallyReconnect", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_reconnect, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("MaximumRetryCount", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, maximum_retry_count, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_END
-};
-
-/**
- *  @brief Network interface information.
- */
-struct yaml_network_interface_s
-{
-    /**
-     *  @brief Should this be used as the default interface?
-     */
-    char *default_interface;
-
-    /**
-     *  @brief Static IP address.  DHCP will be used if this parameter is omitted.
-     */
-    char *ip_address;
-
-    /**
-     *  @brief Subnet mask for the interface.
-     */
-    char *netmask;
-
-    /**
-     *  @brief IP address of the gateway.
-     */
-    char *gateway;
-};
-typedef struct yaml_network_interface_s yaml_network_interface_t;
-
-/**
- *  Defintion of the fields in the yaml_network_interface_s structure.
+ * Returned Value:
+ *  None
  *
- *  This is an array of the field definitions.
- */
-static const cyaml_schema_field_t configuration_network_interface_section_schema[] =
-{
-    CYAML_FIELD_STRING_PTR("Default", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_interface_t, default_interface, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("IPAddress", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_interface_t, ip_address, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("NetMask", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_interface_t, netmask, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("Gateway", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_interface_t, gateway, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_END
-};
-
-/**
- * Network configuration section of the configuration file.
- */
-struct yaml_network_s
-{
-    /**
-     *  @brief Indicate if we should get the network time at startup.
-     */
-    char *get_network_time_at_startup;
-
-    /**
-     * @brief Indicate how often the time should be refreshed.
-     */
-    char *ntp_refresh_period_seconds;
-
-    /**
-     *  @brief Name of the network time servers along with the number of NTP servers
-     *         in the config file.
-     */
-    const char **ntp_servers;
-    unsigned ntp_servers_count;
-
-    /**
-     *  @brief IP addresses of the DNS servers along with the number of DNS servers
-     *         in the config file.
-     */
-    const char **dns_servers;
-    unsigned dns_servers_count;
-
-    /**
-     *  @brief Configuration of ethernet adapter (if present).
-     */
-    yaml_network_interface_t *ethernet;
-
-    /**
-     *  @brief Configuration of the WiFi adapter.
-     */
-    yaml_network_interface_t *wifi;
-};
-typedef struct yaml_network_s yaml_network_t;
-
-/**
- *  Defintion of the fields in the yaml_network_s structure.
+ * Assumptions/Limitations:
+ *  None
  *
- *  This is an array of the field definitions.
- */
-static const cyaml_schema_field_t configuration_network_section_schema[] =
+ ****************************************************************************/
+void hcom_nx_config_populate_cell_module_id(meadow_configuration_t *config)
 {
-    CYAML_FIELD_MAPPING_PTR("Ethernet", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ethernet, configuration_network_interface_section_schema),
-    CYAML_FIELD_MAPPING_PTR("WiFi", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, wifi, configuration_network_interface_section_schema),
-    CYAML_FIELD_STRING_PTR("GetNetworkTimeAtStartup", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, get_network_time_at_startup, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("NtpRefreshPeriodSeconds", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ntp_refresh_period_seconds, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_SEQUENCE("NtpServers", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ntp_servers, &string_ptr_schema, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_SEQUENCE("DnsServers", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, dns_servers, &string_ptr_schema, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_END
-};
+    if ((config == NULL) || (config->default_cell_settings == NULL) || (config->default_cell_settings->module == NULL))
+    {
+        syslog(LOG_INFO, "Failed getting cell default settings");
+        return;
+    }
 
-/**
- *  Debugging (internal) configuration options from the YAML file.
- */
-struct yaml_internal_debug_s
-{
-    /**
-     *  Level of trace output to generate.
-     */
-    char *trace_level;
+    if (strcasecmp(config->default_cell_settings->module, CELL_BG770A_MODULE_NAME) == 0)
+    {
+        config->default_cell_settings->module_id = CELL_BG770A_MODULE;
+    }
+    else if (strcasecmp(config->default_cell_settings->module, CELL_M95_MODULE_NAME) == 0)
+    {
+        config->default_cell_settings->module_id = CELL_M95_MODULE;
+    }
+    else if (strcasecmp(config->default_cell_settings->module, CELL_BG95M3_MODULE_NAME) == 0)
+    {
+        config->default_cell_settings->module_id = CELL_BG95M3_MODULE;
+    }
+    else
+    {
+        syslog(LOG_INFO, "Failed populating cell module id");
+        config->default_cell_settings->module_id = CELL_UNKNOWN_MODULE;
+    }
+}
 
-    /**
-     *  Should trace output be diverted to UART1?
-     */
-    char *uart1_use;
-
-    /**
-     *  Is a debugger attached to the ESP32?
-     *
-     *  The ESP32 should not be reset at startup if a debugger is attached otherwise
-     *  the connection between the debugger and the ESP32 will be broken.
-     */
-    char *debugger_attached_to_esp;
-};
-typedef struct yaml_internal_debug_s yaml_internal_debug_t;
-
-/**
- *  Defintion of the fields in the yaml_debug_s structure.
+/****************************************************************************
+ * Name: hcom_nx_config_populate_cell_network_mode_id
  *
- *  This is an array of the field definitions.
- */
-static const cyaml_schema_field_t configuration_debug_section_schema[] =
-{
-    CYAML_FIELD_STRING_PTR("TraceLevel", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_internal_debug_t, trace_level, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("Uart1Use", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_internal_debug_t, uart1_use, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("DebuggerAttachedToEsp", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_internal_debug_t, debugger_attached_to_esp, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_END
-};
-
-/**
- *  This is a local definition of the configuration and it is aimed to be
- *  used by the CYAML library when reading the configuration data from the
- *  meadow.yaml configuration file.
+ * Description:
+ *  Populate the cell network mode id according to the mode set
+ *  in the cell.config.yaml
  *
- *  This additional structure is used as some of the configuration
- *  information in the globally available structure is derived from the
- *  chip / board.
- */
-struct yaml_configuration_s
-{
-    /**
-     *  Information about the device.
-     */
-    yaml_device_t *device;
-    /**
-     *  Debug configuration options.
-     */
-    yaml_internal_debug_t *internal_debug;
-
-    /**
-     *  Coprocessor configuration.
-     */
-    yaml_coprocessor_t *coprocessor;
-
-    /**
-     *  Network configuration
-     */
-    yaml_network_t *network;
-
-    /**
-     *  Mono control configuration.
-     */
-    yaml_mono_control_t *mono_control;
-};
-typedef struct yaml_configuration_s yaml_configuration_t;
-
-/**
- *  Definition of the fields in the struct configuration_s structure.
+ * Input Parameters:
+ *  config - Pointer to the system config object
  *
- *  This is an array of the field definitions.
- */
-static const cyaml_schema_field_t configuration_fields_schema[] =
-{
-    CYAML_FIELD_MAPPING_PTR("Device", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, device, configuration_device_section_schema),
-    CYAML_FIELD_MAPPING_PTR("InternalDebug", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, internal_debug, configuration_debug_section_schema),
-    CYAML_FIELD_MAPPING_PTR("Coprocessor", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, coprocessor, configuration_coprocessor_section_schema),
-    CYAML_FIELD_MAPPING_PTR("Network", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, network, configuration_network_section_schema),
-    CYAML_FIELD_MAPPING_PTR("MonoControl", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_configuration_t, mono_control, configuration_mono_control_section_schema),
-	CYAML_FIELD_END
-};
-
-/**
- *  Top level schema for the data from the YAML configuration file is a mapping.
- */
-static const cyaml_schema_value_t configuration_schema =
-{
-    CYAML_VALUE_MAPPING(CYAML_FLAG_POINTER, yaml_configuration_t, configuration_fields_schema)
-};
-
-/**
- *  Device configuration options from the YAML file.
- */
-struct yaml_credentials_s
-{
-    /**
-     *  Name of the network access point to connect to.
-     */
-    char *ssid;
-
-    /**
-     *  Password for the network access point.
-     */
-    char *password;
-};
-typedef struct yaml_credentials_s yaml_credentials_t;
-
-/**
- *  Defintion of the fields in the yaml_credentials_s structure.
+ * Returned Value:
+ *  None
  *
- *  This is an array of the field definitions.
- */
-static const cyaml_schema_field_t wifi_credentials_section_schema[] =
-{
-    CYAML_FIELD_STRING_PTR("Ssid", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_credentials_t, ssid, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("Password", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_credentials_t, password, 0, CYAML_UNLIMITED),
-	CYAML_FIELD_END
-};
-
-/**
- *  This is a local definition of the configuration and it is aimed to be
- *  used by the CYAML library when reading the configuration data from the
- *  meadow.yaml configuration file.
+ * Assumptions/Limitations:
+ *  None
  *
- *  This additional structure is used as some of the configuration
- *  information in the globally available structure is derived from the
- *  chip / board.
- */
-struct yaml_wifi_credentials_s
+ ****************************************************************************/
+void hcom_nx_config_populate_cell_network_mode_id(meadow_configuration_t *config)
 {
-    /**
-     *  Information about the WiFi credentials.
-     */
-    yaml_credentials_t *credentials;
-};
-typedef struct yaml_wifi_credentials_s yaml_wifi_credentials_t;
+    if ((config == NULL) || (config->default_cell_settings == NULL) || (config->default_cell_settings->mode == NULL))
+    {
+        syslog(LOG_INFO, "Failed getting default cell settings");
+        return;
+    }
 
-/**
- *  Definition of the fields in the struct yaml_wifi_credentials_t structure.
+    if (strcasecmp(config->default_cell_settings->mode, CELL_CATM1_MODE_NAME) == 0)
+    {
+        config->default_cell_settings->mode_id = CELL_CATM1_MODE;
+    }
+    else if (strcasecmp(config->default_cell_settings->mode, CELL_NBIOT_MODE_NAME) == 0)
+    {
+        config->default_cell_settings->mode_id = CELL_NBIOT_MODE;
+    }
+    else if (strcasecmp(config->default_cell_settings->mode, CELL_GSM_MODE_NAME) == 0)
+    {
+        config->default_cell_settings->mode_id = CELL_GSM_MODE;
+    }
+    else
+    {
+        syslog(LOG_INFO, "Failed populating cell network mode id");
+        config->default_cell_settings->mode_id = CELL_UNKNOWN_MODE;
+    }
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_map_cell_network_mode
  *
- *  This is an array of the field definitions.
- */
-static const cyaml_schema_field_t wifi_credentials_fields_schema[] =
+ * Description:
+ *  Map the cell network mode according to the Mode defined in
+ *  the cell.config.yaml, since different modules may use distinct integers 
+ *  to reference network modes (e.g., Cat-M1 is 8 for Quectel BG95-M3, 
+ *  but 7 for Quectel BG770A).
+ *
+ * Input Parameters:
+ *  config - Pointer to the system config object
+ *
+ * Returned Value:
+ *  None
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void hcom_nx_config_map_cell_network_mode(meadow_configuration_t *config)
 {
-    CYAML_FIELD_MAPPING_PTR("Credentials", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_wifi_credentials_t, credentials, wifi_credentials_section_schema),
-	CYAML_FIELD_END
-};
+    if ((config == NULL) || (config->default_cell_settings == NULL))
+    {
+        syslog(LOG_INFO, "Failed getting default cell settings");
+        return;
+    }
 
-/**
- *  Top level schema for the data from the YAML configuration file is a mapping.
- */
-static const cyaml_schema_value_t wifi_credentials_schema =
+    uint32_t module = config->default_cell_settings->module_id;
+    uint32_t mode = config->default_cell_settings->mode_id;
+
+    switch (module)
+    {
+    case CELL_BG770A_MODULE:
+        switch (mode)
+        {
+        case CELL_CATM1_MODE:
+            strcpy(config->default_cell_settings->mode, "7");
+            break;
+        case CELL_NBIOT_MODE:
+            strcpy(config->default_cell_settings->mode, "9");
+            break;
+        default:
+            syslog(LOG_INFO, "Mode %u not supported on BG770A module", mode);
+            strcpy(config->default_cell_settings->mode, "");
+            break;
+        }
+        break;
+
+    case CELL_BG95M3_MODULE:
+        switch (mode)
+        {
+        case CELL_CATM1_MODE:
+            strcpy(config->default_cell_settings->mode, "8");
+            break;
+        case CELL_NBIOT_MODE:
+            strcpy(config->default_cell_settings->mode, "9");
+            break;
+        case CELL_GSM_MODE:
+            strcpy(config->default_cell_settings->mode, "0");
+            break;
+        default:
+            syslog(LOG_INFO, "Mode %u not supported on BG95-M3 module", mode);
+            strcpy(config->default_cell_settings->mode, "");
+            break;
+        }
+        break;
+
+    case CELL_M95_MODULE:
+        switch (mode)
+        {
+        case CELL_GSM_MODE:
+            strcpy(config->default_cell_settings->mode, "0");
+            break;
+        default:
+            syslog(LOG_INFO, "Mode %u not supported on M95 module", mode);
+            strcpy(config->default_cell_settings->mode, "");
+            break;
+        }
+        break;
+
+    default:
+        syslog(LOG_INFO, "Failed to map cell network mode name to the equivalent integer");
+        strcpy(config->default_cell_settings->mode, "");
+        break;
+    }
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_get_turn_on_pin
+ *
+ * Description:
+ *  Function to get the turn-on pin value from the pin name using a mapping array.
+ *
+ * Input Parameters:
+ *  pin_name - F7v2 pin name (e.g. D10)
+ *
+ * Returned Value:
+ *  The correspondent MCU pin value associated to the F7v2 pin name.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+uint32_t hcom_nx_config_get_turn_on_pin(const char* pin_name)
 {
-    CYAML_VALUE_MAPPING(CYAML_FLAG_POINTER, yaml_wifi_credentials_t, wifi_credentials_fields_schema)
-};
+    for (size_t i = 0; i < sizeof(f7_micro_v2_pin_mappings) / sizeof(f7_micro_v2_pin_mappings[0]); ++i)
+    {
+        if (strcmp(f7_micro_v2_pin_mappings[i].pin_name, pin_name) == 0)
+        {
+            return f7_micro_v2_pin_mappings[i].pin_value;
+        }
+    }
+    return -1;
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_populate_cell_turn_on_pin
+ *
+ * Description:
+ *  Convert the Meadow device pin name to the correspondent binary value.
+ *
+ * Input Parameters:
+ *  config - Pointer to the system config object
+ *
+ * Returned Value:
+ *  None
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void hcom_nx_config_map_cell_turn_on_pin(meadow_configuration_t *config)
+{
+    if ((config == NULL) || (config->default_cell_settings == NULL))
+    {
+        syslog(LOG_INFO, "Failed getting default cell settings");
+        return;
+    }
+
+    char* turn_on_pin_name = config->default_cell_settings->turn_on_pin_name;
+
+    uint32_t pin_value = hcom_nx_config_get_turn_on_pin(turn_on_pin_name);
+    if (pin_value != -1) {
+        config->default_cell_settings->turn_on_pin = pin_value;
+    }
+    else
+    {
+        syslog(LOG_INFO, "Failed populating cell turn-on pin\n");
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D10_PIN;
+    }
+}
 
 /****************************************************************************
  * Public Functions
@@ -581,6 +479,47 @@ void hcom_nx_config_unlock(void)
 meadow_configuration_t *hcom_nx_config_get_pointer(void)
 {
     return meadow_configuration;
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_manager_logger
+ *
+ * Description:
+ *  Process log requests from the cyaml library.
+ *
+ * Input Parameters:
+ *  level - Logging level.
+ *  context - Context.
+ *  format - Format string for the log message.
+ *  args - Arguments matching the format starting.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void hcom_nx_config_manager_logger(cyaml_log_t level, void *context, const char *format, va_list args)
+{
+    if (format != NULL)
+    {
+        char *buffer = malloc(MEADOW_FILE_LOG_LINE_LENGTH);
+        if (buffer != NULL)
+        {
+            meadow_file_logging_level_t log_level = (level == CYAML_LOG_ERROR) ? mfl_error : mfl_info;
+            vsnprintf(buffer, MEADOW_FILE_LOG_LINE_LENGTH - 1, format, args);
+            char *log = malloc(MEADOW_FILE_LOG_LINE_LENGTH);
+            if (log != NULL)
+            {
+                snprintf(log, MEADOW_FILE_LOG_LINE_LENGTH - 1, "CONFIG: %s", buffer);
+                meadow_logging_write(log_level, log);
+                free(log);
+            }
+            MEADOW_TRACE_INFORMATION(buffer);
+            free(buffer);
+        }
+    }
 }
 
 /****************************************************************************
@@ -661,7 +600,7 @@ static char *hcom_nx_config_get_long_version_string(meadow_version_number_t *ver
                 {
                     snprintf(branch_name, 66, ":%s", version->branch_name);
                 }
-                snprintf_chk(storage, 150, "%d.%d.%d.%d, built %02d %s 20%02d %02d:%02d:%02d UTC (%08x%s)", 
+                snprintf_chk(storage, 150, "%d.%d.%d.%d built %02d %s 20%02d %02d:%02d:%02d UTC (%08x%s)", 
                     version->major, version->minor, version->revision, version->build, version->day, 
                     version->month_text, version->year, version->hour, version->minute, version->second,
                     version->hash, branch_name);
@@ -733,6 +672,40 @@ static void hcom_nx_config_set_month_text(meadow_version_number_t *version)
     memset(&t, 0, sizeof(struct tm));
     t.tm_mon = version->month - 1;
     strftime(version->month_text, 4, "%b", &t);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_clear_default_ap_and_password
+ *
+ * Description:
+ *   Clear the SSID and password on the ESP32.
+ *
+ *  This method will block until the ESP32 confirms that the value has been
+ *  set correctly.
+ *
+ * Returned Value:
+ *  OK if successful, ERROR otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+int hcom_nx_config_clear_default_ap_and_password(void)
+{
+    int result  = ERROR;
+    espcp_message_t * message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
+                                                             espcp_wi_fi_function_clear_default_access_point, espcp_status_codes_completed_ok,
+                                                             espcp_get_next_message_id(), NULL, 0);
+    if (message != NULL)
+    {
+        if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+        {
+            result = OK;
+        }
+        espcp_delete_message_and_payload(message);
+    }
+
+    return result;
 }
 
 /****************************************************************************
@@ -1115,6 +1088,47 @@ static void hcom_nx_config_setup_default_ntp_servers(meadow_configuration_t *con
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_setup_dns_servers
+ *
+ * Description:
+ *  Setup the default DNS servers.
+ *
+ * Input Parameters:
+ *  config - pointer to the configuration object.
+ *  servers - pointer to a list of DNS server IP addresses.
+ *  server_count - number of servers in the list.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  The configuration structure has been locked by the caller.
+ *
+ ****************************************************************************/
+static void hcom_nx_config_setup_dns_servers(meadow_configuration_t *config, const char **servers, uint32_t server_count)
+{
+    config->dns_servers = kmm_zalloc(server_count * sizeof(char *));
+    config->dns_servers_count = 0;
+
+    if (config->dns_servers == NULL)
+    {
+        perror("Memory allocation error");
+        return;
+    }
+    
+    for (int index = 0; index < server_count; index++)
+    {
+        config->dns_servers[index] = kmm_strdup(servers[index]);
+        if (config->dns_servers[index] == NULL)
+        {
+            perror("Memory allocation error");
+            return;
+        }
+        config->dns_servers_count++;
+    }
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_create_dns_resolver_file
  *
  * Description:
@@ -1170,13 +1184,172 @@ static void hcom_nx_config_setup_default_dns_servers(void)
 }
 
 /****************************************************************************
- * Name: hcom_nx_find_interface
+ * Name: hcom_nx_config_get_file_content
+ *
+ * Description:
+ * Extract the data inside the current file.
+ *
+ * Input Parameters:
+ *  path - pointer to file pathname.
+ *
+ * Returned Value:
+ *  Pointer containing the file data, otherwise NULL.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static char *hcom_nx_config_get_file_content(char *path)
+{
+    long int file_size = 0;
+    char *buffer = NULL;
+
+    if (path != NULL)
+    {
+        FILE * file = fopen(path, "r");
+        if (file != NULL)
+        {
+            fseek(file, 0L, SEEK_END);
+            file_size = ftell(file);
+
+            buffer = (char *) zalloc(file_size + 1);
+            if (buffer != NULL)
+            {
+                fseek(file, 0, SEEK_SET);
+                fread(buffer, 1, file_size, file);
+            }
+            fclose(file);
+        }
+    }
+    return buffer;
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_set_file
+ *
+ * Description:
+ *  Overwrite the content to new one.
+ *
+ * Input Parameters:
+ *  path   - pointer to file pathname.
+ *  buffer - Buffer holding the new content
+ *
+ * Returned Value:
+ *  OK if successful, ERROR otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static int hcom_nx_config_set_file(char *path, char *buffer)
+{
+    if (path != NULL && buffer != NULL)
+    {
+        FILE *file = fopen(path, "w");
+        if (file != NULL)
+        {
+            fputs(buffer, file);
+            fclose(file);
+            return OK;
+        }
+    }
+    return ERROR;
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_update_dns_file
+ *
+ * Description:
+ * Update the DNS file with the new nameserver, moving to the top of the file.
+ *
+ * Input Parameters:
+ *  path - pointer to file pathname.
+ *  server - pointer to a server.
+ *
+ * Returned Value:
+ *  OK if successful, ERROR otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static int hcom_nx_config_update_dns_file(char *path, char* server)
+{
+    char *buffer = hcom_nx_config_get_file_content(path);
+    int result = 0;
+    int ret = ERROR;
+
+    if (buffer != NULL)
+    {
+        if (server != NULL)
+        {
+            result = strlen(buffer) + strlen(server) + 13;
+            char *new_content = (char *) zalloc(result + 1);
+            if (new_content != NULL)
+            {
+                snprintf(new_content, result, "nameserver %s\n%s", server, buffer);
+                ret = hcom_nx_config_set_file(path, new_content);
+                free(new_content);
+            }
+        }
+        free(buffer);
+    }
+    return ret;
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_add_default_gateway_dns_file
+ *
+ * Description:
+ *  Add the default gateway into DNS resolver file.
+ *
+ * Input Parameters:
+ *  config - config - pointer to the configuration object.
+ *  gateway - default gateway address.
+ * 
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+void hcom_nx_config_add_default_gateway_dns_file(meadow_configuration_t *config, uint32_t gateway)
+{
+    if (config != NULL)
+    {
+        if (config->default_interface->gateway_changed == false)
+        {
+            if (gateway != 0)
+            {
+                struct sockaddr_in addr = { };
+                addr.sin_family = AF_INET;
+                addr.sin_port = 0;
+
+                memcpy(&addr.sin_addr, &gateway, sizeof(struct in_addr));
+
+                char *gateway_addr = inet_ntoa(addr.sin_addr);
+
+                if (hcom_nx_config_update_dns_file(CONFIG_NETDB_RESOLVCONF_PATH, gateway_addr) < 0)
+                {
+                    syslog(LOG_ERR, "Failed to add default gateway\n");
+                    return; 
+                }
+                syslog(LOG_INFO, "Successful to add default gateway\n");
+                config->default_interface->gateway_changed = true;
+            }
+        }
+    }
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_find_interface_by_name
  *
  * Description:
  *  Find the specified interface in the list of registered (possible) interfaces.
  *
  * Input Parameters:
- *  interface_type - Type of interface being processed.
+ *  name - Name of the interface to find.
  *
  * Returned Value:
  *  Pointer to the interface requested, NULL if the interface cannot be found.
@@ -1185,29 +1358,31 @@ static void hcom_nx_config_setup_default_dns_servers(void)
  *  The configuration structure has been locked by the caller.
  *
  ****************************************************************************/
-static meadow_network_interface_t *hcom_nx_find_interface(uint32_t interface_type)
+static meadow_network_interface_t *hcom_nx_config_find_interface_by_name(const char *name)
 {
     meadow_network_interface_t *interface = NULL;
-    for (int index = 0; index < sizeof(network_interfaces) / sizeof(meadow_network_interface_t); index++)
+    if (name != NULL)
     {
-        if (network_interfaces[index].interface_type == interface_type)
+        for (int index = 0; index < sizeof(network_interfaces) / sizeof(meadow_network_interface_t); index++)
         {
-            interface = &network_interfaces[index];
-            break;
+            if (strcasecmp(network_interfaces[index].name, name) == 0)
+            {
+                interface = &network_interfaces[index];
+                break;
+            }
         }
     }
     return(interface);
 }
 
 /****************************************************************************
- * Name: hcom_nx_process_interface_section
+ * Name: hcom_nx_config_process_interface_section
  *
  * Description:
  *  Process a network interface definition from the meadow.config.yaml file.
  *
  * Input Parameters:
  *  yaml_interface - Pointer to information about a network interface.
- *  interface_type - Type of interface being processed.
  *
  * Returned Value:
  *  None.
@@ -1216,30 +1391,23 @@ static meadow_network_interface_t *hcom_nx_find_interface(uint32_t interface_typ
  *  The configuration structure has been locked by the caller.
  *
  ****************************************************************************/
-static void hcom_nx_process_interface_section(yaml_network_interface_t *yaml_interface, uint32_t interface_type)
+static void hcom_nx_config_process_interface_section(yaml_network_interface_t *yaml_interface)
 {
     if (yaml_interface != NULL)
     {
-        meadow_network_interface_t *interface = hcom_nx_find_interface(interface_type);
+        meadow_network_interface_t *interface = hcom_nx_config_find_interface_by_name(yaml_interface->name);
         if (interface != NULL)
         {
             interface->ip_address = hcom_nx_config_parse_ip_address(yaml_interface->ip_address);
             interface->netmask = hcom_nx_config_parse_ip_address(yaml_interface->netmask);
             interface->gateway = hcom_nx_config_parse_ip_address(yaml_interface->gateway);
-            if ((interface->ip_address == 0) || (interface->netmask == 0) || (interface->gateway == 0))
-            {
-                interface->use_dhcp = 1;
-            }
-            else
-            {
-                interface->use_dhcp = 0;
-            }
+            interface->use_dhcp = hcom_nx_config_parse_boolean(yaml_interface->use_dhcp, 1);
         }
     }
 }
 
 /****************************************************************************
- * Name: hcom_nx_process_network_section
+ * Name: hcom_nx_config_process_network_section
  *
  * Description:
  *  Process the network section from the meadow.config.yaml file.
@@ -1257,7 +1425,7 @@ static void hcom_nx_process_interface_section(yaml_network_interface_t *yaml_int
  *  The configuration structure has been locked by the caller.
  *
  ****************************************************************************/
-static void hcom_nx_process_network_section(yaml_network_t *network_config, meadow_configuration_t *config)
+static void hcom_nx_config_process_network_section(yaml_network_t *network_config, meadow_configuration_t *config)
 {
     if (network_config != NULL)
     {
@@ -1280,6 +1448,7 @@ static void hcom_nx_process_network_section(yaml_network_t *network_config, mead
         {
             config->ntp_refresh_period_seconds = NTP_MINIMUM_REFRESH_PERIOD;
         }
+        hcom_nx_config_setup_dns_servers(config, network_config->dns_servers, network_config->dns_servers_count);
         bool create_default_dns_resolver_file = true;
         if (network_config->dns_servers_count > 0)
         {
@@ -1303,36 +1472,22 @@ static void hcom_nx_process_network_section(yaml_network_t *network_config, mead
         //
         //  Now work out the network interface / adapter details.
         //
-        hcom_nx_process_interface_section(network_config->ethernet, MEADOW_IFT_ETHERNET);
-        hcom_nx_process_interface_section(network_config->wifi, MEADOW_IFT_ESP32);
+        if ((network_config->interfaces != NULL) && (network_config->interfaces_count > 0))
+        {
+            for (int index = 0; index < network_config->interfaces_count; index++)
+            {
+                hcom_nx_config_process_interface_section(&network_config->interfaces[index]);
+            }
+        }
         //
         //  Now work out which adapter should be used.
         //
-        bool use_ethernet = false;
-        bool use_wifi = false;
-        if ((network_config->ethernet != NULL) && (hcom_nx_config_parse_boolean(network_config->ethernet->default_interface, false) == 1))
+        config->default_interface = hcom_nx_config_find_interface_by_name(network_config->default_interface);
+        if (config->default_interface == NULL)
         {
-            use_ethernet = true;
+            config->default_interface = hcom_nx_config_find_interface_by_name(MEADOW_IFT_ESP32_NAME);
         }
-        if ((network_config->wifi != NULL) && (hcom_nx_config_parse_boolean(network_config->wifi->default_interface, false) == 1))
-        {
-            use_wifi = true;
-        }
-        if (use_ethernet == use_wifi)
-        {
-            use_ethernet = false;
-            use_wifi = true;
-        }
-        if (use_ethernet)
-        {
-            config->default_interface = hcom_nx_find_interface(MEADOW_IFT_ETHERNET);
-            config->selected_network = meadow_network_type_ethernet;
-        }
-        else
-        {
-            config->default_interface = hcom_nx_find_interface(MEADOW_IFT_ESP32);
-            config->selected_network = meadow_network_type_wifi;
-        }
+        config->default_interface->gateway_changed = false;
     }
     else
     {
@@ -1343,7 +1498,7 @@ static void hcom_nx_process_network_section(yaml_network_t *network_config, mead
 }
 
 /****************************************************************************
- * Name: hcom_nx_config_read_file
+ * Name: hcom_nx_config_process_meadow_config_file
  *
  * Description:
  *  Read the current configuration from flash and populate the configuration
@@ -1362,7 +1517,7 @@ static void hcom_nx_process_network_section(yaml_network_t *network_config, mead
  *  value of the meadow_configuration pointer and take no other action.
  *
  ****************************************************************************/
-static meadow_configuration_t *hcom_nx_config_read_file(void)
+static meadow_configuration_t *hcom_nx_config_process_meadow_config_file(void)
 {
     hcom_nx_config_lock();
     if (meadow_configuration == NULL)
@@ -1375,6 +1530,10 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
             cyaml_err_t err = cyaml_load_file(MEADOW_CONFIG_DEFAULT_FILE_NAME, &cyaml_config, &configuration_schema, (void **) &configuration, NULL);
             if ((err != CYAML_OK) || (configuration == NULL))
             {
+                if (err != CYAML_OK)
+                {
+                    meadow_logging_write(mfl_error, "Error processing config file, using default config");
+                }
                 //
                 //  Add any default settings here.
                 //
@@ -1384,7 +1543,6 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 meadow_configuration->reset_esp32_at_startup = 1;
                 meadow_configuration->esp_spi_speed_hz = DEFAULT_STM_ESP_SPI_SPEED;
                 meadow_configuration->maximum_retry_count = 3;
-                meadow_configuration->selected_network = meadow_network_type_wifi;
                 hcom_nx_config_setup_default_dns_servers();                
                 hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
                 meadow_configuration->ntp_refresh_period_seconds = NTP_DEFAULT_REFRESH_PERIOD;
@@ -1410,7 +1568,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 {
                     meadow_configuration->esp_spi_speed_hz = DEFAULT_STM_ESP_SPI_SPEED;
                 }
-                hcom_nx_process_network_section(configuration->network, meadow_configuration);
+                hcom_nx_config_process_network_section(configuration->network, meadow_configuration);
                 if (configuration->internal_debug != NULL)
                 {
                     meadow_configuration->trace_level = hcom_nx_config_parse_unsigned_integer(configuration->internal_debug->trace_level, 0);
@@ -1419,6 +1577,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                         meadow_configuration->trace_level = 0;
                     }
                     meadow_configuration->use_uart1_for_trace = (strcmp(configuration->internal_debug->uart1_use, "trace") == 0);
+                    meadow_configuration->use_uart1_for_profiling = (strcmp(configuration->internal_debug->uart1_use, "profiler") == 0);
                     meadow_configuration->reset_esp32_at_startup = !hcom_nx_config_parse_boolean(configuration->internal_debug->debugger_attached_to_esp, false);
                 }
                 else
@@ -1436,6 +1595,10 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                     {
                         meadow_configuration->device_name = kmm_strdup(configuration->device->name);
                     }
+                    if (configuration->device->reserved_pins != NULL)
+                    {
+                        meadow_configuration->reserved_pins = kmm_strdup(configuration->device->reserved_pins);
+                    }
                     meadow_configuration->reboot_on_unhandled_exceptions = hcom_nx_config_parse_boolean(configuration->device->reboot_on_unhandled_exceptions, true);
                     meadow_configuration->initialisation_timeout_seconds = hcom_nx_config_parse_unsigned_integer(configuration->device->initialisation_timeout_seconds, DEFAULT_INITIALISATION_TIMEOUT_SECONDS);
                     meadow_configuration->sd_storage_supported = hcom_nx_config_parse_boolean(configuration->device->sd_storage_supported, false)
@@ -1443,6 +1606,7 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
                 }
 
                 cyaml_free(&cyaml_config, &configuration_schema, configuration, 0);
+                meadow_logging_write(mfl_info, "Config file successfully processed");
             }
         }
     }
@@ -1465,22 +1629,31 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
     char address[INET_ADDRSTRLEN];
     MEADOW_TRACE_INFORMATION("Network:\n");
     MEADOW_TRACE_INFORMATION("    Ethernet:\n");
-    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET]);
-    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET].use_dhcp);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET].ip_address, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_IFT_ETHERNET]);
+    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_IFT_ETHERNET].use_dhcp);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_ETHERNET].ip_address, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        IP Address: %s\n", address);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET].netmask, address, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_ETHERNET].netmask, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Subnet mask: %s\n", address);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_ETHERNET].gateway, address, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_ETHERNET].gateway, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Gateway: %s\n", address);
     MEADOW_TRACE_INFORMATION("    WiFi:\n");
-    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI]);
-    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI].use_dhcp);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI].ip_address, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_IFT_ESP32]);
+    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_IFT_ESP32].use_dhcp);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_ESP32].ip_address, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        IP Address: %s\n", address);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI].netmask, address, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_ESP32].netmask, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Subnet mask: %s\n", address);
-    inet_ntop(AF_INET, &network_interfaces[MEADOW_INTERFACE_INFORMATION_WIFI].gateway, address, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_ESP32].gateway, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Gateway: %s\n", address);
+    MEADOW_TRACE_INFORMATION("    BG770A:\n");
+    MEADOW_TRACE_INFORMATION("        Default: %d\n", meadow_configuration->default_interface == &network_interfaces[MEADOW_IFT_CELL]);
+    MEADOW_TRACE_INFORMATION("        Use DHCP: %d\n", network_interfaces[MEADOW_IFT_CELL].use_dhcp);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_CELL].ip_address, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        IP Address: %s\n", address);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_CELL].netmask, address, INET_ADDRSTRLEN);
+    MEADOW_TRACE_INFORMATION("        Subnet mask: %s\n", address);
+    inet_ntop(AF_INET, &network_interfaces[MEADOW_IFT_CELL].gateway, address, INET_ADDRSTRLEN);
     MEADOW_TRACE_INFORMATION("        Gateway: %s\n", address);
     MEADOW_TRACE_INFORMATION("    Get network time at startup: %d\n", meadow_configuration->get_network_time_at_startup);
     MEADOW_TRACE_INFORMATION("    NTP refresh period: %d seconds\n", meadow_configuration->ntp_refresh_period_seconds);
@@ -1506,177 +1679,6 @@ static meadow_configuration_t *hcom_nx_config_read_file(void)
 #endif
 
     return(meadow_configuration);
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_copy_string
- *
- * Description:
- *  Copy a string into the buffer and return the amount of storage used to
- *  store the string and its terminating 0.
- *
- * Input Parameters:
- *  source - String to be copied.
- *  destination - Memory to hold the copy of the string.
- *
- * Returned Value:
- *  Amount of memory consumed by the string and its terminating 0.
- *
- * Assumptions/Limitations:
- *  The destination buffer is large enough to hold tha copy of the string.
- *
- ****************************************************************************/
-int hcom_nx_config_copy_string(char *source, char *destination)
-{
-    int length = 0;
-
-    if (source == NULL)
-    {
-        *destination = 0;
-    }
-    else
-    {
-        length = strlen(source);
-        strcpy(destination, source);
-    }
-
-    return(length + 1);
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_version_string_storage_used
- *
- * Description:
- *  Calculate the amount of storage used to store the string interpretation
- *  of a version information object.
- *
- * Input Parameters:
- *  version - Pointer to a meadow_version_number_t object.
- *
- * Returned Value:
- *  Amount of storage required.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-static int hcom_nx_config_version_string_storage_used(meadow_version_number_t *version)
-{
-    int storage_required = 0;
-
-    if (version != NULL)
-    {
-        if (version->branch_name != NULL)
-        {
-            storage_required += strlen(version->branch_name) + 1;
-        }
-        if (version->short_string != NULL)
-        {
-            storage_required += strlen(version->short_string) + 1;
-        }
-        if (version->long_string != NULL)
-        {
-            storage_required += strlen(version->long_string) + 1;
-        }
-    }
-
-    return(storage_required);
-}
-
-/****************************************************************************
- * Name: hcom_nx_config_copy_for_user_mode
- *
- * Description:
- *  Copy the configuration data into the specified location along with copies
- *  of any strings.
- *
- * Input Parameters:
- *  buffer - area of memory to hold the copy of the data in the configuration
- *           structure plus the string.
- *
- * Returned Value:
- *  OK if successful, ERROR otherwise.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-int hcom_nx_config_copy_for_user_mode(uint8_t *buffer, int length)
-{
-    if (buffer == NULL)
-    {
-        return ERROR;
-    }
-
-    int result = OK;
-    hcom_nx_config_lock();
-
-    meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    int storage_required = sizeof(meadow_configuration_t);
-    if (config->device_name != NULL)
-    {
-        storage_required += strlen(config->device_name) + 1;
-    }
-    if (config->hardware_version_text != NULL)
-    {
-        storage_required += strlen(config->hardware_version_text) + 1;
-    }
-    if (config->mono_options != NULL)
-    {
-        storage_required += strlen(config->mono_options) + 1;
-    }
-    storage_required += hcom_nx_config_version_string_storage_used(&config->os_version);
-    storage_required += hcom_nx_config_version_string_storage_used(&config->mono_version);
-    storage_required += hcom_nx_config_version_string_storage_used(&config->esp_version);
-
-    storage_required += sizeof(config->chip_id) + sizeof(config->serial_number);
-    if (length < storage_required)
-    {
-        hcom_nx_config_unlock();
-        result = ERROR;
-    }
-    else
-    {
-        memset((void *) buffer, 0, length);
-        meadow_configuration_t *new_config = (meadow_configuration_t *) buffer;
-
-        memcpy((void *) new_config, (void *) config, sizeof(meadow_configuration_t));
-        //
-        //  Put the strings at the end of the configuration structure.
-        //
-        char *ptr = (char *) (buffer + sizeof(meadow_configuration_t));
-        ptr += hcom_nx_config_copy_string(config->mono_options, ptr);
-        new_config->hardware_version_text = ptr;
-        ptr += hcom_nx_config_copy_string(config->hardware_version_text, ptr);
-        new_config->device_name = ptr;
-        ptr += hcom_nx_config_copy_string(config->device_name, ptr);
-        //
-        //  TODO: Abstract to method.
-        //
-        new_config->os_version.short_string = ptr;
-        ptr += hcom_nx_config_copy_string(config->os_version.short_string, ptr);
-        new_config->os_version.long_string = ptr;
-        ptr += hcom_nx_config_copy_string(config->os_version.long_string, ptr);
-        new_config->os_version.branch_name = ptr;
-        ptr += hcom_nx_config_copy_string(config->os_version.branch_name, ptr);
-        //
-        new_config->mono_version.short_string = ptr;
-        ptr += hcom_nx_config_copy_string(config->mono_version.short_string, ptr);
-        new_config->mono_version.long_string = ptr;
-        ptr += hcom_nx_config_copy_string(config->mono_version.long_string, ptr);
-        new_config->mono_version.branch_name = ptr;
-        ptr += hcom_nx_config_copy_string(config->mono_version.branch_name, ptr);
-        //
-        new_config->esp_version.short_string = ptr;
-        ptr += hcom_nx_config_copy_string(config->esp_version.short_string, ptr);
-        new_config->esp_version.long_string = ptr;
-        ptr += hcom_nx_config_copy_string(config->esp_version.long_string, ptr);
-        new_config->esp_version.branch_name = ptr;
-        ptr += hcom_nx_config_copy_string(config->esp_version.branch_name, ptr);
-    }
-    hcom_nx_config_unlock();
-
-    return(result);
 }
 
 /****************************************************************************
@@ -2087,7 +2089,7 @@ int hcom_nx_config_get_selected_network(meadow_configuration_t *config, uint8_t 
 
     if (buffer_length > 0)
     {
-        *buffer = config->selected_network;
+        *buffer = config->default_interface->interface_type;
         result = 1;
     }
 
@@ -2126,6 +2128,9 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
         {
             case cv_device_name:
                 result = hcom_nx_config_get_string_value(config->device_name, buffer, buffer_length);
+                break;
+            case cv_reserved_pins:
+                result = hcom_nx_config_get_string_value(config->reserved_pins, buffer, buffer_length);
                 break;
             case cv_product:
                 result = hcom_nx_config_get_uint32_value(config->hardware_version, buffer, buffer_length);
@@ -2269,6 +2274,16 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
         {
             configuration->default_access_point = NULL;
         }
+        if ((!configuration->default_interface->use_dhcp) && (configuration->default_interface->interface_type == MEADOW_IFT_ESP32))
+        {
+            //
+            //  Using the ESP32 and static IP address so let the ESP32 know about this.
+            //
+            hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_use_dhcp, configuration->default_interface->use_dhcp);
+            hcom_nx_config_set_esp_integer_value(espcp_configuration_items_static_ip_address, configuration->default_interface->ip_address);
+            hcom_nx_config_set_esp_integer_value(espcp_configuration_items_subnet_mask, configuration->default_interface->netmask);
+            hcom_nx_config_set_esp_integer_value(espcp_configuration_items_default_gateway, configuration->default_interface->gateway);
+        }
         //
         configuration->esp_version.major = esp_config->version_major;
         configuration->esp_version.minor = esp_config->version_minor;
@@ -2323,30 +2338,52 @@ void hcom_nx_config_process_wifi_credentials_file(void)
     cyaml_err_t err = cyaml_load_file(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME, &cyaml_config, &wifi_credentials_schema, (void **) &credentials, NULL);
     if ((err == CYAML_OK) && (credentials != NULL))
     {
-        if ((credentials->credentials->ssid != NULL) && (strlen(credentials->credentials->ssid) <= MAXIMUM_SSID_LENGTH) & (strlen(credentials->credentials->ssid) > 0))
+        if (credentials->credentials != NULL)
         {
-            char password[MAXIMUM_PASSWORD_LENGTH + 1];
-            memset(password, 0, MAXIMUM_PASSWORD_LENGTH + 1);
-            if ((credentials->credentials->password != NULL) && (strlen(credentials->credentials->password) <= MAXIMUM_PASSWORD_LENGTH))
+            bool clear_credentials = hcom_nx_config_parse_boolean(credentials->credentials->clear_default_credentials, false);
+            if (!clear_credentials)
             {
-                strcpy(password, credentials->credentials->password);
+                if ((credentials->credentials->ssid != NULL) && (strlen(credentials->credentials->ssid) <= MAXIMUM_SSID_LENGTH) & (strlen(credentials->credentials->ssid) > 0))
+                {
+                    char password[MAXIMUM_PASSWORD_LENGTH + 1];
+                    memset(password, 0, MAXIMUM_PASSWORD_LENGTH + 1);
+                    if ((credentials->credentials->password != NULL) && (strlen(credentials->credentials->password) <= MAXIMUM_PASSWORD_LENGTH))
+                    {
+                        strcpy(password, credentials->credentials->password);
+                    }
+                    uint32_t size = strlen(credentials->credentials->ssid) + strlen(password) + 2;
+                    uint8_t *buffer = kmm_zalloc(size);
+                    if (buffer != NULL)
+                    {
+                        hcom_nx_config_lock();
+                        meadow_configuration_t *config = hcom_nx_config_get_pointer();
+                        kmm_free(config->default_access_point);
+                        config->default_access_point = kmm_strdup(credentials->credentials->ssid);
+                        hcom_nx_config_unlock();
+                        strcpy((char *) buffer, credentials->credentials->ssid);
+                        strcpy((char *) (buffer + strlen(credentials->credentials->ssid) + 1), password);
+                        hcom_nx_config_set_esp_value(espcp_configuration_items_default_ap_and_password, buffer, size);
+                        kmm_free(buffer);
+                    }
+                }
             }
-            uint32_t size = strlen(credentials->credentials->ssid) + strlen(password) + 2;
-            uint8_t *buffer = kmm_zalloc(size);
-            if (buffer != NULL)
+            else
             {
-                hcom_nx_config_lock();
-                meadow_configuration_t *config = hcom_nx_config_get_pointer();
-                kmm_free(config->default_access_point);
-                config->default_access_point = kmm_strdup(credentials->credentials->ssid);
-                hcom_nx_config_unlock();
-                strcpy((char *) buffer, credentials->credentials->ssid);
-                strcpy((char *) (buffer + strlen(credentials->credentials->ssid) + 1), password);
-                hcom_nx_config_set_esp_value(espcp_configuration_items_default_ap_and_password, buffer, size);
-                kmm_free(buffer);
+                if (hcom_nx_config_clear_default_ap_and_password() == OK)
+                {
+                    meadow_logging_write(mfl_info, "Default SSID and password removed\n");
+                }
             }
         }
+        else
+        {
+            meadow_logging_write(mfl_error, "Invalid WiFi credentials file\n");
+        }
         cyaml_free(&cyaml_config, &wifi_credentials_schema, credentials, 0);
+    }
+    else
+    {
+        meadow_logging_write(mfl_info, "WiFi credentials file not found\n");
     }
     //
     //  Now we can delete the file.
@@ -2357,6 +2394,221 @@ void hcom_nx_config_process_wifi_credentials_file(void)
         fclose(file);
         unlink(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME);
     }
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_get_cell_module_id
+ *
+ * Description:
+ *  Get the cell module model id based on the module name set on the
+ *  cell.settings.yaml.
+ *
+ * Input Parameters:
+ *  None.
+ * 
+ * Returned Value:
+ *  Correspondent module id for the cell module model defined
+ *  by the user.
+ * 
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+int hcom_nx_config_get_cell_module_id(void)
+{
+    uint32_t module_id;
+    hcom_nx_config_lock();
+    meadow_configuration_t *config;
+    config = hcom_nx_config_get_pointer();
+
+    if ((config != NULL) && (config->default_cell_settings != NULL))
+    {
+        module_id = config->default_cell_settings->module_id;
+    }
+    else
+    {
+        module_id = CELL_UNKNOWN_MODULE;
+    }
+
+    hcom_nx_config_unlock();
+    syslog(LOG_INFO, "Cell module id: %u\n", module_id);
+
+    return module_id;
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_get_cell_turn_on_pin
+ *
+ * Description:
+ *  Get the Meadow device pin used to turn on the cell module.
+ *
+ * Input Parameters:
+ *  None.
+ * 
+ * Returned Value:
+ *  Correspondent device pin for the turn-on pin defined
+ *  by the user.
+ * 
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+int hcom_nx_config_get_cell_turn_on_pin(void)
+{
+    uint32_t turn_on_pin = 0;
+    hcom_nx_config_lock();
+    meadow_configuration_t *config;
+    config = hcom_nx_config_get_pointer();
+
+    if ((config != NULL) && (config->default_cell_settings != NULL))
+    {
+        turn_on_pin = config->default_cell_settings->turn_on_pin;
+    }
+
+    hcom_nx_config_unlock();
+    syslog(LOG_INFO, "Cell turn-on pin: %u\n", turn_on_pin);
+
+    return turn_on_pin;
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_process_cell_config_file
+ *
+ * Description:
+ *  Check to see if a cell.config.yaml file exists and use the settings
+ *  if it exists and contains valid data.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ * 
+ ****************************************************************************/
+void hcom_nx_config_process_cell_config_file(void)
+{
+    yaml_cell_config_t *settings;
+    cyaml_err_t err = cyaml_load_file(MEADOW_CELL_CONFIG_DEFAULT_FILE_NAME, &cyaml_config, &cell_settings_schema, (void **) &settings, NULL);
+    syslog(LOG_INFO, "Cell config file load status: %d\n", err);
+    if ((err == CYAML_OK) && (settings != NULL))
+    {
+        syslog(LOG_INFO, "Cell settings found\n");
+
+        hcom_nx_config_lock();
+        meadow_configuration_t *config = hcom_nx_config_get_pointer();
+
+        config->default_cell_settings = (cell_settings_t*) malloc(sizeof(cell_settings_t));
+
+        if ((config->default_cell_settings != NULL) &&
+            (settings->settings->apn != NULL) &&
+            (strlen(settings->settings->apn) <= MAXIMUM_APN_LENGTH) &&
+            (strlen(settings->settings->apn) > 0))
+        {
+            config->default_cell_settings->apn = kmm_strdup(settings->settings->apn);
+            syslog(LOG_INFO, "Default cell APN loaded: %s\n", config->default_cell_settings->apn);
+
+            config->default_cell_settings->timeout = ((settings->settings->timeout != NULL) &&
+                                                    (strlen(settings->settings->timeout) <= MAXIMUM_TIMEOUT_LENGTH) &&
+                                                    (strlen(settings->settings->timeout) > 0)) ?
+                                                    kmm_strdup(settings->settings->timeout) :
+                                                    kmm_strdup(DEFAULT_CELL_PPPD_TIMEOUT);
+
+            syslog(LOG_INFO, "Default cell PPPD timeout loaded: %s\n", config->default_cell_settings->timeout);
+
+            config->default_cell_settings->pap_user = ((settings->settings->user != NULL) &&
+                                                        (strlen(settings->settings->user) <= MAXIMUM_USER_LENGTH) &&
+                                                        (strlen(settings->settings->user) > 0)) ?
+                                                        kmm_strdup(settings->settings->user) :
+                                                        kmm_strdup(DEFAULT_CELL_PAP_USER);
+
+            syslog(LOG_INFO, "Default cell PAP username loaded: %s\n", config->default_cell_settings->pap_user);
+
+            config->default_cell_settings->pap_password = ((settings->settings->password != NULL) &&
+                                                            (strlen(settings->settings->password) <= MAXIMUM_PASSWORD_LENGTH) &&
+                                                            (strlen(settings->settings->password) > 0)) ?
+                                                            kmm_strdup(settings->settings->password) :
+                                                            kmm_strdup(DEFAULT_CELL_PAP_PASSWORD);
+
+            syslog(LOG_INFO, "Default cell PAP password loaded: %s\n", config->default_cell_settings->pap_password);
+
+            config->default_cell_settings->ttyname = ((settings->settings->ttyname != NULL) &&
+                                                        (strlen(settings->settings->ttyname) <= MAXIMUM_INTERFACE_LENGTH) &&
+                                                        (strlen(settings->settings->ttyname) > 0)) ?
+                                                        kmm_strdup(settings->settings->ttyname) :
+                                                        kmm_strdup(DEFAULT_CELL_INTERFACE);
+
+            syslog(LOG_INFO, "Default cell interface name loaded: %s\n", config->default_cell_settings->ttyname);
+
+            config->default_cell_settings->turn_on_pin_name = ((settings->settings->turn_on_pin_name != NULL) &&
+                                                        (strlen(settings->settings->turn_on_pin_name) <= MAXIMUM_TURN_ON_PIN_LENGTH) &&
+                                                        (strlen(settings->settings->turn_on_pin_name) > 0)) ? 
+                                                        kmm_strdup(settings->settings->turn_on_pin_name) :
+                                                        kmm_strdup(DEFAULT_CELL_TURN_ON_PIN);
+
+            syslog(LOG_INFO, "Default cell turn-on pin name loaded: %s\n", config->default_cell_settings->turn_on_pin_name);
+
+            config->default_cell_settings->mode = ((settings->settings->mode != NULL) &&
+                                                    (strlen(settings->settings->mode) <= MAXIMUM_MODE_LENTGH) &&
+                                                    (strlen(settings->settings->mode) > 0)) ?
+                                                    kmm_strdup(settings->settings->mode) :
+                                                    kmm_strdup(DEFAULT_CELL_MODE);
+
+            syslog(LOG_INFO, "Default cell operation mode loaded: %s\n", config->default_cell_settings->mode);
+
+            config->default_cell_settings->operator = ((settings->settings->operator != NULL) &&
+                                                        (strlen(settings->settings->operator) <= MAXIMUM_OPERATOR_LENGTH) &&
+                                                        (strlen(settings->settings->operator) > 0)) ?
+                                                        kmm_strdup(settings->settings->operator) :
+                                                        kmm_strdup(DEFAULT_CELL_OPERATOR);
+
+            syslog(LOG_INFO, "Default cell operator loaded: %s\n", config->default_cell_settings->operator);
+
+            config->default_cell_settings->module = ((settings->settings->module != NULL) &&
+                                                        (strlen(settings->settings->module) <= MAXIMUM_MODULE_LENGTH) &&
+                                                        (strlen(settings->settings->module) > 0)) ?
+                                                        kmm_strdup(settings->settings->module) :
+                                                        kmm_strdup(CELL_UNKNOWN_MODULE_NAME);
+
+            syslog(LOG_INFO, "Default cell module loaded: %s\n", config->default_cell_settings->module);
+
+            config->default_cell_settings->scan_mode = hcom_nx_config_parse_boolean(settings->settings->scan_mode, 0);
+
+            syslog(LOG_INFO, "Default cell scan mode: %u\n", config->default_cell_settings->scan_mode);
+
+            hcom_nx_config_populate_cell_module_id(config);
+
+            syslog(LOG_INFO, "Default cell module id populated: %u\n", config->default_cell_settings->module_id);
+
+            hcom_nx_config_populate_cell_network_mode_id(config);
+
+            syslog(LOG_INFO, "Default cell network mode id populated: %u\n", config->default_cell_settings->mode_id);
+
+            hcom_nx_config_map_cell_network_mode(config);
+
+            syslog(LOG_INFO, "Default cell operation mode updated after mapping: %s\n", config->default_cell_settings->mode);
+
+            hcom_nx_config_map_cell_turn_on_pin(config);
+
+            syslog(LOG_INFO, "Default cell turn-on pin mapped: %u\n", config->default_cell_settings->turn_on_pin);
+        }
+        else
+        {
+            if (config->default_cell_settings != NULL) 
+            {
+                free(config->default_cell_settings);
+                config->default_cell_settings = NULL;
+            }
+            syslog(LOG_ERR, "Failed to get default cell settings\n");
+        }
+
+        hcom_nx_config_unlock();
+        cyaml_free(&cyaml_config, &cell_settings_schema, settings, 0);
+        syslog(LOG_INFO, "Cyaml free\n");
+    }
+
 }
 
 /****************************************************************************
@@ -2390,6 +2642,72 @@ void hcom_nx_config_set_time_to_os_build_time(void)
         tp.tv_nsec = 0;
         clock_settime(CLOCK_REALTIME, &tp);
     }
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_turn_on_the_cell_module
+ *
+ * Description:
+ *  Function to turn on the cell module, which can vary according to
+ *  the meadow device pinout and modem model used.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+void hcom_nx_config_turn_on_the_cell_module()
+{
+    uint32_t module_id; 
+    uint32_t turn_on_pin;
+    module_id = hcom_nx_config_get_cell_module_id();
+    turn_on_pin = hcom_nx_config_get_cell_turn_on_pin();
+
+    if (turn_on_pin > 0)
+    {
+        switch (module_id)
+        {
+            case CELL_BG770A_MODULE:
+                // Low pulse for 3 seconds to turn on the Quectel BG770A-GL cell module
+                syslog(LOG_INFO, "Turning on BG770A module\n");
+                stm32_configgpio(GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | turn_on_pin); 
+                stm32_gpiowrite(turn_on_pin, false);
+                usleep(3000000);
+                stm32_gpiowrite(turn_on_pin, true);
+                stm32_gpiowrite(turn_on_pin, false);
+            break;
+
+            case CELL_M95_MODULE:
+                syslog(LOG_INFO, "Turning on M95 module\n");
+                stm32_configgpio(GPIO_OUTPUT | turn_on_pin);
+                stm32_gpiowrite(turn_on_pin, true);
+            break;
+
+            case CELL_BG95M3_MODULE:
+                syslog(LOG_INFO, "Turning on BG95-M3 module\n");
+                stm32_configgpio(GPIO_OUTPUT | turn_on_pin);
+                stm32_gpiowrite(turn_on_pin, true);
+                usleep(3000000);
+                stm32_gpiowrite(turn_on_pin, false);
+            break;
+
+            default:
+                syslog(LOG_INFO, "Failed to identify and turn on the cell module\n");
+            break;
+        }
+    }
+    else
+    {
+        syslog(LOG_INFO, "Failed to turn on the cell module\n");
+    }
+
+    // TODO: Add support to turn on the BG770A-GL on the Project Lab and for
+    // Meadow F7v1 Feather
 }
 
 /****************************************************************************
@@ -2486,7 +2804,7 @@ void hcom_nx_config_init(void)
     {
         sem_init(&config_lock, 0, 1);                   // Create the config lock.
         sem_setprotocol(&config_lock, SEM_PRIO_NONE);
-        hcom_nx_config_read_file();
+        hcom_nx_config_process_meadow_config_file();
 
         hcom_nx_config_lock();
         meadow_configuration_t *config = hcom_nx_config_get_pointer();

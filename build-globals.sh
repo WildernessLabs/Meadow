@@ -38,7 +38,7 @@ getEP()
 {
 	for ((i = 0; i < ${#OBJ[@]}; i++))
 	do
-		FUNCS=`arm-none-eabi-nm -g --defined-only ../Meadow.OS/nuttx/staging/${OBJ[$i]} | awk '{print $3}' | sort | grep -Ev ${FILTER}`
+		FUNCS=`${NM} -g --defined-only nuttx/staging/${OBJ[$i]} | grep ^0 | awk '{print $3}' | sort | grep -Ev ${FILTER}`
 		FUNC=(${FUNCS})
 		for ((j = 0; j < ${#FUNC[@]}; j++))
 		do
@@ -59,9 +59,12 @@ FILTER="^lib_low|^FUNCTION|^STUB|^__start|^_vect|^arm_|^arp_|^bch|^binfmt|^blake
 #
 # Extract symbols from the runtime
 #
-SYMS=`arm-none-eabi-nm ../Meadow.OS/nuttx/nuttx_user.elf | awk '{print $3}' | sort | grep -Ev ${FILTER}`
+if [ -z "${NM}" ]; then
+	NM=arm-none-eabi-nm
+fi
+SYMS=`${NM} nuttx/nuttx_user.elf | awk '{print $3}' | sort | grep -Ev ${FILTER}`
 SYM=(${SYMS})
-GLOBALS="../Meadow.OS/nuttx/libs/libc/modlib/modlib_globals.S"
+GLOBALS="nuttx/libs/libc/modlib/modlib_globals.S"
 I_EP=0
 
 #
@@ -78,17 +81,51 @@ EPS=`printf '%s\n' "${EP[@]}" | sort -u`
 EP=(${EPS})
 
 #
-# Generate the modlib_globals.S file
+# Generate the modlib_xxxx_globals.S file
 #
 cat >${GLOBALS} <<__EOF__
+#ifdef __CYGWIN__
+#  define SYMBOL(s) s
+#  define WEAK .weak
+#elif defined(__ELF__)
+#  define SYMBOL(s) s
+#  define WEAK .weak
+#else
+#  define SYMBOL(s) _##s
+#  define WEAK .weak_definition
+#endif
+
+#if __SIZEOF_POINTER__ == 8
+	.macro globalEntry index, ep
+	WEAK   \ep
+	.quad  .L\index
+	.quad  \ep
+	.endm
+# define ALIGN 8
+#else
+	.macro globalEntry index, ep
+	WEAK   \ep		
+	.long  .L\index
+	.long  \ep
+	.endm
+# define ALIGN 4
+#endif
+#ifdef __ARM_ARCH_ISA_THUMB2
+# ifdef __ARM_ARCH_7M__
         .arch armv7e-m
+# elif defined ___ARM_ARCH 8
+	.arch armv8-m.base
+#endif
+#ifdef __ARM_ASM_SYNTAX_UNIFIED__
         .syntax unified
+#endif
         .thumb
+#endif
         .data
-        .align 4
+        .align ALIGN
 	.global globalNames
 
-globalNames:
+SYMBOL(globalNames):
 __EOF__
 
 for ((i = 0; i < ${#EP[@]}; i++))
@@ -97,27 +134,38 @@ do
 done
 
 cat >>${GLOBALS} <<__EOF__
-	.size	globalNames, . - globalNames
+#ifdef __ELF__
+        .size   SYMBOL(globalNames), . - SYMBOL(globalNames)
+#endif
 
-	.align	4
+	.align	${ALIGN}
 	.global	nGlobals
+#ifdef __ELF__
 	.type	nGlobals, "object"
-nGlobals:	
+#endif
+SYMBOL(nGlobals):	
 	.word	${#EP[@]}
+#ifdef __ELF__
 	.size	nGlobals, . - nGlobals
+#endif
 
+	.align	${ALIGN}
 	.global globalTable
+#ifdef __ELF__
 	.type	globalTable, "object"
-globalTable:
+#endif
+SYMBOL(globalTable):
 __EOF__
 
 for ((i = 0; i < ${#EP[@]}; i++))
 do
-	echo "	.word	.L${i}, ${EP[$i]}" >>${GLOBALS}
+	echo "  globalEntry ${i}, SYMBOL(${EP[$i]})" >>${GLOBALS}
 done
 
 cat >>${GLOBALS} <<__EOF__ 
+#ifdef __ELF__
 	.size	globalTable, . - globalTable
+#endif
 __EOF__
 
 echo "${#EP[@]} symbols defined"

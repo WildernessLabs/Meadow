@@ -398,7 +398,94 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
  * is enabled. */
 
 #ifdef CONFIG_CRYPTO_RANDOM_POOL
-  SYSCALL_LOOKUP(getrandom,               2, STUB_getrandom)
+  SYSCALL_LOOKUP(getrandom,                2, STUB_getrandom)
+#endif
+
+#ifdef CONFIG_MEADOW_CLOUD
+  SYSCALL_LOOKUP(meadow_cloud_provision,              5, STUB_meadow_cloud_provision)
+  SYSCALL_LOOKUP(meadow_cloud_retrieve_private_key,   2, STUB_meadow_cloud_retrieve_private_key)
+  SYSCALL_LOOKUP(meadow_cloud_release_private_key,    1, STUB_meadow_cloud_release_private_key)
+#endif
+
+#if defined(CONFIG_ARCH_BOARD_MEADOW)
+  SYSCALL_LOOKUP(meadow_os_deep_copy_config,      0, STUB_meadow_os_deep_copy_config)
+  SYSCALL_LOOKUP(meadow_os_config_free_resources, 1, STUB_meadow_os_config_free_resources)
+  SYSCALL_LOOKUP(meadow_os_power_cycle_count,     0, STUB_meadow_os_power_cycle_count)
+  SYSCALL_LOOKUP(meadow_os_reset_cycle_count,     0, STUB_meadow_os_reset_cycle_count)
+  SYSCALL_LOOKUP(meadow_os_reset_reason,          0, STUB_meadow_os_reset_reason)
+  SYSCALL_LOOKUP(meadow_os_hardware_version,      0, STUB_meadow_os_hardware_version)
+#endif
+
+#if defined (CONFIG_ARCH_IDLE_CUSTOM)
+  SYSCALL_LOOKUP(meadow_idle_monitor_get_value,     0, STUB_meadow_idle_monitor_get_value)
+#endif
+
+#if defined (CONFIG_STM32F7_DMA2)
+SYSCALL_LOOKUP(meadow_adc_configure,                 3, STUB_meadow_adc_configure)
+SYSCALL_LOOKUP(meadow_adc_read_values,               0, STUB_meadow_adc_read_values)
+SYSCALL_LOOKUP(meadow_adc_read_temp_vbat,            2, STUB_meadow_adc_read_temp_vbat)
+#endif
+
+#if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+SYSCALL_LOOKUP(pwrmgmt_most_recent_wakeup_reason,               0, STUB_pwrmgmt_most_recent_wakeup_reason)
+#endif
+
+#if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_espcp_load_test_large_file_download,   1, STUB_meadow_kt_espcp_load_test_large_file_download)
+  SYSCALL_LOOKUP(meadow_kt_espcp_load_test_web_page,              1, STUB_meadow_kt_espcp_load_test_web_page)
+  SYSCALL_LOOKUP(meadow_kt_espcp_tests,                           1, STUB_meadow_kt_espcp_tests)
+#endif
+
+#if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_ethernet_load_test_large_file_download,  1, STUB_meadow_kt_ethernet_load_test_large_file_download)
+  SYSCALL_LOOKUP(meadow_kt_ethernet_load_test_web_page,             1, STUB_meadow_kt_ethernet_load_test_web_page)
+  SYSCALL_LOOKUP(meadow_kt_ethernet_tests,                          1, STUB_meadow_kt_ethernet_tests)
+#endif
+
+#if defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_bg77_tests,      1, STUB_meadow_kt_bg77_tests)
+#endif
+
+#if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_sd_card_tests,      1, STUB_meadow_kt_sd_card_tests)
+#endif
+
+#if defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_power_management_tests,      1, STUB_meadow_kt_power_management_tests)
+#endif
+
+#if defined(CONFIG_ISO8601_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_iso8601_tests,      1, STUB_meadow_kt_iso8601_tests)
+#endif
+
+#if defined(CONFIG_QUICK_MISC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_quick_misc_tests,  1, STUB_meadow_kt_quick_misc_tests)
+#endif
+
+#if defined(CONFIG_ADC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_adc_tests,      1, STUB_meadow_kt_adc_tests)
+#endif
+
+#if defined(CONFIG_DAC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_dac_tests,      1, STUB_meadow_kt_dac_tests)
+#endif
+
+#if defined(CONFIG_MEADOW_INTERRUPT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_meadow_interrupt_tests,      1, STUB_meadow_kt_meadow_interrupt_tests)
+#endif
+
+#if defined(CONFIG_SPI_DMA_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_spi_dma_tests,  1, STUB_meadow_kt_spi_dma_tests)
+#endif
+
+#if defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_rotary_encoder_tests,  1, STUB_meadow_kt_rotary_encoder_tests)
+#endif
+
+#if defined(CONFIG_ARCH_BOARD_MEADOW)
+  SYSCALL_LOOKUP(stm32_gpiowrite,           2, STUB_stm32_gpiowrite)
+  SYSCALL_LOOKUP(stm32_configgpio,          1, STUB_stm32_configgpio)
+  SYSCALL_LOOKUP(stm32_unconfiggpio,        1, STUB_stm32_unconfiggpio)
 #endif
 
 /****************************************************************************

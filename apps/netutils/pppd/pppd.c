@@ -38,6 +38,7 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include "../../examples/hcom/hcom_common.h"
 
 #include <sys/socket.h>
 #include <sys/ioctl.h>
@@ -69,6 +70,12 @@
 #ifdef PPP_ARCH_HAVE_MODEM_RESET
 void ppp_arch_modem_reset(const char *tty);
 #endif
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+static char *thisFile = __FILE__;
 
 /****************************************************************************
  * Private Functions
@@ -188,6 +195,11 @@ static uint8_t ppp_check_errors(FAR struct ppp_context_s *ctx)
     {
       ret = 3;
     }
+  
+  if (ctx->settings->cell_handler->state & CELL_PAUSED)
+    {
+      ret = 4;    
+    }
 
   return ret;
 }
@@ -206,10 +218,10 @@ void ppp_reconnect(FAR struct ppp_context_s *ctx)
   int retry = PPP_MAX_CONNECT;
   const struct pppd_settings_s *pppd_settings = ctx->settings;
   netlib_ifdown((char *)ctx->ifname);
-
   lcp_disconnect(ctx, ++ctx->ppp_id);
   sleep(1);
   lcp_disconnect(ctx, ++ctx->ppp_id);
+  pppd_settings->disconnect_callback();
   sleep(1);
   write(ctx->ctl.fd, "+++", 3);
   sleep(2);
@@ -217,20 +229,36 @@ void ppp_reconnect(FAR struct ppp_context_s *ctx)
 
   if (pppd_settings->disconnect_script)
     {
-      ret = chat(&ctx->ctl, pppd_settings->disconnect_script);
+      ret = chat(&ctx->ctl, pppd_settings->disconnect_script, pppd_settings->cell_at_cmds_output);
       if (ret < 0)
         {
           debug_printf("ppp: disconnect script failed\n");
         }
     }
-
+  
+    while (ctx->settings->cell_handler->state)
+      { 
+        if ((ctx->settings->cell_handler->state & CELL_AT_CMD))
+          {
+              memset(pppd_settings->cell_at_cmds_output, 0x00, sizeof(pppd_settings->cell_at_cmds_output));
+              ret = chat(&ctx->ctl, ctx->settings->cell_handler->script, pppd_settings->cell_at_cmds_output);
+              ctx->settings->cell_handler->callback(ret);
+              pppd_clear_state(ctx->settings->cell_handler, CELL_AT_CMD);
+          }
+        usleep(1000); 
+      }
+      
   if (pppd_settings->connect_script)
     {
       do
         {
-          ret = chat(&ctx->ctl, pppd_settings->connect_script);
+          ret = chat(&ctx->ctl, pppd_settings->connect_script, pppd_settings->cell_at_cmds_output);
           if (ret < 0)
             {
+#ifdef HCOM_CELL_DEBUG_LOGS
+              hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                "Cell connect script failed, retrying...", thisFile, __LINE__);
+#endif
               debug_printf("ppp: connect script failed\n");
               --retry;
               if (retry == 0)
@@ -331,6 +359,8 @@ int pppd(const struct pppd_settings_s *pppd_settings)
       free(ctx);
       return 2;
     }
+
+  memset(ctx->settings->cell_at_cmds_output, 0x00, sizeof(ctx->settings->cell_at_cmds_output));
 
   ctx->ctl.fd = open_tty(pppd_settings->ttyname);
   if (ctx->ctl.fd < 0)

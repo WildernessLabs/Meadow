@@ -327,7 +327,8 @@ static int modlib_relocatedyn(FAR struct module_s *modp,
   FAR Elf32_Rel  *rels = NULL;
   FAR Elf32_Rel  *rel;
   FAR Elf32_Sym  *sym = NULL;
-  uintptr_t       addr;
+  uintptr_t       addr,
+                  offset;
   int             ret;
   int             i, iRel, iSym;
   struct {
@@ -428,8 +429,14 @@ static int modlib_relocatedyn(FAR struct module_s *modp,
 
           if (!(i % CONFIG_MODLIB_RELOCATION_BUFFERCOUNT))
             {
+              size_t relSize = (sizeof(Elf32_Rel) * CONFIG_MODLIB_RELOCATION_BUFFERCOUNT);
+
+              if (relData.relSz[iRel] < relSize)
+                {
+                  relSize = relData.relSz[iRel];
+                }
               ret = modlib_read(loadinfo, (FAR uint8_t *) rels, 
-                                sizeof(Elf32_Rel) * CONFIG_MODLIB_RELOCATION_BUFFERCOUNT,
+                                relSize,
                                 relData.relOff[iRel] + i * sizeof(Elf32_Rel));
               if (ret < 0)
                 {
@@ -461,7 +468,7 @@ static int modlib_relocatedyn(FAR struct module_s *modp,
                     void *ep;
 
                     ep = modlib_findglobal(modp, loadinfo, symhdr, &sym[iSym]);
-                    if (ep == NULL) 
+                    if ((ep == NULL) && (ELF32_ST_BIND(sym[iSym].st_info) != STB_WEAK))
                       {
                         berr("ERROR: Unable to resolve address of external reference %s\n",
                              loadinfo->iobuffer);
@@ -480,12 +487,30 @@ static int modlib_relocatedyn(FAR struct module_s *modp,
             {
               Elf32_Sym dynSym;
 
-              addr = rel->r_offset - loadinfo->datasec + loadinfo->datastart;
-
-              if ((*(uint32_t *) addr) < loadinfo->datasec)
-                  dynSym.st_value = *(uint32_t *) addr + loadinfo->textalloc;
+              /*
+               * Is it located in .text or .data sections?
+               */
+              if (rel->r_offset < loadinfo->datasec) 
+                {
+                  addr = (uintptr_t) loadinfo->textalloc + rel->r_offset;
+                }
               else
-                  dynSym.st_value = *(uint32_t *) addr - loadinfo->datasec + loadinfo->datastart;
+                {
+                  addr = (rel->r_offset - loadinfo->datasec) + (uintptr_t) loadinfo->datastart;
+                }
+              offset = *(uintptr_t *) addr;
+
+              /*
+               * Does this offset live in .text or .data section?
+               */
+              if (offset < loadinfo->datasec)
+                {
+                  dynSym.st_value = offset + (uintptr_t) loadinfo->textalloc;
+                }
+              else
+                {
+                  dynSym.st_value = (offset - loadinfo->datasec) + (uintptr_t) loadinfo->datastart;
+                }
               ret = up_relocate(rel, &dynSym, addr);
             }
 
@@ -595,6 +620,18 @@ int modlib_bind(FAR struct module_s *modp, FAR struct mod_loadinfo_s *loadinfo)
               case SHT_DYNSYM :
                   loadinfo->dsymtabidx = i;
                   break;
+              case SHT_INIT_ARRAY :
+                  loadinfo->initarr = loadinfo->shdr[i].sh_addr - loadinfo->datasec + loadinfo->datastart;
+                  loadinfo->ninit = loadinfo->shdr[i].sh_size / sizeof(uintptr_t);
+                  break;
+              case SHT_FINI_ARRAY :
+                  loadinfo->finiarr = loadinfo->shdr[i].sh_addr - loadinfo->datasec + loadinfo->datastart;
+                  loadinfo->nfini = loadinfo->shdr[i].sh_size / sizeof(uintptr_t);
+                  break;
+              case SHT_PREINIT_ARRAY :
+                  loadinfo->preiarr = loadinfo->shdr[i].sh_addr - loadinfo->datasec + loadinfo->datastart;
+                  loadinfo->nprei = loadinfo->shdr[i].sh_size / sizeof(uintptr_t);
+                  break;
             }
         } 
       else
@@ -603,7 +640,7 @@ int modlib_bind(FAR struct module_s *modp, FAR struct mod_loadinfo_s *loadinfo)
            * sections that were not loaded into memory.
            */
 
-          if ((loadinfo->shdr[i].sh_flags & SHF_ALLOC) == 0)
+          if ((loadinfo->shdr[infosec].sh_flags & SHF_ALLOC) == 0)
                 continue;
 
           /* Process the relocations by type */

@@ -59,7 +59,7 @@
  * Private Data
  ****************************************************************************/
 static char *thisFile = __FILE__;
-static int _nx_access_fd;
+static int _nx_access_fd = -1;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -99,6 +99,26 @@ int hcom_via_nx_upd_driver_open()
           thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME);
 
   return nx_access_fd;
+}
+
+//=============================================================
+// NEVER TESTED
+int hcom_via_nx_set_any_reg(uint32_t address, uint32_t value)
+{
+  int ret;
+  struct hcom_nx_upd_register_value ret_value;
+
+  ret_value.value = value;
+  ret_value.address = address;
+
+  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_SET_REGISTER, (unsigned long)&ret_value);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s)@%d-%s Failed to set reg, errno:%d\n",
+            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
+    return -errno;      // ioctl puts returned int into errno
+  }
+  return OK;
 }
 
 //=============================================================
@@ -410,7 +430,7 @@ void hcom_via_nx_restore_uart_reconfig(uint32_t uartId)
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s reconfig uart%d, ret:%d, errno:%d\n",
-            thisFile, __LINE__, uartId, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
+            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, uartId, ret, errno);
   }
 }
 
@@ -446,88 +466,6 @@ uint32_t hcom_via_nx_get_hw_version_alt(int alt_access_fd)
   }
 
   return hardwareVer.hwVer;
-}
-
-//=============================================================
-// Configures non-diag gpio via nx
-int hcom_via_nx_gpio_config(uint32_t gpioPinDefn)
-{
-  int ret;
-  struct hcom_nx_upd_gpio_config_s gpioConfig;
-
-  gpioConfig.gpioPinDefn = gpioPinDefn;
-
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GPIO_CONFIG, (unsigned long) &gpioConfig);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio config, ret:%d, errno:%d\n",
-            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return ret;
-  }
-
-  return gpioConfig.result;
-}
-
-//=============================================================
-// Configures non-diagnostic gpio via nx from mono
-int hcom_via_nx_gpio_config_alt(int alt_access_fd, uint32_t gpioPinDefn)
-{
-  int ret;
-  struct hcom_nx_upd_gpio_config_s gpioConfig;
-
-  gpioConfig.gpioPinDefn = gpioPinDefn;
-
-  ret = ioctl(alt_access_fd, HCOM_NX_UPD_GPIO_CONFIG, (unsigned long) &gpioConfig);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio config, ret:%d, errno:%d\n",
-            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return ret;
-  }
-
-  return gpioConfig.result;
-}
-
-//=============================================================
-// Writes to non-diag digital output gpio via nx
-int hcom_via_nx_gpio_write(uint32_t gpioPinDefn, bool cmdValue)
-{
-  int ret;
-  struct hcom_nx_upd_gpio_write_s gpioCommand;
-
-  gpioCommand.gpioPinDefn = gpioPinDefn;
-  gpioCommand.cmdValue = cmdValue;
-
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GPIO_COMMAND, (unsigned long) &gpioCommand);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio write, ret:%d, errno:%d\n",
-            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return -errno;      // ioctl puts returned int into errno
-  }
-
-  return OK;
-}
-
-//=============================================================
-// Writes to digital output gpio via nx using an alternate nx file descriptor
-int hcom_via_nx_gpio_write_alt(int alt_access_fd, uint32_t gpioPinDefn, bool cmdValue)
-{
-  int ret;
-  struct hcom_nx_upd_gpio_write_s gpioCommand;
-
-  gpioCommand.gpioPinDefn = gpioPinDefn;
-  gpioCommand.cmdValue = cmdValue;
-
-  ret = ioctl(alt_access_fd, HCOM_NX_UPD_GPIO_COMMAND, (unsigned long) &gpioCommand);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed gpio write, ret:%d, errno:%d\n",
-            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return -errno;      // ioctl puts returned int into errno
-  }
-
-  return OK;
 }
 
 //=============================================================
@@ -628,33 +566,6 @@ void hcom_via_nx_forward_cli_cmd_to_nx(uint16_t hcomCmd, uint32_t userData)
       return;
     }
   }
-}
-
-/****************************************************************************
- * Name: hcom_via_nx_copy_config
- *
- * Description:
- *  Ask NuttX for a copy of the device configuration for use in user land.
- *
- * Input Parameters:
- *  config - Pointer to a memory block to hold the copy of the configuration.
- *
- * Returned Value:
- *  Result of the ioctl call.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-int hcom_via_nx_copy_config(uint8_t *buffer)
-{
-  int ret = ioctl(_nx_access_fd, HCOM_NX_UPD_GET_CONFIG, (unsigned long) buffer);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s:%s()@%d Failed to copy the configuration.\n",
-            thisFile, __func__, __LINE__);
-  }
-  return ret;
 }
 
 /****************************************************************************

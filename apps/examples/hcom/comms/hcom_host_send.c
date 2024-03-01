@@ -65,6 +65,18 @@ static bool _notInitialized = true;
 static bool _lowPowerActive;
 
 /****************************************************************************
+ * Global Data
+ ****************************************************************************/
+
+// Store the current protocol number being used.  We will start off with the
+// preferred protocol version but allow the system to downgrade the protocol
+// dynamically if required in the future.
+uint16_t g_current_hcom_protocol_version = HCOM_PROTOCOL_PREFERRED_VERSION_NUMBER;
+
+// Store the maximum protocol packet size for the currently selected protocol.
+uint16_t g_current_hcom_maximum_packet_size = HCOM_PROTOCOL_CURRENT_PACKET_MAX_SIZE;
+
+/****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
 
@@ -158,27 +170,31 @@ int hcom_host_send_low_power_notification(bool lpStart)
 // FUNCTION TO USE WHEN SENDING ALL STANDARD MESSAGE WITH OR WITHOUT DATA
 // Note: This function is a step towards standardizing the protocol.
 //
-// This function can be used when the caller has completely populated the
-// messages and only wants the Protocol Version etc. added to the header.
-// Since all messages must have a header, this is the type used here. The
-// actual message type is any standard message but the full length must be
-// allocated (header + data). And this is reflected in totalMsgLen.
+// This function can be used after the caller has properly populated the
+// message header and wants the Protocol Version, sequence added.
+// The actual message type is any standard message type. The full length must
+// be allocated (header + data). And this value reflected in totalMsgLen.
 //
 // The caller uses one of the structs defined in
 // /nuttx/include/meadow/hcom_protocol.h. Any of those containing the
-// HcomProtoStdHeader_t type (e.g. HcomProtoTextMsg_t, HcomProtoHdrMsg_t,
+// HcomProtoStdHdr_t type (e.g. HcomProtoTextMsg_t, HcomProtoHdrMsg_t,
 // HcomProtoBinMsg_t, etc.) can be used. The caller populates the proper struct
-// fields and downcasts the type to a HcomProtoStdHeader_t and passes this as
+// fields and downcasts the type to a HcomProtoStdHdr_t and passes this as
 // 'hdrMsg' to this function.
+// Use hcom_nx_host_send_std_msg_data on Nuttx side
 int hcom_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
           size_t totalMsgLen, char *sourceFileName, int sourceLineNumber)
 {
   int ret = OK;
 
-  // These are always the same values plus 1 unused field
-  hdrMsg->stdHeader.seqNumber = HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER;
-  hdrMsg->stdHeader.version = HCOM_PROTOCOL_HCOM_VERSION_NUMBER;
-  hdrMsg->stdHeader.extraData = 0;
+  // Caller must sets
+  // stdHeader.rqstType = HCOM_HOST_REQUEST_XXXXX_XXXX_XXXX;
+  // stdHeader.extraData = 0;
+  // stdHeader.userData = 0;
+
+  // These are always the same values
+  hdrMsg->stdHeader.seqNumber = HCOM_PROTOCOL_COMMAND_TYPE_SEQUENCE_NUMBER;
+  hdrMsg->stdHeader.version = g_current_hcom_protocol_version;
 
   ret = hcom_host_send_standard_msg(hdrMsg, totalMsgLen);
   if (ret < 0 && ret != -EAGAIN) // EAGAIN is not an error it means the message was blocked
@@ -313,16 +329,16 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
   // then transmission is not possible at this time.
   if(hcom_host_send_is_host_xmit_blocked())
   {
-    // This is a normal occurance since the host is usually not connected
+    // This is a normal occurrence since the host is usually not connected
     sem_post(&_hostXmitSem);
     return OK;   // Throw the message away. What else can be done?
   }
 
   int fullMsgLen = msgLen + HCOM_PROTOCOL_HEADER_MSG_LENGTH;
-  if(fullMsgLen > HCOM_PROTOCOL_PACKET_MAX_SIZE)
+  if(fullMsgLen > g_current_hcom_maximum_packet_size)
   {
     // Truncate to fit
-    fullMsgLen = HCOM_PROTOCOL_PACKET_MAX_SIZE;
+    fullMsgLen = g_current_hcom_maximum_packet_size;
   }
 
   // Is this a header only message or a message with a body
@@ -368,8 +384,8 @@ void hcom_host_send_build_msg_header(uint16_t requestType,
         uint16_t extraData, uint32_t userData, uint8_t *xmitBuffer)
 {
   HcomProtoHdrMsg_t *hdrMsg = (HcomProtoHdrMsg_t *)xmitBuffer;
-  hdrMsg->stdHeader.seqNumber = HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER;
-  hdrMsg->stdHeader.version = HCOM_PROTOCOL_HCOM_VERSION_NUMBER;
+  hdrMsg->stdHeader.seqNumber = HCOM_PROTOCOL_COMMAND_TYPE_SEQUENCE_NUMBER;
+  hdrMsg->stdHeader.version = g_current_hcom_protocol_version;
   hdrMsg->stdHeader.rqstType = requestType;
   hdrMsg->stdHeader.extraData = extraData;
   hdrMsg->stdHeader.userData = userData;

@@ -45,6 +45,9 @@
 #include "generic_list.h"
 #include "../ntpclient/ntpclient.h"
 #include "../ethernet/meadow_ethnet_local.h"
+#include "../hcom_nx/hcom_nx_common.h"
+#include <meadow/hcom_bbreg_defn.h>
+#include <meadow/meadow_thread_config.h>
 
 // #define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
@@ -202,8 +205,8 @@ int espcp_event_handlers_thread_start(void)
     int thread_id = 0;
 
 #ifdef CONFIG_BUILD_PROTECTED
-    thread_id = kthread_create(ESPCP_EVENT_HANDLER_THREAD_NAME, CONFIG_MEADOW_ESPCP_PRIORITY,
-                               CONFIG_MEADOW_ESPCP_STACKSIZE, (main_t) espcp_event_handler_thread, (char *const *) NULL);
+    thread_id = kthread_create(ESPCP_EVENT_HANDLER_THREAD_NAME, ESPCP_EVENT_HANDLER_THREAD_PRIORITY,
+                               ESPCP_EVENT_HANDLER_THREAD_STACKSIZE, (main_t) espcp_event_handler_thread, (char *const *) NULL);
 
     if (thread_id <= 0)
     {
@@ -219,14 +222,14 @@ int espcp_event_handlers_thread_start(void)
     }
 
     struct sched_param scheduler_parameters;
-    scheduler_parameters.sched_priority = CONFIG_MEADOW_ESPCP_PRIORITY;
+    scheduler_parameters.sched_priority = ESPCP_EVENT_HANDLER_THREAD_PRIORITY;
     result = pthread_attr_setschedparam(&thread_attributes, &scheduler_parameters);
     if (result != OK)
     {
         return (-result);
     }
 
-    result = pthread_attr_setstacksize(&thread_attributes, CONFIG_MEADOW_ESPCP_STACKSIZE);
+    result = pthread_attr_setstacksize(&thread_attributes, ESPCP_EVENT_HANDLER_THREAD_STACKSIZE);
     if (result != OK)
     {
         return (-result);
@@ -534,6 +537,13 @@ static void espcp_network_connected_event_handler(espcp_message_t *message)
         meadow_configuration_t *config = hcom_nx_config_get_pointer();
         get_time = config->get_network_time_at_startup;
         hcom_nx_config_unlock();
+
+        if (message->payload != NULL)
+        {
+            espcp_connect_event_data_t *connect_data = espcp_extract_connect_event_data(message->payload);
+            hcom_nx_config_add_default_gateway_dns_file(config, connect_data->gateway);
+        }
+
         if (get_time)
         {
             ntpc_start();
@@ -590,58 +600,68 @@ void espcp_pass_to_managed_event_handler(espcp_message_t *message)
 {
     MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
 
-    espcp_event_data_t eventData;
-    memset(&eventData, 0, sizeof(eventData));
-    eventData.interface = message->interface;
-    eventData.function = message->function;
-    eventData.status_code = message->status_code;
-
-    MEADOW_TRACE_INFORMATION("Interface: %d, function: %d, status code: %d\n", eventData.interface, eventData.function, eventData.status_code);
-
-    if (message->payload_length > 0)
-    {
-        //
-        //  This will indicate to the managed code that there is a payload
-        //  to process.
-        //
-        eventData.message_id = message->message_id;
-    }
-
-    uint32_t encodedEventDataSize = espcp_event_data_buffer_size(&eventData);
     bool delete_message = false;
-    if (encodedEventDataSize > 22)
+
+    if (hcom_nx_bbreg_is_bbr_bit_set(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT))
     {
-        syslog(LOG_INFO, "Event message too large, event data discarded.");
+        MEADOW_TRACE_INFORMATION("Mono is disabled, message for managed code will be deleted.\n");
         delete_message = true;
     }
     else
     {
-        uint8_t *encodedData = (uint8_t *) malloc(encodedEventDataSize);
-        if (encodedData != NULL)
-        {
-            espcp_encode_event_data(&eventData, encodedData);
+        espcp_event_data_t eventData;
+        memset(&eventData, 0, sizeof(eventData));
+        eventData.interface = message->interface;
+        eventData.function = message->function;
+        eventData.status_code = message->status_code;
 
-            espcp_configuration_t *config = espcp_get_configuration();
-            int result = mq_send(config->managed_event_queue, (const char *) encodedData, encodedEventDataSize, ESPCP_DEFAULT_MESSAGE_PRIORITY);
-            if (result < 0)
+        MEADOW_TRACE_INFORMATION("Interface: %d, function: %d, status code: %d\n", eventData.interface, eventData.function, eventData.status_code);
+
+        if (message->payload_length > 0)
+        {
+            //
+            //  This will indicate to the managed code that there is a payload
+            //  to process.
+            //
+            eventData.message_id = message->message_id;
+        }
+
+        uint32_t encodedEventDataSize = espcp_event_data_buffer_size(&eventData);
+        if (encodedEventDataSize > 22)
+        {
+            syslog(LOG_INFO, "Event message too large, event data discarded.\n");
+            delete_message = true;
+        }
+        else
+        {
+            uint8_t *encodedData = (uint8_t *) malloc(encodedEventDataSize);
+            if (encodedData != NULL)
             {
-                MEADOW_TRACE_INFORMATION("Error adding event to the message queue, result %d, error code %d.\n", result, get_errno());
-                delete_message = true;
-            }
-            else
-            {
-                if (message->payload_length == 0)
+                espcp_encode_event_data(&eventData, encodedData);
+
+                espcp_configuration_t *config = espcp_get_configuration();
+                int result = mq_send(config->managed_event_queue, (const char *) encodedData, encodedEventDataSize, ESPCP_DEFAULT_MESSAGE_PRIORITY);
+                if (result < 0)
                 {
+                    MEADOW_TRACE_INFORMATION("Error adding event to the message queue, result %d, error code %d.\n", result, get_errno());
                     delete_message = true;
                 }
                 else
                 {
-                    gl_add_item_to_tail(_events_with_payloads, (void *) message);
+                    if (message->payload_length == 0)
+                    {
+                        delete_message = true;
+                    }
+                    else
+                    {
+                        gl_add_item_to_tail(_events_with_payloads, (void *) message);
+                    }
                 }
+                free(encodedData);
             }
-            free(encodedData);
         }
     }
+
     if (delete_message)
     {
         espcp_delete_message_and_payload(message);

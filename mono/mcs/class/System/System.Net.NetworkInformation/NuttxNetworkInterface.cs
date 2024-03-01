@@ -41,6 +41,9 @@ namespace System.Net.NetworkInformation
 		const int AF_INET = 2;
 		protected readonly int AF_INET6;
 
+		private const string PppInterfacePrefix = "ppp";
+		private const string LoopbackInterfacePrefix = "lo";
+
 		public NuttxNetworkInterfaceAPI ()
 		{
 			AF_INET6 = 10;
@@ -125,8 +128,17 @@ namespace System.Net.NetworkInformation
 						iface.AddAddress(address);
 					}
 
-					// set link layer info, if iface has macaddress or is loopback device
-					if ((macAddress != null) || (type == NetworkInterfaceType.Loopback))
+					if (name.Contains(PppInterfacePrefix))
+					{
+						type = NetworkInterfaceType.Ppp;
+					}
+					else if (name.Contains(LoopbackInterfacePrefix))
+					{
+						type = NetworkInterfaceType.Loopback;
+					}
+
+					// set link layer info, if iface has macaddress, is loopback device or it represents a PPP connection
+					if ((macAddress != null) || (type == NetworkInterfaceType.Loopback) || (type == NetworkInterfaceType.Ppp))
 					{
 						iface.SetLinkLayerInfo(index, macAddress, type);
 					}
@@ -197,6 +209,7 @@ namespace System.Net.NetworkInformation
 		// private IPv4InterfaceStatistics ipv4stats;
 		private IPInterfaceProperties _ipproperties;
 		private List<IPAddress> _addresses;
+		private IPAddressCollection _dns_servers;
 
 		string _name;
 		byte[]               _macAddress;
@@ -210,6 +223,7 @@ namespace System.Net.NetworkInformation
 			_ifa_flags = ifa_flags;
 			_type = NetworkInterfaceType.Unknown;
 			_addresses = new List<IPAddress>();
+			_dns_servers = new IPAddressCollection();
 		}
 
 		internal void AddAddress(IPAddress address)
@@ -229,7 +243,7 @@ namespace System.Net.NetworkInformation
 		{
 			if (_ipproperties == null)
 			{
-				_ipproperties = new NuttxIPInterfaceProperties(this, _addresses);
+				_ipproperties = new NuttxIPInterfaceProperties(this, _addresses, _dns_servers);
 			}
 			return _ipproperties;
 		}

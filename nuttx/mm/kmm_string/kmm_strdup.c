@@ -47,6 +47,8 @@
  * Public Functions
  ****************************************************************************/
 
+#ifdef CONFIG_MM_KERNEL_HEAP
+
 FAR char *kmm_strdup(FAR const char *s)
 {
   FAR char *news = NULL;
@@ -61,3 +63,5 @@ FAR char *kmm_strdup(FAR const char *s)
 
   return news;
 }
+
+#endif // #ifdef CONFIG_MM_KERNEL_HEAP

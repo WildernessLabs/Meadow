@@ -261,7 +261,7 @@ int meadow_timer_init_lsi_clock(int timerNumber)
   ret = irq_attach(timerInfo->timerIrqVec, meadow_timer_isr_lsi_clock, timerInfo);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-irq_attach failed:%d, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-irq_attach failed, ret:%d, errno:%d\n",
           __FILE__, __LINE__, ret, errno);
     return ret;
   }
@@ -346,8 +346,8 @@ int meadow_timer_test_lsi_clock(int timerNumber)
   int lsiErrSec = round(abs(lsiErrTotSec - (lsiErrMin * 60)));
 
   // syslog(2, "%03u. LSI Freq:%06.2f, Ave:%06.02f (%+03.2f%%, %+d:%02d/hr), Hi:%06.2f, Lo:%06.2f\n",
-            freqCount, lsiFreq, lsiAvg, lsiPercentErr * 100,
-            lsiErrMin, lsiErrSec, lsiHigh, lsiLow);
+            // freqCount, lsiFreq, lsiAvg, lsiPercentErr * 100,
+            // lsiErrMin, lsiErrSec, lsiHigh, lsiLow);
   
   return OK;
 }

@@ -42,11 +42,14 @@
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_dnld_shared.h>
 
-#include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/fs/dirent.h>
+
+#if defined (CONFIG_DIR_MGMT_TESTS)
+#pragma message "(--) hcom_file_delete_stm32f7.c"
+#endif
 
 /****************************************************************************
  * Private Data
@@ -64,84 +67,158 @@ static char *thisFile = __FILE__;
 /****************************************************************************
  * Public Functions
  ***************************************************************************/
-// This is called by CLI
-void hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared)
+// This is directly called by CLI
+int hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared)
 {
-  hcom_file_delete_stm32f7_file_by_name_internal(dnldShared);
-  
-  // This will remove all data from dnld shared struct
-  hcom_host_process_free_dnld_share_mem();
+  // Delete the file
+  return hcom_file_delete_stm32f7_file_by_name_internal(dnldShared);
 }
 
 //====================================================================
 // This is a internal function accessable to internal callers
-void hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShared)
+int hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShared)
 {
   int ret;
-  uint16_t hostMsgType;
 
   // Memory for text message to host
-  char *hostMsg = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
+  char *hostMsg = malloc(HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
   if(hostMsg == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    hcom_host_process_free_dnld_share_mem();
-    return;
+    return -ENOMEM;
   }
 
-  ret = unlink(dnldShared->dnldFullFileName);
+  // Delete the specified file
+  ret = unlink(dnldShared->dnldFullPathName);
   if (ret < 0)
   {
-    char *errorCause;
-
-    hcom_logging_syslog(LOG_ERR, "%s@%d-unlink %s, errno %d\n",
-             thisFile, __LINE__, dnldShared->dnldFullFileName,
-             get_errno());
-
-    switch(get_errno())
+    char *errorCause = malloc(HCOM_TINY_HOST_STRING_BUFF_LENGTH);
+    ret = -get_errno();
+    switch(ret)
     {
-      case ENOENT: // No such file or directory
-      errorCause = "No such file";
+      case -ENOENT: // No such file or directory
+      strncpy(errorCause, "No such file",
+                HCOM_TINY_HOST_STRING_BUFF_LENGTH);
       break;
 
-      case EEXIST: // File already open
-      errorCause = "Another file is being processed";
+      case -EEXIST: // File already open
+      strncpy(errorCause, "Another file is being processed",
+                HCOM_TINY_HOST_STRING_BUFF_LENGTH);
       break;
       
-      case ENAMETOOLONG: // File name too long
-      errorCause = "File name too long";
+      case -ENAMETOOLONG: // File name too long
+      strncpy(errorCause, "File name too long",
+                HCOM_TINY_HOST_STRING_BUFF_LENGTH);
       break;
 
-      case EMFILE: // Too many files open
-      errorCause = "Too many files open";
+      case -EMFILE: // Too many files open
+      strncpy(errorCause, "Too many files open",
+                HCOM_TINY_HOST_STRING_BUFF_LENGTH);
       break;
 
       default:  // different error
-      snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+      snprintf_chk(errorCause, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
                 "Unexpected error:%d", ret);
-      errorCause = hostMsg;
       break;
     }
 
-    hostMsgType = HCOM_HOST_REQUEST_TEXT_ERROR;
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Error-failed to delete:'%s' %s (errno:%d)\n",
+        thisFile, __LINE__, dnldShared->dnldFullPathName, errorCause, get_errno());
 
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Error %d (%s) failed to delete:'%s'\n",
-        thisFile, __LINE__, get_errno(), errorCause, dnldShared->dnldFullFileName);
+    // Message to host PC
+    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+          "Meadow failed to delete file '%s', %s",
+          dnldShared->dnldFullPathName, errorCause);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, thisFile, __LINE__);
 
-    snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-          "Meadow failed to delete '%s' - %s",
-          dnldShared->dnldFullFileName, errorCause);
+    free(errorCause);
+    free(hostMsg);
+
+    // Concluded message will be sent by caller
+    return ret;
   }
   else
   {
-    hostMsgType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
-    snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH,
-          "Meadow successfully deleted '%s'",
-          dnldShared->dnldFullFileName);
+#if defined (CONFIG_DIR_MGMT_TESTS)
+    syslog(2, "%s@%d-DIAG-File:'%s' deleted\n",
+          thisFile, __LINE__, dnldShared->dnldFullPathName);
+#endif
   }
 
-  // Send text message to host
-  hcom_host_send_simple_string_msg(hostMsgType, 0, hostMsg, thisFile, __LINE__);
+  // Once the file has been deleted we must delete any parent, empty
+  // subdirectories.
+  // An element count of 2 means there will be no subdirectories.
+  if(dnldShared->dnldPathNameEleCount > 2)
+  {
+    uint32_t dirDepth = dnldShared->dnldPathNameEleCount - \
+              HCOM_FILE_DNLD_MANDATORY_DIR_ELEMENTS;
+    char *pathNameTemp = malloc(strlen(dnldShared->dnldFullPathName) + 1);
+    strcpy(pathNameTemp, dnldShared->dnldFullPathName);
 
+    // We'll remove the deepest directory to the first.
+    // Find the last '/' which should be the end of the string
+    char *slashPtr = strrchr(pathNameTemp, '/');
+    while(slashPtr != NULL && dirDepth > 0)
+    {
+      // Replace last '/' with NULL
+      *slashPtr = '\0';
+
+      ret = rmdir(pathNameTemp);
+      if(ret < 0)
+      {
+        // Have we reached the end of empty directories?
+        // Note: ENOTEMPTY in the NuttX errno.h file is 90 but rmdir returned
+        //  39. I was only able to reconcile this by locating the littlefs
+        //  header file, lfs.h. Here 'not empty' id defined as 39. I tried to
+        //  reference this header at nuttx/fs/littlefs/lfs.h but the compiler
+        //  couldn't find it because it's on the Nuttx side and this code is
+        //  on the apps side.
+        //  Realizing that the Nuttx Rebase may well fix the problem, I decided
+        //  to define it here.
+#define LITTLEFS_VERSION_OF_ENOTEMPTY (39)
+
+        // If an attempt to delete a directory failed, because wasn't empty,
+        // this is not an error. It means we are finished removing empty
+        // directories.
+        if(errno != LITTLEFS_VERSION_OF_ENOTEMPTY)
+        {
+          syslog(LOG_ERR, "%s@%d-ERROR deleting directory '%s', ret:%d, errno:%d\n",
+                    thisFile, __LINE__, pathNameTemp, ret, errno);
+          ret = -errno;
+        }
+        else
+        {
+#if defined (CONFIG_DIR_MGMT_TESTS)
+          syslog(2, "%s@%d-DIAG-Directory '%s' not empty\n",
+                    thisFile, __LINE__, pathNameTemp);
+#endif
+          // Directory empty is not an error and a file delete failure has
+          // already been reported.
+          ret = OK;
+        }
+        break;    // Leave directory delete loop
+      }
+
+      // Prep for next loop
+      dnldShared->dnldPathNameEleCount--;
+#if defined (CONFIG_DIR_MGMT_TESTS)
+      syslog(2, "%s@%d-DIAG-Path Name:'%s' last element removed, elements left:%lu.\n",
+                thisFile, __LINE__, pathNameTemp,
+                dnldShared->dnldPathNameEleCount);
+#endif
+      slashPtr = strrchr(pathNameTemp, '/');
+      dirDepth--;
+    }
+
+    free(pathNameTemp);
+  }
+
+  // Send text message to host.
+  snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+        "File '%s' deleted", dnldShared->dnldFullPathName);
+  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg, thisFile, __LINE__);
   free(hostMsg);
+
+  // Concluded message will be sent by caller
+  return ret;
 }

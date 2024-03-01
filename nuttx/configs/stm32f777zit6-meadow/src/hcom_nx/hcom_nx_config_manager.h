@@ -49,6 +49,18 @@
 #define MAXIMUM_SSID_LENGTH 32
 #define MAXIMUM_PASSWORD_LENGTH 64
 
+//
+//  These definitions are used for cell driver
+//
+#define MAXIMUM_APN_LENGTH 128
+#define MAXIMUM_OPERATOR_LENGTH 32
+#define MAXIMUM_MODULE_LENGTH 32
+#define MAXIMUM_TIMEOUT_LENGTH 8
+#define MAXIMUM_INTERFACE_LENGTH 64
+#define MAXIMUM_TURN_ON_PIN_LENGTH 8
+#define MAXIMUM_USER_LENGTH 64
+#define MAXIMUM_MODE_LENTGH 8
+
 /****************************************************************************
  * Enums.
  ****************************************************************************/
@@ -85,7 +97,8 @@ enum configuration_values
     cv_static_ip_address,                           // 22
     cv_subnet_mask,                                 // 23
     cv_default_gateway,                             // 24
-    cv_sd_storage_supported                         // 25
+    cv_sd_storage_supported,                        // 25
+    cv_reserved_pins                                // 26
 };
 typedef enum configuration_values configuration_values_t;
 
@@ -100,8 +113,10 @@ meadow_configuration_t *hcom_nx_config_get_pointer(void);
 int hcom_nx_config_get_set_config_value(int, uint8_t, uint8_t *, int);
 void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *);
 void hcom_nx_config_process_wifi_credentials_file(void);
+void hcom_nx_config_process_cell_config_file(void);
+void hcom_nx_config_turn_on_the_cell_module(void);
 void hcom_nx_config_refresh_mono_version(meadow_configuration_t *);
 int hcom_nx_config_set_esp_integer_value(espcp_configuration_items_t, uint32_t);
 void hcom_nx_config_set_time_to_os_build_time(void);
-
+void hcom_nx_config_add_default_gateway_dns_file(meadow_configuration_t *config, uint32_t gateway);
 #endif // __CONFIGS_MEADOW_SRC_HCOM_NX_CONFIG_MANAGER__H

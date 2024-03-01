@@ -14,8 +14,24 @@ extern int tcgetattr(int fd, FAR struct termios *termiosp);
 extern int tcsetattr(int fd, int options, FAR const struct termios *termiosp);
 extern int mount(const char *source, const char *target, const char *filesystemtype, unsigned long mountflags, const void *data);
 extern int umount2(const char *target, int flags);
-
+extern int meadow_cloud_decrypt_buf(const char *encrypted_buf, int encrypted_len, const char *decrypted_buf);
+extern int meadow_cloud_decrypt_buf_aes(const char *encrypted_buf, int encrypted_len, unsigned char key[16], unsigned char iv[16], const char *decrypted_buf);
+extern int meadow_cell_scanner(char *response);
+extern void meadow_cell_change_state(int state);
+extern bool meadow_cell_is_connected(void);
+extern int meadow_get_cell_at_cmds_output(const char *buf);
+extern int meadow_idle_monitor_get_value(void);
+extern int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount, double *userDataBuf);
+extern int meadow_adc_read_values(void);
+extern int meadow_adc_read_temp_vbat(double *batteryVoltage, double *temperatureValue);
+extern int meadow_read_file_total_free_flash_size(uint32_t *totalBytes,  uint32_t *freeBytes);
+extern int statfs(FAR const char *path, FAR struct statfs *buf);
+extern int pwrmgmt_most_recent_wakeup_reason(void);
 int shim_open_void(char *pathname, int flags);
+extern uint32_t meadow_os_power_cycle_count(void);
+extern uint32_t meadow_os_reset_cycle_count(void);
+extern uint32_t meadow_os_reset_reason(void);
+extern uint32_t meadow_os_hardware_version(void);
 
 MonoDlMapping meadow_mappings[] = {
        { "open", open },
@@ -41,6 +57,7 @@ MonoDlMapping meadow_mappings[] = {
        { "sigsuspend", sigsuspend },
        { "sigtimedwait", sigtimedwait },
        { "sigwaitinfo", sigwaitinfo },
+       { "statfs", statfs },
        { "getpid", getpid},
        { "mq_close", mq_close },
        { "mq_getattr", mq_getattr },
@@ -60,7 +77,22 @@ MonoDlMapping meadow_mappings[] = {
        { "mount", mount },
        { "umount2", umount2 },
        { "mallinfo", mallinfo },
-       
+       { "meadow_cloud_decrypt_buf", meadow_cloud_decrypt_buf },
+       { "meadow_cloud_decrypt_buf_aes", meadow_cloud_decrypt_buf_aes },
+       { "meadow_cell_scanner", meadow_cell_scanner},
+       { "meadow_cell_is_connected", meadow_cell_is_connected },
+       { "meadow_idle_monitor_get_value", meadow_idle_monitor_get_value },
+       { "meadow_get_cell_at_cmds_output", meadow_get_cell_at_cmds_output},
+       { "meadow_cell_change_state", meadow_cell_change_state},
+       { "meadow_adc_configure", meadow_adc_configure},
+       { "meadow_adc_read_values", meadow_adc_read_values},
+       { "meadow_adc_read_temp_vbat", meadow_adc_read_temp_vbat},
+       { "meadow_read_file_total_free_flash_size", meadow_read_file_total_free_flash_size},
+       { "pwrmgmt_most_recent_wakeup_reason", pwrmgmt_most_recent_wakeup_reason},
+       { "meadow_os_power_cycle_count", meadow_os_power_cycle_count},
+       { "meadow_os_reset_cycle_count", meadow_os_reset_cycle_count},
+       { "meadow_os_reset_reason", meadow_os_reset_reason},
+       { "meadow_os_hardware_version", meadow_os_hardware_version},
 //       { "poll", poll },
 
 /*

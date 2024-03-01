@@ -1,7 +1,7 @@
 /****************************************************************************
  * apps\examples\hcom\diag\hcom_diag_decode_protocol.c
  * 
- *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2021-2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,12 +63,19 @@ char *hcom_diag_find_host_request_type(uint16_t hostRqstType);
  * Public Functions
  ****************************************************************************/
 // Takes a hcom message and outputs a string containing the header information
+void hcom_diag_decode_data_packet_type(decodedSize)
+{
+  syslog(2, "---------- Meadow Data (%d bytes) ----------\n", decodedSize);
+}
+
+// Takes a hcom message and outputs a string containing the header information
 void hcom_diag_decode_recvd_message_type(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize)
 {
+  syslog(2, "-------------- Meadow Received ---------------\n");
+
   uint16_t rqstType = hdrMsg->stdHeader.rqstType;
   char *requestStr = hcom_diag_find_meadow_request_type(rqstType);
-  syslog(2, "------------- Meadow Received ---------------\n");
   syslog(2, "Received '%s' (0x%04x) %u bytes\n", requestStr,
             rqstType, packetSize);
   hcom_diag_print_buffer((const uint8_t *)hdrMsg, packetSize, 1);
@@ -87,8 +94,12 @@ char *hcom_diag_find_meadow_request_type(uint16_t rqstType)
     case HCOM_MDOW_REQUEST_BULK_FLASH_ERASE:        return "BULK_FLASH_ERASE";
     case HCOM_MDOW_REQUEST_ENTER_DFU_MODE:          return "ENTER_DFU_MODE";
     case HCOM_MDOW_REQUEST_ENABLE_DISABLE_NSH:      return "ENABLE_DISABLE_NSH";
-    case HCOM_MDOW_REQUEST_LIST_PARTITION_FILES:    return "LIST_PARTITION_FILES";
-    case HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC: return "LIST_PART_FILES_AND_CRC";
+#if HCOM_SUPPORT_CLIV1_LEGACY_BEHAVIOR > 0
+    case HCOM_MDOW_REQUEST_LIST_PARTITION_FILES:    return "LIST_PARTITION_FILES (CLIv1)";
+    case HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC: return "LIST_PART_FILES_AND_CRC (CLIv1)";
+#endif
+    case HCOM_MDOW_REQUEST_LIST_FILES_SUBDIR:       return "LIST_FILES_SUBDIR (CLIv2)";
+    case HCOM_MDOW_REQUEST_LIST_FILES_SUBDIR_CRC:   return "LIST_FILES_SUBDIR_CRC (CLIv2)";
     case HCOM_MDOW_REQUEST_MONO_DISABLE:            return "MONO_DISABLE";
     case HCOM_MDOW_REQUEST_MONO_ENABLE:             return "MONO_ENABLE";
     case HCOM_MDOW_REQUEST_MONO_RUN_STATE:          return "MONO_RUN_STATE";
@@ -102,6 +113,8 @@ char *hcom_diag_find_meadow_request_type(uint16_t rqstType)
     case HCOM_MDOW_REQUEST_MONO_FLASH:              return "MONO_FLASH";
     case HCOM_MDOW_REQUEST_SEND_TRACE_TO_UART:      return "SEND_TRACE_TO_UART";
     case HCOM_MDOW_REQUEST_NO_TRACE_TO_UART:        return "NO_TRACE_TO_UART";
+    case HCOM_MDOW_REQUEST_SEND_PROFILER_TO_UART:   return "SEND_PROFILER_TO_UART";
+    case HCOM_MDOW_REQUEST_NO_PROFILER_TO_UART:     return "NO_PROFILER_TO_UART";
     case HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME:     return "MONO_UPDATE_RUNTIME";
     case HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END:    return "MONO_UPDATE_FILE_END";
     case HCOM_MDOW_REQUEST_MONO_START_DBG_SESSION:  return "MONO_START_DBG_SESSION";
@@ -113,14 +126,12 @@ char *hcom_diag_find_meadow_request_type(uint16_t rqstType)
     case HCOM_MDOW_REQUEST_START_ESP_FILE_TRANSFER: return "START_ESP_FILE_TRANSFER";
     case HCOM_MDOW_REQUEST_UPLOAD_START_DATA_SEND:  return "START_SENDING_DATA";
     case HCOM_MDOW_REQUEST_UPLOAD_FILE_INIT:        return "UPLOAD_FILE_INIT";
+    case HCOM_MDOW_REQUEST_EXEC_DIAG_APP_CMD:       return "DIAGNOSTIC APP TEXT";
     case HCOM_MDOW_REQUEST_RTC_SET_TIME_CMD:        return "RTC_SET_TIME";
     case HCOM_MDOW_REQUEST_RTC_READ_TIME_CMD:       return "RTC_READ_TIME";
-    case HCOM_MDOW_REQUEST_RTC_WAKEUP_TIME_CMD: return "RTC_SET_WAKEUP_TIME";
+    case HCOM_MDOW_REQUEST_RTC_WAKEUP_TIME_CMD:     return "RTC_SET_WAKEUP_TIME";
     case HCOM_MDOW_REQUEST_DEBUGGING_DEBUGGER_DATA: return "DEBUGGING_DEBUGGER_DATA";
-    case HCOM_MDOW_REQUEST_DEVELOPER_1:             return "DEVELOPER_1";
-    case HCOM_MDOW_REQUEST_DEVELOPER_2:             return "DEVELOPER_2";
-    case HCOM_MDOW_REQUEST_DEVELOPER_3:             return "DEVELOPER_3";
-    case HCOM_MDOW_REQUEST_DEVELOPER_4:             return "DEVELOPER_4";
+    case HCOM_MDOW_REQUEST_DEVELOPER:               return "DEVELOPER";
     case HCOM_MDOW_REQUEST_QSPI_FLASH_INIT:         return "QSPI_FLASH_INIT";
     case HCOM_MDOW_REQUEST_QSPI_FLASH_WRITE:        return "QSPI_FLASH_WRITE";
     case HCOM_MDOW_REQUEST_QSPI_FLASH_READ:         return "QSPI_FLASH_READ";
@@ -163,6 +174,8 @@ char *hcom_diag_find_host_request_type(uint16_t hostRqstType)
     case HCOM_HOST_REQUEST_INIT_UPLOAD_OKAY:       return "INIT_UPLOAD_OKAY";
     case HCOM_HOST_REQUEST_INIT_UPLOAD_FAIL:       return "INIT_UPLOAD_FAIL";
     case HCOM_HOST_REQUEST_DNLD_FAIL_RESEND:       return "DNLD_FAIL_RESEND";
+    case HCOM_HOST_REQUEST_DEVICE_PUBLIC_KEY:      return "DEVICE_PUBLIC_KEY";
+    case HCOM_HOST_REQUEST_TEXT_NEXT_LOW_PWR:      return "TEXT_NEXT_LOW_PWR";
     case HCOM_HOST_REQUEST_DEBUGGING_MONO_DATA:    return "DEBUGGING_MONO_DATA";
     case HCOM_HOST_REQUEST_UPLOADING_FILE_DATA:    return "UPLOADING_FILE_DATA";
     default:

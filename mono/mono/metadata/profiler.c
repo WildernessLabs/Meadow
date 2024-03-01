@@ -15,6 +15,9 @@
 #include <mono/utils/mono-dl.h>
 #include <mono/utils/mono-error-internals.h>
 #include <mono/utils/mono-logger-internals.h>
+#if defined(__NuttX__)
+#include <mono/profiler/log.h>
+#endif
 
 MonoProfilerState mono_profiler_state;
 
@@ -157,7 +160,14 @@ mono_profiler_load (const char *desc)
 	} else {
 		mname = g_strdup (desc);
 	}
-
+#if defined(__NuttX__)
+	if (!desc || strcmp ("log", desc))
+		mono_trace (G_LOG_LEVEL_DEBUG, MONO_TRACE_PROFILER, "Profiler module %s not supported!", desc);
+   
+	// Call the profiler initialization function using static libs
+    mono_profiler_init_log(desc);
+	goto done;
+#else
 	if (load_profiler_from_executable (mname, desc))
 		goto done;
 
@@ -173,7 +183,7 @@ mono_profiler_load (const char *desc)
 		goto done;
 
 	mono_trace (G_LOG_LEVEL_CRITICAL, MONO_TRACE_PROFILER, "The '%s' profiler wasn't found in the main executable nor could it be loaded from '%s'.", mname, libname);
-
+#endif
 done:
 	g_free (mname);
 	g_free (libname);

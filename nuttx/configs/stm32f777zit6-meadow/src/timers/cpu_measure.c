@@ -53,7 +53,8 @@
 // Timer 6 has no I/O
 #define MEADOW_TIMER_CPU_MEASURE_TIMER_NUMBER (6)
 
-// 1 MHz
+// 1 MHz - No want 65536 Hz then ISR will only be called once/second and we can
+// get rid of _timerOvrFlo.
 #define MEADOW_TIMER_CPU_MEASURE_CLK_FREQ (1000000)
 
 // This value derived by having mono disabled with no CPU load other than
@@ -89,7 +90,8 @@ static volatile int32_t _cpuLoadValue;
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-// This function is called for interrupts configured for measuring time
+// This function is called for interrupts configured for measuring time. It is
+// currently configured to be called about 1 time / second.
 int meadow_timer_cpu_measure_isr(int irq, void *context, void *arg)
 {
   // Check the timer's Status Register
@@ -176,7 +178,7 @@ int meadow_timer_cpu_measure_init(int timerNumber)
   ret = irq_attach(STM32_IRQ_TIM6, meadow_timer_cpu_measure_isr, NULL);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-irq_attach failed:%d, errno:%d\n",
+    syslog(LOG_ERR, "%s@%d-irq_attach failed, ret:%d, errno:%d\n",
           __FILE__, __LINE__, ret, errno);
     return ret;
   }

@@ -69,56 +69,12 @@
 #include <meadow/hcom_upd_shared.h>
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_dnld_shared.h>
+#include <meadow/meadow_thread_config.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-// Thread priorities and names
-// Note: pthreads, unlike kthreads and tasks, cannot be named.
-// The name below are only for error messages ect.
-#define HCOM_THREAD_PRIORITY_HCOM_RECEIVE 180
-#define HCOM_THREAD_NAME_HCOM_RECEIVE "HcomRecv"
-#define HCOM_THREAD_STACKSIZE_HCOM_RECEIVE 2048
-
-// Testing showed with priority of Process being higher than Receive there
-// werevery rare download errors. This is pr9obably in hcom_host_enq_deq.c.
-// With equal priority no errors have been detected.
-// I beleive there is room for improvement in hcom_host_enq_deq.c.
-#define HCOM_THREAD_PRIORITY_HCOM_PROCESS 180
-#define HCOM_THREAD_NAME_HCOM_PROCESS "HcomProc"
-// Stack size is set by CONFIG_USERMAIN_STACKSIZE, currently 65536.
-#define HCOM_THREAD_STACKSIZE_HCOM_PROCESS CONFIG_USERMAIN_STACKSIZE
-
-// Insure hcom recv thread runs before esp32 recv, which is
-// only used to program the ESP32 from HCOM. Here this thread's
-// priority is boosted ahead of most of the hcom threads.
-#define HCOM_THREAD_PRIORITY_ESP32_RECEIVE 130
-#define HCOM_THREAD_NAME_ESP32_RECEIVE "EspRecv"
-#define HCOM_THREAD_STACKSIZE_ESP32_RECEIVE 2048
-
-// This thread reads stdout and forwards to the Host 
-#define HCOM_THREAD_PRIORITY_STDERR_REDIRECT 120
-#define HCOM_THREAD_NAME_STDOUT_REDIRECT "MonoOut"
-#define HCOM_THREAD_STACKSIZE_STDOUT_REDIRECT 2048
-
-// This thread reads stderr and forwards to the Host 
-#define HCOM_THREAD_PRIORITY_STDOUT_REDIRECT 120
-#define HCOM_THREAD_NAME_STDERR_REDIRECT "MonoErr"
-#define HCOM_THREAD_STACKSIZE_STDERR_REDIRECT 2048
-
-// This thread is used for remote debugging mono apps
-#define HCOM_THREAD_PRIORITY_REMOTE_DBG 120
-#define HCOM_THREAD_NAME_REMOTE_DBG "RemoteDbg"
-#define HCOM_THREAD_STACKSIZE_REMOTE_DBG 2048
-
-#define HCOM_THREAD_PRIORITY_CLI_TRANSPORT 120
-#define HCOM_THREAD_NAME_CLI_TRANSPORT "CliXport"
-#define HCOM_THREAD_STACKSIZE_CLI_TRANSPORT 2048
-
-#define HCOM_THREAD_PRIORITY_HOST_TRANSPORT 120
-#define HCOM_THREAD_NAME_HOST_TRANSPORT "HostXport"
-#define HCOM_THREAD_STACKSIZE_HOST_TRANSPORT 2048
 //---------------------------------------------------------------------
 // These define how long the receive thread waits before "waking up." It
 // prevents a failed download from hanging the system for a long time.
@@ -170,6 +126,10 @@
 #define HCOM_TRACE_MASK_NOTICE 0x3f
 #define HCOM_TRACE_MASK_NOTICE_INFO 0x7f
 #define HCOM_TRACE_MASK_NOTICE_INFO_DEBUG 0xff
+
+//----------------------------------------------------------------
+// Cell network logs
+#define HCOM_CELL_DEBUG_LOGS 1
 
 #ifndef __ASSEMBLY__
 
@@ -226,14 +186,13 @@ int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf, size_t *packetLen
 // Received message are first processed using these functions
 int hcom_host_process_setup(void);
 void hcom_host_process_shutdown(void);
-int hcom_host_process_free_dnld_share_mem(void);
-bool hcom_host_process_is_stm32f7_dnld_active(void);
 
 int hcom_host_watchdog_dnld_timer_initialize(void);
 int hcom_host_watchdog_dnld_timer_set_delay(time_t sec);
 int hcom_host_watchdog_dnld_timer_delete(void);
+int hcom_esp32_exec_flash_file(uint8_t *, uint32_t, uint32_t, char *);
 
-void hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hcomMsg,
+int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hcomMsg,
       const size_t packetSize, const uint32_t userData,
       const uint16_t requestType, hcom_dnld_shared_t *dnldShared);  
 int hcom_host_route_setup(void);
@@ -242,13 +201,13 @@ void hcom_host_route_shutdown(void);
 // -----------------------------------------------
 // Execute Request for download add and delete
 int hcom_file_dnld_stm32f7_setup(void);
-void hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
+int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
       hcom_dnld_shared_t *dnldShared);
-void hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
+int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *dataMsg,
       const size_t packetSize, hcom_dnld_shared_t *dnldShared);
-void hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared);
-void hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared);
-void hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShared);
+int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared);
+int hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared);
+int hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShared);
 
 int hcom_file_dnld_esp32_setup(void);
 bool hcom_file_dnld_esp32_is_active(void);
@@ -262,11 +221,9 @@ void hcom_file_dnld_esp32_file_end(uint32_t user_data);
 // Execute Request for uploading a file
 int hcom_file_upld_proc_setup(void);
 void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
-        const size_t packetSize, uint32_t partitionId);
-void hcom_file_upld_proc_start_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
-        const size_t packetSize, uint32_t partitionId);
-void hcom_file_upld_proc_begin_file_uploading(const HcomProtoHdrMsg_t *hdrMsg,
-        const size_t packetSize, uint32_t partitionId);
+        const size_t packetSize);
+int hcom_file_upld_proc_start_file_upload(hcom_dnld_shared_t *dnldShared);
+int hcom_file_upld_proc_begin_file_uploading(hcom_dnld_shared_t *dnldShared);
 void hcom_file_upld_proc_abort_file_upload(const HcomProtoHdrMsg_t *hdrMsg,
         const size_t packetSize, uint32_t partitionId);
 
@@ -281,9 +238,20 @@ int hcom_file_write_close_active_file(hcom_dnld_shared_t *dnldShared);
 
 // -----------------------------------------------
 // File listing functions
-int hcom_file_lists_files_in_partition(uint32_t partitionId);
+int hcom_file_lists_all_files_in_meadow0(const HcomProtoHdrMsg_t *hdrMsg,
+        hcom_dnld_shared_t *dnldShared, bool isCrcNeeded);
 int hcom_file_lists_files_and_crc_in_partition(uint32_t partitionId);
 int hcom_file_lists_all_dev_dir_and_files_start(uint32_t userData);
+
+int hcom_file_lists_all_files_in_subdirectories(const HcomProtoHdrMsg_t *hdrMsg,
+        hcom_dnld_shared_t *dnldShared, bool isCrcNeeded);
+
+// -----------------------------------------------
+// File directory functions
+int hcom_host_process_init_hcom_dnld_share(hcom_dnld_shared_t *dnldShared,
+          const HcomProtoHdrMsg_t *hdrMsg, const size_t packetSize,
+          bool isFileMsgType, bool endExpectFileName);
+int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared);
 
 // -----------------------------------------------
 // File download misc functions
@@ -297,6 +265,8 @@ uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
 int hcom_mono_ctrl_mono_main_setup(void);
 bool hcom_mono_ctrl_is_mono_enabled(void);
 int hcom_mono_ctrl_start_mono_main(void);
+int hcom_pppd_start(void);
+int meadow_cell_scanner(char *response);
 int hcom_mono_ctrl_mono_appears_to_be_running(void);
 void hcom_mono_ctrl_disable_mono(uint32_t userData);
 void hcom_mono_ctrl_enable_mono(uint32_t userData);
@@ -356,6 +326,7 @@ bool hcom_bbreg_is_bbr_bit_set(uint32_t value);
 // HCOM nx (nuttx) access allows low-level access to operating system resources
 int hcom_via_nx_upd_setup(void);
 int hcom_via_nx_upd_driver_open(void);
+int hcom_via_nx_set_any_reg(uint32_t address, uint32_t value);
 int hcom_via_nx_set_bbr(uint32_t value);
 int hcom_via_nx_get_bbr(uint32_t *value);
 int hcom_via_nx_update_bbr(uint32_t clearBits, uint32_t setBits);
@@ -377,11 +348,6 @@ int hcom_via_nx_esp32_restart_esp32(void);
 int hcom_via_nx_start_espcp_running(void);
 void hcom_via_nx_diag_fd_inode(int fd);
 void hcom_via_nx_diag_fd_inode_read(int fd, struct inode **inodeOut);
-int hcom_via_nx_gpio_config(uint32_t gpioPinDefn);
-int hcom_via_nx_gpio_config_alt(int alt_access_fd, uint32_t gpioPinDefn);
-int hcom_via_nx_gpio_write(uint32_t gpioPinDefn, bool cmdValue);
-int hcom_via_nx_gpio_write_alt(int alt_access_fd, uint32_t gpioPinDefn, bool cmdValue);
-int hcom_via_nx_copy_config(uint8_t *);
 int hcom_via_nx_execute_espcp_tests(uint32_t);
 int hcom_via_nx_copy_mono_runtime_to_ram(void);
 
@@ -447,47 +413,35 @@ void hcom_diag_misc_build_info_from_recvd_msg(uint8_t buffer[],
           const int bufLen, bool isEncoded);
 void hcom_diag_misc_build_info_from_send_msg(uint8_t buffer[],
           const int bufLen, bool isEncoded);
-void hcom_diag_decode_recvd_message_type(const HcomProtoHdrMsg_t *hdrMsg,
-          const size_t packetSize);
-void hcom_diag_decode_sending_message_type(const uint8_t *hostRawMsg,
-        const uint16_t hostRqstType, const size_t packetSize);
 void hcom_via_nx_exec_diag_app_cmd(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize);
 
+#if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
+void hcom_diag_decode_recvd_message_type(const HcomProtoHdrMsg_t *hdrMsg,
+          const size_t packetSize);
+void hcom_diag_decode_data_packet_type(int decodedSize);
+void hcom_diag_decode_sending_message_type(const uint8_t *hostRawMsg,
+        const uint16_t hostRqstType, const size_t packetSize);
+#endif
+
 //-------------------------------------------------------
 // Testing utilities
-void hcom_developer_tests_developer_1(uint32_t userData);
-void hcom_developer_tests_developer_2(uint32_t userData);
-void hcom_developer_tests_developer_3(uint32_t userData);
-void hcom_developer_tests_developer_4(uint32_t userData);
+void hcom_developer_tests_developer(uint16_t level, uint32_t value);
 
-#if HCOM_INCLUDE_BATTERY_BACKED_REG_TEST > 0
-void hcom_bbr_tests(void);
-#endif
-
-#if HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD > 0
 int MonoVsRemoteDebugTestSetup(int argc, char *argv[]);
-#endif
 
-#if HCOM_INCLUDE_SNPRINTF_ON_NUTTX_TESTS_IN_BUILD > 0
+void hcom_bbr_tests(uint32_t);
+
 void diag_misc_tests_snprintf_on_nuttx(uint32_t userData);
-#endif
 
-#if defined(CONFIG_EXAMPLES_SQLITE_TESTS)
 void hcom_meadow_sqlite_tests(uint32_t userData);
-#endif
-
-#if HCOM_INCLUDE_GPIO_DIAG_TESTS_IN_BUILD > 0
 void hcom_meadow_diag_gpio_tests(uint32_t userData);
-#endif
+void meadow_dir_mgmt_tests(uint32_t userData);
 
-#if HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD > 0
 void diag_misc_tests_overload_mcu(uint32_t userData);
-#endif
-
-#if MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD > 0
 void diag_ethernet_chat_server(uint32_t userData);
-#endif
+
+void tensorflow_tests_hello_world(uint32_t userData);
 
 // This macro calls a function adding file and line info. I kept the entire
 // macro on a single line to reduce line number confusion. The ## is needed

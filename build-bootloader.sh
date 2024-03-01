@@ -57,40 +57,17 @@ case $i in
     --wlclean)
     WLCLEAN=true
     ;;
-    -m|--mono)
-    # MONO=true
-    # No action in this script.
-    ;;
-    --netcore)
-    # NETCORE=true
-    # No action in this script.
-    ;;
-    --configure)
-    # CONFIGURE_ONLY=true
-    # No action in this script.
-    ;;
     --debug)
     DEBUG=true
     ;;
     -mfd|--makefiledebugging)
     MAKE_OPTIONS="--debug VERBOSE=1"
     ;;
-    --esd)
-    # No action in this script.
-    ;;
     --dbc|--debug-bl-cdc)
     DEBUG_BL_CDC=true
     ;;
     --dbu|--debug-bl-uart)
     DEBUG_BL_UART=true
-    ;;
-    --config=*)
-    # CONFIG=$(echo $i | cut -f2 -d=)
-    # No action in this script.
-    ;;
-    --u|--unit-test)
-    # UNITTEST=true
-    # No action in this script.
     ;;
     *)
     echo "${0##*/}: Unknown option $i"
@@ -106,14 +83,6 @@ if [ "$HELP" = true ]; then
   echo "  -h|--help                    Show this help message"
   echo "  -v|--verbose                 Show verbose output"
   echo "  -mfd|--makefiledebugging     Turn on debug options for make"
-#
-#   Leaving these behind as examples of the stuff we should think about adding.
-#
-#   echo "  -f|--force                   Force build"
-#   echo "  -c|--clean                   Clean build"
-#   echo "  --wlclean                    Clean the Wilderness Labs object files"
-#   echo "  --configure                  Configure the build"
-#   echo "  --debug                      Build with debug symbols"
   exit 0
 fi
 

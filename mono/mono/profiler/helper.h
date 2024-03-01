@@ -7,6 +7,9 @@
 #ifdef HOST_WIN32
 #include <winsock2.h>
 #endif
+#ifdef __NuttX__
+#define PROFILER_SOCKET_NAME "/dev/profiler"
+#endif
 
 void mono_profhelper_add_to_fd_set (fd_set *set, int fd, int *max_fd);
 void mono_profhelper_close_socket_fd (int fd);

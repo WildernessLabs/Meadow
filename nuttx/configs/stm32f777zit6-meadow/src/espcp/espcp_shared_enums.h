@@ -58,7 +58,9 @@ enum espcp_status_codes
     espcp_status_codes_dhcp_configuration_error = 36,
     espcp_status_codes_access_point_not_started = 37,
     espcp_status_codes_access_point_already_started = 38,
-    espcp_status_codes_not_implemented = 39
+    espcp_status_codes_not_implemented = 39,
+    espcp_status_codes_file_not_found = 40,
+    espcp_status_codes_thread_pool_is_full = 41
 };
 typedef enum espcp_status_codes espcp_status_codes_t;
 
@@ -88,7 +90,12 @@ enum espcp_system_function
     espcp_system_function_get_battery_charge_level = 3,
     espcp_system_function_error_event = 4,
     espcp_system_function_start_heap_trace = 5,
-    espcp_system_function_stop_heap_trace = 6
+    espcp_system_function_stop_heap_trace = 6,
+    espcp_system_function_file_system_format = 7,
+    espcp_system_function_file_system_list_files = 8,
+    espcp_system_function_file_system_write_file = 9,
+    espcp_system_function_file_system_read_file = 10,
+    espcp_system_function_file_system_delete_file = 11
 };
 typedef enum espcp_system_function espcp_system_function_t;
 
@@ -206,7 +213,8 @@ enum espcp_configuration_items
     espcp_configuration_items_default_gateway = 11,
     espcp_configuration_items_antenna = 12,
     espcp_configuration_items_board_mac_address = 13,
-    espcp_configuration_items_soft_ap_mac_address = 14
+    espcp_configuration_items_soft_ap_mac_address = 14,
+    espcp_configuration_items_subnet_mask = 15,
 };
 typedef enum espcp_configuration_items espcp_configuration_items_t;
 

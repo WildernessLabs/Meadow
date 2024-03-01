@@ -91,6 +91,8 @@ struct chat
 {
   struct chat_ctl ctl;             /* Embedded 'chat_ctl' type. */
   FAR struct chat_line* script;    /* first line of the script */
+  FAR char* resp;
+  int index;
 };
 
 #endif /* __APPS_NETUTILS_CHAT_CHAT_H */

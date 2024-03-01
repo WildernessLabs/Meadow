@@ -41,20 +41,19 @@
 #define __INCLUDE_MEADOW_POWER_MGMT_LOCAL__H
 
 #include <meadow/hcom_shared_common.h>
+#include <meadow/meadow_thread_config.h>
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
-#if HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD > 0
+#if defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 // This test provides a means to know, and display on syslog, when the clock
 // feeding the RTC (HSE or LSI) has changed.
-  #define PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING (0) // yes=1 or no=0
+  // yes=1 or no=0
+  #define PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING (0)
 #else
-  #define PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING (0) // leave 0
+  // leave 0
+  #define PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING (0)
 #endif
-
-#define PWRMGMT_CAL_LSI_THREAD_NAME "LSI Calibrate"
-#define PWRMGMT_CAL_LSI_THREAD_PRIORITY (120)
-#define PWRMGMT_CAL_LSI_THREAD_STACKSIZE  (2048)
 
 // This are defined here because they are not in Nuttx. In Nuttx they are
 // hardcoded as 0xff and 7812 or 7182 (an error) in stm32_rtc.c etc.
@@ -68,7 +67,7 @@ void pwrmgmt_rtc_wprlock(void);
 int pwrmgmt_rtc_enterinit(void);
 void pwrmgmt_rtc_exitinit(void);
 int pwrmgmt_rtc_synchwait(void);
-void pwrmgmt_rtc_resume(void);
+uint32_t pwrmgmt_rtc_bin2bcd(int value);
 
 // Internal to power management
 int pwrmgmt_enter_stop_mode(void);
@@ -76,19 +75,20 @@ int pwrmgmt_enter_stop_mode(void);
 int pwrmgmt_init_lsi_calib(void);
 uint32_t pwrmgmt_get_lsi_calib_rtc_clk_value(void);
 int pwrmgmt_init_rtc_clk_switch(void);
-int pwrmgmt_config_wakeup_timer(uint16_t wakeupPeriod);
-void meadow_pwr_mgmt_disable_wakeup_timer(void);
+int pwrmgmt_config_rtc_timer_wakeup_seconds(uint16_t wakeupPeriod);
+int pwrmgmt_config_rtc_alarm_wakeup_seconds(time_t secondsTillAlarm);
+int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm);
+void pwrmgmt_disable_wakeup_timer_wakeup(void);
+void pwrmgmt_disable_rtc_alarm_wakeup(void);
 int meadow_pwr_mgmt_use_hse_for_rtc(void);
 int meadow_pwr_mgmt_use_lsi_for_rtc(void);
 
 // This function is in /configs/stm32f777zit6-meadow/src/stm32_idle.c
 void up_idle_pwrmgmt_set_idle_behavior(bool useWaitOps);
 
-#if PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING > 0
-void pwrmgmt_rtc_source_clk_changed_flag(bool dbgClkSwitched);
-#endif
-
-int pwrmgmt_enter_low_power_mode(uint32_t wakeupPeriod);
+  #if PWRMGMT_RTC_SOURCE_CLK_CHANGED_TESTING > 0
+  void pwrmgmt_rtc_source_clk_changed_flag(bool dbgClkSwitched);
+  #endif
 
 #endif  // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 

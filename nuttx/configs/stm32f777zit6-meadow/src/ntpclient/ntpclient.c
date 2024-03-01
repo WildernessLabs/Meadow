@@ -455,6 +455,7 @@ static uint32_t ntpc_daemon(void)
                     ntpc_settime(recv.recvtimestamp);
                     sched_unlock();
                     getting_time = false;
+                    MEADOW_TRACE_INFORMATION("Time received from server.\n");
                     ntpc_raise_time_changed_event(espcp_esp32_interfaces_wi_fi);
                 }
             }

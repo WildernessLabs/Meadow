@@ -188,32 +188,12 @@ void SysTick_Handler(void)
   /* USER CODE BEGIN SysTick_IRQn 1 */
   	if(bootloader_status != bootloader_no_op)
   	{
-  		if(getOTAFlagState(update_flag) == update_nuttx_in_progress)
-		{
 			if(blink_counter >= 50)
 			{
 				HAL_GPIO_TogglePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin);
 				blink_counter = 0;
 			}
-		}
-		else if(getOTAFlagState(rollback_flag) == rollback_nuttx_in_progress)
-		{
-			if(blink_counter >= 50)
-			{
-				HAL_GPIO_TogglePin(OnboardLedRed_GPIO_Port, OnboardLedRed_Pin);
-				blink_counter = 0;
-			}
-		}
-		else if(getOTAFlagState(backup_flag) == backup_nuttx_in_progress)
-			{
-				if(blink_counter >= 50)
-				{
-					HAL_GPIO_TogglePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin);
-					HAL_GPIO_TogglePin(OnboardLedRed_GPIO_Port, OnboardLedRed_Pin);
-					blink_counter = 0;
-				}
-		}
-		blink_counter++;
+		  blink_counter++;
   	}
 
   /* USER CODE END SysTick_IRQn 1 */

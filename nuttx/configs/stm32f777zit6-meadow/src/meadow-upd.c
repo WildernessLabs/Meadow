@@ -36,11 +36,12 @@
 #include <meadow/hcom_nuttx_shared.h>
 #include <meadow/hcom_shared_common.h>
 #include "stm32_uid.h" // stm32_get_uniqueid()
+#include "hcom_nx/hcom_nx_common.h"
 
 #include "espcp/espcp_common.h"
 #include "espcp/espcp_encoders.h"
 #include "hcom_nx/hcom_nx_config_manager.h"
-#include "pwrmgmt/pwrmgmt_local.h"
+// #include "pwrmgmt/pwrmgmt_local.h"
 
 /****************************************************************************
  * Private Types
@@ -183,7 +184,7 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
   struct upd_register_value *register_val;
   struct upd_register_update *register_update;
-  struct upd_gpio_int_config *interrupt_cfg;
+  struct mint_gpio_int_config *interrupt_cfg;
 
   switch(cmd)
   {
@@ -201,8 +202,8 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         modifyreg32(register_update->address, register_update->clearBits, register_update->setBits);
         return OK;
     case MUPD_REGISTER_GPIO_IRQ:
-        interrupt_cfg = (struct upd_gpio_int_config *)arg;
-        return upd_config_interrupt(interrupt_cfg);
+        interrupt_cfg = (struct mint_gpio_int_config *)arg;
+        return mint_config_interrupt(interrupt_cfg);
 
     case MUPD_PWM_SETUP:
     case MUPD_PWM_SHUTDOWN:
@@ -251,9 +252,10 @@ static int upd_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   return ERROR;
 }
 
+// Allow the CLI to initiate Meadow entering the stop mode for a time period.
 static int upd_handle_sleep_command(struct upd_sleep_cmd* cmd)
 {
-  return pwrmgmt_enter_low_power_mode(cmd->secondsToSleep);
+  return pwrmgmt_enter_stm32f7_stop_mode(cmd->secondsToSleep);
 }
 
 static int upd_handle_dir_enum(struct upd_dir_enum_cmd* cmd)
@@ -356,6 +358,46 @@ static int upd_handle_spi_data(int cmd, struct upd_spi_data_cmd* data)
     return ENODEV;
   }
 
+#if defined (CONFIG_STM32F7_SPI_DMA)
+  // The STM32F777 used in Meadow has a DMA transfer size limit of 65535
+  // bytes. For more information see Ref Man section 8.3.6 and 8.3.16 the
+  // last bullet,"...This means that a maximum of 65535 data items can be
+  // managed by the DMA in a single transaction."
+  if(data->txBuffer || data->rxBuffer)
+  {
+    if(data->length <= 0xffff)
+    {
+      SPI_EXCHANGE(target, data->txBuffer, data->rxBuffer, data->length);
+    }
+    else
+    {
+      uint32_t numbToSend = data->length;
+      uint8_t *txTempBuf = data->txBuffer;
+      uint8_t *rxTempBuf = data->rxBuffer;
+
+      // There is also a DMA requirement that the number be mulitple of 4 or 2,
+      // in some cases.
+      while(numbToSend > 65532)
+      {
+        // syslog(1, "->Send Loop-to send %lu bytes, tx:%p->rx:%p\n",
+        //           numbToSend, txTempBuf, rxTempBuf);
+        SPI_EXCHANGE(target, txTempBuf, rxTempBuf, 65532);
+        if(txTempBuf) txTempBuf += 65532;
+        if(rxTempBuf) rxTempBuf += 65532;
+        numbToSend -= 65532;
+      }
+
+      // syslog(1, "->Send Last-%lu bytes, tx:%p->rx:%p\n",
+      //             numbToSend, txTempBuf, rxTempBuf);
+      SPI_EXCHANGE(target, txTempBuf, rxTempBuf, numbToSend);
+    }
+  }
+  else
+  {
+    // no read or write buffer
+    return EINVAL;
+  }
+#else
   // if we have only outbuffer, it's a write
   if(data->txBuffer)
   {
@@ -380,7 +422,7 @@ static int upd_handle_spi_data(int cmd, struct upd_spi_data_cmd* data)
     // no read or write buffer
     return EINVAL;
   }
-  
+#endif
   return OK;
 }
 
@@ -530,13 +572,13 @@ static int upd_open(struct file *filep)
   extern mqd_t s_int_queue;
   struct mq_attr attr;
   attr.mq_flags = 0;
-  attr.mq_maxmsg = QUEUE_MAX_MSGS;
-  attr.mq_msgsize = QUEUE_MSG_SIZE;
+  attr.mq_maxmsg = MINT_MSG_QUEUE_MAX_MSGS;
+  attr.mq_msgsize = MINT_MSG_QUEUE_MSG_SIZE;
   attr.mq_curmsgs = 0;
 
   if(s_int_queue == 0)
   {
-    s_int_queue = mq_open(QUEUE_NAME, O_WRONLY | O_CREAT, 0660, &attr);
+    s_int_queue = mq_open(MINT_MSG_QUEUE_NAME, O_WRONLY | O_CREAT, 0660, &attr);
     if (s_int_queue == (mqd_t)-1)
     {
       int errcode = get_errno();

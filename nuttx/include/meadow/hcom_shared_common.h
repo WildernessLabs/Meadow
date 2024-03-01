@@ -40,6 +40,7 @@
  ****************************************************************************/
 
 #include <unistd.h>
+#include <nuttx/net/net.h>
 #include <nuttx/semaphore.h>
 #include <meadow/hcom_protocol.h>
 
@@ -50,17 +51,6 @@
 /****************************************************************************
  * External definitions.
  ****************************************************************************/
-
-/*
- *    Selected network defined in config.
- */
-enum meadow_selected_network_e
-{
-    meadow_network_type_wifi = 0x00,
-    meadow_network_type_ethernet = 0x01,
-    meadow_network_type_gsm = 0x02
-};
-typedef enum meadow_selected_network_e meadow_selected_network_t;
 
 /****************************************************************************
  * Private defines
@@ -80,9 +70,13 @@ typedef enum meadow_selected_network_e meadow_selected_network_t;
 #  define MAX(a,b) (((a) > (b)) ? (a) : (b))
 #endif
 
-// Partition Id may be postpended to /meadow (i.e /meadow0)
-// Note:The following string must fit into 1/2 of the buffer whose size is
-// defined by HCOM_NX_MAX_PATH_AND_FILE_BUFF_LENGTH
+// New while adding subdirectories
+#define HCOM_MEADOW0_PATH_NAME_PREFIX "/meadow0"
+
+// This #define is should be removed, because at this time (13Nov23)
+// partitioning isn't being used. And hasn't been used in the Meadow file
+// system, from the beginning. Also, there's been a fair amount of code written
+// that has no concept of partitioning.
 #define HCOM_FILE_MOUNT_POINT_TARGET "/meadow"
 
 // Partitioning changes will effect the following
@@ -94,19 +88,20 @@ typedef enum meadow_selected_network_e meadow_selected_network_t;
 #define MONO_MEADOW_EXECUTABLE_APP_EXE "/meadow/Meadow.dll"
 #endif
 
+#define MEADOW_SDCARD_MOUNT_POINT_NAME  "/sdcard"
+#define MEADOW_SDCARD_FILE_SYS_TYPE  "vfat"
+#define MEADOW_SDCARD_BLOCK_NAME   "/dev/mmcsd0"
+
 #define HCOM_NX_FS_MONO_RAW_PARTITION_SIZE 0x300000 // 3MB
-#define HCOM_NX_FS_MONO_RUNTIME_FILENAME "Meadow.OS.Runtime.bin"
-
 #define HCOM_NX_FS_OTA_RESERVED_SPACE 0x200000 // 2MB reserved space for updates
-
 #define HCOM_NX_FS_NUTTX_UPDATE_SIZE 0x1C0000   // (2MB - 256KB)
-#define HCOM_NX_FS_NUTTX_UPDATE_FILENAME "Meadow.OS.bin"
 
 //==================================================
 // Host text message buffer sizes for text messages
 #define HCOM_TINY_HOST_STRING_BUFF_LENGTH 64        // automatic variable
 #define HCOM_SHORT_HOST_STRING_BUFF_LENGTH 128      // automatic variable
 #define HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH 144  // automatic variable
+#define HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH 512   // allocate
 #define HCOM_MAX_HOST_STRING_BUFF_LENGTH 2048       // allocate
 // PATH_MAX is defined by Nuttx in limits.h. It's 256 or less
 #define HCOM_MAX_PATH_AND_FILE_BUFF_LENGTH ((PATH_MAX * 2) + 2) // allocate
@@ -117,22 +112,180 @@ typedef enum meadow_selected_network_e meadow_selected_network_t;
 // All other INI CFG items are case insensitive
 #define MEADOW_CONFIG_DEFAULT_FILE_NAME "/meadow0/meadow.config.yaml"
 #define MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME "/meadow0/wifi.config.yaml"
+#define MEADOW_CELL_CONFIG_DEFAULT_FILE_NAME "/meadow0/cell.config.yaml"
 #define MEADOW_CONFIG_DEFAULT_DEVICE_NAME "MeadowF7"
 
-#define HCOM_NX_FS_NUTTX_UPDATE_FILENAME "Meadow.OS.bin"
+//==================================================
+// Meadow file logging defintions.
+#define MEADOW_LOGGING_OS_FILE_NAME    "/meadow0/meadow.log"
+
+#define HCOM_NX_FS_NUTTX_UPDATE_FILENAME "Meadow.OS.Update.bin"
 #define HCOM_NX_FS_MONO_RUNTIME_FILENAME "Meadow.OS.Runtime.bin"
 #define UPDATE_DIR "/meadow0/update/"
 #define UPDATE_APP_DIR UPDATE_DIR "app/"
 #define UPDATE_OS_DIR UPDATE_DIR "os/"
-#define ROLLBACK_DIR "/meadow0/rollback/"
+#define ROLLBACK_DIR "/meadow0/rollback"
 
 //==================================================
 //  Network interface types.
 //
 //  These values are flag values.
-#define MEADOW_IFT_UNKNOWN      0x00000000
-#define MEADOW_IFT_ETHERNET     0x00000001
-#define MEADOW_IFT_ESP32        0x00000002
+#define MEADOW_IFT_UNKNOWN          0xffffffff
+#define MEADOW_IFT_UNKNOWN_NAME     "Unknown"
+#define MEADOW_IFT_ESP32            0x00000000
+#define MEADOW_IFT_ESP32_NAME       "WiFi"
+#define MEADOW_IFT_ETHERNET         0x00000001
+#define MEADOW_IFT_ETHERNET_NAME    "Ethernet"
+#define MEADOW_IFT_CELL             0x00000002
+#define MEADOW_IFT_CELL_NAME        "Cell"
+
+//==================================================
+//  Cell module models.
+//
+//  These values are flag values.
+#define CELL_UNKNOWN_MODULE          0xffffffff
+#define CELL_UNKNOWN_MODULE_NAME     "Unknown"
+#define CELL_BG770A_MODULE           0x00000000
+#define CELL_BG770A_MODULE_NAME      "BG770A"
+#define CELL_M95_MODULE              0x00000001
+#define CELL_M95_MODULE_NAME         "M95"
+#define CELL_BG95M3_MODULE           0x00000002
+#define CELL_BG95M3_MODULE_NAME      "BG95M3"
+
+//  Cell network operation modes.
+//
+//  These values are flag values.
+#define CELL_UNKNOWN_MODE           0xffffffff
+#define CELL_UNKNOWN_MODE_NAME      "Unknown"
+#define CELL_CATM1_MODE             0x00000000
+#define CELL_CATM1_MODE_NAME        "CATM1"
+#define CELL_NBIOT_MODE             0x00000001
+#define CELL_NBIOT_MODE_NAME        "NBIOT"
+#define CELL_GSM_MODE               0x00000002
+#define CELL_GSM_MODE_NAME          "GSM"
+
+//  Meadow F7FeatherV2 pin names
+#define F7_MICRO_V2_A00_PIN_NAME "A00"
+#define F7_MICRO_V2_A01_PIN_NAME "A01"
+#define F7_MICRO_V2_A02_PIN_NAME "A02"
+#define F7_MICRO_V2_A03_PIN_NAME "A03"
+#define F7_MICRO_V2_A04_PIN_NAME "A04"
+#define F7_MICRO_V2_A05_PIN_NAME "A05"
+#define F7_MICRO_V2_D00_PIN_NAME "D00"
+#define F7_MICRO_V2_D01_PIN_NAME "D01"
+#define F7_MICRO_V2_D02_PIN_NAME "D02"
+#define F7_MICRO_V2_D03_PIN_NAME "D03"
+#define F7_MICRO_V2_D04_PIN_NAME "D04"
+#define F7_MICRO_V2_D05_PIN_NAME "D05"
+#define F7_MICRO_V2_D06_PIN_NAME "D06"
+#define F7_MICRO_V2_D07_PIN_NAME "D07"
+#define F7_MICRO_V2_D08_PIN_NAME "D08"
+#define F7_MICRO_V2_D09_PIN_NAME "D09"
+#define F7_MICRO_V2_D10_PIN_NAME "D10"
+#define F7_MICRO_V2_D11_PIN_NAME "D11"
+#define F7_MICRO_V2_D12_PIN_NAME "D12"
+#define F7_MICRO_V2_D13_PIN_NAME "D13"
+#define F7_MICRO_V2_D14_PIN_NAME "D14"
+#define F7_MICRO_V2_D15_PIN_NAME "D15"
+
+//  Correspondent MCU pin names for F7FeatherV2
+#define F7_MICRO_V2_A00_PIN GPIO_PORTA | GPIO_PIN4
+#define F7_MICRO_V2_A01_PIN GPIO_PORTA | GPIO_PIN5
+#define F7_MICRO_V2_A02_PIN GPIO_PORTA | GPIO_PIN3
+#define F7_MICRO_V2_A03_PIN GPIO_PORTB | GPIO_PIN0
+#define F7_MICRO_V2_A04_PIN GPIO_PORTB | GPIO_PIN1
+#define F7_MICRO_V2_A05_PIN GPIO_PORTC | GPIO_PIN0
+#define F7_MICRO_V2_D00_PIN GPIO_PORTI | GPIO_PIN9
+#define F7_MICRO_V2_D01_PIN GPIO_PORTH | GPIO_PIN13
+#define F7_MICRO_V2_D02_PIN GPIO_PORTH | GPIO_PIN10
+#define F7_MICRO_V2_D03_PIN GPIO_PORTB | GPIO_PIN8
+#define F7_MICRO_V2_D04_PIN GPIO_PORTB | GPIO_PIN9
+#define F7_MICRO_V2_D05_PIN GPIO_PORTB | GPIO_PIN4
+#define F7_MICRO_V2_D06_PIN GPIO_PORTB | GPIO_PIN13
+#define F7_MICRO_V2_D07_PIN GPIO_PORTB | GPIO_PIN7
+#define F7_MICRO_V2_D08_PIN GPIO_PORTB | GPIO_PIN6
+#define F7_MICRO_V2_D09_PIN GPIO_PORTC | GPIO_PIN6
+#define F7_MICRO_V2_D10_PIN GPIO_PORTC | GPIO_PIN7
+#define F7_MICRO_V2_D11_PIN GPIO_PORTC | GPIO_PIN9
+#define F7_MICRO_V2_D12_PIN GPIO_PORTB | GPIO_PIN14
+#define F7_MICRO_V2_D13_PIN GPIO_PORTB | GPIO_PIN15
+#define F7_MICRO_V2_D14_PIN GPIO_PORTB | GPIO_PIN12
+#define F7_MICRO_V2_D15_PIN GPIO_PORTG | GPIO_PIN12
+
+//==================================================
+//  Structure to hold cell network interface information
+struct cell_settings_s
+{
+  /**
+   *  @brief Default name module (i.e BG770A, M95, BG95M3).
+   */
+  char* module;
+  
+  /**
+   *  @brief Default module id.
+   */
+  uint32_t module_id;
+
+  /**
+   *  @brief Default cell access point name (APN).
+   */
+  char* apn;
+
+  /**
+   *  @brief Default cell numeric operator code (i.e. 72410).
+   */
+  char* operator;
+
+  /**
+   *  @brief Default IoT operation mode (e.g, NBIoT, CatM1, GSM)
+   */
+  char* mode;
+
+  /**
+   *  @brief Default IoT operation mode id
+   */
+  uint32_t mode_id;
+
+  /**
+   *  @brief Default interface name used in the communication 
+   *  with the cell module.
+   */
+  char* ttyname;
+
+  /**
+   *  @brief Default Meadow device pin name used to turn on the
+   *  cell modules (e.g, C7)
+   */
+  char* turn_on_pin_name;
+
+  /**
+   *  @brief Default Meadow device pin used to turn on the
+   *  cell modules
+   */
+  uint32_t turn_on_pin;
+
+  /**
+   *  @brief Default chat app timeout in seconds, used to 
+   * define how long to wait for the modem response.
+   */
+  char* timeout;
+
+  /**
+  *  @brief Default cell PAP authentication user.
+  */
+  char* pap_user;
+
+  /**
+   *  @brief Default cell PAP authentication password.
+   */
+  char* pap_password;
+
+  /**
+   *  @brief Enable cell network scanner mode
+  */
+  uint32_t scan_mode;
+};
+typedef struct cell_settings_s cell_settings_t;
 
 //==================================================
 //  Structure to hold network interface information
@@ -142,6 +295,11 @@ struct meadow_network_interface_s
    *  @brief Network interface type (see MEADOW_IFT_* constants).
    */
   uint32_t interface_type;
+
+  /**
+   * @brief Name used to identify this interface.
+   */
+  char *name;
 
   /**
    *  @brief Use a DHCP server?
@@ -162,6 +320,16 @@ struct meadow_network_interface_s
    *  @brief Default gateway.
    */
   uint32_t gateway;
+
+  /**
+   *  @brief Changing default gateway?
+   */
+  bool gateway_changed;
+
+  /**
+   * @brief Pointer to the psock methods
+   */
+  const struct sock_intf_s *psock_methods;
 };
 typedef struct meadow_network_interface_s meadow_network_interface_t;
 
@@ -291,6 +459,11 @@ struct meadow_configuration_s
   uint8_t use_uart1_for_trace;
 
   /**
+   *  @brief Should profiler output be diverted to UART1?
+   */
+  uint8_t use_uart1_for_profiling;
+
+  /**
    *  @brief Clock speed of the SPI interface between the STM32 and the ESP32.
    */
   uint32_t esp_spi_speed_hz;
@@ -315,6 +488,11 @@ struct meadow_configuration_s
    * @brief Does the system have SD card hardware installed (CCM).
    */
   uint8_t sd_storage_supported;
+
+  /**
+   * @brief Names of any reserved pins.
+   */
+  char *reserved_pins;
 
   /**
    * @brief Operating system version information.
@@ -355,11 +533,6 @@ struct meadow_configuration_s
   uint8_t chip_id[12];
 
   /**
-   * @brief Type of network selected (WiFi, Ethernet, GSM etc.)
-   */
-  meadow_selected_network_t selected_network;
-
-  /**
    *  @brief Point to the structure holding the default network interface information.
    */
   meadow_network_interface_t *default_interface;
@@ -370,9 +543,20 @@ struct meadow_configuration_s
   char *default_access_point;
 
   /**
+   *  @brief Default cell network interface settings
+   */
+  cell_settings_t *default_cell_settings;
+  
+  /**
    *  @brief Get network time at startup?
    */
   uint8_t get_network_time_at_startup;
+
+  /**
+   *  @brief DNS servers and the number of servers in the list.
+   */
+  char **dns_servers;
+  uint32_t dns_servers_count;
 
   /**
    *  @brief Network time servers and the number of servers in the list.
@@ -536,6 +720,42 @@ typedef struct mono_signature_s mono_signature_t;
 //
 #define DEFAULT_INITIALISATION_TIMEOUT_SECONDS 60
 
+//
+//  How long should be the chat script timeout (in seconds), which is used in the
+/// PPPD app to communicate to the modem, before restarting the chat script.
+//
+#define DEFAULT_CELL_PPPD_TIMEOUT "30"
+
+//
+//  Default interface name used to communicate with the cell module.
+//
+#define DEFAULT_CELL_INTERFACE "/dev/ttyS1"
+
+//
+//  Default turn on pin used to activate the cell module.
+//
+#define DEFAULT_CELL_TURN_ON_PIN "D10"
+
+//
+//  Default cell network operation mode
+//
+#define DEFAULT_CELL_MODE ""
+
+//
+//  Default cell operator numeric code
+//
+#define DEFAULT_CELL_OPERATOR ""
+
+//
+//  Default Cell PAP authentication user
+//
+#define DEFAULT_CELL_PAP_USER ""
+
+//
+//  Default Cell PAP authentication password
+//
+#define DEFAULT_CELL_PAP_PASSWORD ""
+
 //==================================================
 // These identify the stm32f7 uarts used by meadow
 #define MEADOW_RECONFIG_MISCONFIGURED_UART1 1
@@ -568,10 +788,11 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 
 // Cause the build to include the ability to print a buffer
 // full of data, showing hex and ascii. Duplicate code is created
-// on both the apps and nuttx side of hcom
+// on both the apps and nuttx side of hcom. On Apps side 
+// hcom_diag_print_buffer on Nuttx hcom_nx_diag_print_buffer
 #define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE           0
  // To output non-null terminated string. This won't work if binary in buffer
- // syslog(1, "%.*s\n", textLen, buffer);
+ // syslog(2, "%.*s\n", textLen, buffer);
 
 // Outputs to syslog the PID of each new thread
 #define HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS    0
@@ -582,9 +803,9 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 // Should mono be prevented from running?
 #define HCOM_DIAG_PREVENT_MONO_FROM_RUNNING           0
 
-// Adds code that takes the HCOM messages from CLI and outputs
-// a decoded version to syslog enable
-// HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE to add hex dump of HCOM messages
+// Adds code that takes the HCOM messages from/to CLI and outputs a decoded
+// version to syslog. Enable HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE to add hex
+// dump of HCOM messages
 #define HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD   0
 
 // LOG_DEBUG syslog message are almost never used. Set this to 1
@@ -595,43 +816,24 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 // Include test code
 #define HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD      0
 
-#define HCOM_INCLUDE_BATTERY_BACKED_REG_TEST          0
-
-// Include the network tests in the build ?
-#define HCOM_INCLUDE_ESPCP_TESTS                      0
-
 #define HCOM_INCLUDE_QSPI_FLASH_TESTS_IN_BUILD        0
-
-// snprintf behavior is platform dependent. These tests reveal the Nuttx
-// behavior. HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE is needed, see above.
-#define HCOM_INCLUDE_SNPRINTF_ON_NUTTX_TESTS_IN_BUILD 0
-
-// Include tests for SDCard operation
-#define HCOM_INCLUDE_SD_CARD_TESTS_IN_BUILD           0
-
-// Include some simple gpio tests
-#define HCOM_INCLUDE_GPIO_DIAG_TESTS_IN_BUILD         0
-
-// Include a test that allows the MCU to be overloaded
-#define HCOM_INCLUDE_OVERLOAD_MCU_TESTS_IN_BUILD      0
-
-// Configured within a menuconfig Kconfig file
-#if defined (CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
-  // Include a test that allows the F7 to provide an echo chat TCP/IP server.
-  // This #define and the code are only used on the Apps side of Nuttx.
-  #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD  0
-#else
-  // This should stay at 0
-  #define MEADOW_ETHERNET_INCLUDE_CHAT_TEST_IN_BUILD  0
-#endif
-
-// Include tests related to power management and low-power modes
-#define HCOM_INCLUDE_PWR_MGMT_TESTS_IN_BUILD          0
-
-// Include tests related to parsing ISO8601 time data
-#define HCOM_INCLUDE_ISO8601_PARSING_TESTS_IN_BUILD   0
 
 // Include tests related to F7 timers
 #define MEADOW_INCLUDE_TIMER_HARDWARE_TESTS_IN_BUILD  0
+
+// Include a TCP echo server in the build for use with an external TCP client
+#define MEADOW_INCLUDE_ETHERNET_CHAT_TESTS_IN_BUILD   0
+
+// Include in the build code that shows the time being calculated
+// when low-power sleep is requested in seconds.
+#define MEADOW_POWER_MANAGEMENT_SHOW_TIME_CALC        0
+
+// Include the tests code for outputting the current idle percentage
+// via a once / second syslog output message
+#define MEADOW_INCLUDE_IDLE_MONITOR_TESTS_IN_BUILD    0
+
+// Build test code for rotary encoder. Remove when test code configuration
+// implemented.
+#define MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER        1
 
 #endif  // __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H

@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\file\hcom_file_misc.c
  * 
- *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2021-2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,7 @@
 #include <nuttx/config.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <sys/statfs.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -82,9 +83,9 @@ uint32_t hcom_file_misc_calc_crc_for_file(char *completeFilePath,
     return 0;
   }
 
-  crc32Checksum = hcom_file_misc_calc_crc_for_file_fd(fd, completeFilePath, fileSize,
-            blockSizeKB, detectError);
-  
+  crc32Checksum = hcom_file_misc_calc_crc_for_file_fd(fd, completeFilePath,
+            fileSize, blockSizeKB, detectError);
+
   ret = close(fd);
   if (ret < 0)
   {
@@ -107,7 +108,7 @@ uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
   uint8_t *crcReadBuff;
   struct stat fileStatus;
   uint32_t crc32Checksum = 0;
-  
+
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "Opened %s for CRC\n", completeFilePath);
 #endif
@@ -142,7 +143,7 @@ uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
 
   *fileSize = fileStatus.st_size;
   *blockSizeKB = (fileStatus.st_blksize * fileStatus.st_blocks) / 1024;
-   
+
   // Seek to beginning
   off_t offset = lseek(fd, 0, SEEK_SET);
   if (offset == (off_t)-1)
@@ -162,7 +163,6 @@ uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
     *detectError = -ENOMEM;
     return 0;
   }
-
   ssize_t nbytes;
   do
   {
@@ -181,6 +181,7 @@ uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
       crc32Checksum = crc32part(crcReadBuff, nbytes, crc32Checksum);
     }
   } while (nbytes > 0);
+
   free(crcReadBuff);
 
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
@@ -189,5 +190,28 @@ uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
 #endif
 
   *detectError = OK;
+
   return crc32Checksum;
+}
+
+//==========================================================================
+// This function returns the total and free space on the external flash
+int meadow_read_file_total_free_flash_size(uint32_t *totalBytes,
+          uint32_t *freeBytes)
+{
+  int ret;
+  struct statfs statFs;
+
+  ret = statfs("/meadow0", &statFs);
+  if(ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Error: ret:%d, errno:%d\n",
+              __FILE__, __LINE__, ret, errno);
+    return ret;
+  }
+
+  *totalBytes = statFs.f_bsize * statFs.f_blocks;
+  *freeBytes = statFs.f_bsize * statFs.f_bfree;
+
+  return OK;
 }

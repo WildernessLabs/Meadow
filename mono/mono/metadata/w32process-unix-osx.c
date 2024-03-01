@@ -140,12 +140,20 @@ mono_w32process_get_modules (pid_t pid)
 		const char *name;
 
 		name = _dyld_get_image_name (i);
+#if defined(__APPLE__) && defined(__clang__) // getsectbynamefromheader functions are deprecated as of macOS 13.0
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
 #if SIZEOF_VOID_P == 8
 		hdr = (const struct mach_header_64*)_dyld_get_image_header (i);
 		sec = getsectbynamefromheader_64 (hdr, SEG_DATA, SECT_DATA);
 #else
 		hdr = _dyld_get_image_header (i);
 		sec = getsectbynamefromheader (hdr, SEG_DATA, SECT_DATA);
+#endif
+
+#if defined(__APPLE__) && defined(__clang__)
+#pragma clang diagnostic pop
 #endif
 
 		/* Some dynlibs do not have data sections on osx (#533893) */

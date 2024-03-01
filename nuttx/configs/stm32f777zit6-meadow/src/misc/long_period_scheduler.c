@@ -50,6 +50,8 @@
 #include <nuttx/semaphore.h>
 #include <nuttx/kthread.h>
 
+#include <meadow/meadow_thread_config.h>
+
 #include "long_period_scheduler.h"
 
 /****************************************************************************
@@ -93,7 +95,7 @@ typedef struct lps_registered_handlers_s lps_registered_handlers_t;
  *  @brief Linked list of methods that should be run by the scheduler.
  *  
  *  The linked ist contains:
- *      - A pointer to the hander to be executed
+ *      - A pointer to the handler to be executed
  *      - How long before the next invocation of the handler
  *      - Period between invocations (used to reset the timer)
  */
@@ -259,8 +261,8 @@ static int lps_start(void)
     //
     sem_init(&lps_mutex, 0, 0);
     lps_configuration.period = LPS_PERIOD;
-    lps_configuration.pid = kthread_create("LPS Daemon", CONFIG_LPSDAEMON_SERVERPRIO,
-                                           CONFIG_LPSDAEMON_STACKSIZE, (main_t) lps_daemon, (char *const *) NULL);
+    lps_configuration.pid = kthread_create(LSPDAEMON_THREAD_NAME, LPSDAEMON_THREAD_PRIORITY,
+                                           LPSDAEMON_STACKSIZE, (main_t) lps_daemon, (char *const *) NULL);
     if (lps_configuration.pid < 0)
     {
         result = errno;

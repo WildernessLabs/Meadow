@@ -1,7 +1,7 @@
 /****************************************************************************
  * \include\meadow\hcom_protocol.h
  * 
- *   Copyright (C) 2019 - 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,16 +40,31 @@
 
 #include <stdint.h>
 
-// There is no length field. Since the packet boundaries are delimited and the
-// header is fixed length. Therefore, any additional data length is easily
-// determined.
-#define HCOM_PROTOCOL_HCOM_VERSION_NUMBER   ((uint16_t) 0x0006)
+// Protocol versions 6 and below would fail if the protocol version numbers
+// did not match so for all versions prior to 7 we will fail if the version
+// numbers do not match.
+//
+// From version 7 and above it will be the responsibility of the method
+// being invoked to check the protocol version number and act accordingly.
+#define HCOM_PROTOCOL_MINIMUM_PROTOCOL_NUMBER     ((uint16_t) 0x0007)
+#define HCOM_PROTOCOL_PREFERRED_VERSION_NUMBER    ((uint16_t) 0x0008)
+
+// This #define is used to enable the legacy behavior to support CLIv1 which
+// doesn't support subdirectories. When CLIv1 is retired this #define and all
+// the code it enables can be removed
+// Note: This change caused the protocol version to move from 7 to 8
+// (8Dec23 Peter Moody)
+#define HCOM_SUPPORT_CLIV1_LEGACY_BEHAVIOR (1)
+
+// Hold the current protocol version number.  This can be used to allow
+// communication between older versions of CLI and the OS.
+extern uint16_t g_current_hcom_protocol_version;
 
 // COBS needs a specific delimiter. Zero seems to be traditional.
 #define HCOM_PROTOCOL_COBS_ENCODING_DELIMITER_VALUE (0x00)
 
-// What sequence number is used to identify a non-data message?
-#define HCOM_PROTOCOL_NON_DATA_SEQUENCE_NUMBER (0)
+// What sequence number is used to identify a non-data, command message?
+#define HCOM_PROTOCOL_COMMAND_TYPE_SEQUENCE_NUMBER (0)
 
 // Note: while the MD5 hash is 128-bits (16-bytes), it is 32 character
 // hex string from ESP32
@@ -60,17 +75,21 @@
 
 // Define the absolute maximum packet sizes for sent and receive. The length
 // on the wire will be a bit longer because it's encoded.
-#define HCOM_PROTOCOL_PACKET_MAX_SIZE 512
+#define HCOM_PROTOCOL_CURRENT_PACKET_MAX_SIZE             8192
+#define HCOM_PROTOCOL_MINIMUM_VERSION_PACKET_MAX_SIZE     512
+
+// Allow the protocol to dynamically change the maximum packet size.
+extern uint16_t g_current_hcom_maximum_packet_size;
 
 //--------------------------------------------------------------------
-// The following structs define the HCOM Data Messages
+// The following structs define the HCOM Protocol Data Messages
 //--------------------------------------------------------------------
 // Deprecated - This structure should be removed. But, this will take a
 // significant breaking change to the Protocol and to CLI. All messages
-// should use the standard header defined in HcomProtoFileInfo_s, and this
+// should use the standard header defined as HcomProtoFileInfoHdr_t, and this
 // structure should never be used.
-// FYI: This message type hasn't been used send data to host only to send
-// download data (binary file data) to the F7.
+// FYI: This message type wasn't used to send file data to the host PC only
+// to send download data (binary file data) to Meadow.
 struct HcomProtoDataMsg_s
 {
   // This is the only header
@@ -88,9 +107,9 @@ typedef struct HcomProtoDataMsg_s HcomProtoDataMsg_t;
 //--------------------------------------------------------------------
 // The following are used to define HCOM Messages that can be sent/received
 //--------------------------------------------------------------------
-// This struct defines a standard header. This type of header is used for all
-// message types, except HcomProtoDataMsg_s.
-struct HcomProtoStdHeader_s
+// This struct defines a standard protocol message header. This type of header
+// is used for all message types, except legacy/deprecated HcomProtoDataMsg_t.
+struct HcomProtoStdHdr_s
 {
   // If the sequence number is zero (0), it indicates that this is a non-data
   // message.Non-data messages always contain basic message related
@@ -118,16 +137,17 @@ struct HcomProtoStdHeader_s
 
 } __attribute__((packed));
 
-typedef struct HcomProtoStdHeader_s HcomProtoStdHeader_t;
+typedef struct HcomProtoStdHdr_s HcomProtoStdHdr_t;
 
-#define HCOM_PROTOCOL_STD_HEADER_SIZE (sizeof(HcomProtoStdHeader_t))
+#define HCOM_PROTOCOL_STD_HDR_SIZE (sizeof(HcomProtoStdHdr_t))
 
 //--------------------------------------------------------------------
 // This structure defines the additional information needed to initiate a file
 // download, delete and other file related messages. Many of the following
 // fields are not required nor needed for every message type.
-// This struct should be broken into 2, 1 for ESP32 and 1 for Nuttx.
-struct HcomProtoFileInfo_s
+// Note: This struct should be broken into 2, 1 for ESP32 and 1 for Nuttx. But
+// this would be a breaking change.
+struct HcomProtoFileInfoHdr_s
 {
   // File length of the entire file
   uint32_t fileSize;
@@ -146,17 +166,17 @@ struct HcomProtoFileInfo_s
 
 } __attribute__((packed));
 
-typedef struct HcomProtoFileInfo_s HcomProtoFileInfo_t;
+typedef struct HcomProtoFileInfoHdr_s HcomProtoFileInfoHdr_t;
 
-#define HCOM_PROTOCOL_FILE_INFO_SIZE (sizeof(HcomProtoFileInfo_t))
-#define HCOM_PROTOCOL_FILE_INFO_NAME_OFF (offsetof(HcomProtoFileInfo_t, fileName))
+#define HCOM_PROTOCOL_FILE_INFO_HDR_SIZE (sizeof(HcomProtoFileInfoHdr_t))
+#define HCOM_PROTOCOL_FILE_INFO_NAME_HDR_OFF (offsetof(HcomProtoFileInfoHdr_t, fileName))
 
 //--------------------------------------------------------------------
-// Header only. This is a very popular header.
+// Header only message. This is a very popular message type.
 struct HcomProtoHdrMsg_s
 {
   // This is the only thing in a header only message
-  HcomProtoStdHeader_t stdHeader;
+  HcomProtoStdHdr_t stdHeader;
 
 } __attribute__((packed));
 
@@ -164,13 +184,13 @@ typedef struct HcomProtoHdrMsg_s HcomProtoHdrMsg_t;
 #define HCOM_PROTOCOL_HEADER_MSG_LENGTH (sizeof(HcomProtoHdrMsg_t))
 
 //--------------------------------------------------------------------
-// Header plus File Info
+// Header plus File Info message
 struct HcomProtoFileMsg_s
 {
-  HcomProtoStdHeader_t stdHeader;
+  HcomProtoStdHdr_t stdHeader;
 
   // Additional information relate to file downloads/uploads
-  HcomProtoFileInfo_t fileInfo;
+  HcomProtoFileInfoHdr_t fileInfo;
 
 } __attribute__((packed));
 
@@ -178,57 +198,14 @@ typedef struct HcomProtoFileMsg_s HcomProtoFileMsg_t;
 #define HCOM_PROTOCOL_FILE_MSG_LENGTH (sizeof(HcomProtoFileMsg_t))
 
 //--------------------------------------------------------------------
-// Currently, (ver B5.3) only used to upload to Host from Meadow's File System
-// This contains the information needed to initiate the downloading a file into
-// the the primary file system
-struct HcomProtoFSInfoMsg_s
-{
-  // This is the only thing in a header only message
-  HcomProtoStdHeader_t stdHeader;
-
-  // Additional information relate to file downloads/uploads
-  uint32_t fileSize;
-
-  uint32_t crcChecksum;
-
-  uint8_t fileName[0];
-
-} __attribute__((packed));
-
-typedef struct HcomProtoFSInfoMsg_s HcomProtoFInfoMsg_t;
-#define HCOM_PROTOCOL_FS_REC_MSG_LENGTH (sizeof(HcomProtoFSInfoMsg_t))
-
-//--------------------------------------------------------------------
-// This contains the information needed to initiate downloading a file into
-// the STM32F7 primary file system or the ESP32's internal file system
-struct HcomProtoEspFileInfoMsg_s
-{
-  // This is the only thing in a header only message
-  HcomProtoStdHeader_t stdHeader;
-
-  // Additional information relate to file downloads/uploads
-  uint32_t fileSize;
-
-  // File flash address (used only by ESP32)
-  uint32_t fileFlashAddr;
-
-  // The MD5 Hash is 32 char hex string (used only by ESP32)
-  char fileMD5Hash[HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH];
-
-} __attribute__((packed));
-
-typedef struct HcomProtoEspFileInfoMsg_s HcomProtoEspFileInfoMsg_t;
-#define HCOM_PROTOCOL_FS_REC_MSG_LENGTH (sizeof(HcomProtoEspFileInfoMsg_t))
-
-//--------------------------------------------------------------------
 // Header plus Text Info
 struct HcomProtoTextMsg_s
 {
   // This is the only thing in a header only message
-  HcomProtoStdHeader_t stdHeader;
+  HcomProtoStdHdr_t stdHeader;
 
   // Some 'simple' messages containing string information.
-  char textData[0];
+  char textData[0];   // This can be path name
 
 } __attribute__((packed));
 
@@ -245,7 +222,7 @@ typedef struct HcomProtoTextMsg_s HcomProtoTextMsg_t;
 // Note: The name HcomProtoDiagCmdMsg_s is poor. What's diagnostic about it?
 struct HcomProtoDiagCmdMsg_s
 {
-  HcomProtoStdHeader_t stdHeader;
+  HcomProtoStdHdr_t stdHeader;
 
   // By convention the argument list is comma separated and the first entry
   // is the name of the application to execute. (e.g. ping, wildernesslabs.co)
@@ -270,7 +247,7 @@ typedef struct HcomProtoDiagCmdMsg_s HcomProtoDiagCmdMsg_t;
 struct HcomProtoBinMsg_s
 {
   // This is the only thing in a header only message
-  HcomProtoStdHeader_t stdHeader;
+  HcomProtoStdHdr_t stdHeader;
 
   // Additional binary information for debugging or file data
   uint8_t binData[0];
@@ -283,20 +260,24 @@ typedef struct HcomProtoBinMsg_s HcomProtoBinMsg_t;
 
 //--------------------------------------------------------------------
 // What is the amount of space available in a message with only a header?
-#define HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN (HCOM_PROTOCOL_PACKET_MAX_SIZE - \
+#define HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN (g_current_hcom_maximum_packet_size - \
           (HCOM_PROTOCOL_HEADER_MSG_LENGTH))
 
 // This is the maximum length of a message that can fit in a single packet
 #define HCOM_LARGE_HOST_STRING_BUFF_LENGTH  HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN
 
 // Based on the encoding scheme (COTS), after encoding there will usually be
-// 2-3 bytes added. One that prepends the message and the delimiter of '0'. For
-// messages longer than 254 bytes, another byte may be added every 254 bytes.
-// What would be a safe size for the receive buffer that can hold an encoded
-// message? The COBS encoding can add 2 bytes every 254 bytes. Add a fudge
-// factor of 8 for safety.
-#define HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE (HCOM_PROTOCOL_PACKET_MAX_SIZE + \
-          (HCOM_PROTOCOL_PACKET_MAX_SIZE/254) + 8)
+// 2-3 bytes added for a short message. One that prepends the message and the
+// delimiter of '0'. For messages longer than 254 bytes, another byte may be
+// added every 254 bytes. What would be a safe size for the receive buffer
+// that can hold an encoded message? The COBS encoding can add 2 bytes every
+// 254 bytes. Add a fudge factor of 8 for safety.
+// Note: The COBS encoded size varies depending on the data type. A file
+// containing all null values (assuming the delimiter is null) will need 3
+// additional bytes, no matter what the file size. A text file will need to
+// insert the protocol delimiter every 254 bytes plus the 3 bytes.
+#define HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE (g_current_hcom_maximum_packet_size + \
+          (g_current_hcom_maximum_packet_size / 254) + 8)
 
 //--------------------------------------------------------------------------
 // HCOM Protocol message type definitions
@@ -349,8 +330,10 @@ enum HcomMeadowRequestType
   HCOM_MDOW_REQUEST_BULK_FLASH_ERASE        = 0x0a | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_ENTER_DFU_MODE          = 0x0b | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_ENABLE_DISABLE_NSH      = 0x0c | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
+#if HCOM_SUPPORT_CLIV1_LEGACY_BEHAVIOR > 0
   HCOM_MDOW_REQUEST_LIST_PARTITION_FILES    = 0x0d | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC = 0x0e | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
+#endif
   HCOM_MDOW_REQUEST_MONO_DISABLE            = 0x0f | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_MONO_ENABLE             = 0x10 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_MONO_RUN_STATE          = 0x11 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
@@ -364,6 +347,8 @@ enum HcomMeadowRequestType
   HCOM_MDOW_REQUEST_MONO_FLASH              = 0x19 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_SEND_TRACE_TO_UART      = 0x1a | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_NO_TRACE_TO_UART        = 0x1b | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
+  HCOM_MDOW_REQUEST_SEND_PROFILER_TO_UART   = 0x23 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
+  HCOM_MDOW_REQUEST_NO_PROFILER_TO_UART     = 0x24 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
 
   // >>> Breaking protocol change.
   // ToDo: HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME is miscategorized should be
@@ -391,19 +376,28 @@ enum HcomMeadowRequestType
   HCOM_MDOW_REQUEST_RTC_SET_TIME_CMD        = 0x03 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
   HCOM_MDOW_REQUEST_RTC_READ_TIME_CMD       = 0x04 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
   HCOM_MDOW_REQUEST_RTC_WAKEUP_TIME_CMD     = 0x05 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
+  HCOM_MDOW_REQUEST_LIST_FILES_SUBDIR       = 0x06 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
+  HCOM_MDOW_REQUEST_LIST_FILES_SUBDIR_CRC   = 0x07 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
 
   // This is a simple type with binary data
   HCOM_MDOW_REQUEST_DEBUGGING_DEBUGGER_DATA = 0x01 | HCOM_PROTOCOL_HEADER_SIMPLE_BINARY_TYPE,
 
-  // Only used for testing
-  HCOM_MDOW_REQUEST_DEVELOPER_1             = 0xf0 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
-  HCOM_MDOW_REQUEST_DEVELOPER_2             = 0xf1 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
-  HCOM_MDOW_REQUEST_DEVELOPER_3             = 0xf2 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
-  HCOM_MDOW_REQUEST_DEVELOPER_4             = 0xf3 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
+  // >>> Breaking protocol change.
+  // This should be move our of the 0xfx range since it has nothing to do with
+  // diagnostics
+  // Old set developer 4 now used to get file and directory listing. At this
+  // time (Oct23) CLIv1 only uses it to find nested temporary files in a fixed
+  // set of directories
+  HCOM_MDOW_REQUEST_GET_FILES_AND_FOLDERS   = 0xf3 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
+
   // Testing QSPI flash
   HCOM_MDOW_REQUEST_QSPI_FLASH_INIT         = 0xf4 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_QSPI_FLASH_WRITE        = 0xf5 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_QSPI_FLASH_READ         = 0xf6 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
+  HCOM_MDOW_REQUEST_OTA_REGISTER_DEVICE     = 0xf7 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
+
+  // Replacing the old set developer level with new request format.
+  HCOM_MDOW_REQUEST_DEVELOPER               = 0xf8 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
 };
 
 // Messages sent from meadow to host
@@ -438,6 +432,9 @@ enum HcomHostRequestType
   // The Meadow file name is enclosed in single quotes 'filename' and CLI will
   // need to workout what file was being downloaded and start the download over
   HCOM_HOST_REQUEST_DNLD_FAIL_RESEND        = 0x12 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
+  HCOM_HOST_REQUEST_DEVICE_PUBLIC_KEY       = 0x13 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
+
+  HCOM_HOST_REQUEST_TEXT_NEXT_LOW_PWR       = 0x14 | HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE,
 
   // Simple with mono debug data
   HCOM_HOST_REQUEST_DEBUGGING_MONO_DATA     = 0x01 | HCOM_PROTOCOL_HEADER_SIMPLE_BINARY_TYPE,
