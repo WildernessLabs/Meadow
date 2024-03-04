@@ -432,6 +432,7 @@ syslog(2, "hcom_main() running\n"); usleep(10 * 1000);
   // Run system updaters, which apply any OS and filesystem updates that have been staged
   os_update();
   app_update();
+  firmware_update();
 
   // Last stop, start mono
   hcom_mono_ctrl_start_mono_main();
