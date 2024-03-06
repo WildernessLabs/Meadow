@@ -652,9 +652,9 @@ void hcom_mono_ctrl_report_mono_enabled_state(uint32_t userData)
   char *monoStartupMsg;
 
   if (hcom_mono_ctrl_is_mono_enabled())
-    monoStartupMsg = "Runtime is enabled";
+    monoStartupMsg = "Mono is enabled";
   else
-    monoStartupMsg = "Runtime is disabled";
+    monoStartupMsg = "Mono is disabled";
 
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
                                    monoStartupMsg, thisFile, __LINE__);
