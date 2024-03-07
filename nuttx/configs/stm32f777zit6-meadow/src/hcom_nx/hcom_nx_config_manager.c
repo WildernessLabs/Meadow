@@ -146,28 +146,28 @@ typedef struct f7_micro_v2_pin_mapping_s f7_micro_v2_pin_mapping_t;
  *  Define the pin mappings as an array of structures.
  */
 const f7_micro_v2_pin_mapping_t f7_micro_v2_pin_mappings[] = {
-    { F7_MICRO_V2_A00_PIN_NAME, F7_MICRO_V2_A00_PIN },
-    { F7_MICRO_V2_A01_PIN_NAME, F7_MICRO_V2_A01_PIN },
-    { F7_MICRO_V2_A02_PIN_NAME, F7_MICRO_V2_A02_PIN },
-    { F7_MICRO_V2_A03_PIN_NAME, F7_MICRO_V2_A03_PIN },
-    { F7_MICRO_V2_A04_PIN_NAME, F7_MICRO_V2_A04_PIN },
-    { F7_MICRO_V2_A05_PIN_NAME, F7_MICRO_V2_A05_PIN },
-    { F7_MICRO_V2_D00_PIN_NAME, F7_MICRO_V2_D00_PIN },
-    { F7_MICRO_V2_D01_PIN_NAME, F7_MICRO_V2_D01_PIN },
-    { F7_MICRO_V2_D02_PIN_NAME, F7_MICRO_V2_D02_PIN },
-    { F7_MICRO_V2_D03_PIN_NAME, F7_MICRO_V2_D03_PIN },
-    { F7_MICRO_V2_D04_PIN_NAME, F7_MICRO_V2_D04_PIN },
-    { F7_MICRO_V2_D05_PIN_NAME, F7_MICRO_V2_D05_PIN },
-    { F7_MICRO_V2_D06_PIN_NAME, F7_MICRO_V2_D06_PIN },
-    { F7_MICRO_V2_D07_PIN_NAME, F7_MICRO_V2_D07_PIN },
-    { F7_MICRO_V2_D08_PIN_NAME, F7_MICRO_V2_D08_PIN },
-    { F7_MICRO_V2_D09_PIN_NAME, F7_MICRO_V2_D09_PIN },
-    { F7_MICRO_V2_D10_PIN_NAME, F7_MICRO_V2_D10_PIN },
-    { F7_MICRO_V2_D11_PIN_NAME, F7_MICRO_V2_D11_PIN },
-    { F7_MICRO_V2_D12_PIN_NAME, F7_MICRO_V2_D12_PIN },
-    { F7_MICRO_V2_D13_PIN_NAME, F7_MICRO_V2_D13_PIN },
-    { F7_MICRO_V2_D14_PIN_NAME, F7_MICRO_V2_D14_PIN },
-    { F7_MICRO_V2_D15_PIN_NAME, F7_MICRO_V2_D15_PIN },
+    { F7_MICRO_V2_A4_PIN_NAME, F7_MICRO_V2_A4_PIN },
+    { F7_MICRO_V2_A5_PIN_NAME, F7_MICRO_V2_A5_PIN },
+    { F7_MICRO_V2_A3_PIN_NAME, F7_MICRO_V2_A3_PIN },
+    { F7_MICRO_V2_B0_PIN_NAME, F7_MICRO_V2_B0_PIN },
+    { F7_MICRO_V2_B1_PIN_NAME, F7_MICRO_V2_B1_PIN },
+    { F7_MICRO_V2_C0_PIN_NAME, F7_MICRO_V2_C0_PIN },
+    { F7_MICRO_V2_I9_PIN_NAME, F7_MICRO_V2_I9_PIN },
+    { F7_MICRO_V2_H13_PIN_NAME, F7_MICRO_V2_H13_PIN },
+    { F7_MICRO_V2_H10_PIN_NAME, F7_MICRO_V2_H10_PIN },
+    { F7_MICRO_V2_B8_PIN_NAME, F7_MICRO_V2_B8_PIN },
+    { F7_MICRO_V2_B9_PIN_NAME, F7_MICRO_V2_B9_PIN },
+    { F7_MICRO_V2_B4_PIN_NAME, F7_MICRO_V2_B4_PIN },
+    { F7_MICRO_V2_B13_PIN_NAME, F7_MICRO_V2_B13_PIN },
+    { F7_MICRO_V2_B7_PIN_NAME, F7_MICRO_V2_B7_PIN },
+    { F7_MICRO_V2_B6_PIN_NAME, F7_MICRO_V2_B6_PIN },
+    { F7_MICRO_V2_C6_PIN_NAME, F7_MICRO_V2_C6_PIN },
+    { F7_MICRO_V2_C7_PIN_NAME, F7_MICRO_V2_C7_PIN },
+    { F7_MICRO_V2_C9_PIN_NAME, F7_MICRO_V2_C9_PIN },
+    { F7_MICRO_V2_B13_PIN_NAME, F7_MICRO_V2_B14_PIN },
+    { F7_MICRO_V2_B15_PIN_NAME, F7_MICRO_V2_B15_PIN },
+    { F7_MICRO_V2_B12_PIN_NAME, F7_MICRO_V2_B12_PIN },
+    { F7_MICRO_V2_G12_PIN_NAME, F7_MICRO_V2_G12_PIN },
 };
 
 /****************************************************************************
@@ -410,7 +410,7 @@ void hcom_nx_config_map_cell_turn_on_pin(meadow_configuration_t *config)
     else
     {
         syslog(LOG_INFO, "Failed populating cell turn-on pin\n");
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D10_PIN;
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_A3_PIN;
     }
 }
 
