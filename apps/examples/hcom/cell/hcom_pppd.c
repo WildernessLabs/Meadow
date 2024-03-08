@@ -433,19 +433,26 @@ static int pppd_create_handler(void)
 // and to manage the PPP connection.
 static void *pppd_thread(void *cell_settings_ptr)
 {
-    cell_settings_t *cell_settings = (cell_settings_t *) cell_settings_ptr;
+    cell_settings_t *cell_settings = (cell_settings_t *)cell_settings_ptr;
 
     if (cell_settings == NULL)
     {
         hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting cell settings\n", thisFile, __LINE__);
-        goto error_cell;
+        sleep(20);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-Failed starting PPPD\n", thisFile, __LINE__);
+        cell_err = CELL_INVALID_SETTING_ERR;
+        meadow_cell_disconnected_event(cell_err);
+        return NULL;
     }
 
     if (cell_settings->module_id == CELL_UNKNOWN_MODULE)
     {
         hcom_logging_syslog(LOG_INFO, "%s-%d-Invalid cell module id: %u\n", thisFile, __LINE__, cell_settings->module_id);
+        sleep(20);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-Failed starting PPPD\n", thisFile, __LINE__);
         cell_err = CELL_INVALID_MODEM_ERR;
-        goto error_cell;
+        meadow_cell_disconnected_event(cell_err);
+        return NULL;
     }
 
     char *connect_script = (char *)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
@@ -476,21 +483,21 @@ static void *pppd_thread(void *cell_settings_ptr)
     ret = pppd_create_connect_scripts(cell_settings, &connect_script, &disconnect_script);
     if (ret < 0)
     {
-    hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to generate connect scripts, ret=%d\n", thisFile, __LINE__, ret);
-      free(connect_script);
-      free(disconnect_script);
-      free(cell_at_cmds_output);
-      return NULL;
+        hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to generate connect scripts, ret=%d\n", thisFile, __LINE__, ret);
+        free(connect_script);
+        free(disconnect_script);
+        free(cell_at_cmds_output);
+        return NULL;
     }
 
     ret = pppd_create_handler();
     if (ret < 0)
     {
-      hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to create pppd handler, ret=%d\n", thisFile, __LINE__, ret);
-      free(connect_script);
-      free(disconnect_script);
-      free(cell_at_cmds_output);
-      return NULL;
+        hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to create pppd handler, ret=%d\n", thisFile, __LINE__, ret);
+        free(connect_script);
+        free(disconnect_script);
+        free(cell_at_cmds_output);
+        return NULL;
     }
 
     hcom_logging_syslog(LOG_INFO, "%s-%d-Chat scripts created: %s\n %s\n",
@@ -501,8 +508,8 @@ static void *pppd_thread(void *cell_settings_ptr)
         .disconnect_script = disconnect_script,
         .connect_script = connect_script,
         .ttyname = cell_settings->ttyname,
-        .connect_callback = (void*)meadow_cell_connected_event,
-        .disconnect_callback = (void*)meadow_cell_disconnected_event,
+        .connect_callback = (void *)meadow_cell_connected_event,
+        .disconnect_callback = (void *)meadow_cell_disconnected_event,
         .cell_at_cmds_output = cell_at_cmds_output,
         .cell_handler = &hcom_cell_handler,
 #ifdef CONFIG_NETUTILS_PPPD_PAP
@@ -514,11 +521,10 @@ static void *pppd_thread(void *cell_settings_ptr)
     hcom_logging_syslog(LOG_INFO, "%s-%d-Starting PPPD\n", thisFile, __LINE__);
     pppd(&pppd_settings);
 
-    error_cell:
-      sleep(20);
-      hcom_logging_syslog(LOG_INFO, "%s-%d-Failed starting PPPD\n", thisFile, __LINE__);
-      meadow_cell_disconnected_event(cell_err);
-    
+    sleep(20);
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Failed starting PPPD\n", thisFile, __LINE__);
+    meadow_cell_disconnected_event(cell_err);
+
     return NULL;
 }
 
@@ -546,9 +552,8 @@ int hcom_pppd_start()
 
         hcom_logging_syslog(LOG_NOTICE, "%s-%d-Attempting to start PPPD\n", thisFile, __LINE__);
         
-        if (cell_settings.scan_mode)
+        if (config->default_cell_settings != NULL)
         {
-          cell_settings = (cell_settings_t*)malloc(sizeof(cell_settings_t));
           cell_settings = config->default_cell_settings;
 
           if (cell_settings == NULL)
@@ -572,13 +577,13 @@ int hcom_pppd_start()
 
           if (cell_settings->scan_mode)
           {
-            #ifdef HCOM_CELL_DEBUG_LOGS
-                    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                      "Cell: scanning mode on", thisFile, __LINE__);
-            #endif
-            free(cell_settings);
-            meadow_os_config_free_resources(config);
-            return OK;
+#ifdef HCOM_CELL_DEBUG_LOGS
+              hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                  "Cell: scanning mode on", thisFile, __LINE__);
+#endif
+              free(cell_settings);
+              meadow_os_config_free_resources(config);
+              return OK;
           }
       }
         pthread_attr_t attr;
@@ -645,12 +650,12 @@ int meadow_cell_scanner(char *response)
   {
     char *tty = config->default_cell_settings->ttyname;
     int scan_mode = config->default_cell_settings->scan_mode;
+    meadow_os_config_free_resources(config);
 
     if (!scan_mode)
     {
       hcom_logging_syslog(LOG_INFO, "%s-%d-Scan mode is disabled\n", thisFile, __LINE__);
       free(offline_scanner_script);
-      meadow_os_config_free_resources(config);
       return -EINVAL;
     }
 
@@ -666,7 +671,6 @@ int meadow_cell_scanner(char *response)
       hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to open the file descriptor\n", thisFile, __LINE__);
       close(ctl.fd);
       free(offline_scanner_script);
-      meadow_os_config_free_resources(config);
       return -EIO;
     }
     if (pppd_chardev(ctl.fd) < 0)
@@ -674,7 +678,6 @@ int meadow_cell_scanner(char *response)
       hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to config the file descriptor\n", thisFile, __LINE__);
       close(ctl.fd);
       free(offline_scanner_script);
-      meadow_os_config_free_resources(config);
       return -EIO;
     }
 
@@ -704,7 +707,6 @@ int meadow_cell_scanner(char *response)
     ret = -ENOMEM;
   }
 
-  meadow_os_config_free_resources(config);
   free(offline_scanner_script);
   return ret;
 }
