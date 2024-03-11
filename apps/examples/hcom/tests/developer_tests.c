@@ -160,7 +160,17 @@ static meadow_test_t _tests[] =
 #endif
 
   //
-  //  ESP tests 1000 - 1200
+  //  Meadow OS tests (900-999)
+  //
+  //  These are not NuttX tests, they are tests for Wilderness Labs specific features.
+  //
+#if defined(CONFIG_MEADOW_OS_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { 900, "User space assert", meadow_os_userspace_assert_test },
+    // { 901, "Kernel space assert", meadow_kt_assert_test },
+#endif
+
+  //
+  //  ESP tests 1000 - 1199
   //
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
     { 1000, "All ESP32 tests", meadow_kt_espcp_tests },

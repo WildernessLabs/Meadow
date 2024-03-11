@@ -32,6 +32,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
+#ifndef __MEADOW_KERNEL_TESTS_H
+#define __MEADOW_KERNEL_TESTS_H
+
+#include <nuttx/config.h>
+
+#include <stdint.h>
 
 void meadow_kt_espcp_tests(uint32_t);
 void meadow_kt_espcp_load_test_web_page(uint32_t);
@@ -51,3 +57,6 @@ void meadow_kt_dac_tests(uint32_t);
 void meadow_kt_meadow_interrupt_tests(uint32_t);
 void meadow_kt_spi_dma_tests(uint32_t);
 void meadow_kt_rotary_encoder_tests(uint32_t);
+void meadow_kt_assert_test(uint32_t);
+
+#endif // __MEADOW_KERNEL_TESTS_H
