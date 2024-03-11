@@ -587,14 +587,15 @@
 #  define SYS_meadow_os_reset_cycle_count       (SYS_meadow_client_cert_release_credentials + 4)
 #  define SYS_meadow_os_reset_reason            (SYS_meadow_client_cert_release_credentials + 5)
 #  define SYS_meadow_os_hardware_version        (SYS_meadow_client_cert_release_credentials + 6)
+#  define SYS_meadow_os_native_protocol_version (SYS_meadow_client_cert_release_credentials + 7)
 #else
-#  define SYS_meadow_os_hardware_version        SYS_meadow_client_cert_release_credentials
+#  define SYS_meadow_os_native_protocol_version        SYS_meadow_client_cert_release_credentials
 #endif
 
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)
-#  define SYS_meadow_idle_monitor_get_value         (SYS_meadow_os_hardware_version + 1)
+#  define SYS_meadow_idle_monitor_get_value         (SYS_meadow_os_native_protocol_version + 1)
 #else
-#  define SYS_meadow_idle_monitor_get_value         SYS_meadow_os_hardware_version
+#  define SYS_meadow_idle_monitor_get_value         SYS_meadow_os_native_protocol_version
 #endif
 
 #if defined (CONFIG_STM32F7_DMA2)
