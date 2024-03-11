@@ -1,8 +1,8 @@
 /****************************************************************************
- * config/stm32f4discovery/src/stm32_reset.c
+ * configs\stm32f777zit6-meadow\src\stm32_reset.c
  *
- *   Copyright (C) 2019 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
+ *   Author: Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
