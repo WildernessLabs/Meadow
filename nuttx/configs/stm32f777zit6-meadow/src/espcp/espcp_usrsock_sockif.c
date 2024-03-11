@@ -1859,6 +1859,10 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
                     break;
             }
         }
+        else
+        {
+            result = -1;
+        }
     }
 
     espcp_delete_message_and_payload(message);
