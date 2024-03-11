@@ -166,7 +166,7 @@ static meadow_test_t _tests[] =
   //
 #if defined(CONFIG_MEADOW_OS_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
     { 900, "User space assert", meadow_os_userspace_assert_test },
-    // { 901, "Kernel space assert", meadow_kt_assert_test },
+    { 901, "Kernel space assert", meadow_kt_assert_test },
 #endif
 
   //

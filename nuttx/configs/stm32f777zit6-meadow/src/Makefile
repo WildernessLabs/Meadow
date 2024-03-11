@@ -161,7 +161,8 @@ CSRCS += kerneltests/espcp_tests.c \
 		 kerneltests/dig_to_ana_conv_tests.c \
 		 kerneltests/meadow_interrupt_tests.c \
 		 kerneltests/meadow_rotary_encoder_tests.c \
-		 kerneltests/meadow_spi_dma_tests.c
+		 kerneltests/meadow_spi_dma_tests.c \
+		 kerneltests/meadow_os_tests.c \
 
 #
 #	Add the NTP client.

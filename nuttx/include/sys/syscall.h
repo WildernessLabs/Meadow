@@ -651,10 +651,16 @@
 #  define SYS_meadow_kt_bg77_tests     (SYS_meadow_kt_iso8601_tests)
 #endif
 
-#if defined(CONFIG_QUICK_MISC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-#  define SYS_meadow_kt_quick_misc_tests     (SYS_meadow_kt_bg77_tests + 1)
+#if defined(CONFIG_MEADOW_OS_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_assert_test    (SYS_meadow_kt_bg77_tests + 1)
 #else
-#  define SYS_meadow_kt_quick_misc_tests     (SYS_meadow_kt_bg77_tests)
+#  define SYS_meadow_kt_assert_test    (SYS_meadow_kt_bg77_tests)
+#endif
+
+#if defined(CONFIG_QUICK_MISC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#  define SYS_meadow_kt_quick_misc_tests     (SYS_meadow_kt_assert_test + 1)
+#else
+#  define SYS_meadow_kt_quick_misc_tests     (SYS_meadow_kt_assert_test)
 #endif
 
 #if defined(CONFIG_ADC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
