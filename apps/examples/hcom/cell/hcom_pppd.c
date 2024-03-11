@@ -522,7 +522,7 @@ static void *pppd_thread(void *cell_settings_ptr)
     pppd(&pppd_settings);
 
     sleep(20);
-    hcom_logging_syslog(LOG_INFO, "%s-%d-Failed starting PPPD\n", thisFile, __LINE__);
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Failed after starting PPPD\n", thisFile, __LINE__);
     meadow_cell_disconnected_event(cell_err);
 
     return NULL;
@@ -579,11 +579,8 @@ int hcom_pppd_start()
           {
 #ifdef HCOM_CELL_DEBUG_LOGS
               hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                  "Cell: scanning mode on", thisFile, __LINE__);
+                  "ScanMode config has been deprecated! Consult how to use the network scanner on Meadow cellular docs.", thisFile, __LINE__);
 #endif
-              free(cell_settings);
-              meadow_os_config_free_resources(config);
-              return OK;
           }
       }
         pthread_attr_t attr;
@@ -625,88 +622,4 @@ int hcom_pppd_start()
 
   meadow_os_config_free_resources(config);
   return -ENODATA;
-}
-
-//====================================================================
-// This function is called by a .NET method to start the offline cell 
-// scanner, which is responsible for show the available cell networks,
-// including its operator code, if the scan mode is enabled.
-int meadow_cell_scanner(char *response)
-{
-  struct chat_ctl ctl;
-  meadow_configuration_t *config = meadow_os_deep_copy_config();
-  int ret;
-
-  char *offline_scanner_script = (char *)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
-  if (offline_scanner_script == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate offline scanner script\n", thisFile, __LINE__);
-    return -ENOMEM;
-  }
-
-  snprintf_chk(offline_scanner_script, CONNECT_SCRIPT_MAX_SIZE, "\"\" AT+COPS=? PAUSE 3 OK \\c");
-
-  if (config != NULL)
-  {
-    char *tty = config->default_cell_settings->ttyname;
-    int scan_mode = config->default_cell_settings->scan_mode;
-    meadow_os_config_free_resources(config);
-
-    if (!scan_mode)
-    {
-      hcom_logging_syslog(LOG_INFO, "%s-%d-Scan mode is disabled\n", thisFile, __LINE__);
-      free(offline_scanner_script);
-      return -EINVAL;
-    }
-
-    ctl.echo = false;
-    ctl.verbose = false;
-    ctl.timeout = NETWORK_SCAN_AT_CMD_TIMEOUT;
-
-    memset(response, 0x00, sizeof(response));
-
-    ctl.fd = open(tty, O_RDWR);
-    if (ctl.fd < 0)
-    {
-      hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to open the file descriptor\n", thisFile, __LINE__);
-      close(ctl.fd);
-      free(offline_scanner_script);
-      return -EIO;
-    }
-    if (pppd_chardev(ctl.fd) < 0)
-    {
-      hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to config the file descriptor\n", thisFile, __LINE__);
-      close(ctl.fd);
-      free(offline_scanner_script);
-      return -EIO;
-    }
-
-    // Switch to DATA MODE from AT MODE (required to send AT commands)
-    write(ctl.fd,"+++",3);
-    sleep(2);
-    write(ctl.fd, "ATE1\r\n", 6);
-    sleep(2);
-
-    ret = chat(&ctl, offline_scanner_script, response);
-    if (ret > 0)
-    {
-      cell_err = CELL_PPPD_TIMEOUT_ERR;
-      meadow_cell_disconnected_event(cell_err);
-    }
-
-    close(ctl.fd);
-
-    ret = strlen(response);
-    if (ret > 0)
-    {
-      hcom_logging_syslog(LOG_INFO, "%s-%d-AT commands output: %s\n", thisFile, __LINE__, response);
-    }
-  }
-  else
-  {
-    ret = -ENOMEM;
-  }
-
-  free(offline_scanner_script);
-  return ret;
 }

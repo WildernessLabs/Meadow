@@ -85,7 +85,6 @@ typedef enum hcom_cell_err_e hcom_cell_err_t;
 
 void pppd_set_state(hcom_pppd_handler_t *handler, int state);
 void pppd_clear_state(hcom_pppd_handler_t *handler, int state);
-int meadow_cell_scanner(char *response);
 int hcom_pppd_start(void);
 
 #endif //__CONFIGS_MEADOW_SRC_HCOM_CELL_PPPD__H
