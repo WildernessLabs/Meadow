@@ -101,6 +101,7 @@ static int _uart1_fd;
 static bool _trace_kthread_running;
 static bool _trace_log_to_host;
 static bool _trace_log_to_uart1;
+static bool _profiler_log_to_uart1;
 static size_t _cliMsgLength;
 static sem_t _startupSem;
 static sem_t _readNxtSem;
@@ -157,7 +158,7 @@ int hcom_nx_trace_msg_proc_setup()
   hcom_nx_trace_read_bbreg_config();
 
   // Follow through with initialization if needed
-  if(_trace_log_to_host || _trace_log_to_uart1)
+  if((_trace_log_to_host || _trace_log_to_uart1) && !_profiler_log_to_uart1)
     hcom_nx_trace_msg_lazy_initialization();
   return OK;
 }
@@ -184,6 +185,11 @@ void hcom_nx_trace_read_bbreg_config()
     _trace_log_to_host = true;
   else
     _trace_log_to_host = false;
+
+    if((HCOM_BBREG_ROUTE_PROFILER_BINS_TO_UART1_BIT & bbrRegValue) > 0)
+    _profiler_log_to_uart1 = true;
+  else
+    _profiler_log_to_uart1 = false;
 }
 
 //==========================================================================
@@ -225,7 +231,7 @@ int hcom_nx_trace_msg_lazy_initialization()
   // has started. Also, since executed at startup, if the OS crashes, we
   // should still see this message which gives us a clue why no other trace
   // messages follow.
-  if(_trace_log_to_uart1)
+  if(_trace_log_to_uart1 && !_profiler_log_to_uart1)
   {
     struct tm tmNow;
     char timeBuf[64];
@@ -364,7 +370,7 @@ void *hcom_nx_trace_msg_kthread(int argc, char *argv[])
     }
 
     // Open uart1 if it's requested
-    if(_trace_log_to_uart1)
+    if(_trace_log_to_uart1 && !_profiler_log_to_uart1)
     {
       ret = hcom_nx_trace_msg_open_uart1_serial_port();
       if(_shutting_down) break;
@@ -434,6 +440,7 @@ void hcom_nx_trace_kthread_exit_cleanup()
 {
   _trace_log_to_uart1 = false;
   _trace_log_to_host = false;
+  _profiler_log_to_uart1 = false;
 
   close(_ramlog_fd);
   _ramlog_fd = -1;
@@ -817,7 +824,7 @@ void hcom_nx_uart1_direct(int priority, const char *fmt, ...)
 int hcom_nx_trace_msg_send_msg_to_uart1(const char *toUartBuf, size_t numbBytes)
 {
   // If uart1 not opened do this now
-  if(_uart1_fd < 0)
+  if(_uart1_fd < 0 && !_profiler_log_to_uart1)
   {
     int ret = hcom_nx_trace_msg_open_uart1_serial_port();
     if(ret < 0)
@@ -1040,11 +1047,79 @@ int hcom_nx_exec_trace_do_not_send_to_uart1(struct hcom_nx_cmd_data *cmdData)
 }
 
 //======================================================================================
+// Called from Meadow.CLI to enable profiling data output to uart1.
+int hcom_nx_exec_profiler_forward_to_uart1(struct hcom_nx_cmd_data *cmdData)
+{
+  char *sendMsgToHost;
+  
+   // Set the appropriate battery backed register bit
+  modifyreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER,
+              0, HCOM_BBREG_ROUTE_PROFILER_BINS_TO_UART1_BIT);
+
+  // If ramlog configured, need to init ramlog now. This insures
+  // that Meadow.CLI is listening
+#if defined (CONFIG_RAMLOG_SYSLOG)
+  if(_profiler_log_to_uart1)
+  {
+    sendMsgToHost = "No change. UART1 is still exclusive for profiling data";
+  }
+  else
+  {
+    _profiler_log_to_uart1 = true;
+    sendMsgToHost = "UART1 is now exclusive for profiling data";
+  }
+#else
+  sendMsgToHost = "Profiler logging not available";
+#endif
+
+  cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, sendMsgToHost,
+          thisFile, __LINE__);
+
+  return OK;
+}
+
+//======================================================================================
+// Called from Meadow.CLI to disable profiling data output to uart1
+int hcom_nx_exec_profiler_do_not_send_to_uart1(struct hcom_nx_cmd_data *cmdData)
+{
+  char *sendMsgToHost;
+
+  // Clear the appropriate battery backed register bit
+  modifyreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER,
+              HCOM_BBREG_ROUTE_PROFILER_BINS_TO_UART1_BIT, 0);
+
+#if defined (CONFIG_RAMLOG_SYSLOG)
+  if(_profiler_log_to_uart1)
+  {
+    _profiler_log_to_uart1 = false;
+    sendMsgToHost = "UART1 not exclusive for profiler, profiling data might still be visible if enabled in Mono.";
+  }
+  else
+  {
+    sendMsgToHost = "No change. UART1 still not exclusive for profiler, profiling data might still be visible if enabled in Mono";
+  }
+#else
+  sendMsgToHost = "Profiler logging not available";
+#endif
+  cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+            sendMsgToHost, thisFile, __LINE__);
+  
+  return OK;
+}
+
+//======================================================================================
 // Called by meadow configuration after it has started. Once the meadow configuration
 // has been parsed this method is called if it determines tracing should be enabled.
-void hcom_nx_trace_insure_correct_config(bool uartTracing, bool cliTracing)
+void hcom_nx_trace_insure_correct_config(bool uartTracing, bool cliTracing, bool uartProfiling)
 {
 #if defined (CONFIG_RAMLOG_SYSLOG)
+
+  if (uartProfiling)
+  {
+    _profiler_log_to_uart1 = true;
+    _trace_log_to_uart1 = false;
+    return;
+  }
 
   bool needToInit = false;
 

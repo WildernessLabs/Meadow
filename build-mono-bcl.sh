@@ -179,6 +179,7 @@ function buildMonoBCL {
   printf "Building Mono BCL...\n"
   OLD_VERBOSE=$VERBOSE
   VERBOSE=true
+  run_command make -C $MONO_BCL_DIR get-monolite-latest
   run_command make -C $MONO_BCL_DIR -j8
   run_command make -C $MONO_BCL_DIR -j8 PROFILE_PLATFORM=linux HOST_PLATFORM=linux
   run_command make -C ${MONO_BCL_DIR}/mcs/class/Facades/System.Memory PROFILE_PLATFORM=linux

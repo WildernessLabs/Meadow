@@ -423,9 +423,16 @@ int STUB_meadow_cloud_retrieve_private_key(int nbr, uintptr_t parm1, uintptr_t p
 int STUB_meadow_cloud_release_private_key(int nbr, uintptr_t parm1);
 #endif
 
+int STUB_meadow_client_cert_retrieve_credentials(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3, uintptr_t parm4, uintptr_t parm5, uintptr_t parm6);
+int STUB_meadow_client_cert_release_credentials(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3);
+
 #if defined(CONFIG_ARCH_BOARD_MEADOW)
 uintptr_t STUB_meadow_os_deep_copy_config(int nbr);
 void STUB_meadow_os_config_free_resources(int nbr, uintptr_t param1);
+uintptr_t STUB_meadow_os_power_cycle_count(int nbr);
+uintptr_t STUB_meadow_os_reset_cycle_count(int nbr);
+uintptr_t STUB_meadow_os_reset_reason(int nbr);
+uintptr_t STUB_meadow_os_hardware_version(int nbr);
 #endif
 
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)

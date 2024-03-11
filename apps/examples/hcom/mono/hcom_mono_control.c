@@ -106,7 +106,8 @@ static valid_mono_options_t _mono_options[] =
   { "--llvmonly-interp", true },
   { "--trace=", false },
   { "--debug", true },
-  { "--soft-breakpoints", true }
+  { "--soft-breakpoints", true },
+  { "--profile=", false}
 };
 
 /****************************************************************************
@@ -631,7 +632,7 @@ void hcom_mono_ctrl_disable_mono(uint32_t userData)
   hcom_bbreg_set_bbr_bits(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
 
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                   "Mono has been disabled - restarting Meadow", thisFile, __LINE__);
+                                   "Runtime disabled - restarting Meadow", thisFile, __LINE__);
 }
 
 //=======================================================================================
@@ -641,7 +642,7 @@ void hcom_mono_ctrl_enable_mono(uint32_t userData)
   hcom_bbreg_clear_bbr_bits(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT);
 
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                   "Mono has been enabled - restarting Meadow", thisFile, __LINE__);
+                                   "Runtime enabled - restarting Meadow", thisFile, __LINE__);
 }
 
 //======================================================================================

@@ -92,5 +92,7 @@
 #define HCOM_BBREG_MONO_LAST_RUN_LOCKUP_BIT 0x00001000
 // This bit indicates if the debugging server should run after restart
 #define HCOM_BBREG_MONO_DEBUGGING_START_BIT 0x00002000
+// This bit indicates if we are to send profiler output binaries (.mlpd) to the uart1
+#define HCOM_BBREG_ROUTE_PROFILER_BINS_TO_UART1_BIT 0x00004000
 
 #endif  //__INCLUDE_MEADOW_HCOM_BBREG_DEFN__H

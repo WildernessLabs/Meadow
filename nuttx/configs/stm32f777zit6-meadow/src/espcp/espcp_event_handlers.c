@@ -48,6 +48,7 @@
 #include "../hcom_nx/hcom_nx_common.h"
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/meadow_thread_config.h>
+#include <meadow/meadow_client_cert.h>
 
 // #define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
@@ -468,6 +469,12 @@ void espcp_system_get_configuration_event_handler(espcp_message_t *message)
         }
     }
     espcp_delete_message_and_payload(message);
+
+    int ret = meadow_client_cert_initialize();
+    if (ret < 0)
+    {
+        syslog(LOG_ERR, "Failed to initialize client certificate credentials. Error code: %d", ret);
+    }
 
     MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }

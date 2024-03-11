@@ -50,6 +50,9 @@ ifeq ($(CONFIG_EXAMPLES_MONO),y)
                $(MONO_DIR)/metadata/.libs/libmonoruntimesgen.a \
                $(MONO_DIR)/metadata/.libs/libmonoruntime-config.a  \
                $(MONO_DIR)/utils/.libs/libmonoutils.a \
+               $(MONO_DIR)/profiler/.libs/libmono-profiler-log.a \
+               $(MONO_DIR)/profiler/.libs/libmono-profiler-aot.a \
+               $(MONO_DIR)/profiler/.libs/libmono-profiler-coverage.a \
                $(MONO_DIR)/zlib/.libs/libz.a
 MBEDTLS_AOBJS = $(MBEDTLS_DIR)/library/libmbedcrypto.a \
                $(MBEDTLS_DIR)/library/libmbedtls.a \

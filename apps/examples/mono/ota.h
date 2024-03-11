@@ -8,3 +8,4 @@
 
 int os_update(void);
 int app_update(void);
+int firmware_update(void);

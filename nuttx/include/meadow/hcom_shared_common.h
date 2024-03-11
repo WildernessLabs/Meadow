@@ -124,6 +124,7 @@
 #define UPDATE_DIR "/meadow0/update/"
 #define UPDATE_APP_DIR UPDATE_DIR "app/"
 #define UPDATE_OS_DIR UPDATE_DIR "os/"
+#define UPDATE_FIRMWARE_DIR UPDATE_DIR "firmware/"
 #define ROLLBACK_DIR "/meadow0/rollback"
 
 //==================================================
@@ -457,6 +458,11 @@ struct meadow_configuration_s
    *  @brief Should trace output be diverted to UART1?
    */
   uint8_t use_uart1_for_trace;
+
+  /**
+   *  @brief Should profiler output be diverted to UART1?
+   */
+  uint8_t use_uart1_for_profiling;
 
   /**
    *  @brief Clock speed of the SPI interface between the STM32 and the ESP32.

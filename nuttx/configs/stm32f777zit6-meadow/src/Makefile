@@ -183,6 +183,11 @@ CSRCS += libcyaml/mem.c libcyaml/free.c libcyaml/load.c libcyaml/save.c libcyaml
 endif
 
 #
+#	Add client certificate TLS authentication support.
+#
+CSRCS += misc/meadow_client_cert.c
+
+#
 #	Add Meadow Cloud support
 #
 CSRCS += meadow_cloud/meadow_cloud.c
@@ -190,6 +195,7 @@ CSRCS += meadow_cloud/meadow_cloud.c
 #
 #	Add Meadow OS syscall implementations.
 #
-CSRCS += meadow_os/meadow_os_config.c
+CSRCS += meadow_os/meadow_os_config.c \
+         meadow_os/meadow_os_info.c
 
 include $(TOPDIR)/configs/Board.mk
