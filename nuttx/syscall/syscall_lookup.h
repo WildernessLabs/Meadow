@@ -449,6 +449,10 @@ SYSCALL_LOOKUP(pwrmgmt_most_recent_wakeup_reason,               0, STUB_pwrmgmt_
   SYSCALL_LOOKUP(meadow_kt_bg77_tests,      1, STUB_meadow_kt_bg77_tests)
 #endif
 
+#if defined(CONFIG_MEADOW_OS_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_assert_test,      1, STUB_meadow_kt_assert_test)
+#endif
+
 #if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
   SYSCALL_LOOKUP(meadow_kt_sd_card_tests,      1, STUB_meadow_kt_sd_card_tests)
 #endif
