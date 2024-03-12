@@ -443,6 +443,7 @@ void diag_misc_tests_overload_mcu(uint32_t userData);
 void diag_ethernet_chat_server(uint32_t userData);
 
 void tensorflow_tests_hello_world(uint32_t userData);
+void meadow_os_userspace_assert_test(uint32_t userData);
 
 // This macro calls a function adding file and line info. I kept the entire
 // macro on a single line to reduce line number confusion. The ## is needed
