@@ -168,8 +168,6 @@ static int pppd_create_connect_scripts(cell_settings_t *cell_settings, char **co
         "TIMEOUT %s "
         "\"\" AT+QACCM=0,0 "
         "PAUSE 3 "
-        "OK AT+CMEE=2 "
-        "PAUSE 3 "
         "OK AT+GSN "
         "PAUSE 3 "
         "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
@@ -433,7 +431,7 @@ static int pppd_create_handler(void)
 // and to manage the PPP connection.
 static void *pppd_thread(void *cell_settings_ptr)
 {
-    cell_settings_t *cell_settings = (cell_settings_t *)cell_settings_ptr;
+    cell_settings_t *cell_settings = (cell_settings_t *) cell_settings_ptr;
 
     if (cell_settings == NULL)
     {
@@ -508,8 +506,8 @@ static void *pppd_thread(void *cell_settings_ptr)
         .disconnect_script = disconnect_script,
         .connect_script = connect_script,
         .ttyname = cell_settings->ttyname,
-        .connect_callback = (void *)meadow_cell_connected_event,
-        .disconnect_callback = (void *)meadow_cell_disconnected_event,
+        .connect_callback = (void*)meadow_cell_connected_event,
+        .disconnect_callback = (void*)meadow_cell_disconnected_event,
         .cell_at_cmds_output = cell_at_cmds_output,
         .cell_handler = &hcom_cell_handler,
 #ifdef CONFIG_NETUTILS_PPPD_PAP
@@ -601,7 +599,7 @@ int hcom_pppd_start()
         param.sched_priority = HCOM_THREAD_PRIORITY_CELL_PPPD;
         pthread_attr_setschedparam(&attr, &param);
 
-        ret = pthread_create(&pppd_thread_id, &attr, pppd_thread, (void *) cell_settings);
+        ret = pthread_create(&pppd_thread_id, &attr, pppd_thread, (void *) &cell_settings);
         if (ret == OK)
         {
             hcom_logging_syslog(LOG_INFO, "%s@%d-PPPD thread launched\n", thisFile, __LINE__);
