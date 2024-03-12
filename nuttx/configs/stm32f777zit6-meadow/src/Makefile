@@ -79,6 +79,10 @@ ifeq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
 CSRCS += stm32_idle.c
 endif
 
+ifeq ($(CONFIG_BOARDCTL_RESET),y)
+CSRCS += stm32_reset.c
+endif
+
 ifeq ($(CONFIG_STM32F7_SDMMC2),y)
 CSRCS += meadow_sdmmc.c
 endif
@@ -157,7 +161,8 @@ CSRCS += kerneltests/espcp_tests.c \
 		 kerneltests/dig_to_ana_conv_tests.c \
 		 kerneltests/meadow_interrupt_tests.c \
 		 kerneltests/meadow_rotary_encoder_tests.c \
-		 kerneltests/meadow_spi_dma_tests.c
+		 kerneltests/meadow_spi_dma_tests.c \
+		 kerneltests/meadow_os_tests.c \
 
 #
 #	Add the NTP client.
