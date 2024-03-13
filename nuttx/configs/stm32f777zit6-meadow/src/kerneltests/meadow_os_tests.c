@@ -1,8 +1,8 @@
 /****************************************************************************
- * apps/include/netutils/pppd.h
- *
- *   Copyright (C) 2015 Brennan Ashton. All rights reserved.
- *   Author: Brennan Ashton <bashton@brennanashton.com>
+ * \apps\examples\hcom\tests\meadow_os_tests.c
+ * 
+ *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
+ *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,101 +33,55 @@
  *
  ****************************************************************************/
 
-#ifndef __APPS_INCLUDE_NETUTILS_PPPD_H
-#define __APPS_INCLUDE_NETUTILS_PPPD_H
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include <time.h>
-#include "../../examples/hcom/cell/hcom_pppd.h"
+
+#include <stdint.h>
+#include <stdio.h>
+
+#include <meadow/meadow_kernel_tests.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-/* Configuration ************************************************************/
-/* Required configuration settings:
- *
- *   CONFIG_NETUTILS_PPPD_PAP - PPPD PAP authentication support
- *     Default: n
- */
-
-#define TTYNAMSIZ               16
-#define PAP_USERNAME_SIZE       16
-#define PAP_PASSWORD_SIZE       16
 
 /****************************************************************************
- * Public Types
+ * Private types
  ****************************************************************************/
 
-struct pppd_settings_s
-{
-  /* Serial Interface */
-
-  char* ttyname;
-
-#ifdef CONFIG_NETUTILS_PPPD_PAP
-  /* PAP Authentication Settings */
-
-  char* pap_username;
-  char* pap_password;
-#endif /* CONFIG_NETUTILS_PPPD_PAP */
-
-  /* Chat Scripts */
-
-  FAR const char* connect_script;
-  FAR const char* disconnect_script;
-
-  /* PPP outputs */
-
-  FAR char* cell_at_cmds_output;
-
-  /* PPP Callbacks */
-
-  void (* connect_callback)(void); 
-  void (* disconnect_callback)(int err_base);
-    
-  /* Cell Handler*/
-
-  hcom_pppd_handler_t *cell_handler;
-};
-
-  /****************************************************************************
- * Public Data
+/****************************************************************************
+ * Private Data
  ****************************************************************************/
 
-#ifdef __cplusplus
-#define EXTERN extern "C"
-extern "C"
-{
-#else
-#define EXTERN extern
-#endif
+/****************************************************************************
+ * Private Function Prototypes
+ ****************************************************************************/
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: pppd
+ * Name: meadow_kt_assert_test
  *
  * Description:
- *   Create an pppd connection
+ *  Execute the userspace assert test in the OS.
  *
  * Input Parameters:
- *    pppd_settings, setting struct for the ppp connection
+ *  userdata - Value passed to the test from the meadow command line.
+ *             See: -v / --value parameter in meadow command line.
  *
  * Returned Value:
- *   Returns termination state, blocking as long as the connection is up
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
  *
  ****************************************************************************/
-
-int pppd(const struct pppd_settings_s *ppp_settings);
-
-#undef EXTERN
-#ifdef __cplusplus
+void meadow_kt_assert_test(uint32_t userdata)
+{
+    *((uint32_t *) NULL) = 0;
 }
-#endif
-#endif /* __APPS_INCLUDE_NETUTILS_PPPD_H */

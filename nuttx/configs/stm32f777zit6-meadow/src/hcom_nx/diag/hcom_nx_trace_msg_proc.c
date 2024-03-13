@@ -186,7 +186,7 @@ void hcom_nx_trace_read_bbreg_config()
   else
     _trace_log_to_host = false;
 
-    if((HCOM_BBREG_ROUTE_PROFILER_BINS_TO_UART1_BIT & bbrRegValue) > 0)
+  if((HCOM_BBREG_ROUTE_PROFILER_BINS_TO_UART1_BIT & bbrRegValue) > 0)
     _profiler_log_to_uart1 = true;
   else
     _profiler_log_to_uart1 = false;

@@ -1,8 +1,8 @@
 /****************************************************************************
- * meadow_kernel_tests.h
- * 
- *   Copyright (C) 2023-2024 Wilderness Labs. All rights reserved.
- *   Author:  Wilderness Labs
+ * configs\stm32f777zit6-meadow\src\stm32_reset.c
+ *
+ *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
+ *   Author: Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,31 +32,46 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-#ifndef __MEADOW_KERNEL_TESTS_H
-#define __MEADOW_KERNEL_TESTS_H
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
 
 #include <nuttx/config.h>
 
-#include <stdint.h>
+#include <nuttx/arch.h>
+#include <nuttx/board.h>
 
-void meadow_kt_espcp_tests(uint32_t);
-void meadow_kt_espcp_load_test_web_page(uint32_t);
-void meadow_kt_espcp_load_test_large_file_download(uint32_t);
+#ifdef CONFIG_BOARDCTL_RESET
 
-void meadow_kt_ethernet_tests(uint32_t);
-void meadow_kt_ethernet_load_test_large_file_download(uint32_t);
-void meadow_kt_ethernet_load_test_web_page(uint32_t);
+/****************************************************************************
+ * Public functions
+ ****************************************************************************/
 
-void meadow_kt_bg77_tests(uint32_t);
-void meadow_kt_sd_card_tests(uint32_t);
-void meadow_kt_power_management_tests(uint32_t);
-void meadow_kt_iso8601_tests(uint32_t);
-void meadow_kt_quick_misc_tests(uint32_t);
-void meadow_kt_adc_tests(uint32_t);
-void meadow_kt_dac_tests(uint32_t);
-void meadow_kt_meadow_interrupt_tests(uint32_t);
-void meadow_kt_spi_dma_tests(uint32_t);
-void meadow_kt_rotary_encoder_tests(uint32_t);
-void meadow_kt_assert_test(uint32_t);
+/****************************************************************************
+ * Name: board_reset
+ *
+ * Description:
+ *   Reset board.  Support for this function is required by board-level
+ *   logic if CONFIG_BOARDCTL_RESET is selected.
+ *
+ * Input Parameters:
+ *   status - Status information provided with the reset event.  This
+ *            meaning of this status information is board-specific.  If not
+ *            used by a board, the value zero may be provided in calls to
+ *            board_reset().
+ *
+ * Returned Value:
+ *   If this function returns, then it was not possible to power-off the
+ *   board due to some constraints.  The return value int this case is a
+ *   board-specific reason for the failure to shutdown.
+ *
+ ****************************************************************************/
 
-#endif // __MEADOW_KERNEL_TESTS_H
+int board_reset(int status)
+{
+  up_systemreset();
+  return 0;
+}
+
+#endif /* CONFIG_BOARDCTL_RESET */

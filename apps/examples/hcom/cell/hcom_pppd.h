@@ -66,12 +66,25 @@ struct hcom_pppd_handler_s
 typedef struct hcom_pppd_handler_s hcom_pppd_handler_t;
 
 /****************************************************************************
+ * Public Data
+ ****************************************************************************/
+
+enum hcom_cell_err_e
+{
+  CELL_INVALID_SETTING_ERR,
+  CELL_INVALID_MODEM_ERR,
+  CELL_PPPD_LOST_CONNECTION_ERR,
+  CELL_PPPD_TIMEOUT_ERR,
+  CELL_PPPD_THREAD_ERR,
+};
+typedef enum hcom_cell_err_e hcom_cell_err_t;
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 void pppd_set_state(hcom_pppd_handler_t *handler, int state);
 void pppd_clear_state(hcom_pppd_handler_t *handler, int state);
-int meadow_cell_scanner(char *response);
 int hcom_pppd_start(void);
 
 #endif //__CONFIGS_MEADOW_SRC_HCOM_CELL_PPPD__H

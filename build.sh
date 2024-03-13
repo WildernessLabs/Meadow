@@ -25,6 +25,7 @@ DEBUG_BL_CDC=false
 DEBUG_BL_UART=false
 HELP=false
 ENABLE_STACK_DUMP=false
+ENABLE_ASSERTS=false
 MAKE_OPTIONS=
 UNIT_TESTS=
 BOOTLOADER_OPTIONS=
@@ -71,6 +72,9 @@ case $i in
     --esd)
     ENABLE_STACK_DUMP=true
     ;;
+    --enableasserts|-ea)
+    ENABLE_ASSERTS=true
+    ;;
     --dbc|--debug-bl-cdc)
     DEBUG_BL_CDC=true
     ;;
@@ -104,6 +108,7 @@ if [ "$HELP" = true ]; then
   echo "  --configure                  Configure the build"
   echo "  --debug                      Build with debug symbols"
   echo "  --esd                        Enable stack dumps to be sent to USART1 (COM1)"
+  echo "  --enableasserts|-ea          Enable runtime asserts (default is to reset the board)"
   echo "  --config=mono|netcore        Select Mono or .NET Core builds (default Mono)"
   echo "  -mfd|--makefiledebugging     Turn on debug options for make"
   echo "  -u|--unittests=*             Build the specified unit tests into the system"
@@ -303,6 +308,11 @@ if [ ! -z "$UNIT_TESTS" ]; then
             kconfig-tweak --file $NUTTX_CONFIG_FILE --enable ROTARY_ENCODER_TESTS
             BUILD_TESTS=true
             ;;
+            os)
+            echo "Operating system tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable MEADOW_OS_TESTS
+            BUILD_TESTS=true
+            ;;
             all)
             echo "All tests requested."
             kconfig-tweak --file $NUTTX_CONFIG_FILE --enable ALL_MEADOW_TESTS
@@ -340,6 +350,13 @@ if $ENABLE_STACK_DUMP; then
   kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine RAMLOG_SYSLOG
 
   kconfig-tweak --file $NUTTX_CONFIG_FILE --enable STACK_COLORATION
+fi
+
+if $ENABLE_ASSERTS; then
+  #
+  # This is used to turn on runtime asserts (default is to reset the board on an assertion).
+  #
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --set-val BOARD_RESET_ON_ASSERT 0
 fi
 
 if $CONFIGURE_ONLY; then

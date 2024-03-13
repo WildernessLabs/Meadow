@@ -32,6 +32,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
+#ifndef __MEADOW_OS_H
+#define __MEADOW_OS_H
 
 #include <meadow/hcom_shared_common.h>
 
@@ -41,3 +43,5 @@ uint32_t meadow_os_power_cycle_count(void);
 uint32_t meadow_os_reset_cycle_count(void);
 uint32_t meadow_os_reset_reason(void);
 uint32_t meadow_os_hardware_version(void);
+
+#endif /* __MEADOW_OS_H */

@@ -72,29 +72,11 @@ static char *thisFile = __FILE__;
 static bool cell_connected = false;
 static char *cell_at_cmds_output;
 static hcom_pppd_handler_t hcom_cell_handler;
+static hcom_cell_err_t cell_err;
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-
-static int pppd_chardev(int fd)
-{
-  int flags;
-
-  flags = fcntl(fd, F_GETFL, 0);
-  if (flags < 0)
-  {
-    return flags;
-  }
-
-  flags = fcntl(fd, F_SETFL, flags |O_NONBLOCK);
-  if (flags < 0)
-  {
-    return flags;
-  }
-
-  return 0;
-}
 
 //====================================================================
 // This function is used to generate the connection and disconnection script
@@ -322,6 +304,11 @@ int meadow_get_cell_at_cmds_output(unsigned char *buf)
     return len;
 }
 
+int meadow_get_cell_error (void)
+{
+  return (int)cell_err;
+}
+
 void meadow_cell_connected_event(void) 
 {
     hcom_logging_syslog(LOG_INFO, "%s-%d-Cell network has been successfully connected\n", thisFile, __LINE__);
@@ -344,14 +331,23 @@ void meadow_cell_connected_event(void)
     hcom_logging_syslog(LOG_INFO, "%s-%d-Cell connected event message result: %d\n", thisFile, __LINE__, result);
 }
 
-void meadow_cell_disconnected_event(void) 
+void meadow_cell_disconnected_event(int err_base) 
 {
-    hcom_logging_syslog(LOG_INFO, "%s-%d-Cell network has been disconnected\n", thisFile, __LINE__);
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Cell network has been disconnected, error: %d\n", thisFile, __LINE__, err_base);
 
     espcp_event_data_t message;
 
     message.interface = ESPCP_CELL_INTERFACE;
-    message.function = ESPCP_CELL_DISCONNECTED_EVENT;
+    
+    if (err_base == CELL_PPPD_LOST_CONNECTION_ERR)
+    {
+      message.function = ESPCP_CELL_DISCONNECTED_EVENT;
+    }
+    else
+    {
+      message.function = ESPCP_CELL_ERROR_EVENT;
+    }
+ 
     message.status_code = ESPCP_FAILURE_STATUS_CODE;
     message.message_id = ESPCP_SIMPLE_EVENT_MESSAGE_ID;
 
@@ -364,6 +360,7 @@ void meadow_cell_disconnected_event(void)
     hcom_logging_syslog(LOG_INFO, "%s-%d-Cell disconnected event message result: %d\n", thisFile, __LINE__, result);
 
     cell_connected = false;
+    cell_err = err_base;
 }
 
 void meadow_cell_at_cmd_event(int ret)
@@ -420,6 +417,20 @@ static void *pppd_thread(void *cell_settings_ptr)
     if (cell_settings == NULL)
     {
         hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting cell settings\n", thisFile, __LINE__);
+        sleep(20);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-Failed starting PPPD\n", thisFile, __LINE__);
+        cell_err = CELL_INVALID_SETTING_ERR;
+        meadow_cell_disconnected_event(cell_err);
+        return NULL;
+    }
+
+    if (cell_settings->module_id == CELL_UNKNOWN_MODULE)
+    {
+        hcom_logging_syslog(LOG_INFO, "%s-%d-Invalid cell module id: %u\n", thisFile, __LINE__, cell_settings->module_id);
+        sleep(20);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-Failed starting PPPD\n", thisFile, __LINE__);
+        cell_err = CELL_INVALID_MODEM_ERR;
+        meadow_cell_disconnected_event(cell_err);
         return NULL;
     }
 
@@ -451,21 +462,21 @@ static void *pppd_thread(void *cell_settings_ptr)
     ret = pppd_create_connect_scripts(cell_settings, &connect_script, &disconnect_script);
     if (ret < 0)
     {
-    hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to generate connect scripts, ret=%d\n", thisFile, __LINE__, ret);
-      free(connect_script);
-      free(disconnect_script);
-      free(cell_at_cmds_output);
-      return NULL;
+        hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to generate connect scripts, ret=%d\n", thisFile, __LINE__, ret);
+        free(connect_script);
+        free(disconnect_script);
+        free(cell_at_cmds_output);
+        return NULL;
     }
 
     ret = pppd_create_handler();
     if (ret < 0)
     {
-      hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to create pppd handler, ret=%d\n", thisFile, __LINE__, ret);
-      free(connect_script);
-      free(disconnect_script);
-      free(cell_at_cmds_output);
-      return NULL;
+        hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to create pppd handler, ret=%d\n", thisFile, __LINE__, ret);
+        free(connect_script);
+        free(disconnect_script);
+        free(cell_at_cmds_output);
+        return NULL;
     }
 
     hcom_logging_syslog(LOG_INFO, "%s-%d-Chat scripts created: %s\n %s\n",
@@ -489,6 +500,10 @@ static void *pppd_thread(void *cell_settings_ptr)
     hcom_logging_syslog(LOG_INFO, "%s-%d-Starting PPPD\n", thisFile, __LINE__);
     pppd(&pppd_settings);
 
+    sleep(20);
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Failed after starting PPPD\n", thisFile, __LINE__);
+    meadow_cell_disconnected_event(cell_err);
+
     return NULL;
 }
 
@@ -502,6 +517,9 @@ static void *pppd_thread(void *cell_settings_ptr)
 // is enabled.
 int hcom_pppd_start()
 {
+    int ret;
+    pthread_t pppd_thread_id;
+    cell_settings_t *cell_settings;
     meadow_configuration_t *config = meadow_os_deep_copy_config();
 
     if ((config != NULL) && (config->default_interface != NULL))
@@ -512,55 +530,38 @@ int hcom_pppd_start()
         }
 
         hcom_logging_syslog(LOG_NOTICE, "%s-%d-Attempting to start PPPD\n", thisFile, __LINE__);
-        if (config->default_cell_settings == NULL)
-        {
-            hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting default cell settings\n", thisFile, __LINE__);
-            meadow_os_config_free_resources(config);
-            return -ENODATA;
-        }
-
-        int ret;
-        pthread_t pppd_thread_id;
-        cell_settings_t cell_settings = {
-            .module_id = config->default_cell_settings->module_id,
-            .module = config->default_cell_settings->module,
-            .apn = config->default_cell_settings->apn,
-            .operator = config->default_cell_settings->operator,
-            .ttyname = config->default_cell_settings->ttyname,
-            .mode = config->default_cell_settings->mode,
-            .timeout = config->default_cell_settings->timeout,
-            .pap_user = config->default_cell_settings->pap_user,
-            .pap_password = config->default_cell_settings->pap_password,
-            .scan_mode = config->default_cell_settings->scan_mode,
-        };
-
-        hcom_logging_syslog(LOG_INFO, "%s-%d-cell module id: %u\n", thisFile, __LINE__, cell_settings.module_id);
-        hcom_logging_syslog(LOG_INFO, "%s-%d-cell module: %s\n", thisFile, __LINE__, cell_settings.module);
-        hcom_logging_syslog(LOG_INFO, "%s-%d-cell apn: %s\n", thisFile, __LINE__, cell_settings.apn);
-        hcom_logging_syslog(LOG_INFO, "%s-%d-cell operator: %s\n", thisFile, __LINE__, cell_settings.operator);
-        hcom_logging_syslog(LOG_INFO, "%s-%d-cell ttyname: %s\n", thisFile, __LINE__, cell_settings.ttyname);
-        hcom_logging_syslog(LOG_INFO, "%s-%d-cell timeout: %s\n", thisFile, __LINE__, cell_settings.timeout);
-        hcom_logging_syslog(LOG_INFO, "%s-%d-cell user: %s\n", thisFile, __LINE__, cell_settings.pap_user);
-        hcom_logging_syslog(LOG_INFO, "%s-%d-cell password: %s\n", thisFile, __LINE__, cell_settings.pap_password);
-        hcom_logging_syslog(LOG_INFO, "%s-%d-cell operation mode: %s\n", thisFile, __LINE__, cell_settings.mode);
-        hcom_logging_syslog(LOG_INFO, "%s-%d-cell scan mode: %u\n", thisFile, __LINE__, cell_settings.scan_mode);
-
-        if (cell_settings.module_id == CELL_UNKNOWN_MODULE)
-        {
-            hcom_logging_syslog(LOG_INFO, "%s-%d-Failed to start PPPD thread, invalid cell module id: %u\n", thisFile, __LINE__, cell_settings.module_id);
-            return EINVAL;
-        }
         
-        if (cell_settings.scan_mode)
+        if (config->default_cell_settings != NULL)
         {
-          #ifdef HCOM_CELL_DEBUG_LOGS
-                  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                    "Cell: scanning mode on", thisFile, __LINE__);
-          #endif
-          meadow_os_config_free_resources(config);
-          return OK;
-        }
+          cell_settings = config->default_cell_settings;
 
+          if (cell_settings == NULL)
+          {
+            hcom_logging_syslog(LOG_NOTICE, "%s-%d-Failed to get PPPD settings\n", thisFile, __LINE__);
+            cell_err = CELL_INVALID_SETTING_ERR;
+            meadow_cell_disconnected_event(cell_err);
+            return -ENOMEM;
+          }
+
+          hcom_logging_syslog(LOG_INFO, "%s-%d-cell module id: %u\n", thisFile, __LINE__, cell_settings->module_id);
+          hcom_logging_syslog(LOG_INFO, "%s-%d-cell module: %s\n", thisFile, __LINE__, cell_settings->module);
+          hcom_logging_syslog(LOG_INFO, "%s-%d-cell apn: %s\n", thisFile, __LINE__, cell_settings->apn);
+          hcom_logging_syslog(LOG_INFO, "%s-%d-cell operator: %s\n", thisFile, __LINE__, cell_settings->operator);
+          hcom_logging_syslog(LOG_INFO, "%s-%d-cell ttyname: %s\n", thisFile, __LINE__, cell_settings->ttyname);
+          hcom_logging_syslog(LOG_INFO, "%s-%d-cell timeout: %s\n", thisFile, __LINE__, cell_settings->timeout);
+          hcom_logging_syslog(LOG_INFO, "%s-%d-cell user: %s\n", thisFile, __LINE__, cell_settings->pap_user);
+          hcom_logging_syslog(LOG_INFO, "%s-%d-cell password: %s\n", thisFile, __LINE__, cell_settings->pap_password);
+          hcom_logging_syslog(LOG_INFO, "%s-%d-cell operation mode: %s\n", thisFile, __LINE__, cell_settings->mode);
+          hcom_logging_syslog(LOG_INFO, "%s-%d-cell scan mode: %u\n", thisFile, __LINE__, cell_settings->scan_mode);
+
+          if (cell_settings->scan_mode)
+          {
+#ifdef HCOM_CELL_DEBUG_LOGS
+              hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                  "ScanMode config has been deprecated! Consult how to use the network scanner on Meadow cellular docs.", thisFile, __LINE__);
+#endif
+          }
+      }
         pthread_attr_t attr;
         struct sched_param param;
 
@@ -590,6 +591,9 @@ int hcom_pppd_start()
 
         hcom_logging_syslog(LOG_ERR, "%s@%d-The task to run PPPD failed in create\n",
                             thisFile, __LINE__);
+        
+        cell_err = CELL_PPPD_THREAD_ERR;
+        meadow_cell_disconnected_event(cell_err);
 
         meadow_os_config_free_resources(config);
         return -ret;
@@ -597,86 +601,4 @@ int hcom_pppd_start()
 
   meadow_os_config_free_resources(config);
   return -ENODATA;
-}
-
-//====================================================================
-// This function is called by a .NET method to start the offline cell 
-// scanner, which is responsible for show the available cell networks,
-// including its operator code, if the scan mode is enabled.
-int meadow_cell_scanner(char *response)
-{
-  struct chat_ctl ctl;
-  meadow_configuration_t *config = meadow_os_deep_copy_config();
-  int ret;
-
-  char *offline_scanner_script = (char *)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
-  if (offline_scanner_script == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate offline scanner script\n", thisFile, __LINE__);
-    return -ENOMEM;
-  }
-
-  snprintf_chk(offline_scanner_script, CONNECT_SCRIPT_MAX_SIZE, "\"\" AT+COPS=? PAUSE 3 OK \\c");
-
-  if (config != NULL)
-  {
-    char *tty = config->default_cell_settings->ttyname;
-    int scan_mode = config->default_cell_settings->scan_mode;
-
-    if (!scan_mode)
-    {
-      hcom_logging_syslog(LOG_INFO, "%s-%d-Scan mode is disabled\n", thisFile, __LINE__);
-      free(offline_scanner_script);
-      meadow_os_config_free_resources(config);
-      return -EINVAL;
-    }
-
-    ctl.echo = false;
-    ctl.verbose = false;
-    ctl.timeout = NETWORK_SCAN_AT_CMD_TIMEOUT;
-
-    memset(response, 0x00, sizeof(response));
-
-    ctl.fd = open(tty, O_RDWR);
-    if (ctl.fd < 0)
-    {
-      hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to open the file descriptor\n", thisFile, __LINE__);
-      close(ctl.fd);
-      free(offline_scanner_script);
-      meadow_os_config_free_resources(config);
-      return -EIO;
-    }
-
-    if (pppd_chardev(ctl.fd) < 0)
-    {
-      hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to config the file descriptor\n", thisFile, __LINE__);
-      close(ctl.fd);
-      free(offline_scanner_script);
-      meadow_os_config_free_resources(config);
-      return -EIO;
-    }
-
-    // Switch to DATA MODE from AT MODE (required to send AT commands)
-    write(ctl.fd,"+++",3);
-    sleep(2);
-    write(ctl.fd, "ATE1\r\n", 6);
-    sleep(2);
-
-    chat(&ctl, offline_scanner_script, response);
-    close(ctl.fd);
-    
-    ret = strlen(response);
-    if (ret > 0)
-    {
-      hcom_logging_syslog(LOG_INFO, "%s-%d-AT commands output: %s\n", thisFile, __LINE__, response);
-    }
-  }
-  else
-  {
-    ret = -ENOMEM;
-  }
-
-  meadow_os_config_free_resources(config);
-  free(offline_scanner_script);
-  return ret;
 }

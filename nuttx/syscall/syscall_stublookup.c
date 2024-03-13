@@ -465,6 +465,10 @@ void STUB_meadow_kt_ethernet_tests(int nbr, uint32_t param);
 void STUB_meadow_kt_bg77_tests(int nbr, uint32_t param);
 #endif
 
+#if defined(CONFIG_MEADOW_OS_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_assert_test(int nbr, uint32_t param);
+#endif
+
 #if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 void STUB_meadow_kt_sd_card_tests(int nbr, uint32_t param);
 #endif
