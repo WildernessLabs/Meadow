@@ -78,25 +78,6 @@ static hcom_cell_err_t cell_err;
  * Private Functions
  ****************************************************************************/
 
-static int pppd_chardev(int fd)
-{
-  int flags;
-
-  flags = fcntl(fd, F_GETFL, 0);
-  if (flags < 0)
-  {
-    return flags;
-  }
-
-  flags = fcntl(fd, F_SETFL, flags |O_NONBLOCK);
-  if (flags < 0)
-  {
-    return flags;
-  }
-
-  return 0;
-}
-
 //====================================================================
 // This function is used to generate the connection and disconnection script
 // based on cell settings and is later passed to the pppd() function
