@@ -791,13 +791,13 @@ const char *   g_get_assertion_message (void);
 
 #ifdef HAVE_C99_SUPPORT
 /* The for (;;) tells gc thats g_error () doesn't return, avoiding warnings */
-#define g_error(format, ...)    do { g_log (G_LOG_DOMAIN, G_LOG_LEVEL_ERROR, format, __VA_ARGS__); for (;;); } while (0)
+#define g_error(format, ...)    do { g_log (G_LOG_DOMAIN, G_LOG_LEVEL_ERROR, format, __VA_ARGS__); *((uint32_t *) NULL) = 0; for (;;); } while (0)
 #define g_critical(format, ...) g_log (G_LOG_DOMAIN, G_LOG_LEVEL_CRITICAL, format, __VA_ARGS__)
 #define g_warning(format, ...)  g_log (G_LOG_DOMAIN, G_LOG_LEVEL_WARNING, format, __VA_ARGS__)
 #define g_message(format, ...)  g_log (G_LOG_DOMAIN, G_LOG_LEVEL_MESSAGE, format, __VA_ARGS__)
 #define g_debug(format, ...)    g_log (G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, format, __VA_ARGS__)
 #else   /* HAVE_C99_SUPPORT */
-#define g_error(...)    do { g_log (G_LOG_DOMAIN, G_LOG_LEVEL_ERROR, __VA_ARGS__); for (;;); } while (0)
+#define g_error(...)    do { g_log (G_LOG_DOMAIN, G_LOG_LEVEL_ERROR, __VA_ARGS__); *((uint32_t *) NULL) = 0; for (;;); } while (0)
 #define g_critical(...) g_log (G_LOG_DOMAIN, G_LOG_LEVEL_CRITICAL, __VA_ARGS__)
 #define g_warning(...)  g_log (G_LOG_DOMAIN, G_LOG_LEVEL_WARNING, __VA_ARGS__)
 #define g_message(...)  g_log (G_LOG_DOMAIN, G_LOG_LEVEL_MESSAGE, __VA_ARGS__)
