@@ -146,29 +146,42 @@ typedef struct f7_micro_v2_pin_mapping_s f7_micro_v2_pin_mapping_t;
  *  Define the pin mappings as an array of structures.
  */
 const f7_micro_v2_pin_mapping_t f7_micro_v2_pin_mappings[] = {
-    { F7_MICRO_V2_A00_PIN_NAME, F7_MICRO_V2_A00_PIN },
-    { F7_MICRO_V2_A01_PIN_NAME, F7_MICRO_V2_A01_PIN },
-    { F7_MICRO_V2_A02_PIN_NAME, F7_MICRO_V2_A02_PIN },
-    { F7_MICRO_V2_A03_PIN_NAME, F7_MICRO_V2_A03_PIN },
-    { F7_MICRO_V2_A04_PIN_NAME, F7_MICRO_V2_A04_PIN },
-    { F7_MICRO_V2_A05_PIN_NAME, F7_MICRO_V2_A05_PIN },
-    { F7_MICRO_V2_D00_PIN_NAME, F7_MICRO_V2_D00_PIN },
-    { F7_MICRO_V2_D01_PIN_NAME, F7_MICRO_V2_D01_PIN },
-    { F7_MICRO_V2_D02_PIN_NAME, F7_MICRO_V2_D02_PIN },
-    { F7_MICRO_V2_D03_PIN_NAME, F7_MICRO_V2_D03_PIN },
-    { F7_MICRO_V2_D04_PIN_NAME, F7_MICRO_V2_D04_PIN },
-    { F7_MICRO_V2_D05_PIN_NAME, F7_MICRO_V2_D05_PIN },
-    { F7_MICRO_V2_D06_PIN_NAME, F7_MICRO_V2_D06_PIN },
-    { F7_MICRO_V2_D07_PIN_NAME, F7_MICRO_V2_D07_PIN },
-    { F7_MICRO_V2_D08_PIN_NAME, F7_MICRO_V2_D08_PIN },
-    { F7_MICRO_V2_D09_PIN_NAME, F7_MICRO_V2_D09_PIN },
-    { F7_MICRO_V2_D10_PIN_NAME, F7_MICRO_V2_D10_PIN },
-    { F7_MICRO_V2_D11_PIN_NAME, F7_MICRO_V2_D11_PIN },
-    { F7_MICRO_V2_D12_PIN_NAME, F7_MICRO_V2_D12_PIN },
-    { F7_MICRO_V2_D13_PIN_NAME, F7_MICRO_V2_D13_PIN },
-    { F7_MICRO_V2_D14_PIN_NAME, F7_MICRO_V2_D14_PIN },
-    { F7_MICRO_V2_D15_PIN_NAME, F7_MICRO_V2_D15_PIN },
+    { F7_MICRO_V2_A4_PIN_NAME, F7_MICRO_V2_A4_PIN },
+    { F7_MICRO_V2_A5_PIN_NAME, F7_MICRO_V2_A5_PIN },
+    { F7_MICRO_V2_A3_PIN_NAME, F7_MICRO_V2_A3_PIN },
+    { F7_MICRO_V2_B0_PIN_NAME, F7_MICRO_V2_B0_PIN },
+    { F7_MICRO_V2_B1_PIN_NAME, F7_MICRO_V2_B1_PIN },
+    { F7_MICRO_V2_C0_PIN_NAME, F7_MICRO_V2_C0_PIN },
+    { F7_MICRO_V2_I9_PIN_NAME, F7_MICRO_V2_I9_PIN },
+    { F7_MICRO_V2_H13_PIN_NAME, F7_MICRO_V2_H13_PIN },
+    { F7_MICRO_V2_H10_PIN_NAME, F7_MICRO_V2_H10_PIN },
+    { F7_MICRO_V2_B8_PIN_NAME, F7_MICRO_V2_B8_PIN },
+    { F7_MICRO_V2_B9_PIN_NAME, F7_MICRO_V2_B9_PIN },
+    { F7_MICRO_V2_B4_PIN_NAME, F7_MICRO_V2_B4_PIN },
+    { F7_MICRO_V2_B13_PIN_NAME, F7_MICRO_V2_B13_PIN },
+    { F7_MICRO_V2_B7_PIN_NAME, F7_MICRO_V2_B7_PIN },
+    { F7_MICRO_V2_B6_PIN_NAME, F7_MICRO_V2_B6_PIN },
+    { F7_MICRO_V2_C6_PIN_NAME, F7_MICRO_V2_C6_PIN },
+    { F7_MICRO_V2_C7_PIN_NAME, F7_MICRO_V2_C7_PIN },
+    { F7_MICRO_V2_C9_PIN_NAME, F7_MICRO_V2_C9_PIN },
+    { F7_MICRO_V2_B14_PIN_NAME, F7_MICRO_V2_B14_PIN },
+    { F7_MICRO_V2_B15_PIN_NAME, F7_MICRO_V2_B15_PIN },
+    { F7_MICRO_V2_B12_PIN_NAME, F7_MICRO_V2_B12_PIN },
+    { F7_MICRO_V2_G12_PIN_NAME, F7_MICRO_V2_G12_PIN },
 };
+
+struct meadow_uart_mapping_s  
+{
+    const char *tty_name;
+    const char *com_name;
+};
+
+const struct meadow_uart_mapping_s hcom_nx_uart_mapping [] =
+{
+    { MEADOW_UART1_NAME, MEADOW_COM1_NAME},
+    { MEADOW_UART4_NAME, MEADOW_COM4_NAME},
+    { MEADOW_UART6_NAME, MEADOW_COM6_NAME},
+}; 
 
 /****************************************************************************
  * Private Functions
@@ -350,6 +363,51 @@ void hcom_nx_config_map_cell_network_mode(meadow_configuration_t *config)
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_map_cell_com_port
+ *
+ * Description:
+ * Map the UART mode according to the COM defined in the cell.config.yaml
+ *
+ * Input Parameters:
+ *  config - Pointer to the system config object
+ *  settings - Pointer to the system settings object
+ * 
+ * Returned Value:
+ *  None
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+static void hcom_nx_config_map_cell_com_port(meadow_configuration_t *config, yaml_cell_config_t *settings)
+{
+    if (settings == NULL || config == NULL)
+    {
+        syslog(LOG_ERR, "Failed getting default cell settings");
+        return;
+    }
+
+    if (settings->settings->ttyname != NULL)
+    {
+        if (config->use_uart1_for_trace != 0)
+        {
+            syslog(LOG_WARNING, "COM1 is already in use for tracing!\n");
+        }
+
+        for (int i = 0; i < sizeof(hcom_nx_uart_mapping) / sizeof(hcom_nx_uart_mapping[0]); i++)
+        {
+            if (strcmp(settings->settings->ttyname, hcom_nx_uart_mapping[i].com_name) == 0)
+            {
+                config->default_cell_settings->ttyname = kmm_strdup(hcom_nx_uart_mapping[i].tty_name);
+                return;
+            }
+        }
+    }
+
+    config->default_cell_settings->ttyname = kmm_strdup(DEFAULT_CELL_INTERFACE);
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_get_turn_on_pin
  *
  * Description:
@@ -410,7 +468,7 @@ void hcom_nx_config_map_cell_turn_on_pin(meadow_configuration_t *config)
     else
     {
         syslog(LOG_INFO, "Failed populating cell turn-on pin\n");
-        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_D10_PIN;
+        config->default_cell_settings->turn_on_pin = F7_MICRO_V2_A3_PIN;
     }
 }
 
@@ -2534,13 +2592,9 @@ void hcom_nx_config_process_cell_config_file(void)
 
             syslog(LOG_INFO, "Default cell PAP password loaded: %s\n", config->default_cell_settings->pap_password);
 
-            config->default_cell_settings->ttyname = ((settings->settings->ttyname != NULL) &&
-                                                        (strlen(settings->settings->ttyname) <= MAXIMUM_INTERFACE_LENGTH) &&
-                                                        (strlen(settings->settings->ttyname) > 0)) ?
-                                                        kmm_strdup(settings->settings->ttyname) :
-                                                        kmm_strdup(DEFAULT_CELL_INTERFACE);
+            hcom_nx_config_map_cell_com_port(config, settings);
 
-            syslog(LOG_INFO, "Default cell interface name loaded: %s\n", config->default_cell_settings->ttyname);
+            syslog(LOG_INFO, "Default cell device interface loaded: %s\n", config->default_cell_settings->ttyname);
 
             config->default_cell_settings->turn_on_pin_name = ((settings->settings->turn_on_pin_name != NULL) &&
                                                         (strlen(settings->settings->turn_on_pin_name) <= MAXIMUM_TURN_ON_PIN_LENGTH) &&
