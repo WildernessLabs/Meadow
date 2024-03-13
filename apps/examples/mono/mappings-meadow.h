@@ -32,6 +32,7 @@ extern uint32_t meadow_os_power_cycle_count(void);
 extern uint32_t meadow_os_reset_cycle_count(void);
 extern uint32_t meadow_os_reset_reason(void);
 extern uint32_t meadow_os_hardware_version(void);
+extern uint32_t meadow_os_native_protocol_version(void);
 
 MonoDlMapping meadow_mappings[] = {
        { "open", open },
@@ -93,6 +94,7 @@ MonoDlMapping meadow_mappings[] = {
        { "meadow_os_reset_cycle_count", meadow_os_reset_cycle_count},
        { "meadow_os_reset_reason", meadow_os_reset_reason},
        { "meadow_os_hardware_version", meadow_os_hardware_version},
+       { "meadow_os_native_protocol_version", meadow_os_native_protocol_version},
 //       { "poll", poll },
 
 /*

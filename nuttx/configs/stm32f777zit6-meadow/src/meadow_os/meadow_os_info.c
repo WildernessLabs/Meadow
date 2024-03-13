@@ -153,3 +153,24 @@ uint32_t meadow_os_hardware_version(void)
 {
     return(meadow_hw_version_get());
 }
+
+/****************************************************************************
+ * Name: meadow_os_native_protocol_version
+ *
+ * Description:
+ *  Get the native protocol version.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  Protocol version
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+uint32_t meadow_os_native_protocol_version(void)
+{
+    return(1);
+}

@@ -433,6 +433,7 @@ uintptr_t STUB_meadow_os_power_cycle_count(int nbr);
 uintptr_t STUB_meadow_os_reset_cycle_count(int nbr);
 uintptr_t STUB_meadow_os_reset_reason(int nbr);
 uintptr_t STUB_meadow_os_hardware_version(int nbr);
+uintptr_t STUB_meadow_os_native_protocol_version(int nbr);
 #endif
 
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)
