@@ -1789,7 +1789,7 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
     espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
                                             espcp_wi_fi_function_recv_from, espcp_status_codes_completed_ok,
                                             espcp_get_next_message_id(), payload, payload_length);
-    int32_t result = 0;
+    int32_t result = -1;
     if (message == NULL)
     {
         free(payload);
@@ -1855,13 +1855,9 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
                     result = -ENOMEM;
                     break;
                 default:
-                    result = -1;
+                    // No need for a default action here as result is set to -1.
                     break;
             }
-        }
-        else
-        {
-            result = -1;
         }
     }
 
