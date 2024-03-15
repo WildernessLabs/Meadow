@@ -54,7 +54,7 @@ g_assert_abort (void)
 	if (internal_abort_func)
 		internal_abort_func ();
 	else
-		*((int *) NULL) = 0;
+		abort ();
 }
 
 void

@@ -55,6 +55,17 @@ extern void mono_set_assemblies_path(const char *);
  * Private Data
  ****************************************************************************/
 
+static void induce_reset (void)
+{
+  // TODO: If the runtime is asking for an abort, it is unstable, and any further execution
+  // from any Mono thread is suspect, so waiting before resetting is a slight invititation for catastrophe.
+  // However, this allows for HCOM and the user to catch a glimpse of the abort reason.
+  // This should be removed when the Mono abort reason is saved across resets.
+  sleep(5);
+
+  *((int *) NULL) = 0;
+}
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -65,6 +76,7 @@ extern void mono_set_assemblies_path(const char *);
 
 extern int mono_main (int argc, char* argv[]);
 extern void mono_dl_register_library(char *name, MonoDlMapping *mappings);
+extern void monoeg_assertion_disable_global (void * abort_func);
 
 extern void symtab_initialize(void);
 
@@ -156,6 +168,9 @@ int mono_main(int hcom_argc, char *hcom_argv[])
 #if defined (CONFIG_EXAMPLES_MEADOW_SQLITE)
   mono_dl_register_library("sqlite3", sqlite_mappings);
 #endif
+
+  // When mono runtime aborts, crash the device
+  monoeg_assertion_disable_global (induce_reset);
 
   // Note: This call may need to be somewhere within mono. However, it seems to work
   // well here. So far, one of the above calls hang up this thread before reaching
