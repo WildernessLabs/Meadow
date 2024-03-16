@@ -54,7 +54,7 @@ namespace Mono.MbedTls
 		IntPtr write_buf;
 		bool isAuthenticated;
 		bool disposed;
-	 bool closed;
+	 	bool closed;
 
 		const int buffer_size = 4096;
 
@@ -145,8 +145,9 @@ namespace Mono.MbedTls
 
 			// It means that the SSL/TLS read operation completed successfully,
 			// but the peer has indicated that there is no more data to read. 
-			if (ret == 1)
+			if (ret == (int)MbedTlsError.ZeroReturn)
 				return (size, false);
+
 			if (ret > 0) {
 				Marshal.Copy (read_buf, buffer, offset, ret);
 			}
