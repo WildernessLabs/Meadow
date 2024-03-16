@@ -143,6 +143,10 @@ namespace Mono.MbedTls
 
 			int ret = mono_mbedtls_read (native_context, size);
 
+			// It means that the SSL/TLS read operation completed successfully,
+			// but the peer has indicated that there is no more data to read. 
+			if (ret == 1)
+				return (size, false);
 			if (ret > 0) {
 				Marshal.Copy (read_buf, buffer, offset, ret);
 			}
