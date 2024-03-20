@@ -519,7 +519,6 @@ int hcom_pppd_start()
 {
     int ret;
     pthread_t pppd_thread_id;
-    cell_settings_t *cell_settings;
     meadow_configuration_t *config = meadow_os_deep_copy_config();
 
     if ((config != NULL) && (config->default_interface != NULL))
@@ -529,39 +528,45 @@ int hcom_pppd_start()
             return OK;
         }
 
-        hcom_logging_syslog(LOG_NOTICE, "%s-%d-Attempting to start PPPD\n", thisFile, __LINE__);
-        
-        if (config->default_cell_settings != NULL)
+        hcom_logging_syslog(LOG_INFO, "%s-%d-Attempting to start PPPD\n", thisFile, __LINE__);
+        if (config->default_cell_settings == NULL)
         {
-          cell_settings = config->default_cell_settings;
+            hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to get PPPD settings\n", thisFile, __LINE__);
 
-          if (cell_settings == NULL)
-          {
-            hcom_logging_syslog(LOG_NOTICE, "%s-%d-Failed to get PPPD settings\n", thisFile, __LINE__);
-            cell_err = CELL_INVALID_SETTING_ERR;
-            meadow_cell_disconnected_event(cell_err);
-            return -ENOMEM;
-          }
-
-          hcom_logging_syslog(LOG_INFO, "%s-%d-cell module id: %u\n", thisFile, __LINE__, cell_settings->module_id);
-          hcom_logging_syslog(LOG_INFO, "%s-%d-cell module: %s\n", thisFile, __LINE__, cell_settings->module);
-          hcom_logging_syslog(LOG_INFO, "%s-%d-cell apn: %s\n", thisFile, __LINE__, cell_settings->apn);
-          hcom_logging_syslog(LOG_INFO, "%s-%d-cell operator: %s\n", thisFile, __LINE__, cell_settings->operator);
-          hcom_logging_syslog(LOG_INFO, "%s-%d-cell ttyname: %s\n", thisFile, __LINE__, cell_settings->ttyname);
-          hcom_logging_syslog(LOG_INFO, "%s-%d-cell timeout: %s\n", thisFile, __LINE__, cell_settings->timeout);
-          hcom_logging_syslog(LOG_INFO, "%s-%d-cell user: %s\n", thisFile, __LINE__, cell_settings->pap_user);
-          hcom_logging_syslog(LOG_INFO, "%s-%d-cell password: %s\n", thisFile, __LINE__, cell_settings->pap_password);
-          hcom_logging_syslog(LOG_INFO, "%s-%d-cell operation mode: %s\n", thisFile, __LINE__, cell_settings->mode);
-          hcom_logging_syslog(LOG_INFO, "%s-%d-cell scan mode: %u\n", thisFile, __LINE__, cell_settings->scan_mode);
-
-          if (cell_settings->scan_mode)
-          {
 #ifdef HCOM_CELL_DEBUG_LOGS
-              hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                  "ScanMode config has been deprecated! Consult how to use the network scanner on Meadow cellular docs.", thisFile, __LINE__);
+            hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                "Invalid cell settings. Please check your cell configuration file.", thisFile, __LINE__);
 #endif
-          }
-      }
+
+            meadow_os_config_free_resources(config);
+            return -ENOENT;
+        }
+
+        cell_settings_t *cell_settings = malloc(sizeof(cell_settings_t));
+        if (cell_settings == NULL) {
+            hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate cell settings struct\n", thisFile, __LINE__);
+        }
+
+        memcpy(cell_settings, config->default_cell_settings, sizeof(cell_settings_t));
+
+        hcom_logging_syslog(LOG_INFO, "%s-%d-cell module id: %u\n", thisFile, __LINE__, cell_settings->module_id);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-cell module: %s\n", thisFile, __LINE__, cell_settings->module);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-cell apn: %s\n", thisFile, __LINE__, cell_settings->apn);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-cell operator: %s\n", thisFile, __LINE__, cell_settings->operator);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-cell ttyname: %s\n", thisFile, __LINE__, cell_settings->ttyname);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-cell timeout: %s\n", thisFile, __LINE__, cell_settings->timeout);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-cell user: %s\n", thisFile, __LINE__, cell_settings->pap_user);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-cell password: %s\n", thisFile, __LINE__, cell_settings->pap_password);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-cell operation mode: %s\n", thisFile, __LINE__, cell_settings->mode);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-cell scan mode: %u\n", thisFile, __LINE__, cell_settings->scan_mode);
+
+        if (cell_settings->scan_mode)
+        {
+#ifdef HCOM_CELL_DEBUG_LOGS
+            hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                "ScanMode config has been deprecated! Consult how to use the network scanner on Meadow cellular docs.", thisFile, __LINE__);
+#endif
+        }
         pthread_attr_t attr;
         struct sched_param param;
 
@@ -580,7 +585,7 @@ int hcom_pppd_start()
         param.sched_priority = HCOM_THREAD_PRIORITY_CELL_PPPD;
         pthread_attr_setschedparam(&attr, &param);
 
-        ret = pthread_create(&pppd_thread_id, &attr, pppd_thread, (void *) &cell_settings);
+        ret = pthread_create(&pppd_thread_id, &attr, pppd_thread, (void *) cell_settings);
         if (ret == OK)
         {
             hcom_logging_syslog(LOG_INFO, "%s@%d-PPPD thread launched\n", thisFile, __LINE__);
