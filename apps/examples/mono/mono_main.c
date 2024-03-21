@@ -61,6 +61,8 @@ static void induce_reset (void)
   // from any Mono thread is suspect, so waiting before resetting is a slight invititation for catastrophe.
   // However, this allows for HCOM and the user to catch a glimpse of the abort reason.
   // This should be removed when the Mono abort reason is saved across resets.
+  fprintf(stderr, "Unrecoverable .NET Runtime error. Meadow will restart in 5 seconds\n");
+  fflush (stderr);
   sleep(5);
 
   *((int *) NULL) = 0;
