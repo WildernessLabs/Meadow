@@ -533,6 +533,7 @@ int hcom_pppd_start()
         {
             hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to get PPPD settings\n", thisFile, __LINE__);
 
+            // At this moment, the ESP32 is not ready for sending event messages
 #ifdef HCOM_CELL_DEBUG_LOGS
             hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
                 "Invalid cell settings. Please check your cell configuration file.", thisFile, __LINE__);
