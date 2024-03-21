@@ -545,6 +545,7 @@ int hcom_pppd_start()
         cell_settings_t *cell_settings = malloc(sizeof(cell_settings_t));
         if (cell_settings == NULL) {
             hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate cell settings struct\n", thisFile, __LINE__);
+            return -ENOMEM;
         }
 
         memcpy(cell_settings, config->default_cell_settings, sizeof(cell_settings_t));
