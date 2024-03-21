@@ -354,25 +354,39 @@ struct meadow_esp32_firmware_desc {
 }
 };
 
+static enum firmware_update_error
+{
+  FIRMWARE_NOT_FOUND = -1, // required firmware file not found
+  FIRMWARE_OPEN_ERROR = -2, // file exists, but other error while opening
+  ALLOC_ERROR = -3, // out of memory
+  FIRMWARE_READ_ERROR = -4, // error while reading
+  MD5_NOT_FOUND = -5, // required firmware file's .md5 not found
+  MD5_FORMAT_ERROR = -6,  // file not long enough for an md5 hash
+  MD5_OPEN_ERROR = -7, // file exists, but other error while opening
+  MD5_READ_ERROR = -8, // error while reading md5 file
+  ESP32_FLASH_ERROR = -9 // firmware operation error
+};
+
 /*
   Flashes a full set of firmware binaries staged for an update 
   Returns:
     0 when no update applied
-    1 when update applied
-    < 0 when an error occured 
+    i > 0 when update applied, where i is the number of files flashed
+    (i * E) < 0 when an error occured, where i is index of the file and E is one of `firmware_update_error`
 */
 
 int hcom_nx_exec_ex_update_ESP32()
 {
   int filecount = sizeof(meadow_esp32_firmware) / sizeof(meadow_esp32_firmware[0]);
   int result = 0;
+  int i;
 
   DIR *dir = opendir(UPDATE_FIRMWARE_DIR);
   if (!dir)
     return 0;
   closedir(dir);
 
-  for (int i = 0; i < filecount; i++)
+  for (i = 0; i < filecount; i++)
   {
     char firmware_fullpath[PATH_MAX] = UPDATE_FIRMWARE_DIR;
     strncat(firmware_fullpath, meadow_esp32_firmware[i].filename, PATH_MAX);
@@ -387,17 +401,21 @@ int hcom_nx_exec_ex_update_ESP32()
 
     // get firmware file size
     struct stat stat_buf;
-    if (stat(firmware_fullpath, &stat_buf) < 0)
-      return -1; // required firmware file not found
+    if (stat(firmware_fullpath, &stat_buf) < 0) {
+      result = FIRMWARE_NOT_FOUND;
+      goto cleanup;
+    }
     off_t file_size = stat_buf.st_size;
 
     // load firmware file
     firmware = fopen(firmware_fullpath, "r");
-    if (!firmware)
-      return -2; // file exists, but other error while opening
+    if (!firmware) {
+      result = FIRMWARE_OPEN_ERROR;
+      goto cleanup;
+    }
     uint8_t *file_buf = malloc(file_size);
     if (!file_buf) {
-      result = -3; // out of memory
+      result = ALLOC_ERROR;
       goto cleanup;
     }
 
@@ -407,7 +425,7 @@ int hcom_nx_exec_ex_update_ESP32()
     {
       int n = fread(file_ptr, sizeof(uint8_t), file_size - bytes_read, firmware);
       if (n < 0) {
-        result = -4; // error while reading
+        result = FIRMWARE_READ_ERROR;
         goto cleanup;
       }
       file_ptr += n;
@@ -416,24 +434,24 @@ int hcom_nx_exec_ex_update_ESP32()
 
     // get firmware md5 file size
     if (stat(firmware_fullpath_md5, &stat_buf) < 0) {
-      result = -5; // required firmware file's .md5 not found
+      result = MD5_NOT_FOUND;
       goto cleanup;
     }
     off_t md5_file_size = stat_buf.st_size;
 
     if (md5_file_size < HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH)
-      return -6; // file not long enough for an md5 hash
+      return MD5_FORMAT_ERROR;
     md5_file_size = HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH;
 
     // load md5 file
     firmware_md5 = fopen(firmware_fullpath_md5, "r");
     if (!firmware_md5) {
-      result = -7; // file exists, but other error while opening
+      result = MD5_OPEN_ERROR;
       goto cleanup;
     }
     md5_hash_buf = malloc(HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH + 1);
     if (!md5_hash_buf) {
-      result = -3; // out of memory
+      result = ALLOC_ERROR;
       goto cleanup;
     }
 
@@ -443,7 +461,7 @@ int hcom_nx_exec_ex_update_ESP32()
     {
       int n = fread(file_ptr, sizeof(uint8_t), md5_file_size - bytes_read, firmware_md5);
       if (n < 0) {
-        result =  -8; // error while reading md5 file
+        result =  MD5_READ_ERROR;
         goto cleanup;
       }
       file_ptr += n;
@@ -454,7 +472,7 @@ int hcom_nx_exec_ex_update_ESP32()
     // flash file
     int flash_result = hcom_esp32_exec_flash_file(file_buf, file_size, meadow_esp32_firmware[i].target_addr , (char *) md5_hash_buf);
     if (flash_result < 0) {
-      result =  -9 * (i + 1); // 9 -> first file failed, 18 -> second file failed, etc.
+      result =  ESP32_FLASH_ERROR;
       goto cleanup;
     }
     result = 1; // update good so far
@@ -471,8 +489,8 @@ cleanup:
     if (result < 0)
       break;
   }
-  if (result == 1)
+  if (result > 0)
     hcom_esp32_exec_add_flash_end();
-  return result;
+  return result * i;
 }
 #endif

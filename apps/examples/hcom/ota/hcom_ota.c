@@ -228,7 +228,11 @@ int os_update(void)
 int firmware_update(void)
 {
   int result = hcom_nx_exec_ex_update_ESP32();
-  deltree(UPDATE_FIRMWARE_DIR);
+  if (result > 0) // successful update
+  {
+    deltree(UPDATE_FIRMWARE_DIR);
+    hcom_via_nx_only_restart_meadow();
+  }
   return result;
 }
 
