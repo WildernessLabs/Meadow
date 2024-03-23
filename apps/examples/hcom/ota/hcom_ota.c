@@ -57,9 +57,21 @@ static char *thisFile = __FILE__;
 
 /* OS & App updaters */
 
-int update_file(const char *srcpath, const char *destpath, const char *rollbackpath)
+static void update_info(const char *msg, ...)
 {
-  syslog(LOG_ERR, "%s -> %s\n", srcpath, destpath);
+    char hostMsg[HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH];
+    va_list ap;
+    va_start(ap, msg);
+    snprintf_chk(hostMsg, HCOM_MED_SHORT_HOST_STRING_BUFF_LENGTH,
+         msg, ap);
+    va_end(ap);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
+            thisFile, __LINE__);
+}
+
+static int update_file(const char *srcpath, const char *destpath, const char *rollbackpath)
+{
+  update_info("App Update: %s -> %s\n", srcpath, destpath);
   struct stat statbuf;
   int ret;
   if (stat(destpath, &statbuf) == 0)
@@ -122,6 +134,7 @@ int app_update(void)
   bool error = false;
   int  __attribute__((unused)) ret;
   ret = mkdir(ROLLBACK_DIR, 0777);
+  update_info("App Update: Applying...");
 
   // TODO: Recursive copying
   while ((entry = readdir(update_dir)) != NULL && !error)
@@ -214,11 +227,13 @@ int os_update(void)
   {
     validate_signature(OS_PART1_BINARY_FILENAME);
     validate_signature(OS_PART2_BINARY_FILENAME);
+    update_info("OS Update: Applying Part 1...");
     hcom_via_nx_update_OS1(); // should not return
   }
 
   if (!part1_update && part2_update)
   {
+    update_info("OS Update: Applying Part 2...");
     return hcom_via_nx_update_OS2();
   }
 
@@ -228,11 +243,15 @@ int os_update(void)
 int firmware_update(void)
 {
   int result = hcom_nx_exec_ex_update_ESP32();
+  deltree(UPDATE_FIRMWARE_DIR);
   if (result > 0) // successful update
   {
-    deltree(UPDATE_FIRMWARE_DIR);
+    update_info("Firmware Update Successful. Restarting...");
+    usleep(2 * 1000);
     hcom_via_nx_only_restart_meadow();
   }
+  if (result < 0)
+    update_info("Firmware Update Failed.");
   return result;
 }
 
