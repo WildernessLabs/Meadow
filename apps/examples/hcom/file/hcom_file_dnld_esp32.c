@@ -439,8 +439,10 @@ int hcom_nx_exec_ex_update_ESP32()
     }
     off_t md5_file_size = stat_buf.st_size;
 
-    if (md5_file_size < HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH)
-      return MD5_FORMAT_ERROR;
+    if (md5_file_size < HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH) {
+      result = MD5_FORMAT_ERROR;
+      goto cleanup;
+    }
     md5_file_size = HCOM_PROTOCOL_COMMAND_MD5_HASH_LENGTH;
 
     // load md5 file
