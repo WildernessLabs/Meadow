@@ -60,7 +60,8 @@ enum espcp_status_codes
     espcp_status_codes_access_point_already_started = 38,
     espcp_status_codes_not_implemented = 39,
     espcp_status_codes_file_not_found = 40,
-    espcp_status_codes_thread_pool_is_full = 41
+    espcp_status_codes_thread_pool_is_full = 41,
+    espcp_status_codes_unexpected_coprocessor_restart = 42,
 };
 typedef enum espcp_status_codes espcp_status_codes_t;
 
@@ -95,7 +96,8 @@ enum espcp_system_function
     espcp_system_function_file_system_list_files = 8,
     espcp_system_function_file_system_write_file = 9,
     espcp_system_function_file_system_read_file = 10,
-    espcp_system_function_file_system_delete_file = 11
+    espcp_system_function_file_system_delete_file = 11,
+    espcp_system_function_os_exception = 12
 };
 typedef enum espcp_system_function espcp_system_function_t;
 
