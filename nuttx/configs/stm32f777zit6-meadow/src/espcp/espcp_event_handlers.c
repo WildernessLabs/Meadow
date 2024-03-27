@@ -454,17 +454,7 @@ void espcp_system_get_configuration_event_handler(espcp_message_t *message)
                 hcom_nx_config_lock();
                 meadow_configuration_t *config = hcom_nx_config_get_pointer();
                 syslog(LOG_INFO, "ESP32 Coprocessor ready, firmware version %s\n", config->esp_version.long_string);
-                // bool start = (config->automatically_start_network == 1) && (config->default_access_point != NULL);
                 hcom_nx_config_unlock();
-                //
-                //  The above comment (start) and the code below is commented out as the automatic network start
-                //  control has now passed to Core.
-                //
-                // if (start)
-                // {
-                //     espcp_queue_add_nonblocking_message(espcp_message_types_header, espcp_esp32_interfaces_wi_fi, 
-                //                                         espcp_wi_fi_function_connect_to_default_access_point, NULL, 0);
-                // }
             }
         }
     }
