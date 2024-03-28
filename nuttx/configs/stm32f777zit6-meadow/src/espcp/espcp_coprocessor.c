@@ -880,25 +880,25 @@ espcp_configuration_t *espcp_get_configuration(void)
 }
 
 /****************************************************************************
- *  Name: espcp_init
+ *  Name: espcp_early_init
  *
  *  Description:
- *      Initialise the ESP32 coprocessor system
+ *      Perform the early initialisation of the system.  This is the part of
+ *      the initialisation that puts supporting structures, mutexes and
+ *      message queues in place.
  *
  *  Input Parameters:
- *      None
+ *      None.
  *
  *  Returned Value:
- *      Result of starting the thread or -ENETDOWN if there is an error.
+ *      None.
  *
  *  Assumptions/Limitations:
  *      None
  *
  ****************************************************************************/
-int espcp_init(void)
+void espcp_early_init(void)
 {
-    int result = OK;
-
     g_espcp_configuration = espcp_get_default_configuration();
     if (g_espcp_configuration != NULL)
     {
@@ -910,18 +910,43 @@ int espcp_init(void)
                 _active_pins = &_f7v2_pins;
             }
             espcp_setup_message_dispatcher();
-            espcp_usrsock_init();
             espcp_event_handlers_init();
-            result = espcp_thread_start(g_espcp_configuration);
-            usrsock_register_sockif(&g_usrsock_sockif_esp32);
-            espcp_spi_setup();
         }
         else
         {
             MEADOW_TRACE_CRITICAL("%s@%d Error creating ESP32 message queues.\n", __FILE__, __LINE__);
-            result = -ENETDOWN;
             g_espcp_configuration->esp_not_responding = true;
         }
+    }
+}
+
+/****************************************************************************
+ *  Name: espcp_late_init
+ *
+ *  Description:
+ *      Perform late initialisation of the ESP system.  This is the part of
+ *      the initialisation that puts the network components in place.
+ *
+ *  Input Parameters:
+ *      None
+ *
+ *  Returned Value:
+ *      Result of starting the thread or -ENETDOWN if there is an error.
+ *
+ *  Assumptions/Limitations:
+ *      None
+ *
+ ****************************************************************************/
+int espcp_late_init(void)
+{
+    int result = OK;
+
+    if (g_espcp_configuration != NULL)
+    {
+        espcp_usrsock_init();
+        result = espcp_thread_start(g_espcp_configuration);
+        usrsock_register_sockif(&g_usrsock_sockif_esp32);
+        espcp_spi_setup();
     }
     else
     {

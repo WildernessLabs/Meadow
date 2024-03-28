@@ -48,8 +48,10 @@
 #include <meadow/hcom_upd_shared.h>
 #include <meadow/hcom_nuttx_shared.h>
 #include <meadow/meadow_hw_version.h>
+#include <meadow/meadow_os.h>
 #include "../espcp/espcp_coprocessor.h"
 #include "../espcp/espcp_message_dispatcher.h"
+#include "../espcp/espcp_event_handlers.h"
 #include "../espcp/espcp_shared_enums.h"
 #include "../espcp/espcp_usrsock.h"
 #include "../misc/meadow_logging.h"
@@ -1591,6 +1593,7 @@ static meadow_configuration_t *hcom_nx_config_process_meadow_config_file(void)
                 if (err != CYAML_OK)
                 {
                     meadow_logging_write(mfl_error, "Error processing config file, using default config");
+                    meadow_os_raise_simple_exception(espcp_status_codes_invalid_configuration_file);
                 }
                 //
                 //  Add any default settings here.

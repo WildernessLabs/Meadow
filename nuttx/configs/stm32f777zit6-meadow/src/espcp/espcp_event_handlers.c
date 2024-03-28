@@ -69,9 +69,6 @@ static void espcp_network_disconnected_event_handler(espcp_message_t *message);
 static void espcp_system_get_configuration_event_handler(espcp_message_t *);
 static void espcp_system_error_event_handler(espcp_message_t *);
 
-static void espcp_pass_to_managed_event_handler(espcp_message_t *);
-
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/

@@ -291,7 +291,8 @@ typedef struct espcp_configuration_s espcp_configuration_t;
  ****************************************************************************/
 void espcp_spi_interface_lock(void);
 void espcp_spi_interface_unlock(void);
-int espcp_init(void);
+void espcp_early_init(void);
+int espcp_late_init(void);
 espcp_configuration_t *espcp_get_default_configuration(void);
 int espcp_spi_setup(void);
 void espcp_send_data_over_spi(void *, void *, size_t);
