@@ -86,7 +86,7 @@
  *  None
  *
  ****************************************************************************/
-void meadow_os_raise_simple_exception(espcp_status_codes_t status)
+void meadow_os_raise_simple_exception(uint32_t status)
 {
     espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_event, espcp_esp32_interfaces_system, espcp_system_function_os_exception, status, espcp_get_next_message_id(), NULL, 0);
     espcp_pass_to_managed_event_handler(message);
