@@ -80,5 +80,6 @@ void espcp_event_handlers_init(void);
 espcp_message_t *espcp_get_event_data(uint32_t);
 void espcp_usrsock_poll_interrupt_handler(espcp_message_t *);   // Found in espcp_usrsock_sockif.c
 void espcp_dispatch_event(espcp_message_t *);
+void espcp_pass_to_managed_event_handler(espcp_message_t *);
 
 #endif /* __ESPCP_EVENT_HANDLERS_H__ */

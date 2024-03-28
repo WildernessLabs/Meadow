@@ -218,23 +218,26 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
   case HCOM_NX_UPD_START_ESPCP_RUNNING:
   {
+    //
+    //  MS: I think this needs removing.
+    //
     // Start the ESP32 coprocessor.
-    ret = espcp_init();
-    if(ret != OK)
-    {
-      syslog(LOG_EMERG, "ERROR: ESP32 initialization failed:%d\n", ret);
-      return ret;
-    }
+    // ret = espcp_init();
+    // if(ret != OK)
+    // {
+    //   syslog(LOG_EMERG, "ERROR: ESP32 initialization failed:%d\n", ret);
+    //   return ret;
+    // }
 
-    ret = espcp_enter_run_mode();
-    if(ret != OK)
-    {
-      syslog(LOG_EMERG, "ERROR: ESP32 enter run mode failed:%d\n", ret);
-      return ret;
-    }
+    // ret = espcp_enter_run_mode();
+    // if(ret != OK)
+    // {
+    //   syslog(LOG_EMERG, "ERROR: ESP32 enter run mode failed:%d\n", ret);
+    //   return ret;
+    // }
 
-    usrsock_register_sockif(&g_usrsock_sockif_esp32);
-    return OK;
+    // usrsock_register_sockif(&g_usrsock_sockif_esp32);
+    // return OK;
   }
 #endif
 

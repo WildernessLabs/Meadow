@@ -124,6 +124,14 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   meadow_logging_init_os_logging();
 
   //
+  //  We need to perform early initialisation of the ESP system to put
+  //  message queues for any error handling in place.  It needs to be
+  //  performed before the configuration file is read incase the config
+  //  file contains errors that need to be reported to core.
+  //
+  espcp_early_init();
+
+  //
   //  Initialise the configuration system.
   //
   hcom_nx_config_init();
@@ -157,7 +165,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 
   if (reset_esp32)
   {
-    ret = espcp_init();
+    ret = espcp_late_init();
     if (ret != OK)
     {
       syslog(LOG_EMERG, "ERROR: ESP32 initialization failed:%d\n", ret);
