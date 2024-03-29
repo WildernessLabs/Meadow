@@ -145,6 +145,10 @@ namespace System.Net {
 				if (HeadersSent)
 					throw new InvalidOperationException ("Cannot be changed after headers are sent.");
 					
+#if NUTTX
+				throw new InvalidOperationException ("Keep-alive is not supported on Meadow");
+#endif
+
 				keep_alive = value;
 			}
 		}

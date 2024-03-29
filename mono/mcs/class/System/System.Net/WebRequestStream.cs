@@ -59,9 +59,13 @@ namespace System.Net
 			if (!sendChunked && allowBuffering && operation.WriteBuffer == null)
 				writeBuffer = new MemoryStream ();
 
+#if !NUTTX
 			KeepAlive = Request.KeepAlive;
 			if (tunnel?.ProxyVersion != null && tunnel?.ProxyVersion != HttpVersion.Version11)
 				KeepAlive = false;
+#else
+			KeepAlive = false;
+#endif
 
 #if MONO_WEB_DEBUG
 			ME = $"WRQ(Cnc={Connection.ID}, Op={Operation.ID})";

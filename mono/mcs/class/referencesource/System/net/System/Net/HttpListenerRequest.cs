@@ -716,6 +716,7 @@ namespace System.Net {
         {
             get
             {
+#if !NUTTX
                 if (m_KeepAlive == TriState.Unspecified)
                 {
                     string header = Headers[HttpKnownHeaderNames.ProxyConnection];
@@ -744,6 +745,9 @@ namespace System.Net {
 
                 GlobalLog.Print("HttpListenerRequest#" + ValidationHelper.HashString(this) + "::KeepAlive_get() returning:" + m_KeepAlive);
                 return m_KeepAlive == TriState.True;
+#else
+                return m_KeepAlive == TriState.False;
+#endif
             }
         }
 

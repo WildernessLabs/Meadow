@@ -462,6 +462,7 @@ namespace System.Net {
 
 		public bool KeepAlive {
 			get {
+#if !NUTTX
 				if (ka_set)
 					return keep_alive;
 
@@ -480,6 +481,10 @@ namespace System.Net {
 						keep_alive = (0 != String.Compare (cnc, "closed", StringComparison.OrdinalIgnoreCase));
 				}
 				return keep_alive;
+#else
+				keep_alive = false;
+				return keep_alive;
+#endif
 			}
 		}
 

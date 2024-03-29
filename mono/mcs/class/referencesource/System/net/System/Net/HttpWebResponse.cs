@@ -334,6 +334,7 @@ namespace System.Net {
 
         internal bool KeepAlive {
             get {
+if !NUTTX
                 //
                 // QFE  - DevDiv bug: 37757
                 // If there is proxy involved, independen of the Http Version, we should honor the
@@ -378,7 +379,7 @@ namespace System.Net {
                             connectionHeader.IndexOf("close") < 0 ||
                             connectionHeader.IndexOf("keep-alive") >= 0);
                 }
-
+#endif
                 return false;
             }
         }

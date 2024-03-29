@@ -228,6 +228,7 @@ namespace System.Net
 
 			ChunkedRead = (tencoding != null && tencoding.IndexOf ("chunked", StringComparison.OrdinalIgnoreCase) != -1);
 
+#if !NUTTX
 			if (Version == HttpVersion.Version11 && RequestStream.KeepAlive) {
 				KeepAlive = true;
 				var cncHeader = Headers[ServicePoint.UsesProxy ? "Proxy-Connection" : "Connection"];
@@ -247,6 +248,9 @@ namespace System.Net
 					 */
 					KeepAlive = false;
 				}
+#else
+			KeepAlive = false;
+#endif
 			}
 
 			/*
