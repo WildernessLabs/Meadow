@@ -8,7 +8,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  *
- * 1. Redistributions of source code must resultain the above copyright
+ * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -69,6 +69,8 @@
 #include "espcp_usrsock.h"
 #include "espcp_system.h"
 #include <arch/board/board.h>
+
+#include "espcp_network_monitor.h"
 
 #ifdef CONFIG_BUILD_PROTECTED
 
@@ -168,7 +170,7 @@ static espcp_pins_t *_active_pins = &_f7v1_pins;
 /**
  *  Used to indicate if the SPI interface is free.
  */
-static sem_t spi_lock;
+sem_t espcp_spi_lock;
 
 /****************************************************************************
  * Public Data
@@ -183,19 +185,19 @@ static sem_t spi_lock;
  ****************************************************************************/
 
 /****************************************************************************
- * Name: espcp_config_lock
+ *  Name: espcp_config_lock
  *
- * Description:
- *  Lock the specified configuration object.
+ *  Description:
+ *      Lock the specified configuration object.
  *
- * Input Parameters:
- *  None.
+ *  Input Parameters:
+ *      None.
  *
- * Returned Value:
- *  None.
+ *  Returned Value:
+ *      None.
  *
- * Assumptions/Limitations:
- *  The config_lock semaphore has been created and initialised correctly.
+ *  Assumptions/Limitations:
+ *      The config_lock semaphore has been created and initialised correctly.
  *
  ****************************************************************************/
 void espcp_config_lock()
@@ -204,19 +206,19 @@ void espcp_config_lock()
 }
 
 /****************************************************************************
- * Name: espcp_config_unlock
+ *  Name: espcp_config_unlock
  *
- * Description:
- *  Unlock the specified configuration object.
+ *  Description:
+ *      Unlock the specified configuration object.
  *
- * Input Parameters:
- *  None.
+ *  Input Parameters:
+ *      None.
  *
- * Returned Value:
- *  None.
+ *  Returned Value:
+ *      None.
  *
- * Assumptions/Limitations:
- *  The config_lock semaphore has been created and initialised correctly.
+ *  Assumptions/Limitations:
+ *      The config_lock semaphore has been created and initialised correctly.
  *
  ****************************************************************************/
 void espcp_config_unlock()
@@ -225,66 +227,66 @@ void espcp_config_unlock()
 }
 
 /****************************************************************************
- * Name: espcp_spi_lock
+ *  Name: espcp_spi_interface_lock
  *
- * Description:
- *  Lock the S{PI interface.
+ *  Description:
+ *      Lock the S{PI interface.
  *
- * Input Parameters:
- *  None.
+ *  Input Parameters:
+ *      None.
  *
- * Returned Value:
- *  None.
+ *  Returned Value:
+ *      None.
  *
- * Assumptions/Limitations:
- *  None
+ *  Assumptions/Limitations:
+ *      None.
  *
  ****************************************************************************/
 void espcp_spi_interface_lock(void)
 {
-    sem_wait(&spi_lock);
+    sem_wait(&espcp_spi_lock);
 }
 
 /****************************************************************************
- * Name: hcom_nx_config_unlock
+ *  Name: espcp_spi_interface_unlock
  *
- * Description:
- *  Unlock the SPI interface.
+ *  Description:
+ *      Unlock the SPI interface.
  *
- * Input Parameters:
- *  None.
+ *  Input Parameters:
+ *      None.
  *
- * Returned Value:
- *  None.
+ *  Returned Value:
+ *      None.
  *
- * Assumptions/Limitations:
- *  None
+ *  Assumptions/Limitations:
+ *      None.
  *
  ****************************************************************************/
 void espcp_spi_interface_unlock(void)
 {
-    sem_post(&spi_lock);
+    sem_post(&espcp_spi_lock);
 }
 
 /****************************************************************************
- * Name: espcp_get_default_configuration
+ *  Name: espcp_get_default_configuration
  *
- * Description:
- *  Get the default configuration object for the ESP32 communication system.
+ *  Description:
+ *      Get the default configuration object for the ESP32 communication system.
  *
- * Input Parameters:
- *  None
+ *  Input Parameters:
+ *      None.
  *
- * Returned Value:
- *  Pointer to a valid ESP32 configuration object, NULL if there was a problem
- *  allocating memory.
+ *  Returned Value:
+ *      Pointer to a valid ESP32 configuration object, NULL if there was a
+ *      problem allocating memory.
  *
- * Assumptions/Limitations:
- *  This is only called once and so we do not need to lock the configuration
- *  object.
+ *  Assumptions/Limitations:
+ *      This is only called once and so we do not need to lock the
+ *      configuration object.
  *
  ****************************************************************************/
-espcp_configuration_t *espcp_get_default_configuration(void)
+static espcp_configuration_t *espcp_get_default_configuration(void)
 {
     sem_init(&config_lock, 0, 0);                   //  This will lock the configuration (initial value = 0).
     sem_setprotocol(&config_lock, SEM_PRIO_NONE);
@@ -292,10 +294,12 @@ espcp_configuration_t *espcp_get_default_configuration(void)
     espcp_configuration_t *config = (espcp_configuration_t *) kmm_zalloc(sizeof(espcp_configuration_t));
     if (config != NULL)
     {
-        sem_init(&spi_lock, 0, 0);                      // This will lock the SPI interface (initial value = 0).
-        sem_setprotocol(&spi_lock, SEM_PRIO_NONE);
+        sem_init(&espcp_spi_lock, 0, 0);                      // This will lock the SPI interface (initial value = 0).
+        sem_setprotocol(&espcp_spi_lock, SEM_PRIO_NONE);
+        config->current_mode = espcp_mode_unknown;
         config->thread_running = false;
         config->esp_not_responding = true;
+        config->uart_monitor_thread_running = false;
         config->send_data_to_esp32 = espcp_send_data_over_spi;
         config->header_only_buffer_size = espcp_calculate_spi_buffer_size(ESPCP_MESSAGE_HEADER_SIZE);
         config->header = (uint8_t *) kmm_zalloc(config->header_only_buffer_size);
@@ -311,22 +315,22 @@ espcp_configuration_t *espcp_get_default_configuration(void)
 }
 
 /****************************************************************************
- * Name: espcp_spi_setup
+ *  Name: espcp_spi_setup
  *
- * Description:
- *  Set up the STM32 SPI interface for comms with the ESP32.
+ *  Description:
+ *      Set up the STM32 SPI interface for comms with the ESP32.
  *
- * Input Parameters:
- *  None.
+ *  Input Parameters:
+ *      None.
  *
- * Returned Value:
- *  OK if successful, -1 if not.
+ *  Returned Value:
+ *      OK if successful, ERROR otherwise.
  *
- * Assumptions/Limitations:
- *  g_espcp_configuration is setup prior to calling this method.
+ *  Assumptions/Limitations:
+ *      g_espcp_configuration is setup prior to calling this method.
  *
  ****************************************************************************/
-int espcp_spi_setup()
+static int espcp_spi_init(void)
 {
     int result = OK;
     uint32_t frequency;
@@ -369,7 +373,7 @@ int espcp_spi_setup()
         if (result < 0)
         {
             MEADOW_TRACE_CRITICAL("%s@%d Config SPI CS GPIO failed result:%d\n", __FILE__, __LINE__, result);
-            return (-1);
+            return(ERROR);
         }
         stm32_gpiowrite(ESP32CP_SPI_CS_PIN_OUTPUT, true); // SPI CS is active low so deselect SPI.
 
@@ -377,7 +381,7 @@ int espcp_spi_setup()
         if (g_esp_spi_dev == 0)
         {
             MEADOW_TRACE_CRITICAL("%s@%d Error:Failed init ESP32 SPI port %d\n", __FILE__, __LINE__, result);
-            return (-1);
+            return(ERROR);
         }
         
         SPI_SETFREQUENCY(g_esp_spi_dev, frequency);
@@ -386,61 +390,75 @@ int espcp_spi_setup()
     }
 
     MEADOW_TRACE_INFORMATION("SPI Configuration complete\n");
-    return OK;
+
+    return(OK);
 }
 
 /****************************************************************************
- * Name: espcp_wait_for_message_waiting_signal
+ *  Name: espcp_gpio_init
  *
- * Description:
- *  Wait for the message waiting pin to go high and then go low.
+ *  Description:
+ *      Initialise the non-SPI GPIO pins used to control and communicate with
+ *      the ESP32.
  *
- *  This is intended to allow testing of messages that require a response
- *  without having to use the message queue.
- * 
- *  This method facilitates testing and is not intended for use in the
- *  production OS.
+ *  Returned Value:
+ *      OK if successful, ERROR otherwise.
  *
- * Returned Value:
- *  none.
- *
- * Assumptions/Limitations:
- *  None
+ *  Assumptions/Limitations:
+ *      g_espcp_configuration is setup prior to calling this method.
  *
  ****************************************************************************/
-void espcp_wait_for_message_waiting_signal(void)
+static int espcp_gpio_init(void)
 {
-    while (!stm32_gpioread(_active_pins->message_waiting))
+    int result = stm32_configgpio(_active_pins->boot);
+    if (result < 0)
     {
-        usleep(500);
+        MEADOW_TRACE_CRITICAL("%s@%d Config Boot pin as output result:%d\n", __FILE__, __LINE__, result);
+        return(ERROR);
     }
-    while (stm32_gpioread(_active_pins->message_waiting))
+    result = stm32_configgpio(_active_pins->uart_tx);
+    if (result < 0)
     {
-        usleep(500);
+        MEADOW_TRACE_CRITICAL("%s@%d Config UART Tx as output result:%d\n", __FILE__, __LINE__, result);
+        return(ERROR);
     }
+    result = stm32_configgpio(_active_pins->uart_rx);
+    if (result < 0)
+    {
+        MEADOW_TRACE_CRITICAL("%s@%d Config UART Rx as output result:%d\n", __FILE__, __LINE__, result);
+        return(ERROR);
+    }
+    result = stm32_configgpio(_active_pins->reset);
+    if (result < 0)
+    {
+        MEADOW_TRACE_CRITICAL("%s@%d Config Reset pin failed result:%d\n", __FILE__, __LINE__, result);
+        return(ERROR);
+    }
+
+    return(OK);
 }
 
 /****************************************************************************
- * Name: espcp_send_data_over_spi
+ *  Name: espcp_send_data_over_spi
  *
- * Description:
- *  Send, receive or exchange data with the ESP32.
+ *  Description:
+ *      Send, receive or exchange data with the ESP32.
  * 
- *  If tx is NULL then it is assumed that this is a receive only operation.
- *  If rx is NULL then it is assumed that this is a transmit only operation.
- *  If tx and rx are not NULL then an exchange is assumed.
- *  tx and rx both NULL is a no operation.
+ *      If tx is NULL then it is assumed that this is a receive only operation.
+ *      If rx is NULL then it is assumed that this is a transmit only operation.
+ *      If tx and rx are not NULL then an exchange is assumed.
+ *      tx and rx both NULL is a no operation.
  *
- * Input Parameters:
- *  tx - Buffer of bytes to send to the ESP32.
- *  rx - buffer to hold bytes to be received from the ESP32.
- *  buffer_length - number of bytes to be sent / received (or both).
+ *  Input Parameters:
+ *      tx - Buffer of bytes to send to the ESP32.
+ *      rx - buffer to hold bytes to be received from the ESP32.
+ *      buffer_length - number of bytes to be sent / received (or both).
  *
- * Returned Value:
- *  none.
+ *  Returned Value:
+ *      None.
  *
- * Assumptions/Limitations:
- *  None
+ *  Assumptions/Limitations:
+ *      None.
  *
  ****************************************************************************/
 void espcp_send_data_over_spi(void *tx, void *rx, size_t buffer_length)
@@ -472,59 +490,88 @@ void espcp_send_data_over_spi(void *tx, void *rx, size_t buffer_length)
 }
 
 /****************************************************************************
- * Name: espcp_should_reset_at_startup
+ *  Name: espcp_should_reset_at_startup
  *
- * Description:
- *  Check the system configuration to determine if the ESP should be reset
- *  at startup.
+ *  Description:
+ *      Check the system configuration to determine if the ESP should be
+ *      reset at startup.
  * 
- *  The default configuration for this is to force a reset.  Debugging often
- *  requires the ESP to have a debugger attached when the STM restarts which
- *  would then force the ESP to be reset and the debugger to be detached.
- *  The configuration allows this to be overridden to allow debugging to
- *  continue.
+ *      The default configuration for this is to force a reset.  Debugging often
+ *      requires the ESP to have a debugger attached when the STM restarts which
+ *      would then force the ESP to be reset and the debugger to be detached.
+ *      The configuration allows this to be overridden to allow debugging to
+ *      continue.
  * 
- * Input Parameters:
- *  None.
+ *  Input Parameters:
+ *      None.
  *
- * Returned Value:
- *  none.
+ *  Returned Value:
+ *      None.
  *
- * Assumptions/Limitations:
- *  None.
+ *  Assumptions/Limitations:
+ *      None.
  *
  ****************************************************************************/
 bool espcp_should_reset_at_startup(void)
 {
     bool perform_reset = true;
 
+    hcom_nx_config_lock();
     meadow_configuration_t *config = hcom_nx_config_get_pointer();
     if (config != NULL)
     {
-        hcom_nx_config_lock();
         perform_reset = (config->reset_esp32_at_startup == 1);
-        hcom_nx_config_unlock();
     }
+    hcom_nx_config_unlock();
+
     return (perform_reset);
 }
 
 /****************************************************************************
- * Name: espcp_reset
+ *  Name: escpcp_hold_in_reset
  *
- * Description:
- *  Reset the ESP32.
+ *  Description:
+ *      Configure the ESP reset pin and take the reset line low.
  * 
- *  Note that this method checks the configuration to determine if the ESP
- *  should be reset at startup.
+ *      This method can be used in two ways:
+ *          - Hold the chip in reset
+ *          - Start the reset process.
  * 
- * Input Parameters:
- *  None.
+ *  Input Parameters:
+ *      None.
  *
- * Returned Value:
- *  none.
+ *  Returned Value:
+ *      None.
  *
- * Assumptions/Limitations:
- *  None.
+ *  Assumptions/Limitations:
+ *      None.
+ *
+ ****************************************************************************/
+void espcp_hold_in_reset(void)
+{
+    if (espcp_should_reset_at_startup())
+    {
+        stm32_gpiowrite(_active_pins->reset, false);
+    }
+}
+
+/****************************************************************************
+ *  Name: espcp_reset
+ *
+ *  Description:
+ *      Reset the ESP32.
+ * 
+ *      Note that this method checks the configuration to determine if the ESP
+ *      should be reset at startup.
+ * 
+ *  Input Parameters:
+ *      None.
+ *
+ *  Returned Value:
+ *      None.
+ *
+ *  Assumptions/Limitations:
+ *      None.
  *
  ****************************************************************************/
 void espcp_reset(void)
@@ -534,143 +581,134 @@ void espcp_reset(void)
         espcp_hold_in_reset();
         usleep(500);
         stm32_gpiowrite(_active_pins->reset, true);
-        stm32_unconfiggpio(_active_pins->reset);
     }
 }
 
 /****************************************************************************
- * Name: escpcp_hold_in_reset
+ *  Name: espcp_enter_programming_mode
  *
- * Description:
- *  Configure the ESP reset pin and take the reset line low.
+ *  Description:
+ *      Put the ESP32 into programming mode.  This is done by pulling the boot pin
+ *      low, resetting the ESP and then pulling the boot pin high.  The boot pin
+ *      will be left unconfigured at the end of this process.
  * 
- *  This method can be used in two ways:
- *    - Hold the chip in reset
- *    - Start the reset process.
- * 
- * Input Parameters:
- *  None.
+ *  Input Parameters:
+ *      None.
  *
- * Returned Value:
- *  none.
+ *  Returned Value:
+ *      None.
  *
- * Assumptions/Limitations:
- *  None
+ *  Assumptions/Limitations:
+ *      A system (STM) reset will need to be performed in order for the comms
+ *      with the ESP to be reinstated.
  *
  ****************************************************************************/
-void espcp_hold_in_reset(void)
+int espcp_enter_programming_mode(void)
 {
-    if (espcp_should_reset_at_startup())
-    {
-        int result = stm32_configgpio(_active_pins->reset);
-        if (result < 0)
-        {
-            MEADOW_TRACE_CRITICAL("%s@%d Config Reset GPIO failed result:%d\n", __FILE__, __LINE__, result);
-            return;
-        }
-        stm32_gpiowrite(_active_pins->reset, false);
-    }
-}
-
-/****************************************************************************
- * Name: espcp_release_shared_gpio
- *
- * Description:
- *  Unconfigure the GPIO pins that are used for signalling between the ESP
- *  and STM chips.
- * 
- *  This method is necessary as the message waiting and SPI interface ready
- *  signals are used for programming the ESP.
- * 
- * Input Parameters:
- *  None.
- *
- * Returned Value:
- *  none.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-void espcp_release_shared_gpio(void)
-{
-    int result = stm32_gpiosetevent(_active_pins->message_waiting, /*risingedge=*/false, /*fallingedge=*/false, true, NULL, 0);
-    if (result < 0)
-    {
-        MEADOW_TRACE_CRITICAL("%s@%d Disabling Message Waiting interrupt result:%d\n", __FILE__, __LINE__, result);
-        return;
-    }
-    result = stm32_gpiosetevent(_active_pins->spi_ready, /*risingedge=*/false, /*fallingedge=*/false, true, NULL, 0);
+    //
+    //  First, reconfigure the BOOT pin as this is shared with the SPI interface
+    //  ready signal.
+    //
+    int result = stm32_gpiosetevent(_active_pins->spi_ready, /*risingedge=*/false, /*fallingedge=*/false, true, NULL, 0);
     if (result < 0)
     {
         MEADOW_TRACE_CRITICAL("%s@%d Disabling SPI Ready interrupt result:%d\n", __FILE__, __LINE__, result);
-        return;
+        return(ERROR);
     }
-    stm32_unconfiggpio(_active_pins->message_waiting);
     stm32_unconfiggpio(_active_pins->spi_ready);
-    stm32_unconfiggpio(_active_pins->boot);
-    stm32_unconfiggpio(_active_pins->uart_tx);
-    stm32_unconfiggpio(_active_pins->uart_rx);
-}
-
-/****************************************************************************
- * Name: espcp_enter_programming_mode
- *
- * Description:
- *  Put the ESP32 into programming mode.  This is done by pulling the boot pin
- *  low, resetting the ESP and then pulling the boot pin high.  The boot pin
- *  will be left unconfigured at the end of this process.
- * 
- * Input Parameters:
- *  None.
- *
- * Returned Value:
- *  none.
- *
- * Assumptions/Limitations:
- *  A system (STM) reset will need to be performed in order for the comms
- *  with the ESP to be reinstated.
- *
- ****************************************************************************/
-void espcp_enter_programming_mode(void)
-{
-    espcp_release_shared_gpio();
-    //
-    //  Now reconfigure the needed resources.
-    //
-    stm32_configgpio(_active_pins->uart_tx);
-    stm32_configgpio(_active_pins->uart_rx);
-    int result = stm32_configgpio(_active_pins->boot);
+    result = stm32_configgpio(_active_pins->boot);
     if (result < 0)
     {
-        MEADOW_TRACE_CRITICAL("%s@%d Config Boot pin as output result:%d\n", __FILE__, __LINE__, result);
-        return;
+        MEADOW_TRACE_CRITICAL("%s@%d Config BOOT pin as output result:%d\n", __FILE__, __LINE__, result);
+        return(ERROR);
     }
+    //
+    //  Record the change of mode.
+    //
+    espcp_config_lock();
+    espcp_configuration_t *config = espcp_get_configuration();
+    config->current_mode = espcp_mode_programming;
+    espcp_config_unlock();
+    //
+    //  Now put the ESP32 into programming mode.
+    //
     usleep(20 * 1000);
     stm32_gpiowrite(_active_pins->boot, false);
     espcp_reset();
     usleep(20 * 1000);
     stm32_gpiowrite(_active_pins->boot, true);
+
+    return(OK);
 }
 
 /****************************************************************************
- * Name: espcp_spi_ready
+ *  Name: espcp_enter_run_mode
  *
- * Description:
- *  Interrupt generated when the ESP has generated the SPI interface ready
- *  signal.
+ *  Description:
+ *      Reset the ESP and enter run mode.
+ *
+ *  Input Parameters:
+ *      None.
+ *
+ *  Returned Value:
+ *      OK on success, -1 on failure.
+ *
+ *  Assumptions/Limitations:
+ *      None.
+ *
+ ****************************************************************************/
+int espcp_enter_run_mode(void)
+{
+    //
+    //  First, reconfigure the BOOT pin as this is shared with the SPI interface
+    //  ready signal.
+    //
+    stm32_unconfiggpio(_active_pins->boot);
+    int result = stm32_configgpio(_active_pins->spi_ready);
+    if (result < 0)
+    {
+        MEADOW_TRACE_CRITICAL("%s@%d Config SPI Ready pin failed result: %d\n", __FILE__, __LINE__, result);
+        return(ERROR);
+    }
+    result = stm32_gpiosetevent(_active_pins->spi_ready, /*risingedge=*/true, /*fallingedge=*/false, true, NULL, 0);
+    if (result < 0)
+    {
+        MEADOW_TRACE_CRITICAL("%s@%d Disabling SPI Ready interrupt result:%d\n", __FILE__, __LINE__, result);
+        return(ERROR);
+    }
+    //
+    //  Record the change of mode.
+    //
+    espcp_config_lock();
+    espcp_configuration_t *config = espcp_get_configuration();
+    config->current_mode = espcp_mode_run;
+    espcp_config_unlock();
+    //
+    //  Now reset to enter run mode.
+    //
+    espcp_reset();
+
+    return (OK);
+}
+
+/****************************************************************************
+ *  Name: espcp_spi_ready
+ *
+ *  Description:
+ *      Interrupt generated when the ESP has generated the SPI interface ready
+ *      signal.
  * 
- * Input Parameters:
- *  irq
- *  context
- *  arg
+ *  Input Parameters:
+ *      irq - Not used
+ *      context - Not used
+ *      arg - Not used
  *
- * Returned Value:
- *  OK.
+ *  Returned Value:
+ *      OK.
  *
- * Assumptions/Limitations:
- *  This method must be quick as it is intended to be called from an
- *  interrupt handler.
+ *  Assumptions/Limitations:
+ *      This method must be quick as it is intended to be called from an
+ *      interrupt handler.
  *
  ****************************************************************************/
 int espcp_spi_ready(int irq, void *context, void *arg)
@@ -681,112 +719,19 @@ int espcp_spi_ready(int irq, void *context, void *arg)
 }
 
 /****************************************************************************
- * Name: espcp_hardware_responding
+ *  Name: espcp_deep_sleep
  *
- * Description:
- *  Interrupt generated when the ESP generatees the first Message Waiting
- *  signal.  This is used to indicate that the ESP is ready and we can start
- *  communicating with it.
- * 
- * Input Parameters:
- *  irq
- *  context
- *  arg
+ *  Description:
+ *      Put the ESP32 coprocessor to sleep.
  *
- * Returned Value:
- *  OK.
+ *  Input Parameters:
+ *      None.
  *
- * Assumptions/Limitations:
- *  This method must be quick as it is intended to be called from an
- *  interrupt handler.
+ *  Returned Value:
+ *      None.
  *
- ****************************************************************************/
-int espcp_hardware_responding(int irq, void *context, void *arg)
-{
-    MEADOW_TRACE_DEBUG("ESP32 responding\n");
-    int result = stm32_gpiosetevent(_active_pins->spi_ready, /*risingedge=*/true, /*fallingedge=*/false, true, espcp_spi_ready, 0);
-    if (result < 0)
-    {
-        MEADOW_TRACE_CRITICAL("%s@%d Enabling SPI Ready interrupt result:%d\n", __FILE__, __LINE__, result);
-        return (-1);
-    }
-    result = stm32_gpiosetevent(_active_pins->message_waiting, /*risingedge=*/true, /*fallingedge=*/false, true, espcp_queue_send_response_message, 0);
-    if (result < 0)
-    {
-        MEADOW_TRACE_CRITICAL("%s@%d Changing Message Waiting interrupt result:%d\n", __FILE__, __LINE__, result);
-        return (-1);
-    }
-    espcp_config_lock();
-    espcp_configuration_t *config = espcp_get_configuration();
-    config->esp_not_responding = false;
-    espcp_config_unlock();
-
-    return(OK);
-}
-
-/****************************************************************************
- * Name: espcp_enter_run_mode
- *
- * Description:
- *  Reset the ESP and enter run mode.
- *
- * Input Parameters:
- *  None
- *
- * Returned Value:
- *  OK on success, -1 on failure.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-int espcp_enter_run_mode(void)
-{
-    espcp_release_shared_gpio();
-    //
-    //  Input pins, one indicating that ESP32 SPI transaction can start (ESP32 SPI interface is ready)
-    //  and one to indicate that the ESP32 has a response to a request from the STM32 or some other
-    //  event has ocurred that the STM32 should be aware of.
-    //
-    int result = stm32_configgpio(_active_pins->spi_ready);
-    if (result < 0)
-    {
-        MEADOW_TRACE_CRITICAL("%s@%d Config SPI Ready pin failed result: %d\n", __FILE__, __LINE__, result);
-        return -1;
-    }
-
-    result = stm32_configgpio(_active_pins->message_waiting);
-    if (result < 0)
-    {
-        MEADOW_TRACE_CRITICAL("%s@%d Config Message Waiting pin failed result: %d\n", __FILE__, __LINE__, result);
-        return -1;
-    }
-    //
-    //  We now wait for a message waiting signal from the ESP32.  There will always be a message
-    //  waiting at startup as the ESP32 will queue a configuration message for the STM32 to retrieve.
-    //  This message ready will repeat at 500ms intervals until it is collected.  The system will
-    //  enter business as usual after the initial configuration message is retrieved.
-    //
-    stm32_gpiosetevent(_active_pins->message_waiting, /*risingedge=*/false, /*fallingedge=*/true, true, espcp_hardware_responding, 0);
-    espcp_reset();
-
-    return (OK);
-}
-
-/****************************************************************************
- * Name: espcp_deep_sleep
- *
- * Description:
- *  Put the ESP32 coprocessor to sleep.
- *
- * Input Parameters:
- *  None.
- *
- * Returned Value:
- *  None.
- *
- * Assumptions/Limitations:
- *  None
+ *  Assumptions/Limitations:
+ *      None.
  *
  ****************************************************************************/
 void espcp_deep_sleep(void)
@@ -838,19 +783,19 @@ void espcp_deep_sleep(void)
 }
 
 /****************************************************************************
- * Name: espcp_wakeup
+ *  Name: espcp_wakeup
  *
- * Description:
- *  Wakeup the ESP32 coprocessor.
+ *  Description:
+ *      Wakeup the ESP32 coprocessor.
  *
- * Input Parameters:
- *  None.
+ *  Input Parameters:
+ *      None.
  *
- * Returned Value:
- *  None.
+ *  Returned Value:
+ *      None.
  *
- * Assumptions/Limitations:
- *  None
+ *  Assumptions/Limitations:
+ *      None.
  *
  ****************************************************************************/
 void espcp_wakeup(void)
@@ -859,19 +804,19 @@ void espcp_wakeup(void)
 }
 
 /****************************************************************************
- * Name: espcp_get_configuration
+ *  Name: espcp_get_configuration
  *
- * Description:
- *  Get a pointer to the current configuration of the ESP32 coprocessor.
+ *  Description:
+ *      Get a pointer to the current configuration of the ESP32 coprocessor.
  *
- * Input Parameters:
- *  None
+ *  Input Parameters:
+ *      None.
  *
- * Returned Value:
- *  Pointer to the current ESP32 configuration object.
+ *  Returned Value:
+ *      Pointer to the current ESP32 configuration object.
  *
- * Assumptions/Limitations:
- *  None
+ *  Assumptions/Limitations:
+ *      None.
  *
  ****************************************************************************/
 espcp_configuration_t *espcp_get_configuration(void)
@@ -894,7 +839,7 @@ espcp_configuration_t *espcp_get_configuration(void)
  *      None.
  *
  *  Assumptions/Limitations:
- *      None
+ *      None.
  *
  ****************************************************************************/
 void espcp_early_init(void)
@@ -928,29 +873,30 @@ void espcp_early_init(void)
  *      the initialisation that puts the network components in place.
  *
  *  Input Parameters:
- *      None
+ *      None.
  *
  *  Returned Value:
  *      Result of starting the thread or -ENETDOWN if there is an error.
  *
  *  Assumptions/Limitations:
- *      None
+ *      None.
  *
  ****************************************************************************/
 int espcp_late_init(void)
 {
-    int result = OK;
+    int result = -ENETDOWN;
 
     if (g_espcp_configuration != NULL)
     {
         espcp_usrsock_init();
         result = espcp_thread_start(g_espcp_configuration);
         usrsock_register_sockif(&g_usrsock_sockif_esp32);
-        espcp_spi_setup();
-    }
-    else
-    {
-        result = -ENETDOWN;
+        espcp_gpio_init();
+        espcp_spi_init();
+
+        espcp_network_monitor_start();
+        espcp_reset();
+        result = OK;
     }
     
     return result;

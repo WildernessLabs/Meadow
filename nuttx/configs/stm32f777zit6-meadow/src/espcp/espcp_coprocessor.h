@@ -165,6 +165,9 @@
  */
 typedef void (*espcp_send_data_function_t)(void *, void *, size_t);
 
+enum espcp_current_mode_e { espcp_mode_unknown = 0, espcp_mode_run = 1, espcp_mode_programming = 2, espcp_mode_deep_sleep = 3 };
+typedef enum espcp_current_mode_e espcp_current_mode_t;
+
 /*
  *  Configuration information for the ESP32 coprocessor.
  */
@@ -176,6 +179,11 @@ struct espcp_configuration_s
      *  espcp_config_unlock methods.
      */
     sem_t lock;
+
+    /**
+     * @brief Indicate the current "state" of the ESP32.
+     */
+    espcp_current_mode_t current_mode;
 
     /*
      *  Indicates if the thread processing the messages for the ESP32
@@ -189,6 +197,11 @@ struct espcp_configuration_s
      *         thread more than once.
      */
     bool incoming_event_handler_thread_running;
+
+    /**
+     *  @brief Indicate if the UART monitor thread is running.
+     */
+    bool uart_monitor_thread_running;
 
     /*
      *  ID of the thread processing the messages for the ESP32.
@@ -206,6 +219,15 @@ struct espcp_configuration_s
     int incoming_event_thread;
 #else
     pthread_t incoming_event_thread;
+#endif
+
+    /*
+     *  @brief ID of the thread monitoring the UART comms between the ESP32 and the STM32.
+     */
+#ifdef CONFIG_BUILD_PROTECTED
+    int uart_monitor_thread;
+#else
+    pthread_t uart_monitor_thread;
 #endif
 
     /*
@@ -289,23 +311,18 @@ typedef struct espcp_configuration_s espcp_configuration_t;
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
-void espcp_spi_interface_lock(void);
-void espcp_spi_interface_unlock(void);
 void espcp_early_init(void);
 int espcp_late_init(void);
-espcp_configuration_t *espcp_get_default_configuration(void);
-int espcp_spi_setup(void);
+// espcp_configuration_t *espcp_get_default_configuration(void);
 void espcp_send_data_over_spi(void *, void *, size_t);
 espcp_configuration_t *espcp_get_configuration(void);
 bool espcp_should_reset_at_startup(void);
 void espcp_hold_in_reset(void);
 void espcp_reset(void);
-void espcp_enter_programming_mode(void);
 void espcp_config_lock(void);
 void espcp_config_unlock(void);
-void espcp_release_shared_gpio(void);
+int espcp_enter_programming_mode(void);
 int espcp_enter_run_mode(void);
-int espcp_spi_ready(int, void *, void *);
 void espcp_deep_sleep(void);
 void espcp_wakeup(void);
 
