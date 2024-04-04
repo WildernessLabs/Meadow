@@ -1,5 +1,5 @@
 /****************************************************************************
- * espcp_uart_comms.h
+ * espcp_network_monitor.h
  *
  *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
  *   Author: Mark Stevens
