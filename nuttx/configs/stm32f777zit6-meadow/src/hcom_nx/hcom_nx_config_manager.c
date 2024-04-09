@@ -1347,7 +1347,7 @@ static int hcom_nx_config_update_dns_file(char *path, char* server)
             char *new_content = (char *) zalloc(result + 1);
             if (new_content != NULL)
             {
-                snprintf(new_content, result, "nameserver %s\n%s", server, buffer);
+                snprintf(new_content, result, "gateway %s\n%s", server, buffer);
                 ret = hcom_nx_config_set_file(path, new_content);
                 free(new_content);
             }

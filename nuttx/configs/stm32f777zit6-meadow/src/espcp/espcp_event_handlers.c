@@ -569,6 +569,7 @@ static void espcp_network_disconnected_event_handler(espcp_message_t *message)
         hcom_nx_config_lock();
         meadow_configuration_t *config = hcom_nx_config_get_pointer();
         get_time = config->get_network_time_at_startup;
+        config->default_interface->gateway_changed = false;
         hcom_nx_config_unlock();
         if (get_time)
         {
