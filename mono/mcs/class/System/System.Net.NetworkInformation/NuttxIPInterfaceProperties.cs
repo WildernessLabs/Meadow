@@ -73,23 +73,28 @@ namespace System.Net.NetworkInformation {
 				if (File.Exists(filePath))
 				{
 					string line = File.ReadAllText(filePath).Trim();
-					
-					if (!string.IsNullOrEmpty(line) && line.StartsWith("nameserver"))
+
+					if (!string.IsNullOrEmpty(line))
 					{
 						string[] elements = line.Split(new string[] { "nameserver" }, StringSplitOptions.RemoveEmptyEntries);
 
 						foreach (string element in elements)
 						{
-							string ipAddress = element.Trim();
-							
-							// Convert the string IP address to IPAddress
-							if (IPAddress.TryParse(ipAddress, out IPAddress dnsServer))
+							// The Gateway IP also salve on dns.conf,
+							// so we must ignore the gateway label
+							if (!element.Contains("gateway"))
 							{
-								_dns_servers.InternalAdd(dnsServer);
-							}
-							else
-							{
-								throw new FormatException($"Invalid IP address format in line: {line}");
+								string ipAddress = element.Trim();
+
+								// Convert the string IP address to IPAddress
+								if (IPAddress.TryParse(ipAddress, out IPAddress dnsServer))
+								{
+									_dns_servers.InternalAdd(dnsServer);
+								}
+								else
+								{
+									throw new FormatException($"Invalid IP address format in line: {line}");
+								}
 							}
 						}
 					}
@@ -108,13 +113,48 @@ namespace System.Net.NetworkInformation {
 				Console.WriteLine($"Error reading dns.conf: {ex.Message}");
 			}
 		}
+		IPAddressCollection ParseRouteInfo()
+		{
+			var col = new IPAddressCollection();
+			try
+			{
+				// TODO : Save route information on /net/route/ipv4
+				string filePath = Path.Combine("meadow0", "dns.conf");
+				if (File.Exists(filePath))
+				{
+					foreach (var line in File.ReadAllLines(filePath))
+					{
+						if (line.Contains("gateway"))
+						{
+							string[] parts = line.Split(' ');
+							if (parts.Length > 1)
+							{
+								string gwAddressStr = parts[1].Trim();
+								if (IPAddress.TryParse(gwAddressStr, out IPAddress gwAddress))
+								{
+									col.InternalAdd(gwAddress);
+									break;
+								}
+							}
+						}
+					}
+				}
+				else
+				{
+					throw new FormatException($"File not found");
+				}
+			}
+			catch
+			{
+			}
+			return col;
+		}
 
 		public override GatewayIPAddressInformationCollection GatewayAddresses
 		{
-			get 
+			get
 			{
-				var gateways = new IPAddressCollection ();
-				return SystemGatewayIPAddressInformation.ToGatewayIpAddressInformationCollection(gateways);
+				return SystemGatewayIPAddressInformation.ToGatewayIpAddressInformationCollection(ParseRouteInfo());
 			}
 		}
 
