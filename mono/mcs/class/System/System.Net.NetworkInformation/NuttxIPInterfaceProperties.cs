@@ -74,27 +74,22 @@ namespace System.Net.NetworkInformation {
 				{
 					string line = File.ReadAllText(filePath).Trim();
 
-					if (!string.IsNullOrEmpty(line))
+					if (!string.IsNullOrEmpty(line) && line.StartsWith("nameserver"))
 					{
 						string[] elements = line.Split(new string[] { "nameserver" }, StringSplitOptions.RemoveEmptyEntries);
 
 						foreach (string element in elements)
 						{
-							// The Gateway IP also salve on dns.conf,
-							// so we must ignore the gateway label
-							if (!element.Contains("gateway"))
-							{
-								string ipAddress = element.Trim();
+							string ipAddress = element.Trim();
 
-								// Convert the string IP address to IPAddress
-								if (IPAddress.TryParse(ipAddress, out IPAddress dnsServer))
-								{
-									_dns_servers.InternalAdd(dnsServer);
-								}
-								else
-								{
-									throw new FormatException($"Invalid IP address format in line: {line}");
-								}
+							// Convert the string IP address to IPAddress
+							if (IPAddress.TryParse(ipAddress, out IPAddress dnsServer))
+							{
+								_dns_servers.InternalAdd(dnsServer);
+							}
+							else
+							{
+								throw new FormatException($"Invalid IP address format in line: {line}");
 							}
 						}
 					}
