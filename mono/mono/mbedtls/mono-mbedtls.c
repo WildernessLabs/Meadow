@@ -3539,7 +3539,7 @@ int mono_mbedtls_handshake(MonoMbedTlsContext *ctx)
         ret = mbedtls_ssl_handshake(ctx->mbedtls_ctx);
         if (ret != 0)
         {
-            printf("Handshake failed\n");
+            printf("Handshake failed! returned -0x%x\n", (unsigned int) -ret);
         }
     }
     return ret;
