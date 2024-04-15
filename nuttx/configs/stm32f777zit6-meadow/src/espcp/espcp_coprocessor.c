@@ -68,6 +68,7 @@
 #include "espcp_encoders.h"
 #include "espcp_usrsock.h"
 #include "espcp_system.h"
+#include "meadow/meadow_os.h"
 #include <arch/board/board.h>
 
 #include "espcp_network_monitor.h"
@@ -78,13 +79,13 @@
 
 #endif
 
-#ifdef CONFIG_MEADOW_ESPCP_USE_EXTERNAL_ESP32_BOARD
+// #ifdef CONFIG_MEADOW_ESPCP_USE_EXTERNAL_ESP32_BOARD
 
-#error "Using external ESP32 development board."
+// #error "Using external ESP32 development board."
 
-#endif
+// #endif
 
-// #define USE_MEADOW_DEBUG_HELPERS
+#define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
@@ -107,7 +108,6 @@ struct espcp_pins_s
     uint32_t reset;
     uint32_t boot;
     uint32_t spi_ready;
-    uint32_t message_waiting;
     uint32_t chip_select;
     uint32_t uart_rx;
     uint32_t uart_tx;
@@ -141,7 +141,6 @@ static espcp_pins_t _f7v1_pins =
     /* reset */ ESP32CP_RESET_PIN_OUTPUT,
     /* boot */ ESP32CP_BOOT_PIN_OUTPUT,
     /* spi_ready */ ESP32CP_SPI_READY_PIN_INPUT,
-    /* message_waiting */ ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT_F7V1,
     /* chip_select */ ESP32CP_SPI_CS_PIN_OUTPUT,
     /* uart_rx */ GPIO_UART5_RX,
     /* uart_tx */ GPIO_UART5_TX_V1
@@ -155,10 +154,9 @@ static espcp_pins_t _f7v2_pins =
     /* reset */ ESP32CP_RESET_PIN_OUTPUT,
     /* boot */ ESP32CP_BOOT_PIN_OUTPUT,
     /* spi_ready */ ESP32CP_SPI_READY_PIN_INPUT,
-    /* message_waiting */ ESP32CP_SPI_MESSAGE_WAITING_PIN_INPUT_F7V2,
     /* chip_select */ ESP32CP_SPI_CS_PIN_OUTPUT,
-    /* uart_rx */ GPIO_UART5_RX,
-    /* uart_tx */ GPIO_UART5_TX_V2
+    /* uart_rx */ ESP32CP_UART_RX,
+    /* uart_tx */ ESP32CP_UART_TX
 };
 
 /**
@@ -410,10 +408,10 @@ static int espcp_spi_init(void)
  ****************************************************************************/
 static int espcp_gpio_init(void)
 {
-    int result = stm32_configgpio(_active_pins->boot);
+    int result = stm32_configgpio(_active_pins->spi_ready);
     if (result < 0)
     {
-        MEADOW_TRACE_CRITICAL("%s@%d Config Boot pin as output result:%d\n", __FILE__, __LINE__, result);
+        MEADOW_TRACE_CRITICAL("%s@%d Config Boot pin as input for SPI Ready signal result:%d\n", __FILE__, __LINE__, result);
         return(ERROR);
     }
     result = stm32_configgpio(_active_pins->uart_tx);
@@ -425,7 +423,7 @@ static int espcp_gpio_init(void)
     result = stm32_configgpio(_active_pins->uart_rx);
     if (result < 0)
     {
-        MEADOW_TRACE_CRITICAL("%s@%d Config UART Rx as output result:%d\n", __FILE__, __LINE__, result);
+        MEADOW_TRACE_CRITICAL("%s@%d Config UART Rx as inout result:%d\n", __FILE__, __LINE__, result);
         return(ERROR);
     }
     result = stm32_configgpio(_active_pins->reset);
@@ -578,11 +576,111 @@ void espcp_reset(void)
 {
     if (espcp_should_reset_at_startup())
     {
+        espcp_config_lock();
+        espcp_configuration_t *config = espcp_get_configuration();
+        config->expecting_reset = true;
+        espcp_config_unlock();
+
         espcp_hold_in_reset();
         usleep(500);
         stm32_gpiowrite(_active_pins->reset, true);
     }
 }
+
+/****************************************************************************
+ *  Name: espcp_spi_ready
+ *
+ *  Description:
+ *      Interrupt generated when the ESP has generated the SPI interface ready
+ *      signal.
+ * 
+ *  Input Parameters:
+ *      irq - Not used
+ *      context - Not used
+ *      arg - Not used
+ *
+ *  Returned Value:
+ *      OK.
+ *
+ *  Assumptions/Limitations:
+ *      This method must be quick as it is intended to be called from an
+ *      interrupt handler.
+ *
+ ****************************************************************************/
+// int espcp_spi_ready(int irq, void *context, void *arg)
+// {
+//     espcp_spi_interface_unlock();
+
+//     return (OK);
+// }
+
+/****************************************************************************
+ *  Name: espcp_process_reset_control_signa
+ *
+ *  Description:
+ *      Process the "+++RST" (reset) control message from the ESP32.
+ * 
+ *  Input Parameters:
+ *      line - text that was sent by the ESP32.
+ *
+ *  Returned Value:
+ *      None.
+ *
+ *  Assumptions/Limitations:
+ *      None.
+ *
+ ****************************************************************************/
+void espcp_process_reset_control_signal(const char *line)
+{
+    MEADOW_TRACE_INFORMATION("++RST\n");
+    espcp_config_lock();
+    espcp_configuration_t *config = espcp_get_configuration();
+    bool expecting_reset = config->expecting_reset;
+
+    if (expecting_reset)
+    {
+        config->expecting_reset = false;
+    }
+    espcp_config_unlock();
+
+    if (!expecting_reset)
+    {
+        meadow_os_raise_simple_exception(espcp_status_codes_unexpected_coprocessor_restart);
+    }
+}
+
+/****************************************************************************
+ *  Name: espcp_process_ready_control_signal
+ *
+ *  Description:
+ *      Process the "+++RDY" (ready) control message from the ESP32.
+ * 
+ *  Input Parameters:
+ *      line - text that was sent by the ESP32.
+ *
+ *  Returned Value:
+ *      None.
+ *
+ *  Assumptions/Limitations:
+ *      None.
+ *
+ ****************************************************************************/
+// void espcp_process_ready_control_signal(const char *line)
+// {
+  
+//      The ESP has indicated that it is ready and so we can now attach the
+//      interrupt handler to the SPI ready signal.
+    
+//     int result = stm32_gpiosetevent(_active_pins->spi_ready, /*risingedge=*/true, /*fallingedge=*/false, true, espcp_spi_ready, 0);
+//     if (result < 0)
+//     {
+//         MEADOW_TRACE_CRITICAL("%s@%d Enabling SPI Ready interrupt result:%d\n", __FILE__, __LINE__, result);
+//     }
+//     else
+//     {
+
+//     }
+// }
 
 /****************************************************************************
  *  Name: espcp_enter_programming_mode
@@ -660,23 +758,6 @@ int espcp_enter_programming_mode(void)
 int espcp_enter_run_mode(void)
 {
     //
-    //  First, reconfigure the BOOT pin as this is shared with the SPI interface
-    //  ready signal.
-    //
-    stm32_unconfiggpio(_active_pins->boot);
-    int result = stm32_configgpio(_active_pins->spi_ready);
-    if (result < 0)
-    {
-        MEADOW_TRACE_CRITICAL("%s@%d Config SPI Ready pin failed result: %d\n", __FILE__, __LINE__, result);
-        return(ERROR);
-    }
-    result = stm32_gpiosetevent(_active_pins->spi_ready, /*risingedge=*/true, /*fallingedge=*/false, true, NULL, 0);
-    if (result < 0)
-    {
-        MEADOW_TRACE_CRITICAL("%s@%d Disabling SPI Ready interrupt result:%d\n", __FILE__, __LINE__, result);
-        return(ERROR);
-    }
-    //
     //  Record the change of mode.
     //
     espcp_config_lock();
@@ -687,33 +768,6 @@ int espcp_enter_run_mode(void)
     //  Now reset to enter run mode.
     //
     espcp_reset();
-
-    return (OK);
-}
-
-/****************************************************************************
- *  Name: espcp_spi_ready
- *
- *  Description:
- *      Interrupt generated when the ESP has generated the SPI interface ready
- *      signal.
- * 
- *  Input Parameters:
- *      irq - Not used
- *      context - Not used
- *      arg - Not used
- *
- *  Returned Value:
- *      OK.
- *
- *  Assumptions/Limitations:
- *      This method must be quick as it is intended to be called from an
- *      interrupt handler.
- *
- ****************************************************************************/
-int espcp_spi_ready(int irq, void *context, void *arg)
-{
-    espcp_spi_interface_unlock();
 
     return (OK);
 }

@@ -68,7 +68,7 @@
  ****************************************************************************/
 int espcp_setup_message_dispatcher(void);
 int espcp_teardown_message_dispatcher(void);
-int espcp_queue_send_response_message(int, void *, void *);
+void espcp_queue_send_response_message(void);
 uint32_t espcp_get_next_message_id(void);
 void espcp_send_message(espcp_configuration_t *, espcp_message_t *);
 void espcp_get_message(espcp_configuration_t *, espcp_message_t *);

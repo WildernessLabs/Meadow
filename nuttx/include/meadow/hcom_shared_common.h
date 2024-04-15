@@ -761,6 +761,11 @@ typedef struct mono_signature_s mono_signature_t;
 
 #define MEADOW_UART4_NAME "/dev/ttyS1"
 
+//
+//  Used to communicate with the ESP32.
+//
+#define MEADOW_UART5_NAME "/dev/ttyS2"
+
 #define MEADOW_UART6_NAME "/dev/ttyS3"
 
 #define MEADOW_COM1_NAME "COM1"

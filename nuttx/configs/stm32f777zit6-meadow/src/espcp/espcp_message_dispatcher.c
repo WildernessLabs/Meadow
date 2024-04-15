@@ -49,7 +49,7 @@
 #include "espcp_encoders.h"
 #include "espcp_event_handlers.h"
 
-// #define USE_MEADOW_DEBUG_HELPERS
+#define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
@@ -246,18 +246,13 @@ int espcp_teardown_message_dispatcher(void)
  *  None.
  *
  * Returned Value:
- *  0 always.
+ *  None.
  *
  * Assumptions/Limitations:
- *  This method must be quick as it is intended to be called from an
- *  interrupt handler.
- * 
- *  This method should ONLY be called from the interrupt handler as it
- *  switches the ESP responding flag.  It is assumed that if the interrupt
- *  handler has fired that the ESP is alive as it has generated the interrupt.
+ *  None.
  *
  ****************************************************************************/
-int espcp_queue_send_response_message(int irq, void *context, void *arg)
+void espcp_queue_send_response_message(void)
 {
     espcp_config_lock();
     espcp_configuration_t *config = espcp_get_configuration();
@@ -268,7 +263,6 @@ int espcp_queue_send_response_message(int irq, void *context, void *arg)
     espcp_config_unlock();
 
     espcp_add_message_to_queue(g_message_queue, g_request_response_message);
-    return 0;
 }
 
 /****************************************************************************
@@ -894,6 +888,8 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
         //
         espcp_add_message_to_queue(g_message_queue, g_request_response_message);
     }
+
+    espcp_dump_message(message);
 
     MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }
