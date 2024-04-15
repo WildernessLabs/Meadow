@@ -248,6 +248,7 @@ Mono.AppleTls/INativeObject.cs
 Mono.MbedTls/MbedTlsStream.cs
 Mono.MbedTls/MbedTlsProvider.cs
 Mono.MbedTls/MbedTlsContext.cs
+Mono.MbedTls/MbedTlsError.cs
 
 Mono.Util/MonoPInvokeCallbackAttribute.cs
 
