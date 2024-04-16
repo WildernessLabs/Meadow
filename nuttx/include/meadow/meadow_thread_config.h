@@ -110,9 +110,12 @@
 /**
  * The network monitor thread is responsible for monitoring the network control
  * signal UART that connects the ESP32 and the STM32.
+ * 
+ * This thread needs to be fairly high priority as it is responsible for keeping
+ * the main ESP communications thread synchronised with the ESP32.
  */
 #define ESPCP_NETWORK_MONITOR_PRIORITY          190
-#define ESPCP_NETWORK_MONITOR_NAME              "ESPMonitorThread"
+#define ESPCP_NETWORK_MONITOR_NAME              "ESPUARTMonitor"
 #define ESPCP_NETWORK_MONITOR_STACK_SIZE        2048
 
 /**
