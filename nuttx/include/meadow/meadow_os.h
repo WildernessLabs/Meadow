@@ -45,5 +45,6 @@ uint32_t meadow_os_reset_reason(void);
 uint32_t meadow_os_hardware_version(void);
 uint32_t meadow_os_native_protocol_version(void);
 void meadow_os_raise_simple_exception(uint32_t);
+int meadow_os_network_interface_info(char *);
 
 #endif /* __MEADOW_OS_H */

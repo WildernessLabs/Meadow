@@ -434,6 +434,7 @@ uintptr_t STUB_meadow_os_reset_cycle_count(int nbr);
 uintptr_t STUB_meadow_os_reset_reason(int nbr);
 uintptr_t STUB_meadow_os_hardware_version(int nbr);
 uintptr_t STUB_meadow_os_native_protocol_version(int nbr);
+int STUB_meadow_os_network_interface_info(uintptr_t param1);
 #endif
 
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)

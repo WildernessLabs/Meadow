@@ -1292,7 +1292,7 @@ static char *hcom_nx_config_get_file_content(char *path)
  *
  * Input Parameters:
  *  path   - pointer to file pathname.
- *  buffer - Buffer holding the new content
+ *  buffer - buffer holding the new content
  *
  * Returned Value:
  *  OK if successful, ERROR otherwise.
@@ -1364,7 +1364,7 @@ static int hcom_nx_config_update_dns_file(char *path, char* server)
  *  Add the default gateway into DNS resolver file.
  *
  * Input Parameters:
- *  config - config - pointer to the configuration object.
+ *  config - pointer to the configuration object.
  *  gateway - default gateway address.
  * 
  * Returned Value:
@@ -1399,6 +1399,63 @@ void hcom_nx_config_add_default_gateway_dns_file(meadow_configuration_t *config,
                 config->default_interface->gateway_changed = true;
             }
         }
+    }
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_update_network_interface
+ *
+ * Description:
+ *  Update the default network information.
+ *
+ * Input Parameters:
+ *  - config : pointer to the configuration object.
+ *  - ip_address : IP address.
+ *  - gateway : default gateway.
+ *  - netmask : subnet mask.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  The configuration structure has been locked by the caller.
+ *
+ ****************************************************************************/
+void hcom_nx_config_update_network_interface(meadow_configuration_t *config, uint32_t ip_address, uint32_t gateway, uint32_t netmask)
+{
+    if (config != NULL)
+    {
+        meadow_network_interface_t *iface = config->default_interface;
+        iface->ip_address = ip_address;
+        iface->gateway = gateway;
+        iface->netmask = netmask;
+    }
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_clear_network_interface
+ *
+ * Description:
+ *  Clear the deafult network information.
+ *
+ * Input Parameters:
+ *  -config : pointer to the configuration object.
+ * 
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  The configuration structure has been locked by the caller.
+ *
+ ****************************************************************************/
+void hcom_nx_config_clear_network_interface(meadow_configuration_t *config)
+{
+    if (config != NULL)
+    {
+        meadow_network_interface_t *iface = config->default_interface;
+        iface->ip_address = 0;
+        iface->gateway = 0;
+        iface->netmask = 0;
     }
 }
 

@@ -530,13 +530,16 @@ static void espcp_network_connected_event_handler(espcp_message_t *message)
         hcom_nx_config_lock();
         meadow_configuration_t *config = hcom_nx_config_get_pointer();
         get_time = config->get_network_time_at_startup;
-        hcom_nx_config_unlock();
 
         if (message->payload != NULL)
         {
             espcp_connect_event_data_t *connect_data = espcp_extract_connect_event_data(message->payload);
             hcom_nx_config_add_default_gateway_dns_file(config, connect_data->gateway);
+            hcom_nx_config_update_network_interface(config, connect_data->ip_address,
+                                                    connect_data->gateway,
+                                                    connect_data->subnet_mask);
         }
+        hcom_nx_config_unlock();
 
         if (get_time)
         {
@@ -570,6 +573,7 @@ static void espcp_network_disconnected_event_handler(espcp_message_t *message)
         meadow_configuration_t *config = hcom_nx_config_get_pointer();
         get_time = config->get_network_time_at_startup;
         config->default_interface->gateway_changed = false;
+        hcom_nx_config_clear_network_interface(config);
         hcom_nx_config_unlock();
         if (get_time)
         {
