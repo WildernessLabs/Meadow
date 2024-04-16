@@ -588,34 +588,7 @@ void espcp_reset(void)
 }
 
 /****************************************************************************
- *  Name: espcp_spi_ready
- *
- *  Description:
- *      Interrupt generated when the ESP has generated the SPI interface ready
- *      signal.
- * 
- *  Input Parameters:
- *      irq - Not used
- *      context - Not used
- *      arg - Not used
- *
- *  Returned Value:
- *      OK.
- *
- *  Assumptions/Limitations:
- *      This method must be quick as it is intended to be called from an
- *      interrupt handler.
- *
- ****************************************************************************/
-// int espcp_spi_ready(int irq, void *context, void *arg)
-// {
-//     espcp_spi_interface_unlock();
-
-//     return (OK);
-// }
-
-/****************************************************************************
- *  Name: espcp_process_reset_control_signa
+ *  Name: espcp_process_reset_control_signal
  *
  *  Description:
  *      Process the "+++RST" (reset) control message from the ESP32.
@@ -648,39 +621,6 @@ void espcp_process_reset_control_signal(const char *line)
         meadow_os_raise_simple_exception(espcp_status_codes_unexpected_coprocessor_restart);
     }
 }
-
-/****************************************************************************
- *  Name: espcp_process_ready_control_signal
- *
- *  Description:
- *      Process the "+++RDY" (ready) control message from the ESP32.
- * 
- *  Input Parameters:
- *      line - text that was sent by the ESP32.
- *
- *  Returned Value:
- *      None.
- *
- *  Assumptions/Limitations:
- *      None.
- *
- ****************************************************************************/
-// void espcp_process_ready_control_signal(const char *line)
-// {
-  
-//      The ESP has indicated that it is ready and so we can now attach the
-//      interrupt handler to the SPI ready signal.
-    
-//     int result = stm32_gpiosetevent(_active_pins->spi_ready, /*risingedge=*/true, /*fallingedge=*/false, true, espcp_spi_ready, 0);
-//     if (result < 0)
-//     {
-//         MEADOW_TRACE_CRITICAL("%s@%d Enabling SPI Ready interrupt result:%d\n", __FILE__, __LINE__, result);
-//     }
-//     else
-//     {
-
-//     }
-// }
 
 /****************************************************************************
  *  Name: espcp_enter_programming_mode
