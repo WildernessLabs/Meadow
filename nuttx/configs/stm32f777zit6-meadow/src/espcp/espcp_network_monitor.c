@@ -62,6 +62,7 @@
 #include <meadow/hcom_shared_common.h>
 #include "espcp_message_dispatcher.h"
 #include "espcp_coprocessor.h"
+#include <meadow/meadow_thread_config.h>
 
 /****************************************************************************
  * Uncomment the #define below to turn on debug help macros.
@@ -72,21 +73,6 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-
-/**
- *  @brief Stack size for the network monitor thread.
- */
-#define ESPCP_NETWORK_MONITOR_STACK_SIZE        8192
-
-/**
- *  @brief Priority for the network monitor thread.
- */
-#define ESPCP_NETWORK_MONITOR_PRIORITY          190
-
-/**
- *  @brief Name of the network monitor thread.
- */
-#define ESPCP_NETWORK_MONITOR_NAME              "ESPMonitorThread"
 
 /**
  * @brief Number of bytes to allocate for the incoming line of text
