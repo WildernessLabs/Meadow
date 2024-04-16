@@ -79,13 +79,13 @@
 
 #endif
 
-// #ifdef CONFIG_MEADOW_ESPCP_USE_EXTERNAL_ESP32_BOARD
+#ifdef CONFIG_MEADOW_ESPCP_USE_EXTERNAL_ESP32_BOARD
 
-// #error "Using external ESP32 development board."
+#error "Using external ESP32 development board."
 
-// #endif
+#endif
 
-#define USE_MEADOW_DEBUG_HELPERS
+// #define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************

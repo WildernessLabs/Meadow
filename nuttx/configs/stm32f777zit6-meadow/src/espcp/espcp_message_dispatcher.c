@@ -49,7 +49,7 @@
 #include "espcp_encoders.h"
 #include "espcp_event_handlers.h"
 
-#define USE_MEADOW_DEBUG_HELPERS
+// #define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
@@ -893,7 +893,9 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
         espcp_add_message_to_queue(g_message_queue, g_request_response_message);
     }
 
-    espcp_dump_message(message);
+    #if defined(USE_MEADOW_DEBUG_HELPERS)
+        espcp_dump_message(message);
+    #endif
 
     MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }
