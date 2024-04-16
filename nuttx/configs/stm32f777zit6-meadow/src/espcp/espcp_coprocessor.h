@@ -106,7 +106,7 @@
  * 
  *  On the external interface this is PB9 (Meadow D04).
  */
-// #define ESP32CP_RESET_PIN_OUTPUT (GPIO_OUTPUT | GPIO_PULLUP | GPIO_SPEED_100MHz | GPIO_PORTB | GPIO_PIN9)
+#define ESP32CP_RESET_PIN_OUTPUT (GPIO_OUTPUT | GPIO_PULLUP | GPIO_SPEED_100MHz | GPIO_PORTB | GPIO_PIN9)
 
 /*
  *  UART interface used to communicate with the ESP32.  This UART4 for an external board.
