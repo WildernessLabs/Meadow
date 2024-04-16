@@ -781,12 +781,13 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
     if (send_data_to_esp32 != NULL)
     {
         MEADOW_TRACE_INFORMATION("Sending request packet.\n");
-        message->message_id = espcp_get_next_message_id();      // Dummy send response message always has an ID of 0.
+        message->message_id = espcp_get_next_message_id();
         result = espcp_send_packet(configuration, message);
         if (result == espcp_status_codes_completed_ok)
         {
             //
-            //  First step, send the ACK/NAK for the message just sent.
+            //  Next step, get the acknowledgement from the ESP32.  This should ACK or NAK along
+            //  with some information about the message (payload length).
             //
             espcp_clear_spi_buffers(configuration);
             espcp_spi_interface_lock();
@@ -795,6 +796,9 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
 
             if (acknowledgement != NULL)
             {
+                //
+                //  So we now have the ACK.  We can now start to get the full message.
+                //
                 int payload_remaining = acknowledgement->payload_length;
                 if (payload_remaining >= 0)
                 {
