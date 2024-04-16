@@ -108,39 +108,35 @@ namespace System.Net.NetworkInformation {
 				Console.WriteLine($"Error reading dns.conf: {ex.Message}");
 			}
 		}
+		[DllImport("nuttx", EntryPoint="meadow_os_network_interface_info")]
+		public static extern int meadow_os_network_interface_info(IntPtr buffer);
+
+		internal static unsafe string GetNetWorkInterfaceInfo()
+		{
+			var buffer = Marshal.AllocHGlobal(125);
+			string info = null;
+			try
+			{
+				int len = meadow_os_network_interface_info(buffer);
+				if (len > 0)
+				{
+					info = System.Text.Encoding.UTF8.GetString((byte*)buffer.ToPointer(), len);
+				}
+			}
+			finally
+			{
+				Marshal.FreeHGlobal(buffer);
+			}
+			return info;
+		}
 		IPAddressCollection ParseRouteInfo()
 		{
 			var col = new IPAddressCollection();
 			try
 			{
-				// TODO : Save route information on /net/route/ipv4
-				string filePath = Path.Combine("meadow0", "dns.conf");
-				if (File.Exists(filePath))
-				{
-					foreach (var line in File.ReadAllLines(filePath))
-					{
-						if (line.Contains("gateway"))
-						{
-							string[] parts = line.Split(' ');
-							if (parts.Length > 1)
-							{
-								string gwAddressStr = parts[1].Trim();
-								if (IPAddress.TryParse(gwAddressStr, out IPAddress gwAddress))
-								{
-									col.InternalAdd(gwAddress);
-									break;
-								}
-							}
-						}
-					}
-				}
-				else
-				{
-					throw new FormatException($"File not found");
-				}
-			}
-			catch
-			{
+				IPAddress gwAddr = IPAddress.Parse(GetNetWorkInterfaceInfo());
+				col.InternalAdd(gwAddr);
+			}catch{
 			}
 			return col;
 		}
