@@ -234,8 +234,6 @@ static void espcp_network_monitor_signal_handler(int signal_number, FAR siginfo_
 static void espcp_process_ready_control_signal(const char *line)
 {
     MEADOW_TRACE_INFORMATION("+++RDY\n");
-    espcp_queue_send_response_message();
-    // espcp_spi_interface_unlock();
 }
 
 /****************************************************************************
