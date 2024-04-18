@@ -1591,7 +1591,10 @@ static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
         espcp_poll_request_t *request = (espcp_poll_request_t *) zalloc(sizeof(espcp_poll_request_t));
         if (request == NULL)
         {
+            espcp_lock_poll_requests_queue();
+            gl_remove_item(_espcp_poll_requests, (uint32_t) fds->fd, espcp_usrsock_poll_request_compare_fd_pointer);
             free(pr);
+            espcp_unlock_poll_requests_queue();
             return (-ENOMEM);
         }
         request->socket_handle = psock->s_esp32_sockfd;
@@ -1667,7 +1670,7 @@ void espcp_usrsock_poll_interrupt_handler(espcp_message_t *message)
     {
         request_id = ipr->setup_message_id;
         espcp_lock_poll_requests_queue();
-        espcp_poll_request_list_item_t *pr = (espcp_poll_request_list_item_t *) gl_find_item(_espcp_poll_requests, 
+        espcp_poll_request_list_item_t *pr = (espcp_poll_request_list_item_t *) gl_remove_item(_espcp_poll_requests, 
                                                     request_id, espcp_usrsock_poll_request_compare_message_id);
         if (pr != NULL)
         {
