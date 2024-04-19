@@ -108,16 +108,18 @@ namespace System.Net.NetworkInformation {
 				Console.WriteLine($"Error reading dns.conf: {ex.Message}");
 			}
 		}
-		[DllImport("nuttx", EntryPoint="meadow_os_network_interface_info")]
-		public static extern int meadow_os_network_interface_info(IntPtr buffer);
 
-		internal static unsafe string GetNetWorkInterfaceInfo()
+		[DllImport("nuttx", EntryPoint="meadow_os_get_gateway_address")]
+		public static extern int meadow_os_get_gateway_address(IntPtr buffer);
+
+		internal static unsafe string GetGatewayFromOS()
 		{
-			var buffer = Marshal.AllocHGlobal(125);
+			const int bufferLen = 125;
+			var buffer = Marshal.AllocHGlobal(bufferLen);
 			string info = null;
 			try
 			{
-				int len = meadow_os_network_interface_info(buffer);
+				int len = meadow_os_get_gateway_address(buffer);
 				if (len > 0)
 				{
 					info = System.Text.Encoding.UTF8.GetString((byte*)buffer.ToPointer(), len);
@@ -129,23 +131,28 @@ namespace System.Net.NetworkInformation {
 			}
 			return info;
 		}
-		IPAddressCollection ParseRouteInfo()
+
+		IPAddressCollection ParseGatewayAddress()
 		{
-			var col = new IPAddressCollection();
+			var iPAddressCollection = new IPAddressCollection();
 			try
 			{
-				IPAddress gwAddr = IPAddress.Parse(GetNetWorkInterfaceInfo());
-				col.InternalAdd(gwAddr);
-			}catch{
+				IPAddress gatewayAddr = IPAddress.Parse(GetGatewayFromOS());
+				iPAddressCollection.InternalAdd(gatewayAddr);
 			}
-			return col;
+			catch
+			{
+				Console.WriteLine("Failed to get the network interface information");
+			}
+			return iPAddressCollection;
 		}
+
 
 		public override GatewayIPAddressInformationCollection GatewayAddresses
 		{
 			get
 			{
-				return SystemGatewayIPAddressInformation.ToGatewayIpAddressInformationCollection(ParseRouteInfo());
+				return SystemGatewayIPAddressInformation.ToGatewayIpAddressInformationCollection(ParseGatewayAddress());
 			}
 		}
 

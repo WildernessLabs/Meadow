@@ -176,10 +176,10 @@ uint32_t meadow_os_native_protocol_version(void)
 }
 
 /****************************************************************************
- * Name: meadow_os_network_interface_info
+ * Name: meadow_os_get_gateway_address
  *
  * Description:
- *  Get the information about network interface.
+ *  Get the gateway address.
  *
  * Input Parameters:
  *  buffer - buffer to store the network information.
@@ -191,7 +191,7 @@ uint32_t meadow_os_native_protocol_version(void)
  *  None
  *
  ****************************************************************************/
-int meadow_os_network_interface_info(char *buffer)
+int meadow_os_get_gateway_address(char *buffer)
 {
     int ret = -1;
 
