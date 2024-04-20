@@ -75,6 +75,21 @@ namespace Mono.MbedTls
 		X509_FILE_IO_ERROR = -0x2900,
 		X509_BUFFER_TOO_SMALL = -0x2980,
 		X509_FATAL_ERROR = -0x3000,
+
+		// Socket errors
+		MBEDTLS_ERR_NET_SOCKET_FAILED = -0x0042,
+		MBEDTLS_ERR_NET_CONNECT_FAILED = -0x0044,
+		MBEDTLS_ERR_NET_BIND_FAILED = -0x0046,
+		MBEDTLS_ERR_NET_LISTEN_FAILED = -0x0048,
+		MBEDTLS_ERR_NET_ACCEPT_FAILED = -0x004A,
+		MBEDTLS_ERR_NET_RECV_FAILED = -0x004C,
+		MBEDTLS_ERR_NET_SEND_FAILED = -0x004E,
+		MBEDTLS_ERR_NET_CONN_RESET = -0x0050,
+		MBEDTLS_ERR_NET_UNKNOWN_HOST = -0x0052,
+		MBEDTLS_ERR_NET_BUFFER_TOO_SMALL = -0x0043,
+		MBEDTLS_ERR_NET_INVALID_CONTEXT = -0x0045,
+		MBEDTLS_ERR_NET_POLL_FAILED = -0x0047,
+		MBEDTLS_ERR_NET_BAD_INPUT_DATA = -0x0049,
 	}
 
 	public static class MbedtlsSslErrorExtensions
@@ -145,6 +160,20 @@ namespace Mono.MbedTls
 			{ MbedtlsSslError.X509_FILE_IO_ERROR, "Read/write of file failed." },
 			{ MbedtlsSslError.X509_BUFFER_TOO_SMALL, "Destination buffer is too small." },
 			{ MbedtlsSslError.X509_FATAL_ERROR, "A fatal error occurred, eg the chain is too long or the vrfy callback failed." },
+			{ MbedtlsSslError.MBEDTLS_ERR_NET_SOCKET_FAILED, "Failed to open a socket." },
+			{ MbedtlsSslError.MBEDTLS_ERR_NET_CONNECT_FAILED, "The connection to the given server / port failed." },
+			{ MbedtlsSslError.MBEDTLS_ERR_NET_BIND_FAILED, "Binding of the socket failed." },
+			{ MbedtlsSslError.MBEDTLS_ERR_NET_LISTEN_FAILED, "Could not listen on the socket." },
+			{ MbedtlsSslError.MBEDTLS_ERR_NET_ACCEPT_FAILED, "Could not accept the incoming connection." },
+			{ MbedtlsSslError.MBEDTLS_ERR_NET_RECV_FAILED, "Reading information from the socket failed." },
+			{ MbedtlsSslError.MBEDTLS_ERR_NET_SEND_FAILED, "Sending information through the socket failed." },
+			{ MbedtlsSslError.MBEDTLS_ERR_NET_CONN_RESET, "Connection was reset by peer." },
+			{ MbedtlsSslError.MBEDTLS_ERR_NET_UNKNOWN_HOST, "Failed to get an IP address for the given hostname." },
+			{ MbedtlsSslError.MBEDTLS_ERR_NET_BUFFER_TOO_SMALL, "Buffer is too small to hold the data." },
+			{ MbedtlsSslError.MBEDTLS_ERR_NET_INVALID_CONTEXT, "The context is invalid, eg because it was free()ed." },
+			{ MbedtlsSslError.MBEDTLS_ERR_NET_POLL_FAILED, "Polling the net context failed." },
+			{ MbedtlsSslError.MBEDTLS_ERR_NET_BAD_INPUT_DATA, "Input invalid." },
+
 		};
 
 		public static string ToErrorString(this MbedtlsSslError error)
