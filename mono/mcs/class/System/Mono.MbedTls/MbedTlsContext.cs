@@ -54,7 +54,7 @@ namespace Mono.MbedTls
 		IntPtr write_buf;
 		bool isAuthenticated;
 		bool disposed;
-	 bool closed;
+	 	bool closed;
 
 		const int buffer_size = 4096;
 
@@ -92,7 +92,11 @@ namespace Mono.MbedTls
 		{
 			int ret = mono_mbedtls_handshake(native_context);
 			if (ret != 0)
-				throw new IOException ("Handshake failed");
+			{
+				MbedtlsSslError error = (MbedtlsSslError)ret;
+				string errorMessage = error.ToErrorString();
+				throw new IOException($"TLS handshake failed. Return code: {ret}. Error: {errorMessage}");
+			}
 		}
 
 		public override void Flush ()
