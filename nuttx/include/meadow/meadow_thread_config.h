@@ -115,8 +115,8 @@
  * the main ESP communications thread synchronised with the ESP32.
  */
 #define ESPCP_NETWORK_MONITOR_PRIORITY          190
-#define ESPCP_NETWORK_MONITOR_NAME              "ESPUARTMonitor"
-#define ESPCP_NETWORK_MONITOR_STACK_SIZE        2048
+#define ESPCP_NETWORK_MONITOR_NAME              "EspcpUARTMonitor"
+#define ESPCP_NETWORK_MONITOR_STACK_SIZE        8192
 
 /**
  *  @brief Priority for the network monitor thread.
