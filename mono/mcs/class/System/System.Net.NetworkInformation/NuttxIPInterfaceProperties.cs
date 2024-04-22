@@ -137,12 +137,16 @@ namespace System.Net.NetworkInformation {
 			var iPAddressCollection = new IPAddressCollection();
 			try
 			{
-				IPAddress gatewayAddr = IPAddress.Parse(GetGatewayFromOS());
-				iPAddressCollection.InternalAdd(gatewayAddr);
+				string gatewayAddrStr = GetGatewayFromOS();
+				if (gatewayAddrStr != null && gatewayAddrStr.Length > 0)
+				{
+					IPAddress gatewayAddr = IPAddress.Parse(gatewayAddrStr);
+					iPAddressCollection.InternalAdd(gatewayAddr);
+				}
 			}
 			catch
 			{
-				Console.WriteLine("Failed to get the network interface information");
+				Console.WriteLine("Failed to get the Gateway address");
 			}
 			return iPAddressCollection;
 		}

@@ -588,7 +588,7 @@
 #  define SYS_meadow_os_reset_reason            (SYS_meadow_client_cert_release_credentials + 5)
 #  define SYS_meadow_os_hardware_version        (SYS_meadow_client_cert_release_credentials + 6)
 #  define SYS_meadow_os_native_protocol_version (SYS_meadow_client_cert_release_credentials + 7)
-#  define SYS_meadow_os_get_gateway_address  (SYS_meadow_client_cert_release_credentials + 8)
+#  define SYS_meadow_os_get_gateway_address     (SYS_meadow_client_cert_release_credentials + 8)
 #else
 #  define SYS_meadow_os_get_gateway_address        SYS_meadow_client_cert_release_credentials
 #endif
