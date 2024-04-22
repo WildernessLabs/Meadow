@@ -1,5 +1,5 @@
  /****************************************************************************
- * espcp_network_monitor.c
+ * espcp_uart_monitor.c
  *
  *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
  *   Author: Mark Stevens
@@ -136,17 +136,17 @@ typedef struct espcp_control_signals_s
 /**
  * @brief Should the network monitor be shut down?
  */
-static bool _network_monitor_shutting_down = false;
+static bool _uart_monitor_shutting_down = false;
 
 /**
  * @brief Is the network monitor thread running ?
  */
-static bool _network_monitor_running = false;
+static bool _uart_monitor_running = false;
 
 /**
  * @brief Thread ID for the network monitor thread.
  */
-static pthread_t _network_monitor_thread_handle = 0;
+static pthread_t _uart_monitor_thread_handle = 0;
 
 /**
  * @brief Message names and types along with the event handlers for the messages.
@@ -176,8 +176,31 @@ static const espcp_control_signals_t _control_signals[] =
  * Public Functions
  ****************************************************************************/
 
+
 /****************************************************************************
- *  Name: espcp_network_monitor_signal_handler
+ *  Name: espcp_uart_monitor_running
+ *
+ *  Description:
+ *      It the ESP UART monitor thread running?
+ *
+ *  Input Parameters:
+ *      None.
+ *
+ *  Returned Value:
+ *      1 - the thread is running.
+ *      0 - the thread is not running.
+ *
+ *  Assumptions/Limitations:
+ *      None.
+ *
+ ****************************************************************************/
+int espcp_uart_monitor_running(void)
+{
+    return(_uart_monitor_running ? 1 : 0);
+}
+
+/****************************************************************************
+ *  Name: espcp_uart_monitor_signal_handler
  *
  *  Description:
  *      Process any signals that are sent to the network monitor thread.
@@ -194,9 +217,9 @@ static const espcp_control_signals_t _control_signals[] =
  *      None.
  *
  ****************************************************************************/
-static void espcp_network_monitor_signal_handler(int signal_number, FAR siginfo_t *information, FAR void *context)
+static void espcp_uart_monitor_signal_handler(int signal_number, FAR siginfo_t *information, FAR void *context)
 {
-    _network_monitor_shutting_down = true;
+    _uart_monitor_shutting_down = true;
 }
 
 /****************************************************************************
@@ -271,7 +294,7 @@ static void espcp_process_spi_ready_control_signal(const char *line)
 }
 
 /****************************************************************************
- *  Name: espcp_network_monitor_process_line
+ *  Name: espcp_uart_monitor_process_line
  *
  *  Description:
  *      Process the line of text that has been sent by the ESP32.
@@ -294,7 +317,7 @@ static void espcp_process_spi_ready_control_signal(const char *line)
  *      String is '\0' terminated and the '\n' character has been removed.
  *
  ****************************************************************************/
-static void espcp_network_monitor_process_line(char *line)
+static void espcp_uart_monitor_process_line(char *line)
 {
     if (line)
     {
@@ -317,7 +340,7 @@ static void espcp_network_monitor_process_line(char *line)
 }
 
 /****************************************************************************
- *  Name: espcp_network_monitor_thread
+ *  Name: espcp_uart_monitor_thread
  *
  *  Description:
  *      Monitor the network connected to the ESP32.
@@ -333,7 +356,7 @@ static void espcp_network_monitor_process_line(char *line)
  *      None.
  *
  ****************************************************************************/
-static void *espcp_network_monitor_thread(int argc, char *argv[])
+static void *espcp_uart_monitor_thread(int argc, char *argv[])
 {
     int uart_handle = open(ESPCP_NETWORK_MONITOR_UART_NAME, O_RDONLY);
 
@@ -341,35 +364,35 @@ static void *espcp_network_monitor_thread(int argc, char *argv[])
     {
         struct sigaction action;
 
-        action.sa_sigaction = espcp_network_monitor_signal_handler;
+        action.sa_sigaction = espcp_uart_monitor_signal_handler;
         action.sa_flags = SA_SIGINFO;
         sigemptyset(&action.sa_mask);
 
         if (sigaction(SIGALRM, &action, NULL) < 0)
         {
-            _network_monitor_shutting_down = true;
+            _uart_monitor_shutting_down = true;
             close(uart_handle);
         }
     }
     else
     {
         MEADOW_TRACE_CRITICAL("Failed to open UART %s. Error: %d\n", ESPCP_NETWORK_MONITOR_UART_NAME, errno);
-        _network_monitor_shutting_down = true;
+        _uart_monitor_shutting_down = true;
     }
 
     char *line = zalloc(ESPCP_NETWORK_MONITOR_BUFFER_LENGTH);
     char *incoming_bytes = zalloc(ESPCP_NETWORK_MONITOR_BUFFER_LENGTH);
     if ((line == NULL) || (incoming_bytes == NULL))
     {
-        _network_monitor_shutting_down = true;
+        _uart_monitor_shutting_down = true;
     }
 
     int buffer_index = 0;
-    while (!_network_monitor_shutting_down)
+    while (!_uart_monitor_shutting_down)
     {
         memset(incoming_bytes, 0, ESPCP_NETWORK_MONITOR_BUFFER_LENGTH);
         int number_of_bytes = read(uart_handle, incoming_bytes, ESPCP_NETWORK_MONITOR_BUFFER_LENGTH - 1);
-        if (!_network_monitor_shutting_down)
+        if (!_uart_monitor_shutting_down)
         {
             if (number_of_bytes > 0)
             {
@@ -379,7 +402,7 @@ static void *espcp_network_monitor_thread(int argc, char *argv[])
                     char ch = incoming_bytes[index];
                     if (ch == '\n')
                     {
-                        espcp_network_monitor_process_line(line);
+                        espcp_uart_monitor_process_line(line);
                         memset(line, 0, ESPCP_NETWORK_MONITOR_BUFFER_LENGTH);
                         buffer_index = 0;
                     }
@@ -412,14 +435,14 @@ static void *espcp_network_monitor_thread(int argc, char *argv[])
     free(line);
     free(incoming_bytes);
     close(uart_handle);
-    _network_monitor_running = false;
+    _uart_monitor_running = false;
     kthread_delete(0);
 
     return(NULL);
 }
 
 /****************************************************************************
- *  Name: espcp_network_monitor_start
+ *  Name: espcp_uart_monitor_start
  *
  *  Description:
  *      Initialise the network communications between the ESP32 and the STM32.
@@ -434,16 +457,16 @@ static void *espcp_network_monitor_thread(int argc, char *argv[])
  *      UART will be closed by the monitoring thread.
  *
  ****************************************************************************/
-int espcp_network_monitor_start(void)
+int espcp_uart_monitor_start(void)
 {
-    if (_network_monitor_running)
+    if (_uart_monitor_running)
     {
         return(EALREADY);
     }
 
     int result = ERROR;
 
-    if (!_network_monitor_shutting_down)
+    if (!_uart_monitor_shutting_down)
     {
         pthread_attr_t attr;
         struct sched_param param;
@@ -453,9 +476,9 @@ int espcp_network_monitor_start(void)
         pthread_attr_setschedparam(&attr, &param);
         pthread_attr_setstacksize(&attr, ESPCP_NETWORK_MONITOR_STACK_SIZE);
 
-        _network_monitor_thread_handle =  kthread_create(ESPCP_NETWORK_MONITOR_NAME, ESPCP_NETWORK_MONITOR_PRIORITY,
-                               ESPCP_NETWORK_MONITOR_STACK_SIZE, (main_t) espcp_network_monitor_thread, (char *const *) NULL);
-        if (_network_monitor_thread_handle < 0)
+        _uart_monitor_thread_handle =  kthread_create(ESPCP_NETWORK_MONITOR_NAME, ESPCP_NETWORK_MONITOR_PRIORITY,
+                               ESPCP_NETWORK_MONITOR_STACK_SIZE, (main_t) espcp_uart_monitor_thread, (char *const *) NULL);
+        if (_uart_monitor_thread_handle < 0)
         {
             syslog(LOG_CRIT, "%s@%d-Failed to create %s thread. Error: %d\n",
                     __FILE__, __LINE__, ESPCP_NETWORK_MONITOR_NAME, result);
@@ -467,4 +490,27 @@ int espcp_network_monitor_start(void)
     }
 
     return(result);
+}
+
+/****************************************************************************
+ *  Name: espcp_uart_monitor_stop
+ *
+ *  Description:
+ *      Stop UART monitoring.  This is required to allow HCOM to shutdown the
+ *      monitoring thread and allow HCOM to talk to the ESP32 for reprogramming.
+ *
+ *  Input Parameters:
+ *      None.
+ *
+ *  Returned Value:
+ *      OK - Success, otherwise ERROR.
+ *
+ *  Assumptions/Limitations:
+ *      UART will be closed by the monitoring thread.
+ *
+ ****************************************************************************/
+int espcp_uart_monitor_stop(void)
+{
+    kill(_uart_monitor_thread_handle, SIGUSR1);
+    return(OK);
 }

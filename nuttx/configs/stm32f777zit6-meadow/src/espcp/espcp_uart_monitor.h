@@ -1,5 +1,5 @@
 /****************************************************************************
- * espcp_network_monitor.h
+ * espcp_uart_monitor.h
  *
  *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
  *   Author: Mark Stevens
@@ -33,8 +33,8 @@
  *
  ****************************************************************************/
 
-#ifndef __ESPCP_UART_COMMS_H
-#define __ESPCP_UART_COMMS_H
+#ifndef __ESPCP_UART_MONITOR_H
+#define __ESPCP_UART_MONITOR_H
 
 #pragma once
 
@@ -64,6 +64,8 @@
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
-int espcp_network_monitor_start(void);
+int espcp_uart_monitor_start(void);
+int espcp_uart_monitor_running(void);
+int espcp_uart_monitor_stop(void);
 
-#endif /* __ESPCP_UART_COMMS_H */
+#endif /* __ESPCP_UART_MONITOR_H */
