@@ -1425,7 +1425,7 @@ mono_w32socket_get_available (SOCKET sock, guint64 *amount)
 	ret = poll(fds, 1, 0);
 	if (ret > 0 && (fds[0].revents & POLLIN)) {
 		// Data is available for reading
-		*amount = 1;  // Placeholder, set to 1 for simplicity
+		*amount = 1;  // We don't know how many bytes are available, so return "at least one"
 	} else if (ret == 0) {
 		// No data available
 		*amount = 0;
