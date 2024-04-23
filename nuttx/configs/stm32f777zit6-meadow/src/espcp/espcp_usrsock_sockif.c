@@ -1575,7 +1575,7 @@ static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
     int result = 0;
 
     espcp_lock_poll_requests_queue();
-    espcp_poll_request_list_item_t *pr = (espcp_poll_request_list_item_t *) gl_remove_item(_espcp_poll_requests, 
+    espcp_poll_request_list_item_t *pr = (espcp_poll_request_list_item_t *) gl_find_item(_espcp_poll_requests, 
                                                 (uint32_t) fds->fd, espcp_usrsock_poll_request_compare_fd_pointer);
     espcp_unlock_poll_requests_queue();
 
@@ -1591,13 +1591,15 @@ static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
         espcp_poll_request_t *request = (espcp_poll_request_t *) zalloc(sizeof(espcp_poll_request_t));
         if (request == NULL)
         {
+            espcp_lock_poll_requests_queue();
+            gl_remove_item(_espcp_poll_requests, (uint32_t) fds->fd, espcp_usrsock_poll_request_compare_fd_pointer);
             free(pr);
+            espcp_unlock_poll_requests_queue();
             return (-ENOMEM);
         }
         request->socket_handle = psock->s_esp32_sockfd;
         request->setup = 0;
         request->setup_message_id = pr->request_id;
-        free(pr);
 
         int payload_length = espcp_poll_request_buffer_size(request);
         uint8_t *payload = (uint8_t *) zalloc(payload_length);
@@ -1636,6 +1638,10 @@ static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
             }
         }
 
+        espcp_lock_poll_requests_queue();
+        gl_remove_item(_espcp_poll_requests, (uint32_t) fds->fd, espcp_usrsock_poll_request_compare_fd_pointer);
+        free(pr);
+        espcp_unlock_poll_requests_queue();
         espcp_delete_message_and_payload(message);
     }
 
@@ -1668,10 +1674,11 @@ void espcp_usrsock_poll_interrupt_handler(espcp_message_t *message)
                                                     request_id, espcp_usrsock_poll_request_compare_message_id);
         if (pr != NULL)
         {
-            MEADOW_TRACE_INFORMATION("poll interrupt handler - found orginating request %08x\n", request_id);
+            MEADOW_TRACE_INFORMATION("poll interrupt handler - found originating request %08x\n", request_id);
             pr->fd->revents = ipr->returned_events;
+            MEADOW_TRACE_INFORMATION("poll interrupt handler - fd=%d events=%hd revents=%hd\n", pr->fd->fd, pr->fd->events, pr->fd->revents);
+
             nxsem_post(pr->fd->sem);
-            free(pr);
         }
         else
         {
