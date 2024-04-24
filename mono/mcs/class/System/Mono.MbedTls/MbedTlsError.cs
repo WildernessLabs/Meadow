@@ -3,10 +3,20 @@
 extern alias MonoSecurity;
 #endif
 
+using System.IO;
 using System.Collections.Generic;
 
 namespace Mono.MbedTls
 {
+
+	public class MbedtlsIOException : IOException
+	{
+		public MbedtlsIOException(int hresult, string message) : base(message)
+		{
+			HResult = hresult;
+		}
+	}
+
 	public enum MbedtlsSslError
 	{
 		SSL_CRYPTO_IN_PROGRESS = -0x7000,

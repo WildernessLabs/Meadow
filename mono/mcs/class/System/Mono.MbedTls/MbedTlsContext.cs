@@ -95,7 +95,7 @@ namespace Mono.MbedTls
 			{
 				MbedtlsSslError error = (MbedtlsSslError)ret;
 				string errorMessage = error.ToErrorString();
-				throw new IOException($"TLS handshake failed. Return code: {ret}. Error: {errorMessage}");
+				throw new MbedtlsIOException(ret, $"TLS handshake failed. Return code: {ret}. Error: {errorMessage}");
 			}
 		}
 
