@@ -207,40 +207,6 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     is_mounted->isMounted = hcom_nx_fs_is_mounted(is_mounted->partitionId);
     return OK;
 
-#if defined(CONFIG_MEADOW_ESPCP_MANAGER)
-  case HCOM_NX_UPD_ESP32_ENTER_PROG_MODE:
-    espcp_enter_programming_mode();
-    return OK;
-
-  case HCOM_NX_UPD_ESP32_RESTART_ESP32:
-    espcp_reset();
-    return OK;
-
-  case HCOM_NX_UPD_START_ESPCP_RUNNING:
-  {
-    //
-    //  MS: I think this needs removing.
-    //
-    // Start the ESP32 coprocessor.
-    // ret = espcp_init();
-    // if(ret != OK)
-    // {
-    //   syslog(LOG_EMERG, "ERROR: ESP32 initialization failed:%d\n", ret);
-    //   return ret;
-    // }
-
-    // ret = espcp_enter_run_mode();
-    // if(ret != OK)
-    // {
-    //   syslog(LOG_EMERG, "ERROR: ESP32 enter run mode failed:%d\n", ret);
-    //   return ret;
-    // }
-
-    // usrsock_register_sockif(&g_usrsock_sockif_esp32);
-    // return OK;
-  }
-#endif
-
   case HCOM_NX_UPD_MONO_HAS_STARTED:
 #if defined (CONFIG_RAMLOG_SYSLOG)
     return hcom_nx_trace_msg_mono_started();
