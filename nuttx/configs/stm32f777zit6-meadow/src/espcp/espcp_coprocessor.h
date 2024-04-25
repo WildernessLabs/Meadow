@@ -328,7 +328,6 @@ typedef struct espcp_configuration_s espcp_configuration_t;
  ****************************************************************************/
 void espcp_early_init(void);
 int espcp_late_init(void);
-// espcp_configuration_t *espcp_get_default_configuration(void);
 void espcp_send_data_over_spi(void *, void *, size_t);
 espcp_configuration_t *espcp_get_configuration(void);
 bool espcp_should_reset_at_startup(void);
@@ -341,8 +340,8 @@ int espcp_enter_run_mode(void);
 void espcp_deep_sleep(void);
 void espcp_wakeup(void);
 void espcp_process_reset_control_signal(const char *);
-// void espcp_process_ready_control_signal(const char *);
 void espcp_spi_interface_lock(void);
 void espcp_spi_interface_unlock(void);
+int espcp_uart_monitor_stop(void);
 
 #endif /* __ESPCP_COPROCESSOR_H */
