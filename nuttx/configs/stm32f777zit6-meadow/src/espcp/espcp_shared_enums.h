@@ -57,6 +57,66 @@ enum espcp_status_codes
     espcp_status_codes_invalid_configuration_file = 43,
     espcp_status_codes_invalid_WiFi_configuration_file = 44,
     espcp_status_codes_invalid_cell_configuration_file = 45,
+
+    /** 46, 47, 48 & 49 free */
+    //
+    //  Keep the ESP reset codes consecutive as they are subject to arithmetic operations
+    //  to determine the exact reset reason.
+    //
+    /**
+     * @brief Unknown reset reason.
+     */
+    espcp_status_codes_esp_reset_unknown = 50,
+
+    /**
+     * @brief Power-on or EN line pulled low and released.
+     */
+    espcp_status_codes_esp_reset_power_on = 51,
+
+    /**
+     * @brief Reset using an external GPIO (n/a for the ESP32).
+     */
+    espcp_status_codes_esp_reset_external_gpio = 52,
+
+    /**
+     * @brief esp_restart has used to reset the ESP32.
+     */
+    espcp_status_codes_esp_reset_software = 53,
+
+    /**
+     * @brief Reset due to software exception or panic.
+     */
+    espcp_status_codes_esp_reset_panic = 54,
+
+    /**
+     * @brief Reset due to interrupt watchdog.
+     */
+    espcp_status_codes_esp_reset_interrupt_watchdog = 55,
+
+    /**
+     * @brief Reset due to task watchdog.
+     */
+    espcp_status_codes_esp_reset_task_watchdog = 56,
+
+    /**
+     * @brief Reset due to watchdog other than task or interrupt watchdogs.
+     */
+    espcp_status_codes_esp_reset_other_watchdog = 57,
+
+    /**
+     * @brief Reset after exiting deep sleep.
+     */
+    espcp_status_codes_esp_reset_deep_sleep = 58,
+
+    /**
+     * @brief Hardware or software brownout reset.
+     */
+    espcp_status_codes_esp_reset_brownout = 59,
+
+    /**
+     * @brief Reset over SDIO.
+     */
+    espcp_status_codes_esp_reset_sdio = 60,
 };
 typedef enum espcp_status_codes espcp_status_codes_t;
 
