@@ -226,7 +226,7 @@ static void espcp_uart_monitor_signal_handler(int signal_number, FAR siginfo_t *
  *  Name: espcp_process_ready_control_signal
  *
  *  Description:
- *      Process the "++RDY" signal from the ESP32.
+ *      Process the "+++RDY" signal from the ESP32.
  *
  *  Input Parameters:
  *      line - Line of text from the ESP32.
@@ -249,7 +249,7 @@ static void espcp_process_ready_control_signal(const char *line)
  *  Name: espcp_process_message_waiting_control_signal
  *
  *  Description:
- *      Process the "++MW" signal from the ESP32.
+ *      Process the "+++MW" signal from the ESP32.
  *
  *  Input Parameters:
  *      line - Line of text from the ESP32.
@@ -273,7 +273,7 @@ static void espcp_process_message_waiting_control_signal(const char *line)
  *  Name: espcp_process_spi_ready_control_signal
  *
  *  Description:
- *      Process the "++SIR" signal from the ESP32.
+ *      Process the "+++SIR" signal from the ESP32.
  *
  *  Input Parameters:
  *      line - Line of text from the ESP32.
