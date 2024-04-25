@@ -108,12 +108,6 @@
  */
 #define ESP32CP_RESET_PIN_OUTPUT (GPIO_OUTPUT | GPIO_PULLUP | GPIO_SPEED_100MHz | GPIO_PORTB | GPIO_PIN9)
 
-/*
- *  UART interface used to communicate with the ESP32.  This UART4 for an external board.
- */
-#define ESP32CP_UART_RX         GPIO_UART4_RX
-#define ESP32CP_UART_TX         GPIO_UART4_TX
-
 /**
  *  @brief UART connected to the ESP32.
  * 
@@ -150,12 +144,6 @@
  *  On the internal interface this is PF7 (Enable - Reset).
  */
 #define ESP32CP_RESET_PIN_OUTPUT (GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | GPIO_SPEED_100MHz | GPIO_PORTF | GPIO_PIN7)
-
-/*
- *  UART interface used to communicate with the ESP32.  This UART5 for an ESP onboard the Feather V2 or CCMv2.
- */
-#define ESP32CP_UART_RX         GPIO_UART5_RX
-#define ESP32CP_UART_TX         GPIO_UART5_TX
 
 /**
  *  @brief UART connected to the ESP32.

@@ -156,8 +156,8 @@ static espcp_pins_t _f7v2_pins =
     /* boot */ ESP32CP_BOOT_PIN_OUTPUT,
     // /* spi_ready */ ESP32CP_SPI_READY_PIN_INPUT,
     /* chip_select */ ESP32CP_SPI_CS_PIN_OUTPUT,
-    /* uart_rx */ ESP32CP_UART_RX,
-    /* uart_tx */ ESP32CP_UART_TX
+    /* uart_rx */ GPIO_UART5_RX,
+    /* uart_tx */ GPIO_UART5_TX_V2
 };
 
 /**
@@ -409,12 +409,6 @@ static int espcp_spi_init(void)
  ****************************************************************************/
 static int espcp_gpio_init(void)
 {
-    // int result = stm32_configgpio(_active_pins->spi_ready);
-    // if (result < 0)
-    // {
-    //     MEADOW_TRACE_CRITICAL("%s@%d Config Boot pin as input for SPI Ready signal result:%d\n", __FILE__, __LINE__, result);
-    //     return(ERROR);
-    // }
     int result = stm32_configgpio(_active_pins->uart_tx);
     if (result < 0)
     {
@@ -424,9 +418,18 @@ static int espcp_gpio_init(void)
     result = stm32_configgpio(_active_pins->uart_rx);
     if (result < 0)
     {
-        MEADOW_TRACE_CRITICAL("%s@%d Config UART Rx as inout result:%d\n", __FILE__, __LINE__, result);
+        MEADOW_TRACE_CRITICAL("%s@%d Config UART Rx as input result:%d\n", __FILE__, __LINE__, result);
         return(ERROR);
     }
+
+    result = stm32_configgpio(_active_pins->reset);
+    if (result < 0)
+    {
+        MEADOW_TRACE_CRITICAL("%s@%d Config Reset pin failed result:%d\n", __FILE__, __LINE__, result);
+        return(ERROR);
+    }
+    stm32_gpiowrite(_active_pins->boot, true);
+
     result = stm32_configgpio(_active_pins->reset);
     if (result < 0)
     {
