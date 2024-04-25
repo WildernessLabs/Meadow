@@ -159,8 +159,8 @@ static const espcp_control_signals_t _control_signals[] =
     //
     //  These messages are the ones that are most regularly sent by the ESP32.
     //
-    { ESPCP_CONTROL_SIGNAL_MESSAGE_WAITING, "MW", 2, espcp_process_message_waiting_control_signal },
     { ESPCP_CONTROL_SIGNAL_SPI_INTERFACE_READY, "SIR", 3, espcp_process_spi_ready_control_signal },
+    { ESPCP_CONTROL_SIGNAL_MESSAGE_WAITING, "MW", 2, espcp_process_message_waiting_control_signal },
     //
     //  The following messages happen infrequently in a well behaved system.
     //
@@ -368,7 +368,7 @@ static void *espcp_uart_monitor_thread(int argc, char *argv[])
         action.sa_flags = SA_SIGINFO;
         sigemptyset(&action.sa_mask);
 
-        if (sigaction(SIGALRM, &action, NULL) < 0)
+        if (sigaction(SIGINT, &action, NULL) < 0)
         {
             _uart_monitor_shutting_down = true;
             close(uart_handle);
@@ -511,6 +511,19 @@ int espcp_uart_monitor_start(void)
  ****************************************************************************/
 int espcp_uart_monitor_stop(void)
 {
-    kill(_uart_monitor_thread_handle, SIGUSR1);
+    if (espcp_uart_monitor_running())
+    {
+        kill(_uart_monitor_thread_handle, SIGINT);
+        while (espcp_uart_monitor_running())
+        {
+            usleep(10 * 1000);
+        }
+        syslog(1, "ESP32 UART monitor thread stopped.\n");
+    }
+    else
+    {
+        syslog(1, "ESP32 UART monitor thread is not running.\n");
+    }
+
     return(OK);
 }
