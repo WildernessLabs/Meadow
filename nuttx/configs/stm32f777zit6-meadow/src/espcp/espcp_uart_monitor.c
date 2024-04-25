@@ -518,11 +518,11 @@ int espcp_uart_monitor_stop(void)
         {
             usleep(10 * 1000);
         }
-        syslog(1, "ESP32 UART monitor thread stopped.\n");
+        MEADOW_TRACE_INFORMATION("ESP32 UART monitor thread stopped.\n");
     }
     else
     {
-        syslog(1, "ESP32 UART monitor thread is not running.\n");
+        MEADOW_TRACE_INFORMATION("ESP32 UART monitor thread is not running.\n");
     }
 
     return(OK);
