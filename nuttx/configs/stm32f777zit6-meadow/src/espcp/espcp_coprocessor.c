@@ -68,6 +68,7 @@
 #include "espcp_encoders.h"
 #include "espcp_usrsock.h"
 #include "espcp_system.h"
+#include "espcp_shared_enums.h"
 #include "meadow/meadow_os.h"
 #include <arch/board/board.h>
 
@@ -107,7 +108,7 @@ struct espcp_pins_s
 {
     uint32_t reset;
     uint32_t boot;
-    uint32_t spi_ready;
+    // uint32_t spi_ready;
     uint32_t chip_select;
     uint32_t uart_rx;
     uint32_t uart_tx;
@@ -140,7 +141,7 @@ static espcp_pins_t _f7v1_pins =
 {
     /* reset */ ESP32CP_RESET_PIN_OUTPUT,
     /* boot */ ESP32CP_BOOT_PIN_OUTPUT,
-    /* spi_ready */ ESP32CP_SPI_READY_PIN_INPUT,
+    // /* spi_ready */ ESP32CP_SPI_READY_PIN_INPUT,
     /* chip_select */ ESP32CP_SPI_CS_PIN_OUTPUT,
     /* uart_rx */ GPIO_UART5_RX,
     /* uart_tx */ GPIO_UART5_TX_V1
@@ -153,7 +154,7 @@ static espcp_pins_t _f7v2_pins =
 {
     /* reset */ ESP32CP_RESET_PIN_OUTPUT,
     /* boot */ ESP32CP_BOOT_PIN_OUTPUT,
-    /* spi_ready */ ESP32CP_SPI_READY_PIN_INPUT,
+    // /* spi_ready */ ESP32CP_SPI_READY_PIN_INPUT,
     /* chip_select */ ESP32CP_SPI_CS_PIN_OUTPUT,
     /* uart_rx */ ESP32CP_UART_RX,
     /* uart_tx */ ESP32CP_UART_TX
@@ -408,13 +409,13 @@ static int espcp_spi_init(void)
  ****************************************************************************/
 static int espcp_gpio_init(void)
 {
-    int result = stm32_configgpio(_active_pins->spi_ready);
-    if (result < 0)
-    {
-        MEADOW_TRACE_CRITICAL("%s@%d Config Boot pin as input for SPI Ready signal result:%d\n", __FILE__, __LINE__, result);
-        return(ERROR);
-    }
-    result = stm32_configgpio(_active_pins->uart_tx);
+    // int result = stm32_configgpio(_active_pins->spi_ready);
+    // if (result < 0)
+    // {
+    //     MEADOW_TRACE_CRITICAL("%s@%d Config Boot pin as input for SPI Ready signal result:%d\n", __FILE__, __LINE__, result);
+    //     return(ERROR);
+    // }
+    int result = stm32_configgpio(_active_pins->uart_tx);
     if (result < 0)
     {
         MEADOW_TRACE_CRITICAL("%s@%d Config UART Tx as output result:%d\n", __FILE__, __LINE__, result);
@@ -605,7 +606,7 @@ void espcp_reset(void)
  ****************************************************************************/
 void espcp_process_reset_control_signal(const char *line)
 {
-    MEADOW_TRACE_INFORMATION("++RST\n");
+    MEADOW_TRACE_INFORMATION("+++RST\n");
     espcp_config_lock();
     espcp_configuration_t *config = espcp_get_configuration();
     bool expecting_reset = config->expecting_reset;
@@ -618,7 +619,14 @@ void espcp_process_reset_control_signal(const char *line)
 
     if (!expecting_reset)
     {
-        meadow_os_raise_simple_exception(espcp_status_codes_unexpected_coprocessor_restart);
+        espcp_status_codes_t code = espcp_status_codes_unexpected_coprocessor_restart;
+        int len = strlen(line);
+        if (len > 7)        // "+++RST,1" valid codes can be 0 through 10.
+        {
+            int reset_code = strtoul(line + 7, NULL, 10);
+            code = (espcp_status_codes_t) (((int) espcp_status_codes_esp_reset_unknown) + reset_code);
+        }
+        meadow_os_raise_simple_exception(code);
     }
 }
 
@@ -647,14 +655,18 @@ int espcp_enter_programming_mode(void)
     //  First, reconfigure the BOOT pin as this is shared with the SPI interface
     //  ready signal.
     //
-    int result = stm32_gpiosetevent(_active_pins->spi_ready, /*risingedge=*/false, /*fallingedge=*/false, true, NULL, 0);
-    if (result < 0)
-    {
-        MEADOW_TRACE_CRITICAL("%s@%d Disabling SPI Ready interrupt result:%d\n", __FILE__, __LINE__, result);
-        return(ERROR);
-    }
-    stm32_unconfiggpio(_active_pins->spi_ready);
-    result = stm32_configgpio(_active_pins->boot);
+    // int result = stm32_gpiosetevent(_active_pins->spi_ready, /*risingedge=*/false, /*fallingedge=*/false, true, NULL, 0);
+    // if (result < 0)
+    // {
+    //     MEADOW_TRACE_CRITICAL("%s@%d Disabling SPI Ready interrupt result:%d\n", __FILE__, __LINE__, result);
+    //     return(ERROR);
+    // }
+    // stm32_unconfiggpio(_active_pins->spi_ready);
+    
+    // stm32_configgpio(_active_pins->uart_tx);
+    // stm32_configgpio(_active_pins->uart_rx);
+    
+    int result = stm32_configgpio(_active_pins->boot);
     if (result < 0)
     {
         MEADOW_TRACE_CRITICAL("%s@%d Config BOOT pin as output result:%d\n", __FILE__, __LINE__, result);

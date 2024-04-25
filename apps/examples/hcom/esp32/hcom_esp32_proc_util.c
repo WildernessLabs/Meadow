@@ -39,6 +39,7 @@
 
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
+#include <meadow/meadow_os.h>
 #include "hcom_esp32_comms.h"
 
 /****************************************************************************
@@ -68,8 +69,6 @@ static uint8_t hcom_esp_sync_msg[] =
 static char *thisFile = __FILE__;
 static bool _connectionActive;
 
-static void hcom_esp32_util_gpio_enter_prog_mode(void);
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -87,35 +86,35 @@ void hcom_esp32_util_shutdown()
 
 //====================================================================
 // Reboot needed after programming to enter run mode
-int hcom_esp32_util_hardware_restart(void)
-{
-  int ret;
+// int hcom_esp32_util_hardware_restart(void)
+// {
+//   int ret;
 
-  // The actual code is in espcp_coprocessor.c
-  ret = hcom_via_nx_esp32_restart_esp32();
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-ESP32 restart ret:%d\n", thisFile, __LINE__, ret);
-  }
-  _connectionActive = false;
-  return ret;
-}
+//   // The actual code is in espcp_coprocessor.c
+//   ret = hcom_via_nx_esp32_restart_esp32();
+//   if(ret < 0)
+//   {
+//     hcom_logging_syslog(LOG_ERR, "%s@%d-ESP32 restart ret:%d\n", thisFile, __LINE__, ret);
+//   }
+//   _connectionActive = false;
+//   return ret;
+// }
 
 //====================================================================
 // The following sequence puts the ESP32 into programming mode
 // This mode is also called Boot Loader mode in ESP32 documents
-void hcom_esp32_util_gpio_enter_prog_mode(void)
-{
-  int ret;
+// void hcom_esp32_util_gpio_enter_prog_mode(void)
+// {
+//   int ret;
 
-  // The actual code is in espcp_coprocessor.c
-  ret = hcom_via_nx_esp32_enter_prog_mode();
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-entering prog mode:%d\n", thisFile, __LINE__, ret);
-    return;
-  }
-}
+//   // The actual code is in espcp_coprocessor.c
+//   ret = hcom_via_nx_esp32_enter_prog_mode();
+//   if(ret < 0)
+//   {
+//     hcom_logging_syslog(LOG_ERR, "%s@%d-entering prog mode:%d\n", thisFile, __LINE__, ret);
+//     return;
+//   }
+// }
 
 //====================================================================
 // Takes care of the GPIO and sending the synchronization messages.
@@ -131,6 +130,17 @@ int hcom_esp32_util_init_comms_enter_boot_mode()
   if(_connectionActive)
     return OK;
 
+  //
+  //  We need to stop the UART monitor used to send control signals between the STM & ESP
+  //  as we will be using this for programming the ESP32.
+  //
+  ret = meadow_os_espcp_stop_uart_monitor();
+  if(ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-stop UART monitor failed:%d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
+
   // Make sure everything has been initialized. Note: this call will
   // in turn call all the setup_exp32_xxx_xxx_lazy functions. It will
   // also create a thread to read the data sent from ESP32.
@@ -143,16 +153,9 @@ int hcom_esp32_util_init_comms_enter_boot_mode()
 
   hcom_esp32_recv_expect_command_type(Esp32CommandUndefined);
 
-  // Restart the esp32 hardware via gpio
-  ret = hcom_esp32_util_hardware_restart();
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-restart failed:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-
-  // Put the esp into programming mode via gpio
-  hcom_esp32_util_gpio_enter_prog_mode();
+  // Reset the ESP32 and enter programming mode.
+  _connectionActive = false;
+  meadow_os_espcp_enter_programming_mode();
 
   // The esp will send text for about 1.1 seconds so we'll just wait
   usleep(1250 * 1000);
@@ -249,7 +252,6 @@ int hcom_esp32_util_write_register(uint32_t regAddr, uint32_t regValue)
 // Host command to restart the ESP32 arrives here
 void hcom_esp32_util_restart_esp32(uint32_t userData)
 {
-  int ret;
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
 
   if(hcom_mono_ctrl_is_mono_enabled())
@@ -263,12 +265,7 @@ void hcom_esp32_util_restart_esp32(uint32_t userData)
   }
 
   // Restart the ESP32 via GPIO lines
-  ret = hcom_esp32_util_hardware_restart();
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-restart failed:%d\n", thisFile, __LINE__, ret);
-    return;
-  }
+  meadow_os_espcp_reset();
 
   snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH, "ESP32 has been restarted");
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
@@ -352,11 +349,7 @@ void hcom_esp32_util_read_esp32_mac(uint32_t userData)
           macAddr, thisFile, __LINE__);
 
   // Restart the ESP32 via GPIO lines
-  ret = hcom_esp32_util_hardware_restart();
-  if(ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-restart failed:%d\n", thisFile, __LINE__, ret);
-  }
+  meadow_os_espcp_reset();
 
   hcom_esp32_stop_and_prep_for_restart();
 }
