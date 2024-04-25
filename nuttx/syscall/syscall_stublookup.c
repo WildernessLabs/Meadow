@@ -434,6 +434,9 @@ uintptr_t STUB_meadow_os_reset_cycle_count(int nbr);
 uintptr_t STUB_meadow_os_reset_reason(int nbr);
 uintptr_t STUB_meadow_os_hardware_version(int nbr);
 uintptr_t STUB_meadow_os_native_protocol_version(int nbr);
+void STUB_meadow_os_espcp_reset(int nbr);
+uintptr_t STUB_meadow_os_espcp_enter_programming_mode(int nbr);
+uintptr_t STUB_meadow_os_espcp_stop_uart_monitor(int nbr);
 #endif
 
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)

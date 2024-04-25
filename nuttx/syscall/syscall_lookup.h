@@ -418,6 +418,9 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
   SYSCALL_LOOKUP(meadow_os_reset_reason,          0, STUB_meadow_os_reset_reason)
   SYSCALL_LOOKUP(meadow_os_hardware_version,      0, STUB_meadow_os_hardware_version)
   SYSCALL_LOOKUP(meadow_os_native_protocol_version, 0, STUB_meadow_os_native_protocol_version)
+  SYSCALL_LOOKUP(meadow_os_espcp_reset,           0, STUB_meadow_os_espcp_reset)
+  SYSCALL_LOOKUP(meadow_os_espcp_enter_programming_mode,     0, STUB_meadow_os_espcp_enter_programming_mode)
+  SYSCALL_LOOKUP(meadow_os_espcp_stop_uart_monitor,     0, STUB_meadow_os_espcp_stop_uart_monitor)
 #endif
 
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)

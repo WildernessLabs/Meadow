@@ -588,14 +588,17 @@
 #  define SYS_meadow_os_reset_reason            (SYS_meadow_client_cert_release_credentials + 5)
 #  define SYS_meadow_os_hardware_version        (SYS_meadow_client_cert_release_credentials + 6)
 #  define SYS_meadow_os_native_protocol_version (SYS_meadow_client_cert_release_credentials + 7)
+#  define SYS_meadow_os_espcp_reset             (SYS_meadow_client_cert_release_credentials + 8)
+#  define SYS_meadow_os_espcp_enter_programming_mode    (SYS_meadow_client_cert_release_credentials + 9)
+#  define SYS_meadow_os_espcp_stop_uart_monitor (SYS_meadow_client_cert_release_credentials + 10)
 #else
-#  define SYS_meadow_os_native_protocol_version        SYS_meadow_client_cert_release_credentials
+#  define SYS_meadow_os_espcp_stop_uart_monitor        SYS_meadow_client_cert_release_credentials
 #endif
 
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)
-#  define SYS_meadow_idle_monitor_get_value         (SYS_meadow_os_native_protocol_version + 1)
+#  define SYS_meadow_idle_monitor_get_value         (SYS_meadow_os_espcp_stop_uart_monitor + 1)
 #else
-#  define SYS_meadow_idle_monitor_get_value         SYS_meadow_os_native_protocol_version
+#  define SYS_meadow_idle_monitor_get_value         SYS_meadow_os_espcp_stop_uart_monitor
 #endif
 
 #if defined (CONFIG_STM32F7_DMA2)

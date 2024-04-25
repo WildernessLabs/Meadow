@@ -37,13 +37,28 @@
 
 #include <meadow/hcom_shared_common.h>
 
+//
+//  Configuration methods.
+//
 void meadow_os_config_free_resources(meadow_configuration_t *);
 meadow_configuration_t *meadow_os_deep_copy_config(void);
+//
+//  Power cycle, and reset methods.
+//
 uint32_t meadow_os_power_cycle_count(void);
 uint32_t meadow_os_reset_cycle_count(void);
 uint32_t meadow_os_reset_reason(void);
 uint32_t meadow_os_hardware_version(void);
+//
+//  Misc methods.
+//
 uint32_t meadow_os_native_protocol_version(void);
 void meadow_os_raise_simple_exception(uint32_t);
+//
+//  ESP coprocessor specific methods.
+//
+void meadow_os_espcp_reset(void);
+uint32_t meadow_os_espcp_enter_programming_mode(void);
+uint32_t meadow_os_espcp_stop_uart_monitor(void);
 
 #endif /* __MEADOW_OS_H */
