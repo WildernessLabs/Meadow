@@ -85,38 +85,6 @@ void hcom_esp32_util_shutdown()
 }
 
 //====================================================================
-// Reboot needed after programming to enter run mode
-// int hcom_esp32_util_hardware_restart(void)
-// {
-//   int ret;
-
-//   // The actual code is in espcp_coprocessor.c
-//   ret = hcom_via_nx_esp32_restart_esp32();
-//   if(ret < 0)
-//   {
-//     hcom_logging_syslog(LOG_ERR, "%s@%d-ESP32 restart ret:%d\n", thisFile, __LINE__, ret);
-//   }
-//   _connectionActive = false;
-//   return ret;
-// }
-
-//====================================================================
-// The following sequence puts the ESP32 into programming mode
-// This mode is also called Boot Loader mode in ESP32 documents
-// void hcom_esp32_util_gpio_enter_prog_mode(void)
-// {
-//   int ret;
-
-//   // The actual code is in espcp_coprocessor.c
-//   ret = hcom_via_nx_esp32_enter_prog_mode();
-//   if(ret < 0)
-//   {
-//     hcom_logging_syslog(LOG_ERR, "%s@%d-entering prog mode:%d\n", thisFile, __LINE__, ret);
-//     return;
-//   }
-// }
-
-//====================================================================
 // Takes care of the GPIO and sending the synchronization messages.
 // To prevent getting locked into this loop the number of attempts
 // can be specified.
