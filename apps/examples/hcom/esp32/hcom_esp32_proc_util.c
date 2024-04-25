@@ -122,7 +122,6 @@ int hcom_esp32_util_init_comms_enter_boot_mode()
   hcom_esp32_recv_expect_command_type(Esp32CommandUndefined);
 
   // Reset the ESP32 and enter programming mode.
-  _connectionActive = false;
   meadow_os_espcp_enter_programming_mode();
 
   // The esp will send text for about 1.1 seconds so we'll just wait
