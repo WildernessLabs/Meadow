@@ -123,6 +123,7 @@ int hcom_esp32_util_init_comms_enter_boot_mode()
 
   // Reset the ESP32 and enter programming mode.
   meadow_os_espcp_enter_programming_mode();
+  _connectionActive = false;
 
   // The esp will send text for about 1.1 seconds so we'll just wait
   usleep(1250 * 1000);
