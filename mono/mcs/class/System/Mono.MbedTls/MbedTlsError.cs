@@ -3,11 +3,21 @@
 extern alias MonoSecurity;
 #endif
 
+using System.IO;
 using System.Collections.Generic;
 
 namespace Mono.MbedTls
 {
-	public enum MbedtlsSslError
+
+	public class MbedTlsIOException : IOException
+	{
+		public MbedTlsIOException(int hresult, string message) : base(message)
+		{
+			HResult = hresult;
+		}
+	}
+
+	public enum MbedTlsSslError
 	{
 		SSL_CRYPTO_IN_PROGRESS = -0x7000,
 		SSL_FEATURE_UNAVAILABLE = -0x7080,
@@ -75,79 +85,108 @@ namespace Mono.MbedTls
 		X509_FILE_IO_ERROR = -0x2900,
 		X509_BUFFER_TOO_SMALL = -0x2980,
 		X509_FATAL_ERROR = -0x3000,
+
+		// Socket errors
+		MBEDTLS_ERR_NET_SOCKET_FAILED = -0x0042,
+		MBEDTLS_ERR_NET_CONNECT_FAILED = -0x0044,
+		MBEDTLS_ERR_NET_BIND_FAILED = -0x0046,
+		MBEDTLS_ERR_NET_LISTEN_FAILED = -0x0048,
+		MBEDTLS_ERR_NET_ACCEPT_FAILED = -0x004A,
+		MBEDTLS_ERR_NET_RECV_FAILED = -0x004C,
+		MBEDTLS_ERR_NET_SEND_FAILED = -0x004E,
+		MBEDTLS_ERR_NET_CONN_RESET = -0x0050,
+		MBEDTLS_ERR_NET_UNKNOWN_HOST = -0x0052,
+		MBEDTLS_ERR_NET_BUFFER_TOO_SMALL = -0x0043,
+		MBEDTLS_ERR_NET_INVALID_CONTEXT = -0x0045,
+		MBEDTLS_ERR_NET_POLL_FAILED = -0x0047,
+		MBEDTLS_ERR_NET_BAD_INPUT_DATA = -0x0049,
 	}
 
-	public static class MbedtlsSslErrorExtensions
+	public static class MbedTlsSslErrorExtensions
 	{
-		private static readonly Dictionary<MbedtlsSslError, string> ErrorStrings = new Dictionary<MbedtlsSslError, string>
+		private static readonly Dictionary<MbedTlsSslError, string> ErrorStrings = new Dictionary<MbedTlsSslError, string>
 		{
-			{ MbedtlsSslError.SSL_CRYPTO_IN_PROGRESS, "A cryptographic operation is in progress. Try again later." },
-			{ MbedtlsSslError.SSL_FEATURE_UNAVAILABLE, "The requested feature is not available." },
-			{ MbedtlsSslError.SSL_BAD_INPUT_DATA, "Bad input parameters to function." },
-			{ MbedtlsSslError.SSL_INVALID_MAC, "Verification of the message MAC failed." },
-			{ MbedtlsSslError.SSL_INVALID_RECORD, "An invalid SSL record was received." },
-			{ MbedtlsSslError.SSL_CONN_EOF, "The connection indicated an EOF." },
-			{ MbedtlsSslError.SSL_DECODE_ERROR, "A message could not be parsed due to a syntactic error." },
-			{ MbedtlsSslError.SSL_NO_RNG, "No RNG was provided to the SSL module." },
-			{ MbedtlsSslError.SSL_NO_CLIENT_CERTIFICATE, "No client certification received from the client, but required by the authentication mode." },
-			{ MbedtlsSslError.SSL_UNSUPPORTED_EXTENSION, "Client received an extended server hello containing an unsupported extension." },
-			{ MbedtlsSslError.SSL_NO_APPLICATION_PROTOCOL, "No ALPN protocols supported that the client advertises." },
-			{ MbedtlsSslError.SSL_PRIVATE_KEY_REQUIRED, "The own private key or pre-shared key is not set, but needed." },
-			{ MbedtlsSslError.SSL_CA_CHAIN_REQUIRED, "No CA Chain is set, but required to operate." },
-			{ MbedtlsSslError.SSL_UNEXPECTED_MESSAGE, "An unexpected message was received from our peer." },
-			{ MbedtlsSslError.SSL_FATAL_ALERT_MESSAGE, "A fatal alert message was received from our peer." },
-			{ MbedtlsSslError.SSL_UNRECOGNIZED_NAME, "No server could be identified matching the client's SNI." },
-			{ MbedtlsSslError.SSL_PEER_CLOSE_NOTIFY, "The peer notified us that the connection is going to be closed." },
-			{ MbedtlsSslError.SSL_BAD_CERTIFICATE, "Processing of the Certificate handshake message failed." },
-			{ MbedtlsSslError.SSL_ALLOC_FAILED, "Memory allocation failed." },
-			{ MbedtlsSslError.SSL_HW_ACCEL_FAILED, "Hardware acceleration function returned with error." },
-			{ MbedtlsSslError.SSL_HW_ACCEL_FALLTHROUGH, "Hardware acceleration function skipped / left alone data." },
-			{ MbedtlsSslError.SSL_BAD_PROTOCOL_VERSION, "Handshake protocol not within min/max boundaries." },
-			{ MbedtlsSslError.SSL_HANDSHAKE_FAILURE, "The handshake negotiation failed." },
-			{ MbedtlsSslError.SSL_SESSION_TICKET_EXPIRED, "Session ticket has expired." },
-			{ MbedtlsSslError.SSL_PK_TYPE_MISMATCH, "Public key type mismatch (eg, asked for RSA key exchange and presented EC key)." },
-			{ MbedtlsSslError.SSL_UNKNOWN_IDENTITY, "Unknown identity received (eg, PSK identity)." },
-			{ MbedtlsSslError.SSL_INTERNAL_ERROR, "Internal error (eg, unexpected failure in lower-level module)." },
-			{ MbedtlsSslError.SSL_COUNTER_WRAPPING, "A counter would wrap (eg, too many messages exchanged)." },
-			{ MbedtlsSslError.SSL_WAITING_SERVER_HELLO_RENEGO, "Unexpected message at ServerHello in renegotiation." },
-			{ MbedtlsSslError.SSL_HELLO_VERIFY_REQUIRED, "DTLS client must retry for hello verification." },
-			{ MbedtlsSslError.SSL_BUFFER_TOO_SMALL, "A buffer is too small to receive or write a message." },
-			{ MbedtlsSslError.SSL_WANT_READ, "No data of requested type currently available on underlying transport." },
-			{ MbedtlsSslError.SSL_WANT_WRITE, "Connection requires a write call." },
-			{ MbedtlsSslError.SSL_TIMEOUT, "The operation timed out." },
-			{ MbedtlsSslError.SSL_CLIENT_RECONNECT, "The client initiated a reconnect from the same port." },
-			{ MbedtlsSslError.SSL_UNEXPECTED_RECORD, "Record header looks valid but is not expected." },
-			{ MbedtlsSslError.SSL_NON_FATAL, "The alert message received indicates a non-fatal error." },
-			{ MbedtlsSslError.SSL_ILLEGAL_PARAMETER, "A field in a message was incorrect or inconsistent with other fields." },
-			{ MbedtlsSslError.SSL_CONTINUE_PROCESSING, "Internal-only message signaling that further message-processing should be done." },
-			{ MbedtlsSslError.SSL_ASYNC_IN_PROGRESS, "The asynchronous operation is not completed yet." },
-			{ MbedtlsSslError.SSL_EARLY_MESSAGE, "Internal-only message signaling that a message arrived early." },
-			{ MbedtlsSslError.SSL_UNEXPECTED_CID, "An encrypted DTLS-frame with an unexpected CID was received." },
-			{ MbedtlsSslError.SSL_VERSION_MISMATCH, "An operation failed due to an unexpected version or configuration." },
-			{ MbedtlsSslError.SSL_BAD_CONFIG, "Invalid value in SSL config." },
-			{ MbedtlsSslError.X509_FEATURE_UNAVAILABLE, "Unavailable feature, e.g. RSA hashing/encryption combination." },
-			{ MbedtlsSslError.X509_UNKNOWN_OID, "Requested OID is unknown." },
-			{ MbedtlsSslError.X509_INVALID_FORMAT, "The CRT/CRL/CSR format is invalid, e.g. different type expected." },
-			{ MbedtlsSslError.X509_INVALID_VERSION, "The CRT/CRL/CSR version element is invalid." },
-			{ MbedtlsSslError.X509_INVALID_SERIAL, "The serial tag or value is invalid." },
-			{ MbedtlsSslError.X509_INVALID_ALG, "The algorithm tag or value is invalid." },
-			{ MbedtlsSslError.X509_INVALID_NAME, "The name tag or value is invalid." },
-			{ MbedtlsSslError.X509_INVALID_DATE, "The date tag or value is invalid." },
-			{ MbedtlsSslError.X509_INVALID_SIGNATURE, "The signature tag or value invalid." },
-			{ MbedtlsSslError.X509_INVALID_EXTENSIONS, "The extension tag or value is invalid." },
-			{ MbedtlsSslError.X509_UNKNOWN_VERSION, "CRT/CRL/CSR has an unsupported version number." },
-			{ MbedtlsSslError.X509_UNKNOWN_SIG_ALG, "Signature algorithm (oid) is unsupported." },
-			{ MbedtlsSslError.X509_SIG_MISMATCH, "Signature algorithms do not match." },
-			{ MbedtlsSslError.X509_CERT_VERIFY_FAILED, "Certificate verification failed, e.g. CRL, CA or signature check failed." },
-			{ MbedtlsSslError.X509_CERT_UNKNOWN_FORMAT, "Format not recognized as DER or PEM." },
-			{ MbedtlsSslError.X509_BAD_INPUT_DATA, "Input invalid." },
-			{ MbedtlsSslError.X509_ALLOC_FAILED, "Allocation of memory failed." },
-			{ MbedtlsSslError.X509_FILE_IO_ERROR, "Read/write of file failed." },
-			{ MbedtlsSslError.X509_BUFFER_TOO_SMALL, "Destination buffer is too small." },
-			{ MbedtlsSslError.X509_FATAL_ERROR, "A fatal error occurred, eg the chain is too long or the vrfy callback failed." },
+			{ MbedTlsSslError.SSL_CRYPTO_IN_PROGRESS, "A cryptographic operation is in progress. Try again later." },
+			{ MbedTlsSslError.SSL_FEATURE_UNAVAILABLE, "The requested feature is not available." },
+			{ MbedTlsSslError.SSL_BAD_INPUT_DATA, "Bad input parameters to function." },
+			{ MbedTlsSslError.SSL_INVALID_MAC, "Verification of the message MAC failed." },
+			{ MbedTlsSslError.SSL_INVALID_RECORD, "An invalid SSL record was received." },
+			{ MbedTlsSslError.SSL_CONN_EOF, "The connection indicated an EOF." },
+			{ MbedTlsSslError.SSL_DECODE_ERROR, "A message could not be parsed due to a syntactic error." },
+			{ MbedTlsSslError.SSL_NO_RNG, "No RNG was provided to the SSL module." },
+			{ MbedTlsSslError.SSL_NO_CLIENT_CERTIFICATE, "No client certification received from the client, but required by the authentication mode." },
+			{ MbedTlsSslError.SSL_UNSUPPORTED_EXTENSION, "Client received an extended server hello containing an unsupported extension." },
+			{ MbedTlsSslError.SSL_NO_APPLICATION_PROTOCOL, "No ALPN protocols supported that the client advertises." },
+			{ MbedTlsSslError.SSL_PRIVATE_KEY_REQUIRED, "The own private key or pre-shared key is not set, but needed." },
+			{ MbedTlsSslError.SSL_CA_CHAIN_REQUIRED, "No CA Chain is set, but required to operate." },
+			{ MbedTlsSslError.SSL_UNEXPECTED_MESSAGE, "An unexpected message was received from our peer." },
+			{ MbedTlsSslError.SSL_FATAL_ALERT_MESSAGE, "A fatal alert message was received from our peer." },
+			{ MbedTlsSslError.SSL_UNRECOGNIZED_NAME, "No server could be identified matching the client's SNI." },
+			{ MbedTlsSslError.SSL_PEER_CLOSE_NOTIFY, "The peer notified us that the connection is going to be closed." },
+			{ MbedTlsSslError.SSL_BAD_CERTIFICATE, "Processing of the Certificate handshake message failed." },
+			{ MbedTlsSslError.SSL_ALLOC_FAILED, "Memory allocation failed." },
+			{ MbedTlsSslError.SSL_HW_ACCEL_FAILED, "Hardware acceleration function returned with error." },
+			{ MbedTlsSslError.SSL_HW_ACCEL_FALLTHROUGH, "Hardware acceleration function skipped / left alone data." },
+			{ MbedTlsSslError.SSL_BAD_PROTOCOL_VERSION, "Handshake protocol not within min/max boundaries." },
+			{ MbedTlsSslError.SSL_HANDSHAKE_FAILURE, "The handshake negotiation failed." },
+			{ MbedTlsSslError.SSL_SESSION_TICKET_EXPIRED, "Session ticket has expired." },
+			{ MbedTlsSslError.SSL_PK_TYPE_MISMATCH, "Public key type mismatch (eg, asked for RSA key exchange and presented EC key)." },
+			{ MbedTlsSslError.SSL_UNKNOWN_IDENTITY, "Unknown identity received (eg, PSK identity)." },
+			{ MbedTlsSslError.SSL_INTERNAL_ERROR, "Internal error (eg, unexpected failure in lower-level module)." },
+			{ MbedTlsSslError.SSL_COUNTER_WRAPPING, "A counter would wrap (eg, too many messages exchanged)." },
+			{ MbedTlsSslError.SSL_WAITING_SERVER_HELLO_RENEGO, "Unexpected message at ServerHello in renegotiation." },
+			{ MbedTlsSslError.SSL_HELLO_VERIFY_REQUIRED, "DTLS client must retry for hello verification." },
+			{ MbedTlsSslError.SSL_BUFFER_TOO_SMALL, "A buffer is too small to receive or write a message." },
+			{ MbedTlsSslError.SSL_WANT_READ, "No data of requested type currently available on underlying transport." },
+			{ MbedTlsSslError.SSL_WANT_WRITE, "Connection requires a write call." },
+			{ MbedTlsSslError.SSL_TIMEOUT, "The operation timed out." },
+			{ MbedTlsSslError.SSL_CLIENT_RECONNECT, "The client initiated a reconnect from the same port." },
+			{ MbedTlsSslError.SSL_UNEXPECTED_RECORD, "Record header looks valid but is not expected." },
+			{ MbedTlsSslError.SSL_NON_FATAL, "The alert message received indicates a non-fatal error." },
+			{ MbedTlsSslError.SSL_ILLEGAL_PARAMETER, "A field in a message was incorrect or inconsistent with other fields." },
+			{ MbedTlsSslError.SSL_CONTINUE_PROCESSING, "Internal-only message signaling that further message-processing should be done." },
+			{ MbedTlsSslError.SSL_ASYNC_IN_PROGRESS, "The asynchronous operation is not completed yet." },
+			{ MbedTlsSslError.SSL_EARLY_MESSAGE, "Internal-only message signaling that a message arrived early." },
+			{ MbedTlsSslError.SSL_UNEXPECTED_CID, "An encrypted DTLS-frame with an unexpected CID was received." },
+			{ MbedTlsSslError.SSL_VERSION_MISMATCH, "An operation failed due to an unexpected version or configuration." },
+			{ MbedTlsSslError.SSL_BAD_CONFIG, "Invalid value in SSL config." },
+			{ MbedTlsSslError.X509_FEATURE_UNAVAILABLE, "Unavailable feature, e.g. RSA hashing/encryption combination." },
+			{ MbedTlsSslError.X509_UNKNOWN_OID, "Requested OID is unknown." },
+			{ MbedTlsSslError.X509_INVALID_FORMAT, "The CRT/CRL/CSR format is invalid, e.g. different type expected." },
+			{ MbedTlsSslError.X509_INVALID_VERSION, "The CRT/CRL/CSR version element is invalid." },
+			{ MbedTlsSslError.X509_INVALID_SERIAL, "The serial tag or value is invalid." },
+			{ MbedTlsSslError.X509_INVALID_ALG, "The algorithm tag or value is invalid." },
+			{ MbedTlsSslError.X509_INVALID_NAME, "The name tag or value is invalid." },
+			{ MbedTlsSslError.X509_INVALID_DATE, "The date tag or value is invalid." },
+			{ MbedTlsSslError.X509_INVALID_SIGNATURE, "The signature tag or value invalid." },
+			{ MbedTlsSslError.X509_INVALID_EXTENSIONS, "The extension tag or value is invalid." },
+			{ MbedTlsSslError.X509_UNKNOWN_VERSION, "CRT/CRL/CSR has an unsupported version number." },
+			{ MbedTlsSslError.X509_UNKNOWN_SIG_ALG, "Signature algorithm (oid) is unsupported." },
+			{ MbedTlsSslError.X509_SIG_MISMATCH, "Signature algorithms do not match." },
+			{ MbedTlsSslError.X509_CERT_VERIFY_FAILED, "Certificate verification failed, e.g. CRL, CA or signature check failed." },
+			{ MbedTlsSslError.X509_CERT_UNKNOWN_FORMAT, "Format not recognized as DER or PEM." },
+			{ MbedTlsSslError.X509_BAD_INPUT_DATA, "Input invalid." },
+			{ MbedTlsSslError.X509_ALLOC_FAILED, "Allocation of memory failed." },
+			{ MbedTlsSslError.X509_FILE_IO_ERROR, "Read/write of file failed." },
+			{ MbedTlsSslError.X509_BUFFER_TOO_SMALL, "Destination buffer is too small." },
+			{ MbedTlsSslError.X509_FATAL_ERROR, "A fatal error occurred, eg the chain is too long or the vrfy callback failed." },
+			{ MbedTlsSslError.MBEDTLS_ERR_NET_SOCKET_FAILED, "Failed to open a socket." },
+			{ MbedTlsSslError.MBEDTLS_ERR_NET_CONNECT_FAILED, "The connection to the given server / port failed." },
+			{ MbedTlsSslError.MBEDTLS_ERR_NET_BIND_FAILED, "Binding of the socket failed." },
+			{ MbedTlsSslError.MBEDTLS_ERR_NET_LISTEN_FAILED, "Could not listen on the socket." },
+			{ MbedTlsSslError.MBEDTLS_ERR_NET_ACCEPT_FAILED, "Could not accept the incoming connection." },
+			{ MbedTlsSslError.MBEDTLS_ERR_NET_RECV_FAILED, "Reading information from the socket failed." },
+			{ MbedTlsSslError.MBEDTLS_ERR_NET_SEND_FAILED, "Sending information through the socket failed." },
+			{ MbedTlsSslError.MBEDTLS_ERR_NET_CONN_RESET, "Connection was reset by peer." },
+			{ MbedTlsSslError.MBEDTLS_ERR_NET_UNKNOWN_HOST, "Failed to get an IP address for the given hostname." },
+			{ MbedTlsSslError.MBEDTLS_ERR_NET_BUFFER_TOO_SMALL, "Buffer is too small to hold the data." },
+			{ MbedTlsSslError.MBEDTLS_ERR_NET_INVALID_CONTEXT, "The context is invalid, eg because it was free()ed." },
+			{ MbedTlsSslError.MBEDTLS_ERR_NET_POLL_FAILED, "Polling the net context failed." },
+			{ MbedTlsSslError.MBEDTLS_ERR_NET_BAD_INPUT_DATA, "Input invalid." },
+
 		};
 
-		public static string ToErrorString(this MbedtlsSslError error)
+		public static string ToErrorString(this MbedTlsSslError error)
 		{
 			return ErrorStrings.TryGetValue(error, out var value) ? value : $"Unknown error code: {error}";
 		}

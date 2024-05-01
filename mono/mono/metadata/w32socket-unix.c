@@ -48,6 +48,9 @@
 #ifdef HAVE_SYS_SENDFILE_H
 #include <sys/sendfile.h>
 #endif
+#if defined(__NuttX__)
+#include <poll.h>
+#endif
 #include <sys/stat.h>
 
 #include "w32socket.h"
@@ -1409,6 +1412,26 @@ mono_w32socket_get_available (SOCKET sock, guint64 *amount)
 	if (ret == -1) {
 		gint errnum = mono_w32socket_convert_error (errno);
 		mono_trace (G_LOG_LEVEL_DEBUG, MONO_TRACE_IO_LAYER_SOCKET, "%s: getsockopt error: %s", __func__, g_strerror (errno));
+		mono_w32socket_set_last_error (errnum);
+		mono_fdhandle_unref ((MonoFDHandle*) sockethandle);
+		return SOCKET_ERROR;
+	}
+#elif defined (__NuttX__)
+	struct pollfd fds[1];
+	fds[0].fd = ((MonoFDHandle*) sockethandle)->fd;
+	fds[0].events = POLLIN;
+
+	// Poll with a timeout of zero to check the status of the socket
+	ret = poll(fds, 1, 0);
+	if (ret > 0 && (fds[0].revents & POLLIN)) {
+		// Data is available for reading
+		*amount = 1;  // We don't know how many bytes are available, so return "at least one"
+	} else if (ret == 0) {
+		// No data available
+		*amount = 0;
+	} else {
+		gint errnum = mono_w32socket_convert_error (errno);
+		mono_trace (G_LOG_LEVEL_DEBUG, MONO_TRACE_IO_LAYER_SOCKET, "%s: poll error: %s", __func__, g_strerror (errno));
 		mono_w32socket_set_last_error (errnum);
 		mono_fdhandle_unref ((MonoFDHandle*) sockethandle);
 		return SOCKET_ERROR;
