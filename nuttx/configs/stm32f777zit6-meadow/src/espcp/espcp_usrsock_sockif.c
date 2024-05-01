@@ -1574,6 +1574,8 @@ static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
 
     int result = 0;
 
+    // Introduce a small delay to mitigate timing issues causing deadlocks
+    usleep(5000);
     espcp_lock_poll_requests_queue();
     espcp_poll_request_list_item_t *pr = (espcp_poll_request_list_item_t *) gl_find_item(_espcp_poll_requests, 
                                                 (uint32_t) fds->fd, espcp_usrsock_poll_request_compare_fd_pointer);
