@@ -1592,8 +1592,17 @@ static meadow_configuration_t *hcom_nx_config_process_meadow_config_file(void)
             {
                 if (err != CYAML_OK)
                 {
-                    meadow_logging_write(mfl_error, "Error processing config file, using default config");
-                    meadow_os_raise_simple_exception(espcp_status_codes_invalid_configuration_file);
+                    FILE *file = fopen(MEADOW_CONFIG_DEFAULT_FILE_NAME, "r");
+                    if (file)
+                    {
+                        meadow_logging_write(mfl_error, "Error processing config file, using default config");
+                        meadow_os_raise_simple_exception(espcp_status_codes_invalid_configuration_file);
+                        fclose(file);
+                    }
+                    else
+                    {
+                        meadow_logging_write(mfl_info, "Config file not present, using default config");
+                    }
                 }
                 //
                 //  Add any default settings here.
