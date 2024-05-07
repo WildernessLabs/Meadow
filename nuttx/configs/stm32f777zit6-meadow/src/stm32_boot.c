@@ -415,6 +415,7 @@ void board_late_initialize(void)
 
 #endif // #if defined(CONFIG_STM32F7_QUADSPI)
 }
+#endif // #ifdef CONFIG_BOARD_LATE_INITIALIZE
 
 //--------------------------------------------------------------
 // Called from above to initialize USB communications
@@ -445,4 +446,3 @@ int board_init_usbdev()
 
   return OK;
 }
-#endif // #ifdef CONFIG_BOARD_LATE_INITIALIZE
