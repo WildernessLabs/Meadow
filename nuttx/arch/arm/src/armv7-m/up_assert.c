@@ -45,6 +45,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <debug.h>
+#include <inttypes.h>
 
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
