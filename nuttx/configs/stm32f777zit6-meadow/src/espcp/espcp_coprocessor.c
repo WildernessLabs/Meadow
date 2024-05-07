@@ -421,11 +421,16 @@ static int espcp_gpio_init(void)
         MEADOW_TRACE_CRITICAL("%s@%d Config UART Rx as input result:%d\n", __FILE__, __LINE__, result);
         return(ERROR);
     }
-
-    result = stm32_configgpio(_active_pins->reset);
+    //
+    //  Configure the Boot and EN (Reset) pins connected to the ESP32.
+    //
+    //  Start with Boot High (normal operation) and with EN held low
+    //  effectively turning the ESP off initially.
+    //
+    result = stm32_configgpio(_active_pins->boot);
     if (result < 0)
     {
-        MEADOW_TRACE_CRITICAL("%s@%d Config Reset pin failed result:%d\n", __FILE__, __LINE__, result);
+        MEADOW_TRACE_CRITICAL("%s@%d Config Boot pin failed result:%d\n", __FILE__, __LINE__, result);
         return(ERROR);
     }
     stm32_gpiowrite(_active_pins->boot, true);
@@ -436,6 +441,7 @@ static int espcp_gpio_init(void)
         MEADOW_TRACE_CRITICAL("%s@%d Config Reset pin failed result:%d\n", __FILE__, __LINE__, result);
         return(ERROR);
     }
+    stm32_gpiowrite(_active_pins->reset, false);
 
     return(OK);
 }
