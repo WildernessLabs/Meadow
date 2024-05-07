@@ -78,7 +78,7 @@ namespace Mono.MbedTls
 			//create I/O buffers and give the to mbedTLS
 			read_buf = Marshal.AllocHGlobal (buffer_size);
 			write_buf = Marshal.AllocHGlobal (buffer_size);
-			string hostname = Socket.GetHostname();
+			string hostname = network_stream._streamSocket.hostname;
 
 			native_context = mono_mbedtls_connect (mono_fd, read_buf, write_buf, hostname);
 

@@ -7868,15 +7868,19 @@ namespace System.Net.Sockets {
             DnsEndPoint dnsEP = endPointSnapshot as DnsEndPoint;
 
             if (dnsEP != null) {
-#if MONO_FEATURE_MBEDTLS
-                hostname = dnsEP.Host;
-#endif
                 Socket attemptSocket = null;
                 MultipleConnectAsync multipleConnectAsync = null;
                 if (dnsEP.AddressFamily == AddressFamily.Unspecified) {
+#if MONO_FEATURE_MBEDTLS
+                    multipleConnectAsync = new DualSocketMultipleConnectAsync(socketType, protocolType, dnsEP.Host);
+#else
                     multipleConnectAsync = new DualSocketMultipleConnectAsync(socketType, protocolType);
+#endif
                 } else {
                     attemptSocket = new Socket(dnsEP.AddressFamily, socketType, protocolType);
+#if MONO_FEATURE_MBEDTLS
+                    attemptSocket.SetHostname(dnsEP.Host);
+#endif
                     multipleConnectAsync = new SingleSocketMultipleConnectAsync(attemptSocket, false);
                 }
 
@@ -7886,6 +7890,9 @@ namespace System.Net.Sockets {
                 retval = multipleConnectAsync.StartConnectAsync(e, dnsEP);
             } else {
                 Socket attemptSocket = new Socket(endPointSnapshot.AddressFamily, socketType, protocolType);
+#if MONO_FEATURE_MBEDTLS
+                attemptSocket.SetHostname(dnsEP.Host);
+#endif
                 retval = attemptSocket.ConnectAsync(e);
             }
 
