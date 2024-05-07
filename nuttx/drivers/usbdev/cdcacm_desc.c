@@ -161,9 +161,12 @@ int cdcacm_mkstrdesc(uint8_t id, struct usb_strdesc_s *strdesc)
       break;
 
     case CDCACM_SERIALSTRID:
+#if defined(CONFIG_MEADOW_HCOM)
       hcom_nx_common_utils_calculate_serial_numb(NULL, strMcuSn);
       str = strMcuSn;
-      // str = CONFIG_CDCACM_SERIALSTR;
+#else
+      str = CONFIG_CDCACM_SERIALSTR;
+#endif
       break;
 
     case CDCACM_CONFIGSTRID:
