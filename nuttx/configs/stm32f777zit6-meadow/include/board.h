@@ -179,14 +179,13 @@
 #define STM32_RCC_DCKCFGR1_DFSDM1SRC   0
 #define STM32_RCC_DCKCFGR1_ADFSDM1SRC  0
 
+/* Configure factors for PLLI2S clock */
 
-
-/* Configure factors for  PLLI2S clock */
-
+#define CONFIG_STM32F7_PLLI2S          1
 #define STM32_RCC_PLLI2SCFGR_PLLI2SN   RCC_PLLI2SCFGR_PLLI2SN(192)
-#define STM32_RCC_PLLI2SCFGR_PLLI2SP   RCC_PLLI2SCFGR_PLLI2SP(2)
-#define STM32_RCC_PLLI2SCFGR_PLLI2SQ   RCC_PLLI2SCFGR_PLLI2SQ(2)
-#define STM32_RCC_PLLI2SCFGR_PLLI2SR   RCC_PLLI2SCFGR_PLLI2SR(2)
+#define STM32_RCC_PLLI2SCFGR_PLLI2SP   RCC_PLLI2SCFGR_PLLI2SP(4)
+#define STM32_RCC_PLLI2SCFGR_PLLI2SQ   RCC_PLLI2SCFGR_PLLI2SQ(4)
+#define STM32_RCC_PLLI2SCFGR_PLLI2SR   RCC_PLLI2SCFGR_PLLI2SR(4)
 
 /* Configure Dedicated Clock Configuration Register 2 */
 
@@ -585,6 +584,19 @@
 // #define DMAMAP_SPI5_RX_3  STM32_DMA_MAP(DMA2,DMA_STREAM5,DMA_CHAN9)
 #define DMAMAP_SPI5_RX  DMAMAP_SPI5_RX_1
 #define DMAMAP_SPI5_TX  DMAMAP_SPI5_TX_1
+
+#define DMAMAP_SPI2_TX    DMAMAP_SPI2_TX_2
+#define DMAMAP_SPI2_RX    DMAMAP_SPI2_RX_2
+
+/* I2S2 - CS4344 configuration uses I2S2 */
+
+#define GPIO_I2S2_SD      (GPIO_I2S2_SD_1)  /* PB15 */
+#define GPIO_I2S2_CK      (GPIO_I2S2_CK_3)  /* PB13 */
+#define GPIO_I2S2_WS      (GPIO_I2S2_WS_1)  /* PB12 */
+//#define GPIO_I2S2_MCK     (GPIO_I2S2_MCK_0) /* PC6 */
+
+#define DMACHAN_I2S2_RX   DMAMAP_SPI2_RX_2
+#define DMACHAN_I2S2_TX   DMAMAP_SPI2_TX_2
 
 /************************************************************************************
  * Public Data
