@@ -71,7 +71,7 @@ namespace System.Net.Sockets
 		/* the field "m_Handle" is looked up by name by the runtime */
 		internal SafeSocketHandle m_Handle;
 #if MONO_FEATURE_MBEDTLS
-		internal string hostname; // the TLS 1.2 SNI extension needs the hostname
+		internal static string hostname; // the TLS 1.2 SNI extension needs the hostname
 #endif
 
 		/*
@@ -171,6 +171,11 @@ namespace System.Net.Sockets
 #endregion
 
 #region Properties
+
+		internal static string GetHostname()
+		{
+			return hostname;
+		}
 
 		public int Available {
 			get {
@@ -857,9 +862,6 @@ namespace System.Net.Sockets
 
 		public void Connect (string host, int port)
 		{
-#if MONO_FEATURE_MBEDTLS
-			hostname = host;
-#endif
 			Connect (Dns.GetHostAddresses (host), port);
 		}
 

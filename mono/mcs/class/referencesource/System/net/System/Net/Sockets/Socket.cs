@@ -7868,6 +7868,9 @@ namespace System.Net.Sockets {
             DnsEndPoint dnsEP = endPointSnapshot as DnsEndPoint;
 
             if (dnsEP != null) {
+#if MONO_FEATURE_MBEDTLS
+                hostname = dnsEP.Host;
+#endif
                 Socket attemptSocket = null;
                 MultipleConnectAsync multipleConnectAsync = null;
                 if (dnsEP.AddressFamily == AddressFamily.Unspecified) {
