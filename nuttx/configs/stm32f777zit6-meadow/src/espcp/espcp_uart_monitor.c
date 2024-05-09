@@ -356,9 +356,9 @@ static void espcp_uart_monitor_process_line(char *line)
  *      None.
  *
  ****************************************************************************/
-static void *espcp_uart_monitor_thread(int argc, char *argv[])
+static void *espcp_uart_monitor_thread(void *parameters)
 {
-    int uart_handle = open(ESPCP_NETWORK_MONITOR_UART_NAME, O_RDONLY);
+    int uart_handle = *((int *) parameters);
 
     if (uart_handle >= 0)
     {
@@ -436,7 +436,7 @@ static void *espcp_uart_monitor_thread(int argc, char *argv[])
     free(incoming_bytes);
     close(uart_handle);
     _uart_monitor_running = false;
-    kthread_delete(0);
+    // kthread_delete(0);
 
     return(NULL);
 }
@@ -466,27 +466,57 @@ int espcp_uart_monitor_start(void)
 
     int result = ERROR;
 
-    if (!_uart_monitor_shutting_down)
+    // if (!_uart_monitor_shutting_down)
+    // {
+    //     pthread_attr_t attr;
+    //     struct sched_param param;
+
+    //     param.sched_priority = ESPCP_NETWORK_MONITOR_PRIORITY;
+    //     pthread_attr_init(&attr);
+    //     pthread_attr_setschedparam(&attr, &param);
+    //     pthread_attr_setstacksize(&attr, ESPCP_NETWORK_MONITOR_STACK_SIZE);
+
+    //     _uart_monitor_thread_handle =  kthread_create(ESPCP_NETWORK_MONITOR_NAME, ESPCP_NETWORK_MONITOR_PRIORITY,
+    //                            ESPCP_NETWORK_MONITOR_STACK_SIZE, (main_t) espcp_uart_monitor_thread, (char *const *) NULL);
+    //     if (_uart_monitor_thread_handle < 0)
+    //     {
+    //         syslog(LOG_CRIT, "%s@%d-Failed to create %s thread. Error: %d\n",
+    //                 __FILE__, __LINE__, ESPCP_NETWORK_MONITOR_NAME, result);
+    //     }
+    //     else
+    //     {
+    //         result = OK;
+    //     }
+    // }
+
+    int uart_handle = open(ESPCP_NETWORK_MONITOR_UART_NAME, O_RDONLY);
+
+    pthread_attr_t thread_attributes;
+    result = pthread_attr_init(&thread_attributes);
+    if (result != OK)
     {
-        pthread_attr_t attr;
-        struct sched_param param;
+        return (-result);
+    }
 
-        param.sched_priority = ESPCP_NETWORK_MONITOR_PRIORITY;
-        pthread_attr_init(&attr);
-        pthread_attr_setschedparam(&attr, &param);
-        pthread_attr_setstacksize(&attr, ESPCP_NETWORK_MONITOR_STACK_SIZE);
+    struct sched_param scheduler_parameters;
+    scheduler_parameters.sched_priority = ESPCP_NETWORK_MONITOR_PRIORITY;
+    result = pthread_attr_setschedparam(&thread_attributes, &scheduler_parameters);
+    if (result != OK)
+    {
+        return (-result);
+    }
 
-        _uart_monitor_thread_handle =  kthread_create(ESPCP_NETWORK_MONITOR_NAME, ESPCP_NETWORK_MONITOR_PRIORITY,
-                               ESPCP_NETWORK_MONITOR_STACK_SIZE, (main_t) espcp_uart_monitor_thread, (char *const *) NULL);
-        if (_uart_monitor_thread_handle < 0)
-        {
-            syslog(LOG_CRIT, "%s@%d-Failed to create %s thread. Error: %d\n",
-                    __FILE__, __LINE__, ESPCP_NETWORK_MONITOR_NAME, result);
-        }
-        else
-        {
-            result = OK;
-        }
+    result = pthread_attr_setstacksize(&thread_attributes, ESPCP_NETWORK_MONITOR_STACK_SIZE);
+    if (result != OK)
+    {
+        return (-result);
+    }
+
+    pthread_t thread;
+    result = pthread_create(&thread, &thread_attributes, espcp_uart_monitor_thread, &uart_handle);
+    if (result != OK)
+    {
+        return (-result);
     }
 
     return(result);

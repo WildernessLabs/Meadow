@@ -661,27 +661,6 @@ void espcp_process_reset_control_signal(const char *line)
 int espcp_enter_programming_mode(void)
 {
     //
-    //  First, reconfigure the BOOT pin as this is shared with the SPI interface
-    //  ready signal.
-    //
-    // int result = stm32_gpiosetevent(_active_pins->spi_ready, /*risingedge=*/false, /*fallingedge=*/false, true, NULL, 0);
-    // if (result < 0)
-    // {
-    //     MEADOW_TRACE_CRITICAL("%s@%d Disabling SPI Ready interrupt result:%d\n", __FILE__, __LINE__, result);
-    //     return(ERROR);
-    // }
-    // stm32_unconfiggpio(_active_pins->spi_ready);
-    
-    // stm32_configgpio(_active_pins->uart_tx);
-    // stm32_configgpio(_active_pins->uart_rx);
-    
-    int result = stm32_configgpio(_active_pins->boot);
-    if (result < 0)
-    {
-        MEADOW_TRACE_CRITICAL("%s@%d Config BOOT pin as output result:%d\n", __FILE__, __LINE__, result);
-        return(ERROR);
-    }
-    //
     //  Record the change of mode.
     //
     espcp_config_lock();
