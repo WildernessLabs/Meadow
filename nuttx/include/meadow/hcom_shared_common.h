@@ -126,6 +126,7 @@
 #define UPDATE_OS_DIR UPDATE_DIR "os/"
 #define UPDATE_FIRMWARE_DIR UPDATE_DIR "firmware/"
 #define ROLLBACK_DIR "/meadow0/rollback"
+#define CRASH_DIR "/meadow0/crash"
 
 //==================================================
 //  Network interface types.
