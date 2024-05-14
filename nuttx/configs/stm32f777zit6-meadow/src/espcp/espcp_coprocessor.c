@@ -72,8 +72,6 @@
 #include "meadow/meadow_os.h"
 #include <arch/board/board.h>
 
-#include "espcp_uart_monitor.h"
-
 #ifdef CONFIG_BUILD_PROTECTED
 
 #include <nuttx/pthread.h>
@@ -888,8 +886,6 @@ int espcp_late_init(void)
         espcp_gpio_init();
         espcp_spi_init();
 
-        espcp_uart_monitor_start();
-        espcp_reset();
         result = OK;
     }
     

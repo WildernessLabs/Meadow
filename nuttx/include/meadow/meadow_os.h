@@ -59,6 +59,6 @@ void meadow_os_raise_simple_exception(uint32_t);
 //
 void meadow_os_espcp_reset(void);
 uint32_t meadow_os_espcp_enter_programming_mode(void);
-uint32_t meadow_os_espcp_stop_uart_monitor(void);
+void meadow_os_espcp_monitor_process_line(char *);
 
 #endif /* __MEADOW_OS_H */

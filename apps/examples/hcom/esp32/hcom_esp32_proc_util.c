@@ -62,6 +62,8 @@ static uint8_t hcom_esp_sync_msg[] =
   0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55
 };
 
+extern int espcp_uart_monitor_stop(void);
+
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -102,7 +104,7 @@ int hcom_esp32_util_init_comms_enter_boot_mode()
   //  We need to stop the UART monitor used to send control signals between the STM & ESP
   //  as we will be using this for programming the ESP32.
   //
-  ret = meadow_os_espcp_stop_uart_monitor();
+  ret = espcp_uart_monitor_stop();
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-stop UART monitor failed:%d\n", thisFile, __LINE__, ret);

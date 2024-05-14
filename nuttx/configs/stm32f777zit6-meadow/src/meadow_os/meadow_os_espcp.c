@@ -111,23 +111,22 @@ uint32_t meadow_os_espcp_enter_programming_mode(void)
 }
 
 /****************************************************************************
- * Name: meadow_os_espcp_stop_uart_monitor
+ * Name: meadow_os_network_monitor_process_line
  *
  * Description:
- *  Stop the UART monitor thread that is used as a control signal channel
- *  between the ESP32 and the STM32.
+ *  Process the line of data received from the UART connected to the ESP32.
  *
  * Input Parameters:
- *  None.
+ *  line - line of text to be processed.
  *
  * Returned Value:
- *  OK if successful, ERROR otherwise.
+ *  None.
  *
  * Assumptions/Limitations:
  *  None
  *
  ****************************************************************************/
-uint32_t meadow_os_espcp_stop_uart_monitor(void)
+void meadow_os_espcp_monitor_process_line(char *line)
 {
-    return(espcp_uart_monitor_stop());
+    espcp_uart_monitor_process_line(line);
 }

@@ -49,6 +49,10 @@
 #include "esp32/hcom_esp32_comms.h"
 #endif
 
+extern void espcp_uart_monitor_start();
+extern int meadow_os_espcp_reset();
+
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -198,6 +202,9 @@ syslog(2, "hcom_main() running\n"); usleep(10 * 1000);
     hcom_logging_syslog(LOG_CRIT, "%s@%d-setup misc %d\n", thisFile, __LINE__, ret);
     return ret;
   }
+
+  espcp_uart_monitor_start();
+  meadow_os_espcp_reset();
 
   // Only sets a bool
   ret = hcom_diag_nsh_support_setup();

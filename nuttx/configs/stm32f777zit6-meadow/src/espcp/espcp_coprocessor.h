@@ -327,9 +327,7 @@ int espcp_enter_programming_mode(void);
 int espcp_enter_run_mode(void);
 void espcp_deep_sleep(void);
 void espcp_wakeup(void);
-void espcp_process_reset_control_signal(const char *);
 void espcp_spi_interface_lock(void);
 void espcp_spi_interface_unlock(void);
-int espcp_uart_monitor_stop(void);
 
 #endif /* __ESPCP_COPROCESSOR_H */

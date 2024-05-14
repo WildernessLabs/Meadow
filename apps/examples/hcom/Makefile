@@ -102,7 +102,8 @@ ifeq ($(CONFIG_HCOM_ESP32_COMMS),y)
  esp32/hcom_esp32_proc_recv.c \
  esp32/hcom_esp32_proc_util.c \
  esp32/hcom_esp32_proc_xmit.c \
- esp32/hcom_esp32_uart_comms.c
+ esp32/hcom_esp32_uart_comms.c \
+ esp32/hcom_esp32_network_monitor.c
 endif
 
 MAINSRC = hcom_startup_manager.c
