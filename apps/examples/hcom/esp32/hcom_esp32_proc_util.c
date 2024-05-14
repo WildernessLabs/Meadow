@@ -104,7 +104,7 @@ int hcom_esp32_util_init_comms_enter_boot_mode()
   //  We need to stop the UART monitor used to send control signals between the STM & ESP
   //  as we will be using this for programming the ESP32.
   //
-  ret = espcp_uart_monitor_stop();
+  ret = hcom_esp32_network_monitor_stop();
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-stop UART monitor failed:%d\n", thisFile, __LINE__, ret);

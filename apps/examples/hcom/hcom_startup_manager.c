@@ -49,9 +49,7 @@
 #include "esp32/hcom_esp32_comms.h"
 #endif
 
-extern void espcp_uart_monitor_start();
-extern int meadow_os_espcp_reset();
-
+#include <meadow/meadow_os.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -203,7 +201,10 @@ syslog(2, "hcom_main() running\n"); usleep(10 * 1000);
     return ret;
   }
 
-  espcp_uart_monitor_start();
+  //
+  //  Start the ESP UART network monitor thread and then reset the ESP32.
+  //
+  hcom_esp32_network_monitor_start();
   meadow_os_espcp_reset();
 
   // Only sets a bool
