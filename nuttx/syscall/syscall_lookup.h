@@ -418,6 +418,7 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
   SYSCALL_LOOKUP(meadow_os_reset_reason,          0, STUB_meadow_os_reset_reason)
   SYSCALL_LOOKUP(meadow_os_hardware_version,      0, STUB_meadow_os_hardware_version)
   SYSCALL_LOOKUP(meadow_os_native_protocol_version, 0, STUB_meadow_os_native_protocol_version)
+  SYSCALL_LOOKUP(meadow_os_get_gateway_address, 0, STUB_meadow_os_get_gateway_address)
 #endif
 
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)
