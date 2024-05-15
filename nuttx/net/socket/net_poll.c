@@ -119,6 +119,7 @@ int net_poll(int sockfd, struct pollfd *fds, bool setup)
   psock = sockfd_socket(sockfd);
   if (!psock || psock->s_crefs <= 0)
     {
+      meadow_watchdog_deactivate(&g_watchdog_poll);
       return -EBADF;
     }
 

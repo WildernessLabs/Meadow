@@ -41,7 +41,7 @@
 
 #include <meadow/meadow_watchdog.h>
 
-#include "../hcom_nx/hcom_nx_common.h"
+#include "../hcom_nx/hcom_nx_config_manager.h"
 
 /****************************************************************************
  * Public Functions
@@ -49,19 +49,23 @@
 
 void meadow_watchdog_reset_system(int argc, char *argv[])
 {
-    syslog(LOG_ERR, "Unrecoverable network deadlock detected. Restarting Meadow device...\n");
+    syslog(LOG_ERR, "Detected a network deadlock. Propagating OS exception to the managed environment...\n");
 
-    // TODO: Send error report to CLI/Meadow.Cloud
-
-    hcom_nx_common_utils_only_restart_meadow();
+    meadow_os_raise_simple_exception(espcp_status_codes_network_deadlock);
 }
 
 void meadow_watchdog_activate(struct wdog_s *watchdog, uint32_t timeout)
 {
-    wd_start(watchdog, timeout, (wdentry_t)meadow_watchdog_reset_system, 0);
+    int ret = wd_start(watchdog, timeout, (wdentry_t)meadow_watchdog_reset_system, 0);
+    if (ret < 0) {
+        syslog(LOG_ERR, "Failed to activate watchdog: %d\n", ret);
+    }
 }
 
 void meadow_watchdog_deactivate(struct wdog_s *watchdog)
 {
-    wd_cancel(watchdog);
+    int ret = wd_cancel(watchdog);
+    if (ret < 0) {
+        syslog(LOG_ERR, "Failed to deactivate watchdog: %d\n", ret);
+    }
 }

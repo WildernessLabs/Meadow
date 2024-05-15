@@ -57,6 +57,7 @@ enum espcp_status_codes
     espcp_status_codes_invalid_configuration_file = 43,
     espcp_status_codes_invalid_WiFi_configuration_file = 44,
     espcp_status_codes_invalid_cell_configuration_file = 45,
+    espcp_status_codes_network_deadlock = 46,
 };
 typedef enum espcp_status_codes espcp_status_codes_t;
 

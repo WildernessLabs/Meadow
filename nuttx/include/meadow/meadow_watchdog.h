@@ -47,6 +47,7 @@
 #include <nuttx/timers/watchdog.h>
 
 #include <meadow/hcom_shared_common.h>
+#include <meadow/meadow_os.h>
 
 #include "../nuttx/wdog.h"
 
@@ -54,8 +55,7 @@
  * Preprocessor Definitions
  ****************************************************************************/
 
-#define WATCHDOG_POLL_TIMEOUT_MILLISECONDS      (30 * 1000)
-#define WATCHDOG_RECVFROM_TIMEOUT_MILLISECONDS  (300 * 1000)
+#define WATCHDOG_POLL_TIMEOUT_MILLISECONDS        (30 * 1000)
 
 /****************************************************************************
  * Public Function Prototypes
