@@ -56,8 +56,12 @@ void meadow_watchdog_reset_system(int argc, char *argv[])
 
 void meadow_watchdog_activate(struct wdog_s *watchdog, uint32_t timeout)
 {
+    // Clear the WDOGF_ACTIVE flag to ensure that the watchdog starts in an inactive state.
+    WDOG_CLRACTIVE(watchdog);
+
     int ret = wd_start(watchdog, timeout, (wdentry_t)meadow_watchdog_reset_system, 0);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         syslog(LOG_ERR, "Failed to activate watchdog: %d\n", ret);
     }
 }
@@ -65,7 +69,8 @@ void meadow_watchdog_activate(struct wdog_s *watchdog, uint32_t timeout)
 void meadow_watchdog_deactivate(struct wdog_s *watchdog)
 {
     int ret = wd_cancel(watchdog);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         syslog(LOG_ERR, "Failed to deactivate watchdog: %d\n", ret);
     }
 }

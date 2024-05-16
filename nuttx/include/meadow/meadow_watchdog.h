@@ -55,7 +55,10 @@
  * Preprocessor Definitions
  ****************************************************************************/
 
-#define WATCHDOG_POLL_TIMEOUT_MILLISECONDS        (30 * 1000)
+#define WATCHDOG_POLL_TIMEOUT_MILLISECONDS    (30 * 1000)
+#define WATCHDOG_RECV_TIMEOUT_MILLISECONDS    (300 * 1000)
+#define WATCHDOG_SEND_TIMEOUT_MILLISECONDS    (300 * 1000)
+#define WATCHDOG_SENDTO_TIMEOUT_MILLISECONDS  (300 * 1000)
 
 /****************************************************************************
  * Public Function Prototypes
