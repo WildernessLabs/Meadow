@@ -60,5 +60,6 @@ void meadow_os_raise_simple_exception(uint32_t);
 void meadow_os_espcp_reset(void);
 uint32_t meadow_os_espcp_enter_programming_mode(void);
 void meadow_os_espcp_monitor_process_line(char *);
+int meadow_os_get_gateway_address(char *);
 
 #endif /* __MEADOW_OS_H */

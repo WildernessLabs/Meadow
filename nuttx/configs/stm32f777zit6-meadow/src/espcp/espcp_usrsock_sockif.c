@@ -1670,7 +1670,7 @@ void espcp_usrsock_poll_interrupt_handler(espcp_message_t *message)
     {
         request_id = ipr->setup_message_id;
         espcp_lock_poll_requests_queue();
-        espcp_poll_request_list_item_t *pr = (espcp_poll_request_list_item_t *) gl_remove_item(_espcp_poll_requests, 
+        espcp_poll_request_list_item_t *pr = (espcp_poll_request_list_item_t *) gl_find_item(_espcp_poll_requests, 
                                                     request_id, espcp_usrsock_poll_request_compare_message_id);
         if (pr != NULL)
         {

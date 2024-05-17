@@ -411,6 +411,7 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
   SYSCALL_LOOKUP(meadow_client_cert_release_credentials,         3, STUB_meadow_client_cert_release_credentials)
 
 #if defined(CONFIG_ARCH_BOARD_MEADOW)
+
   SYSCALL_LOOKUP(meadow_os_deep_copy_config,              0, STUB_meadow_os_deep_copy_config)
   SYSCALL_LOOKUP(meadow_os_config_free_resources,         1, STUB_meadow_os_config_free_resources)
   SYSCALL_LOOKUP(meadow_os_power_cycle_count,             0, STUB_meadow_os_power_cycle_count)
@@ -421,6 +422,7 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
   SYSCALL_LOOKUP(meadow_os_espcp_reset,                   0, STUB_meadow_os_espcp_reset)
   SYSCALL_LOOKUP(meadow_os_espcp_enter_programming_mode,  0, STUB_meadow_os_espcp_enter_programming_mode)
   SYSCALL_LOOKUP(meadow_os_espcp_monitor_process_line,    1, STUB_meadow_os_espcp_monitor_process_line)
+  SYSCALL_LOOKUP(meadow_os_get_gateway_address,           0, STUB_meadow_os_get_gateway_address)
 #endif
 
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)

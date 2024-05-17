@@ -591,14 +591,15 @@
 #  define SYS_meadow_os_espcp_reset                     (SYS_meadow_client_cert_release_credentials + 8)
 #  define SYS_meadow_os_espcp_enter_programming_mode    (SYS_meadow_client_cert_release_credentials + 9)
 #  define SYS_meadow_os_espcp_monitor_process_line      (SYS_meadow_client_cert_release_credentials + 10)
+#  define SYS_meadow_os_get_gateway_address             (SYS_meadow_client_cert_release_credentials + 11)
 #else
-#  define SYS_meadow_os_espcp_monitor_process_line        SYS_meadow_client_cert_release_credentials
+#  define SYS_meadow_os_get_gateway_address             SYS_meadow_client_cert_release_credentials
 #endif
 
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)
-#  define SYS_meadow_idle_monitor_get_value         (SYS_meadow_os_espcp_monitor_process_line + 1)
+#  define SYS_meadow_idle_monitor_get_value         (SYS_meadow_os_get_gateway_address + 1)
 #else
-#  define SYS_meadow_idle_monitor_get_value         SYS_meadow_os_espcp_monitor_process_line
+#  define SYS_meadow_idle_monitor_get_value         SYS_meadow_os_get_gateway_address
 #endif
 
 #if defined (CONFIG_STM32F7_DMA2)
