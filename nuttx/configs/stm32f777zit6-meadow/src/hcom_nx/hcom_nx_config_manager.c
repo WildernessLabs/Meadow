@@ -195,6 +195,18 @@ meadow_log_destinations_t valid_esp_log_destinations[] =
     { "uart", esp_log_destination_uart },
 };
 
+/**
+ * @brief Valid components that can generate generate log information.
+ */
+static char *esp_log_component_names[] = {
+    "wifi",
+    "system",
+    "bluetooth",
+    "thread",
+    "spi",
+    "messages"
+};
+
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -1608,6 +1620,53 @@ static esp_log_destination_t hcom_nx_config_esp_log_destination(char const *dest
 }
 
 /****************************************************************************
+ * Name: hcom_nx_validate_esp_log_components
+ *
+ * Description:
+ *  Parse the list of components that can generate logging information and
+ *  compare against the list of acceptable components.
+ * 
+ * Input Parameters:
+ *  components - semi-colon separated list of components.
+ *
+ * Returned Value:
+ *  NULL if the list contains one or more invalid entries, pointer to the
+ *  components string if all entries are valid.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static char *hcom_nx_validate_esp_log_components(char *components)
+{
+    if (components != NULL)
+    {
+        char *residual = kmm_strdup(components);
+        char *component = strtok_r(residual, ";", &residual);
+        while (component != NULL)
+        {
+            bool found = false;
+            for (int index = 0; index < sizeof(esp_log_component_names) / sizeof(char *); index++)
+            {
+                if (strcmp(component, esp_log_component_names[index]) == 0)
+                {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+            {
+                free(residual);
+                return(NULL);
+            }
+            component = strtok_r(residual, ";", &residual);
+        }
+        free(residual);
+    }
+    return(components);
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_process_meadow_config_file
  *
  * Description:
@@ -1677,7 +1736,16 @@ static meadow_configuration_t *hcom_nx_config_process_meadow_config_file(void)
                     meadow_configuration->log_destination = hcom_nx_config_esp_log_destination(configuration->coprocessor->log_destination);
                     if (configuration->coprocessor->log_components != NULL)
                     {
-                        meadow_configuration->log_components = kmm_strdup(configuration->coprocessor->log_components);
+                        if (hcom_nx_validate_esp_log_components(configuration->coprocessor->log_components) == NULL)
+                        {
+                            meadow_configuration->log_components = NULL;
+                            meadow_logging_write(mfl_error, "Error unknown ESP log component.");
+                            meadow_os_raise_simple_exception(espcp_status_codes_invalid_configuration_file);
+                        }
+                        else
+                        {
+                            meadow_configuration->log_components = kmm_strdup(configuration->coprocessor->log_components);
+                        }
                     }
                 }
                 else
