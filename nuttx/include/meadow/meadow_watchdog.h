@@ -55,63 +55,21 @@
  * Preprocessor Definitions
  ****************************************************************************/
 
-#define WATCHDOG_POLL_TIMEOUT_MILLISECONDS    (30 * 1000)
-#define WATCHDOG_RECV_TIMEOUT_MILLISECONDS    (300 * 1000)
-#define WATCHDOG_SEND_TIMEOUT_MILLISECONDS    (300 * 1000)
-#define WATCHDOG_SENDTO_TIMEOUT_MILLISECONDS  (300 * 1000)
+#define ENABLE_MEADOW_WATCHDOGS
+
+#define WATCHDOG_POLL_TIMEOUT_MILLISECONDS    (60 * 1000)
+#define WATCHDOG_CLOSE_TIMEOUT_MILLISECONDS   (60 * 1000)
+#define WATCHDOG_SOCKET_TIMEOUT_MILLISECONDS  (60 * 1000)
+#define WATCHDOG_RECV_TIMEOUT_MILLISECONDS    (60 * 1000)
+#define WATCHDOG_SEND_TIMEOUT_MILLISECONDS    (60 * 1000)
+#define WATCHDOG_SENDTO_TIMEOUT_MILLISECONDS  (60 * 1000)
 
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
 
-/****************************************************************************
- * Name: meadow_watchdog_reset_system
- *
- * Description:
- *   Reset the system in case of a deadlock, logging the event before rebooting.
- *
- * Input Parameters:
- *   argc - Number of arguments.
- *   argv - Array of argument strings.
- *
- * Returned Value:
- *   None
- *
- ****************************************************************************/
-
 void meadow_watchdog_reset_system(int argc, char *argv[]);
-
-/****************************************************************************
- * Name: meadow_watchdog_activate
- *
- * Description:
- *   Activate a watchdog timer with the specified timeout.
- *
- * Input Parameters:
- *   watchdog - Pointer to the watchdog timer structure.
- *   timeout  - Timeout value in milliseconds.
- *
- * Returned Value:
- *   None
- *
- ****************************************************************************/
-
 void meadow_watchdog_activate(struct wdog_s *watchdog, uint32_t timeout);
-
-/****************************************************************************
- * Name: meadow_watchdog_deactivate
- *
- * Description:
- *   Deactivate a watchdog timer.
- *
- * Input Parameters:
- *   watchdog - Pointer to the watchdog timer structure.
- *
- * Returned Value:
- *   None
- *
- ****************************************************************************/
-
 void meadow_watchdog_deactivate(struct wdog_s *watchdog);
 
 #endif /* __MEADOW_WATCHDOGS_H */

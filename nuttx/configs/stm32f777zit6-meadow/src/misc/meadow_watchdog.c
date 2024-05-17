@@ -47,15 +47,46 @@
  * Public Functions
  ****************************************************************************/
 
+/****************************************************************************
+ * Name: meadow_watchdog_reset_system
+ *
+ * Description:
+ *   Reset the system in case of a deadlock, logging the event before rebooting.
+ *
+ * Input Parameters:
+ *   argc - Number of arguments.
+ *   argv - Array of argument strings.
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
 void meadow_watchdog_reset_system(int argc, char *argv[])
 {
+#ifdef ENABLE_MEADOW_WATCHDOGS
     syslog(LOG_ERR, "Detected a network deadlock. Propagating OS exception to the managed environment...\n");
 
     meadow_os_raise_simple_exception(espcp_status_codes_network_deadlock);
+#endif /* ENABLE_MEADOW_WATCHDOGS */
 }
 
+/****************************************************************************
+ * Name: meadow_watchdog_activate
+ *
+ * Description:
+ *   Activate a watchdog timer with the specified timeout.
+ *
+ * Input Parameters:
+ *   watchdog - Pointer to the watchdog timer structure.
+ *   timeout  - Timeout value in milliseconds.
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
 void meadow_watchdog_activate(struct wdog_s *watchdog, uint32_t timeout)
 {
+#ifdef ENABLE_MEADOW_WATCHDOGS
     // Clear the WDOGF_ACTIVE flag to ensure that the watchdog starts in an inactive state.
     WDOG_CLRACTIVE(watchdog);
 
@@ -64,13 +95,29 @@ void meadow_watchdog_activate(struct wdog_s *watchdog, uint32_t timeout)
     {
         syslog(LOG_ERR, "Failed to activate watchdog: %d\n", ret);
     }
+#endif /* ENABLE_MEADOW_WATCHDOGS */
 }
 
+/****************************************************************************
+ * Name: meadow_watchdog_deactivate
+ *
+ * Description:
+ *   Deactivate a watchdog timer.
+ *
+ * Input Parameters:
+ *   watchdog - Pointer to the watchdog timer structure.
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
 void meadow_watchdog_deactivate(struct wdog_s *watchdog)
 {
+#ifdef ENABLE_MEADOW_WATCHDOGS
     int ret = wd_cancel(watchdog);
     if (ret < 0)
     {
         syslog(LOG_ERR, "Failed to deactivate watchdog: %d\n", ret);
     }
+#endif /* ENABLE_MEADOW_WATCHDOGS */
 }
