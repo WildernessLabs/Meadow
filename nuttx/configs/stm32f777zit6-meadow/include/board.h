@@ -339,9 +339,13 @@
 // Note: The source defns are from \arch\arm\src\stm32f7\chip\stm32f76xx77xx_pinmap.h
 
 // USART1 (Meadow COM1)
-#define GPIO_USART1_RX GPIO_USART1_RX_3 // PB15
-#define GPIO_USART1_TX GPIO_USART1_TX_3 // PB14
+#define GPIO_USART1_RX GPIO_USART1_RX_2 // PB6
+#define GPIO_USART1_TX GPIO_USART1_TX_2 // PB7
 
+// USART3 (Meadow COM1)
+#define GPIO_USART3_RX GPIO_USART3_RX_2 // PC11
+#define GPIO_USART3_TX GPIO_USART3_TX_2 // PB10
+					//
 // UART4 (Meadow COM1)
 #define GPIO_UART4_RX GPIO_UART4_RX_6 // PI9
 #define GPIO_UART4_TX GPIO_UART4_TX_5 // PH13
