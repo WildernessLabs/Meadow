@@ -185,6 +185,16 @@ const struct meadow_uart_mapping_s hcom_nx_uart_mapping [] =
     { MEADOW_UART6_NAME, MEADOW_COM6_NAME},
 }; 
 
+/**
+ * @brief Names of the valid ESP log destinations. 
+ */
+meadow_log_destinations_t valid_esp_log_destinations[] =
+{
+    { "jtag", esp_log_destination_jtag },
+    { "udp", esp_log_destination_udp },
+    { "uart", esp_log_destination_uart },
+};
+
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -1558,6 +1568,46 @@ static void hcom_nx_config_process_network_section(yaml_network_t *network_confi
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_esp_log_destination
+ *
+ * Description:
+ *  Parse the list of destinations for the ESP log data.
+ * 
+ *  An invalid destination string will raise an invalid configuration file
+ *  exception to managed code.
+ *
+ * Input Parameters:
+ *  destination - string holding the destination name.
+ *
+ * Returned Value:
+ *  esp_log_destination_t destination type.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static esp_log_destination_t hcom_nx_config_esp_log_destination(char const *destination)
+{
+    if (destination != NULL)
+    {
+        for (int index = 0; index < sizeof(valid_esp_log_destinations) / sizeof(esp_log_destination_t); index++)
+        {
+            if (strncmp(destination, valid_esp_log_destinations[index].name, strlen(valid_esp_log_destinations[index].name)) == 0)
+            {
+                return(valid_esp_log_destinations[index].destination);
+            }
+        }
+        //
+        //  If we get here then the destination string is not one of the valid destinations.
+        //  Log the issue, raise an exception and return the default destination of None.
+        //
+        meadow_logging_write(mfl_error, "Error unknown ESP log destination.");
+        meadow_os_raise_simple_exception(espcp_status_codes_invalid_configuration_file);
+    }
+    return(esp_log_destination_none);
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_process_meadow_config_file
  *
  * Description:
@@ -1624,6 +1674,11 @@ static meadow_configuration_t *hcom_nx_config_process_meadow_config_file(void)
                     meadow_configuration->automatically_reconnect = hcom_nx_config_parse_boolean(configuration->coprocessor->automatically_reconnect, false);
                     meadow_configuration->automatically_start_network = hcom_nx_config_parse_boolean(configuration->coprocessor->automatically_start_network, false);
                     meadow_configuration->maximum_retry_count = hcom_nx_config_parse_unsigned_integer(configuration->coprocessor->maximum_retry_count, 3);
+                    meadow_configuration->log_destination = hcom_nx_config_esp_log_destination(configuration->coprocessor->log_destination);
+                    if (configuration->coprocessor->log_components != NULL)
+                    {
+                        meadow_configuration->log_components = kmm_strdup(configuration->coprocessor->log_components);
+                    }
                 }
                 else
                 {
