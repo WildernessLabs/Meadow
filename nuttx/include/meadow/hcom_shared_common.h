@@ -619,6 +619,11 @@ struct meadow_configuration_s
   esp_log_destination_t log_destination;
 
   /**
+   * @brief UDP port to send ESP32 messages to when UDP logging is active.
+   */
+  uint32_t log_udp_port;
+
+  /**
    * @brief MAC address of the board. 
    */
   uint8_t board_mac_address[6];

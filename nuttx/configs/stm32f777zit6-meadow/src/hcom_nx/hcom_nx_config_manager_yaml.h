@@ -137,6 +137,11 @@ struct yaml_coprocessor_s
      *  is set to one of the components in order to generate any output.
      */
     char *log_destination;
+
+    /**
+     * @brief UDP port to use for log messages.
+     */
+    char *log_udp_port;
 };
 typedef struct yaml_coprocessor_s yaml_coprocessor_t;
 
@@ -153,6 +158,7 @@ static const cyaml_schema_field_t configuration_coprocessor_section_schema[] =
     CYAML_FIELD_STRING_PTR("MaximumRetryCount", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, maximum_retry_count, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("LogComponents", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, log_components, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("LogDestination", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, log_destination, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("LogUdpPort", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, log_udp_port, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
 

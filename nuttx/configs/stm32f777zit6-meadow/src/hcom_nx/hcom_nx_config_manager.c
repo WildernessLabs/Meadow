@@ -1641,8 +1641,9 @@ static char *hcom_nx_validate_esp_log_components(char *components)
 {
     if (components != NULL)
     {
-        char *residual = kmm_strdup(components);
-        char *component = strtok_r(residual, ";", &residual);
+        char *residual;
+        char *duplicate = kmm_strdup(components);
+        const char *component = strtok_r(duplicate, ";", &residual);
         while (component != NULL)
         {
             bool found = false;
@@ -1656,12 +1657,12 @@ static char *hcom_nx_validate_esp_log_components(char *components)
             }
             if (!found)
             {
-                free(residual);
+                free(duplicate);
                 return(NULL);
             }
             component = strtok_r(residual, ";", &residual);
         }
-        free(residual);
+        free(duplicate);
     }
     return(components);
 }
@@ -1747,6 +1748,7 @@ static meadow_configuration_t *hcom_nx_config_process_meadow_config_file(void)
                             meadow_configuration->log_components = kmm_strdup(configuration->coprocessor->log_components);
                         }
                     }
+                    meadow_configuration->log_udp_port = hcom_nx_config_parse_unsigned_integer(configuration->coprocessor->log_udp_port, 30000);
                 }
                 else
                 {
