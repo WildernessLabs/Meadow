@@ -1,8 +1,8 @@
 /****************************************************************************
- * net/socket/net_poll.c
+ * meadow_watchdogs.c
  *
- *   Copyright (C) 2008-2009, 2011-2015, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
+ *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,103 +33,91 @@
  *
  ****************************************************************************/
 
+// Implementation file for handling watchdog timers in the Meadow platform.
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
-#include <nuttx/config.h>
-
-#include <assert.h>
-#include <errno.h>
-#include <debug.h>
-
-#include <nuttx/net/net.h>
 #include <meadow/meadow_watchdog.h>
 
-#include "socket/socket.h"
-
-#if defined(CONFIG_NET) && !defined(CONFIG_DISABLE_POLL)
+#include "../hcom_nx/hcom_nx_config_manager.h"
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: psock_poll
+ * Name: meadow_watchdog_reset_system
  *
  * Description:
- *   The standard poll() operation redirects operations on socket descriptors
- *   to this function.
+ *   Reset the system in case of a deadlock, logging the event before rebooting.
  *
  * Input Parameters:
- *   psock - An instance of the internal socket structure.
- *   fds   - The structure describing the events to be monitored, OR NULL if
- *           this is a request to stop monitoring events.
- *   setup - true: Setup up the poll; false: Teardown the poll
+ *   argc - Number of arguments.
+ *   argv - Array of argument strings.
  *
  * Returned Value:
- *  0: Success; Negated errno on failure
+ *   None
  *
  ****************************************************************************/
-
-int psock_poll(FAR struct socket *psock, FAR struct pollfd *fds, bool setup)
+void meadow_watchdog_reset_system(int argc, char *argv[])
 {
-  DEBUGASSERT(psock != NULL && fds != NULL);
+#ifdef ENABLE_MEADOW_WATCHDOGS
+    syslog(LOG_ERR, "Detected a network deadlock. Propagating OS exception to the managed environment...\n");
 
-  /* Let the address family's poll() method handle the operation */
-
-  DEBUGASSERT(psock->s_sockif != NULL && psock->s_sockif->si_poll != NULL);
-  return psock->s_sockif->si_poll(psock, fds, setup);
+    meadow_os_raise_simple_exception(espcp_status_codes_network_deadlock);
+#endif /* ENABLE_MEADOW_WATCHDOGS */
 }
 
 /****************************************************************************
- * Name: net_poll
+ * Name: meadow_watchdog_activate
  *
  * Description:
- *   The standard poll() operation redirects operations on socket descriptors
- *   to this function.
+ *   Activate a watchdog timer with the specified timeout.
  *
  * Input Parameters:
- *   fd    - The socket descriptor of interest
- *   fds   - The structure describing the events to be monitored, OR NULL if
- *           this is a request to stop monitoring events.
- *   setup - true: Setup up the poll; false: Teardown the poll
+ *   watchdog - Pointer to the watchdog timer structure.
+ *   timeout  - Timeout value in milliseconds.
  *
  * Returned Value:
- *  0: Success; Negated errno on failure
+ *   None
  *
  ****************************************************************************/
-
-int net_poll(int sockfd, struct pollfd *fds, bool setup)
+void meadow_watchdog_activate(struct wdog_s *watchdog, uint32_t timeout)
 {
-  struct wdog_s g_watchdog_poll;
-  meadow_watchdog_activate(&g_watchdog_poll, WATCHDOG_POLL_TIMEOUT_MILLISECONDS);
+#ifdef ENABLE_MEADOW_WATCHDOGS
+    // Clear the WDOGF_ACTIVE flag to ensure that the watchdog starts in an inactive state.
+    WDOG_CLRACTIVE(watchdog);
 
-  FAR struct socket *psock;
-  int ret;
-
-  DEBUGASSERT(fds != NULL);
-
-  ninfo("poll(%d, 0x%08x, %d)\n", sockfd, (uint32_t) fds, setup ? 1 : 0);
-
-  /* Get the underlying socket structure and verify that the sockfd
-   * corresponds to valid, allocated socket
-   */
-
-  psock = sockfd_socket(sockfd);
-  if (!psock || psock->s_crefs <= 0)
+    int ret = wd_start(watchdog, timeout, (wdentry_t)meadow_watchdog_reset_system, 0);
+    if (ret < 0)
     {
-      meadow_watchdog_deactivate(&g_watchdog_poll);
-      return -EBADF;
+        syslog(LOG_ERR, "Failed to activate watchdog: %d\n", ret);
     }
-
-  /* Then let psock_poll() do the heavy lifting */
-
-  ret = psock_poll(psock, fds, setup);
-  ninfo("result %d\n", ret);
-
-  meadow_watchdog_deactivate(&g_watchdog_poll);
-  return ret;
+#endif /* ENABLE_MEADOW_WATCHDOGS */
 }
 
-#endif /* CONFIG_NET && !CONFIG_DISABLE_POLL */
+/****************************************************************************
+ * Name: meadow_watchdog_deactivate
+ *
+ * Description:
+ *   Deactivate a watchdog timer.
+ *
+ * Input Parameters:
+ *   watchdog - Pointer to the watchdog timer structure.
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+void meadow_watchdog_deactivate(struct wdog_s *watchdog)
+{
+#ifdef ENABLE_MEADOW_WATCHDOGS
+    int ret = wd_cancel(watchdog);
+    if (ret < 0)
+    {
+        syslog(LOG_ERR, "Failed to deactivate watchdog: %d\n", ret);
+    }
+#endif /* ENABLE_MEADOW_WATCHDOGS */
+}

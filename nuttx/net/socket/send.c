@@ -47,6 +47,7 @@
 
 #include <nuttx/cancelpt.h>
 #include <nuttx/net/net.h>
+#include <meadow/meadow_watchdog.h>
 
 #include "socket/socket.h"
 
@@ -225,6 +226,9 @@ ssize_t nx_send(int sockfd, FAR const void *buf, size_t len, int flags)
 
 ssize_t send(int sockfd, FAR const void *buf, size_t len, int flags)
 {
+  struct wdog_s g_watchdog_send;
+  meadow_watchdog_activate(&g_watchdog_send, WATCHDOG_SEND_TIMEOUT_MILLISECONDS);
+
   ssize_t ret;
 
   /* send() is a cancellation point */
@@ -243,5 +247,7 @@ ssize_t send(int sockfd, FAR const void *buf, size_t len, int flags)
 
   leave_cancellation_point();
   ninfo("result %d\n", ret);
+
+  meadow_watchdog_deactivate(&g_watchdog_send);
   return ret;
 }
