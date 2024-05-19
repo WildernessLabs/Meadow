@@ -41,6 +41,7 @@
 #include <meadow/hcom_protocol.h>
 #include <meadow/meadow_os.h>
 #include "hcom_esp32_comms.h"
+#include "hcom_esp32_network_monitor.h"
 
 /****************************************************************************
  * Pre-processor Definitions

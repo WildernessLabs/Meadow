@@ -87,7 +87,6 @@
 static void espcp_process_ready_control_signal(const char *);
 static void espcp_process_message_waiting_control_signal(const char *);
 static void espcp_process_spi_ready_control_signal(const char *);
-static void espcp_process_reset_control_signal(const char *);
 
 /****************************************************************************
  * Local type defintions.
@@ -180,7 +179,7 @@ static const espcp_control_signals_t _control_signals[] =
  *      String is '\0' terminated and the '\n' character has been removed.
  *
  ****************************************************************************/
-static void espcp_process_ready_control_signal(const char *line)
+static void espcp_process_ready_control_signal(const char *line __attribute__((unused)))
 {
     MEADOW_TRACE_INFORMATION("+++RDY\n");
 }
@@ -203,7 +202,7 @@ static void espcp_process_ready_control_signal(const char *line)
  *      String is '\0' terminated and the '\n' character has been removed.
  *
  ****************************************************************************/
-static void espcp_process_message_waiting_control_signal(const char *line)
+static void espcp_process_message_waiting_control_signal(const char *line __attribute((unused)))
 {
     MEADOW_TRACE_INFORMATION("+++MW\n");
     espcp_queue_send_response_message();
@@ -227,7 +226,7 @@ static void espcp_process_message_waiting_control_signal(const char *line)
  *      String is '\0' terminated and the '\n' character has been removed.
  *
  ****************************************************************************/
-static void espcp_process_spi_ready_control_signal(const char *line)
+static void espcp_process_spi_ready_control_signal(const char *line __attribute__((unused)))
 {
     MEADOW_TRACE_INFORMATION("+++SIR\n");
     espcp_spi_interface_unlock();
@@ -263,7 +262,7 @@ void espcp_uart_monitor_process_line(char *line)
     {
         if (strncmp(line, "+++", 3) == 0)
         {
-            for (int index = 0; index < sizeof(_control_signals) / sizeof(espcp_control_signal_t); index++)
+            for (int index = 0; index < sizeof(_control_signals) / sizeof(_control_signals[0]); index++)
             {
                 if (strncmp(line + 3, _control_signals[index].text, _control_signals[index].length) == 0)
                 {

@@ -329,5 +329,6 @@ void espcp_deep_sleep(void);
 void espcp_wakeup(void);
 void espcp_spi_interface_lock(void);
 void espcp_spi_interface_unlock(void);
+void espcp_process_reset_control_signal(const char *);
 
 #endif /* __ESPCP_COPROCESSOR_H */

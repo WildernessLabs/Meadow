@@ -70,8 +70,7 @@
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
-int espcp_uart_monitor_start(void);
-int espcp_uart_monitor_running(void);
-int espcp_uart_monitor_stop(void);
+int hcom_esp32_network_monitor_start(void);
+int hcom_esp32_network_monitor_stop(void);
 
 #endif /* __ESPCP_UART_MONITOR_H */

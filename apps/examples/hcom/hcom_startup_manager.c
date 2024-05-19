@@ -47,6 +47,7 @@
 
 #if defined (CONFIG_HCOM_ESP32_COMMS)
 #include "esp32/hcom_esp32_comms.h"
+#include "esp32/hcom_esp32_network_monitor.h"
 #endif
 
 #include <meadow/meadow_os.h>
