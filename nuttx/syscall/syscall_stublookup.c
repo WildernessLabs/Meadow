@@ -434,6 +434,9 @@ uintptr_t STUB_meadow_os_reset_cycle_count(int nbr);
 uintptr_t STUB_meadow_os_reset_reason(int nbr);
 uintptr_t STUB_meadow_os_hardware_version(int nbr);
 uintptr_t STUB_meadow_os_native_protocol_version(int nbr);
+void STUB_meadow_os_espcp_reset(int nbr);
+uintptr_t STUB_meadow_os_espcp_enter_programming_mode(int nbr);
+void STUB_meadow_os_espcp_monitor_process_line(int nbr, uintptr_t parm1);
 int STUB_meadow_os_get_gateway_address(unsigned int nbr, uintptr_t parm1);
 #endif
 

@@ -47,7 +47,10 @@
 
 #if defined (CONFIG_HCOM_ESP32_COMMS)
 #include "esp32/hcom_esp32_comms.h"
+#include "esp32/hcom_esp32_network_monitor.h"
 #endif
+
+#include <meadow/meadow_os.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -198,6 +201,12 @@ syslog(2, "hcom_main() running\n"); usleep(10 * 1000);
     hcom_logging_syslog(LOG_CRIT, "%s@%d-setup misc %d\n", thisFile, __LINE__, ret);
     return ret;
   }
+
+  //
+  //  Start the ESP UART network monitor thread and then reset the ESP32.
+  //
+  hcom_esp32_network_monitor_start();
+  meadow_os_espcp_reset();
 
   // Only sets a bool
   ret = hcom_diag_nsh_support_setup();

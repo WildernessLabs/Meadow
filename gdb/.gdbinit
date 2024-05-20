@@ -51,6 +51,23 @@ define enable_hardfault
   set *((uint32_t *) 0xe000edfc) |= 0x0000400
 end
 
+#
+#   Start logging to file.
+#
+define start-file-logging
+  set logging file gdblog.txt
+  set logging on
+  set trace-commands on
+end
+
+#
+#   Stop logging to file.
+#
+define stop-file-logging
+  set logging off
+  set trace-commands off
+end
+
 load-nuttx-symbols
 #
 #   These files are loaded after the NuttX symbol ffiles as references to

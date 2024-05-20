@@ -146,7 +146,8 @@ CSRCS += espcp/espcp_thread.c \
 		 espcp/espcp_common.c \
 		 espcp/espcp_usrsock_sockif.c \
 		 espcp/espcp_event_handlers.c \
-		 espcp/espcp_file_system.c
+		 espcp/espcp_file_system.c \
+         espcp/espcp_uart_monitor.c
 endif
 
 CSRCS += kerneltests/espcp_tests.c \
@@ -207,6 +208,7 @@ CSRCS += meadow_cloud/meadow_cloud.c
 #
 CSRCS += meadow_os/meadow_os_config.c \
          meadow_os/meadow_os_info.c \
-         meadow_os/meadow_os_exceptions.c
+         meadow_os/meadow_os_exceptions.c \
+		 meadow_os/meadow_os_espcp.c
 
 include $(TOPDIR)/configs/Board.mk

@@ -352,56 +352,6 @@ int hcom_via_nx_put_meadow_into_dfu_mode()
 }
 
 //=============================================================
-// This is a stub for starting ESPCP
-int hcom_via_nx_start_espcp_running()
-{
-  int ret;
-
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_START_ESPCP_RUNNING, (unsigned long) NULL);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to start ESPCP, errno:%d\n",
-            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
-    return errno;      // ioctl puts returned int into errno, they are already negative
-  }
-  return OK;
-}
-
-//=============================================================
-// The code restart the esp32 is on the os side
-int hcom_via_nx_esp32_restart_esp32()
-{
-  int ret;
-
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_ESP32_RESTART_ESP32, (unsigned long) NULL);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s ESP32 restart, ret:%d, errno:%d\n",
-            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return -errno;      // ioctl puts returned int into errno
-  }
-
-  return ret;
-}
-
-//=============================================================
-// The code enter the programming mode on the esp32 is on the os side
-int hcom_via_nx_esp32_enter_prog_mode()
-{
-  int ret;
-
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_ESP32_ENTER_PROG_MODE, (unsigned long) NULL);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s ESP32 enter prog mode ret:%d, errno:%d\n",
-            thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, ret, errno);
-    return -errno;      // ioctl puts returned int into errno
-  }
-
-  return ret;
-}
-
-//=============================================================
 // Mono has started running let kernelland know
 void hcom_via_nx_mono_has_started()
 {
