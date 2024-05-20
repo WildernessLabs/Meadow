@@ -194,6 +194,11 @@ endif
 CSRCS += misc/meadow_client_cert.c
 
 #
+#	Add Meadow watchdogs support
+#
+CSRCS += misc/meadow_watchdog.c
+
+#
 #	Add Meadow Cloud support
 #
 CSRCS += meadow_cloud/meadow_cloud.c
