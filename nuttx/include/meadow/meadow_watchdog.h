@@ -1,7 +1,7 @@
 /****************************************************************************
- * meadow_os.h
- * 
- *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ * meadow_watchdogs.h
+ *
+ *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,34 +32,44 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-#ifndef __MEADOW_OS_H
-#define __MEADOW_OS_H
+
+#ifndef __MEADOW_WATCHDOGS_H
+#define __MEADOW_WATCHDOGS_H
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
+#include <unistd.h>
+#include <syslog.h>
+
+#include <nuttx/config.h>
+#include <nuttx/timers/watchdog.h>
 
 #include <meadow/hcom_shared_common.h>
+#include <meadow/meadow_os.h>
 
-//
-//  Configuration methods.
-//
-void meadow_os_config_free_resources(meadow_configuration_t *);
-meadow_configuration_t *meadow_os_deep_copy_config(void);
-//
-//  Power cycle, and reset methods.
-//
-uint32_t meadow_os_power_cycle_count(void);
-uint32_t meadow_os_reset_cycle_count(void);
-uint32_t meadow_os_reset_reason(void);
-uint32_t meadow_os_hardware_version(void);
-//
-//  Misc methods.
-//
-uint32_t meadow_os_native_protocol_version(void);
-void meadow_os_raise_simple_exception(uint32_t);
-//
-//  ESP coprocessor specific methods.
-//
-void meadow_os_espcp_reset(void);
-uint32_t meadow_os_espcp_enter_programming_mode(void);
-void meadow_os_espcp_monitor_process_line(char *);
-int meadow_os_get_gateway_address(char *);
+#include "../nuttx/wdog.h"
 
-#endif /* __MEADOW_OS_H */
+/****************************************************************************
+ * Preprocessor Definitions
+ ****************************************************************************/
+
+#define ENABLE_MEADOW_WATCHDOGS
+
+#define WATCHDOG_POLL_TIMEOUT_MILLISECONDS    (60 * 1000)
+#define WATCHDOG_CLOSE_TIMEOUT_MILLISECONDS   (60 * 1000)
+#define WATCHDOG_SOCKET_TIMEOUT_MILLISECONDS  (60 * 1000)
+#define WATCHDOG_RECV_TIMEOUT_MILLISECONDS    (60 * 1000)
+#define WATCHDOG_SEND_TIMEOUT_MILLISECONDS    (60 * 1000)
+#define WATCHDOG_SENDTO_TIMEOUT_MILLISECONDS  (60 * 1000)
+
+/****************************************************************************
+ * Public Function Prototypes
+ ****************************************************************************/
+
+void meadow_watchdog_reset_system(int argc, char *argv[]);
+void meadow_watchdog_activate(struct wdog_s *watchdog, uint32_t timeout);
+void meadow_watchdog_deactivate(struct wdog_s *watchdog);
+
+#endif /* __MEADOW_WATCHDOGS_H */

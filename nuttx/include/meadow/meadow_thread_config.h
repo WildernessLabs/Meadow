@@ -108,6 +108,22 @@
 #define ESPCP_THREAD_STACKSIZE                      4096
 
 /**
+ * The network monitor thread is responsible for monitoring the network control
+ * signal UART that connects the ESP32 and the STM32.
+ * 
+ * This thread needs to be fairly high priority as it is responsible for keeping
+ * the main ESP communications thread synchronised with the ESP32.
+ */
+#define ESPCP_NETWORK_MONITOR_PRIORITY          190
+#define ESPCP_NETWORK_MONITOR_NAME              "EspcpUARTMonitor"
+#define ESPCP_NETWORK_MONITOR_STACK_SIZE        8192
+
+/**
+ *  @brief Priority for the network monitor thread.
+ */
+
+
+/**
  * HCOM is the main communication thread for the Meadow OS.  It is responsible for
  * starting many of the other threads in the system.  It also supervises communication
  * with the host computer.  As such it should have a high priority.

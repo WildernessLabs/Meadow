@@ -581,21 +581,25 @@
 #  define SYS_meadow_client_cert_release_credentials         (SYS_meadow_cloud_release_private_key + 2)
 
 #if defined(CONFIG_ARCH_BOARD_MEADOW)
-#  define SYS_meadow_os_deep_copy_config        (SYS_meadow_client_cert_release_credentials + 1)
-#  define SYS_meadow_os_config_free_resources   (SYS_meadow_client_cert_release_credentials + 2)
-#  define SYS_meadow_os_power_cycle_count       (SYS_meadow_client_cert_release_credentials + 3)
-#  define SYS_meadow_os_reset_cycle_count       (SYS_meadow_client_cert_release_credentials + 4)
-#  define SYS_meadow_os_reset_reason            (SYS_meadow_client_cert_release_credentials + 5)
-#  define SYS_meadow_os_hardware_version        (SYS_meadow_client_cert_release_credentials + 6)
-#  define SYS_meadow_os_native_protocol_version (SYS_meadow_client_cert_release_credentials + 7)
+#  define SYS_meadow_os_deep_copy_config                (SYS_meadow_client_cert_release_credentials + 1)
+#  define SYS_meadow_os_config_free_resources           (SYS_meadow_client_cert_release_credentials + 2)
+#  define SYS_meadow_os_power_cycle_count               (SYS_meadow_client_cert_release_credentials + 3)
+#  define SYS_meadow_os_reset_cycle_count               (SYS_meadow_client_cert_release_credentials + 4)
+#  define SYS_meadow_os_reset_reason                    (SYS_meadow_client_cert_release_credentials + 5)
+#  define SYS_meadow_os_hardware_version                (SYS_meadow_client_cert_release_credentials + 6)
+#  define SYS_meadow_os_native_protocol_version         (SYS_meadow_client_cert_release_credentials + 7)
+#  define SYS_meadow_os_espcp_reset                     (SYS_meadow_client_cert_release_credentials + 8)
+#  define SYS_meadow_os_espcp_enter_programming_mode    (SYS_meadow_client_cert_release_credentials + 9)
+#  define SYS_meadow_os_espcp_monitor_process_line      (SYS_meadow_client_cert_release_credentials + 10)
+#  define SYS_meadow_os_get_gateway_address             (SYS_meadow_client_cert_release_credentials + 11)
 #else
-#  define SYS_meadow_os_native_protocol_version        SYS_meadow_client_cert_release_credentials
+#  define SYS_meadow_os_get_gateway_address             SYS_meadow_client_cert_release_credentials
 #endif
 
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)
-#  define SYS_meadow_idle_monitor_get_value         (SYS_meadow_os_native_protocol_version + 1)
+#  define SYS_meadow_idle_monitor_get_value         (SYS_meadow_os_get_gateway_address + 1)
 #else
-#  define SYS_meadow_idle_monitor_get_value         SYS_meadow_os_native_protocol_version
+#  define SYS_meadow_idle_monitor_get_value         SYS_meadow_os_get_gateway_address
 #endif
 
 #if defined (CONFIG_STM32F7_DMA2)

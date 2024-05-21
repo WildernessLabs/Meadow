@@ -163,23 +163,6 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   //           config->default_interface->interface_name,
   //           config->default_interface->use_dhcp == 1 ? "Yes" : "No");
 
-  if (reset_esp32)
-  {
-    ret = espcp_late_init();
-    if (ret != OK)
-    {
-      syslog(LOG_EMERG, "ERROR: ESP32 initialization failed:%d\n", ret);
-      return ret;
-    }
-
-    ret = espcp_enter_run_mode();
-    if (ret != OK)
-    {
-      syslog(LOG_EMERG, "ERROR: ESP32 enter run mode failed:%d\n", ret);
-      return ret;
-    }
-  }
-
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2,  "hcom_nx_setup_mgr 1c\n"); usleep(5 * 1000);
 #endif
@@ -403,6 +386,23 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 
 #endif
+
+  if (reset_esp32)
+  {
+    ret = espcp_late_init();
+    if (ret != OK)
+    {
+      syslog(LOG_EMERG, "ERROR: ESP32 initialization failed:%d\n", ret);
+      return ret;
+    }
+
+    ret = espcp_enter_run_mode();
+    if (ret != OK)
+    {
+      syslog(LOG_EMERG, "ERROR: ESP32 enter run mode failed:%d\n", ret);
+      return ret;
+    }
+  }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2,  "hcom_nx_setup_mgr 8-Successful exit\n"); usleep(5 * 1000);

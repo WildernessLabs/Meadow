@@ -45,6 +45,7 @@
 
 #include <nuttx/cancelpt.h>
 #include <nuttx/net/net.h>
+#include <meadow/meadow_watchdog.h>
 
 #include "socket/socket.h"
 
@@ -89,6 +90,9 @@ ssize_t psock_recvfrom(FAR struct socket *psock, FAR void *buf, size_t len,
                        int flags, FAR struct sockaddr *from,
                        FAR socklen_t *fromlen)
 {
+  struct wdog_s g_watchdog_recvfrom;
+  meadow_watchdog_activate(&g_watchdog_recvfrom, WATCHDOG_RECV_TIMEOUT_MILLISECONDS);
+
   ssize_t ret;
 
   /* Verify that non-NULL pointers were passed */
@@ -96,12 +100,14 @@ ssize_t psock_recvfrom(FAR struct socket *psock, FAR void *buf, size_t len,
 #ifdef CONFIG_DEBUG_FEATURES
   if (!buf)
     {
+      meadow_watchdog_deactivate(&g_watchdog_recvfrom);
       return -EINVAL;
     }
 #endif
 
   if (from != NULL && fromlen != NULL && *fromlen <= 0)
     {
+      meadow_watchdog_deactivate(&g_watchdog_recvfrom);
       return -EINVAL;
     }
 
@@ -109,6 +115,7 @@ ssize_t psock_recvfrom(FAR struct socket *psock, FAR void *buf, size_t len,
 
   if (psock == NULL || psock->s_crefs <= 0)
     {
+      meadow_watchdog_deactivate(&g_watchdog_recvfrom);
       return -EBADF;
     }
 
@@ -128,6 +135,8 @@ ssize_t psock_recvfrom(FAR struct socket *psock, FAR void *buf, size_t len,
   /* Set the socket state to idle */
 
   psock->s_flags = _SS_SETSTATE(psock->s_flags, _SF_IDLE);
+
+  meadow_watchdog_deactivate(&g_watchdog_recvfrom);
   return ret;
 }
 

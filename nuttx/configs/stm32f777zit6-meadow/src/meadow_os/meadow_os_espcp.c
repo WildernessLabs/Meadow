@@ -1,8 +1,8 @@
 /****************************************************************************
- * net/socket/net_poll.c
+ * meadow_os_espcp.c
  *
- *   Copyright (C) 2008-2009, 2011-2015, 2017 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
+ *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,103 +33,100 @@
  *
  ****************************************************************************/
 
-/****************************************************************************
- * Included Files
- ****************************************************************************/
-
 #include <nuttx/config.h>
 
-#include <assert.h>
-#include <errno.h>
-#include <debug.h>
+#include <stdlib.h>
 
-#include <nuttx/net/net.h>
-#include <meadow/meadow_watchdog.h>
+#include <meadow/meadow_os.h>
 
-#include "socket/socket.h"
+#include "espcp/espcp_coprocessor.h"
 
-#if defined(CONFIG_NET) && !defined(CONFIG_DISABLE_POLL)
+/****************************************************************************
+ * Uncomment the #define below to turn on debug help macros.
+ ****************************************************************************/
+// #define USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Local type defintions.
+ ****************************************************************************/
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: psock_poll
+ * Name: meadow_os_espcp_reset
  *
  * Description:
- *   The standard poll() operation redirects operations on socket descriptors
- *   to this function.
+ *  Reset the ESP32.
  *
  * Input Parameters:
- *   psock - An instance of the internal socket structure.
- *   fds   - The structure describing the events to be monitored, OR NULL if
- *           this is a request to stop monitoring events.
- *   setup - true: Setup up the poll; false: Teardown the poll
+ *  None.
  *
  * Returned Value:
- *  0: Success; Negated errno on failure
+ *  
+ *
+ * Assumptions/Limitations:
+ *  None
  *
  ****************************************************************************/
-
-int psock_poll(FAR struct socket *psock, FAR struct pollfd *fds, bool setup)
+void meadow_os_espcp_reset(void)
 {
-  DEBUGASSERT(psock != NULL && fds != NULL);
-
-  /* Let the address family's poll() method handle the operation */
-
-  DEBUGASSERT(psock->s_sockif != NULL && psock->s_sockif->si_poll != NULL);
-  return psock->s_sockif->si_poll(psock, fds, setup);
+    espcp_reset();
 }
 
 /****************************************************************************
- * Name: net_poll
+ * Name: meadow_os_espcp_enter_programming_mode
  *
  * Description:
- *   The standard poll() operation redirects operations on socket descriptors
- *   to this function.
+ *  Force the ESP32 into programming mode so that HCOM can reprogram the
+ *  chip.
  *
  * Input Parameters:
- *   fd    - The socket descriptor of interest
- *   fds   - The structure describing the events to be monitored, OR NULL if
- *           this is a request to stop monitoring events.
- *   setup - true: Setup up the poll; false: Teardown the poll
+ *  None.
  *
  * Returned Value:
- *  0: Success; Negated errno on failure
+ *  OK if successful, ERROR otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None
  *
  ****************************************************************************/
-
-int net_poll(int sockfd, struct pollfd *fds, bool setup)
+uint32_t meadow_os_espcp_enter_programming_mode(void)
 {
-  struct wdog_s g_watchdog_poll;
-  meadow_watchdog_activate(&g_watchdog_poll, WATCHDOG_POLL_TIMEOUT_MILLISECONDS);
-
-  FAR struct socket *psock;
-  int ret;
-
-  DEBUGASSERT(fds != NULL);
-
-  ninfo("poll(%d, 0x%08x, %d)\n", sockfd, (uint32_t) fds, setup ? 1 : 0);
-
-  /* Get the underlying socket structure and verify that the sockfd
-   * corresponds to valid, allocated socket
-   */
-
-  psock = sockfd_socket(sockfd);
-  if (!psock || psock->s_crefs <= 0)
-    {
-      meadow_watchdog_deactivate(&g_watchdog_poll);
-      return -EBADF;
-    }
-
-  /* Then let psock_poll() do the heavy lifting */
-
-  ret = psock_poll(psock, fds, setup);
-  ninfo("result %d\n", ret);
-
-  meadow_watchdog_deactivate(&g_watchdog_poll);
-  return ret;
+    return(espcp_enter_programming_mode());
 }
 
-#endif /* CONFIG_NET && !CONFIG_DISABLE_POLL */
+/****************************************************************************
+ * Name: meadow_os_network_monitor_process_line
+ *
+ * Description:
+ *  Process the line of data received from the UART connected to the ESP32.
+ *
+ * Input Parameters:
+ *  line - line of text to be processed.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void meadow_os_espcp_monitor_process_line(char *line)
+{
+    espcp_uart_monitor_process_line(line);
+}

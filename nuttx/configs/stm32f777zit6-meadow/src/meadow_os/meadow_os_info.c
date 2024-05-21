@@ -34,7 +34,7 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-
+#include <arpa/inet.h>
 #include <stdlib.h>
 #include <nuttx/kmalloc.h>
 
@@ -173,4 +173,49 @@ uint32_t meadow_os_hardware_version(void)
 uint32_t meadow_os_native_protocol_version(void)
 {
     return(1);
+}
+
+/****************************************************************************
+ * Name: meadow_os_get_gateway_address
+ *
+ * Description:
+ *  Get the gateway address.
+ *
+ * Input Parameters:
+ *  buffer - buffer to store the network information.
+ *
+ * Returned Value:
+ *  Length of the buffer.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+int meadow_os_get_gateway_address(char *buffer)
+{
+    int ret = -1;
+
+    if (buffer == NULL)
+    {
+        return ret;
+    }
+
+    uint32_t gateway = 0;
+
+    hcom_nx_config_lock();
+    meadow_configuration_t *config = hcom_nx_config_get_pointer();
+    meadow_network_interface_t *iface = config->default_interface;
+    if (iface != NULL)
+    {
+        gateway = iface->gateway;
+    }
+    hcom_nx_config_unlock();
+
+    char address[INET_ADDRSTRLEN];
+    if (inet_ntop(AF_INET, &gateway, address, INET_ADDRSTRLEN) != NULL)
+    {
+        ret = strlen(strcpy(buffer, address));
+    }
+
+    return ret;
 }

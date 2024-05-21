@@ -246,18 +246,13 @@ int espcp_teardown_message_dispatcher(void)
  *  None.
  *
  * Returned Value:
- *  0 always.
+ *  None.
  *
  * Assumptions/Limitations:
- *  This method must be quick as it is intended to be called from an
- *  interrupt handler.
- * 
- *  This method should ONLY be called from the interrupt handler as it
- *  switches the ESP responding flag.  It is assumed that if the interrupt
- *  handler has fired that the ESP is alive as it has generated the interrupt.
+ *  None.
  *
  ****************************************************************************/
-int espcp_queue_send_response_message(int irq, void *context, void *arg)
+void espcp_queue_send_response_message(void)
 {
     espcp_config_lock();
     espcp_configuration_t *config = espcp_get_configuration();
@@ -268,7 +263,6 @@ int espcp_queue_send_response_message(int irq, void *context, void *arg)
     espcp_config_unlock();
 
     espcp_add_message_to_queue(g_message_queue, g_request_response_message);
-    return 0;
 }
 
 /****************************************************************************
@@ -787,12 +781,13 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
     if (send_data_to_esp32 != NULL)
     {
         MEADOW_TRACE_INFORMATION("Sending request packet.\n");
-        message->message_id = espcp_get_next_message_id();      // Dummy send response message always has an ID of 0.
+        message->message_id = espcp_get_next_message_id();
         result = espcp_send_packet(configuration, message);
         if (result == espcp_status_codes_completed_ok)
         {
             //
-            //  First step, send the ACK/NAK for the message just sent.
+            //  Next step, get the acknowledgement from the ESP32.  This should ACK or NAK along
+            //  with some information about the message (payload length).
             //
             espcp_clear_spi_buffers(configuration);
             espcp_spi_interface_lock();
@@ -801,6 +796,9 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
 
             if (acknowledgement != NULL)
             {
+                //
+                //  So we now have the ACK.  We can now start to get the full message.
+                //
                 int payload_remaining = acknowledgement->payload_length;
                 if (payload_remaining >= 0)
                 {
@@ -894,6 +892,10 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
         //
         espcp_add_message_to_queue(g_message_queue, g_request_response_message);
     }
+
+    #if defined(USE_MEADOW_DEBUG_HELPERS)
+        espcp_dump_message(message);
+    #endif
 
     MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }

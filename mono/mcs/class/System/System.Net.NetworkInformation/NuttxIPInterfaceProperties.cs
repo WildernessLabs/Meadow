@@ -73,7 +73,7 @@ namespace System.Net.NetworkInformation {
 				if (File.Exists(filePath))
 				{
 					string line = File.ReadAllText(filePath).Trim();
-					
+
 					if (!string.IsNullOrEmpty(line) && line.StartsWith("nameserver"))
 					{
 						string[] elements = line.Split(new string[] { "nameserver" }, StringSplitOptions.RemoveEmptyEntries);
@@ -81,7 +81,7 @@ namespace System.Net.NetworkInformation {
 						foreach (string element in elements)
 						{
 							string ipAddress = element.Trim();
-							
+
 							// Convert the string IP address to IPAddress
 							if (IPAddress.TryParse(ipAddress, out IPAddress dnsServer))
 							{
@@ -109,12 +109,54 @@ namespace System.Net.NetworkInformation {
 			}
 		}
 
+		[DllImport("nuttx", EntryPoint="meadow_os_get_gateway_address")]
+		public static extern int meadow_os_get_gateway_address(IntPtr buffer);
+
+		internal static unsafe string GetGatewayFromOS()
+		{
+			const int bufferLen = 125;
+			var buffer = Marshal.AllocHGlobal(bufferLen);
+			string info = null;
+			try
+			{
+				int len = meadow_os_get_gateway_address(buffer);
+				if (len > 0)
+				{
+					info = System.Text.Encoding.UTF8.GetString((byte*)buffer.ToPointer(), len);
+				}
+			}
+			finally
+			{
+				Marshal.FreeHGlobal(buffer);
+			}
+			return info;
+		}
+
+		IPAddressCollection ParseGatewayAddress()
+		{
+			var iPAddressCollection = new IPAddressCollection();
+			try
+			{
+				string gatewayAddrStr = GetGatewayFromOS();
+				if (gatewayAddrStr != null && gatewayAddrStr.Length > 0)
+				{
+					IPAddress gatewayAddr = IPAddress.Parse(gatewayAddrStr);
+					iPAddressCollection.InternalAdd(gatewayAddr);
+				}
+			}
+			catch
+			{
+				Console.WriteLine("Failed to get the Gateway address");
+			}
+			return iPAddressCollection;
+		}
+
+
 		public override GatewayIPAddressInformationCollection GatewayAddresses
 		{
-			get 
+			get
 			{
-				var gateways = new IPAddressCollection ();
-				return SystemGatewayIPAddressInformation.ToGatewayIpAddressInformationCollection(gateways);
+				return SystemGatewayIPAddressInformation.ToGatewayIpAddressInformationCollection(ParseGatewayAddress());
 			}
 		}
 

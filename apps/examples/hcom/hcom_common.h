@@ -338,13 +338,10 @@ int hcom_via_nx_get_mcu_ser_numb(char mcuSerNumb[16]);
 void hcom_via_nx_restore_uart_reconfig(uint32_t uartId);
 uint32_t hcom_via_nx_get_hw_version(void);
 uint32_t hcom_via_nx_get_hw_version_alt(int alt_access_fd);
-int hcom_via_nx_esp32_enter_prog_mode(void);
 void hcom_via_nx_mono_has_started(void);
 size_t hcom_via_nx_provide_cli_trace_transport(char *buff, size_t bufLen);
 size_t hcom_via_nx_provide_host_text_transport(uint16_t *requestType,
         char *buff, size_t bufLen);
-int hcom_via_nx_esp32_restart_esp32(void);
-int hcom_via_nx_start_espcp_running(void);
 void hcom_via_nx_diag_fd_inode(int fd);
 void hcom_via_nx_diag_fd_inode_read(int fd, struct inode **inodeOut);
 int hcom_via_nx_execute_espcp_tests(uint32_t);

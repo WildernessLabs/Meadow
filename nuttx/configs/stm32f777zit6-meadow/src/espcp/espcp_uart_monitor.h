@@ -1,8 +1,8 @@
 /****************************************************************************
- * meadow_os.h
- * 
- *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
- *   Author:  Wilderness Labs
+ * espcp_uart_monitor.h
+ *
+ *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
+ *   Author: Mark Stevens
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,34 +32,46 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-#ifndef __MEADOW_OS_H
-#define __MEADOW_OS_H
 
-#include <meadow/hcom_shared_common.h>
+#ifndef __ESPCP_UART_MONITOR_H
+#define __ESPCP_UART_MONITOR_H
 
-//
-//  Configuration methods.
-//
-void meadow_os_config_free_resources(meadow_configuration_t *);
-meadow_configuration_t *meadow_os_deep_copy_config(void);
-//
-//  Power cycle, and reset methods.
-//
-uint32_t meadow_os_power_cycle_count(void);
-uint32_t meadow_os_reset_cycle_count(void);
-uint32_t meadow_os_reset_reason(void);
-uint32_t meadow_os_hardware_version(void);
-//
-//  Misc methods.
-//
-uint32_t meadow_os_native_protocol_version(void);
-void meadow_os_raise_simple_exception(uint32_t);
-//
-//  ESP coprocessor specific methods.
-//
-void meadow_os_espcp_reset(void);
-uint32_t meadow_os_espcp_enter_programming_mode(void);
-void meadow_os_espcp_monitor_process_line(char *);
-int meadow_os_get_gateway_address(char *);
+#pragma once
 
-#endif /* __MEADOW_OS_H */
+#include <nuttx/config.h>
+
+/****************************************************************************
+ * Definitions
+ ****************************************************************************/
+
+/**
+ *  @brief UART connected to the ESP32.
+ * 
+ *  UART5 (/dev/ttyS2) for an on board ESP32.
+ */
+#define ESPCP_NETWORK_MONITOR_UART_NAME         MEADOW_UART5_NAME
+
+/****************************************************************************
+ * Public Types
+ ****************************************************************************/
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+/****************************************************************************
+ * Public Data
+ ****************************************************************************/
+
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Public Function Prototypes
+ ****************************************************************************/
+int espcp_uart_monitor_start(void);
+int espcp_uart_monitor_running(void);
+int espcp_uart_monitor_stop(void);
+
+#endif /* __ESPCP_UART_MONITOR_H */

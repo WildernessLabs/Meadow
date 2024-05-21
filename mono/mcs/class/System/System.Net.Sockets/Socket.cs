@@ -172,6 +172,13 @@ namespace System.Net.Sockets
 
 #region Properties
 
+#if MONO_FEATURE_MBEDTLS
+		internal void SetHostname(string hostname)
+		{
+			this.hostname = hostname;
+		}
+#endif
+
 		public int Available {
 			get {
 				ThrowIfDisposedAndClosed ();
@@ -857,9 +864,6 @@ namespace System.Net.Sockets
 
 		public void Connect (string host, int port)
 		{
-#if MONO_FEATURE_MBEDTLS
-			hostname = host;
-#endif
 			Connect (Dns.GetHostAddresses (host), port);
 		}
 
