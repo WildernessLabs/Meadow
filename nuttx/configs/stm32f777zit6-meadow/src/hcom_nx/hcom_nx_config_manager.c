@@ -1659,20 +1659,23 @@ static esp_log_destination_t hcom_nx_config_esp_log_destination(char const *dest
 {
     if (destination != NULL)
     {
-        for (int index = 0; index < sizeof(valid_esp_log_destinations) / sizeof(valid_esp_log_destinations[0]); index++)
+        if (*destination != '\0')
         {
-            int length = strlen(valid_esp_log_destinations[index].name);
-            if ((strnlen(destination, length + 1) == length) && (strcasecmp(destination, valid_esp_log_destinations[index].name) == 0))
+            for (int index = 0; index < sizeof(valid_esp_log_destinations) / sizeof(valid_esp_log_destinations[0]); index++)
             {
-                return(valid_esp_log_destinations[index].destination);
+                int length = strlen(valid_esp_log_destinations[index].name);
+                if ((strnlen(destination, length + 1) == length) && (strcasecmp(destination, valid_esp_log_destinations[index].name) == 0))
+                {
+                    return(valid_esp_log_destinations[index].destination);
+                }
             }
+            //
+            //  If we get here then the destination string is not one of the valid destinations.
+            //  Log the issue, raise an exception and return the default destination of None.
+            //
+            meadow_logging_write(mfl_error, "Info: Unknown ESP log destination, defaulting to None.");
+            meadow_os_raise_simple_exception(espcp_status_codes_invalid_configuration_file);
         }
-        //
-        //  If we get here then the destination string is not one of the valid destinations.
-        //  Log the issue, raise an exception and return the default destination of None.
-        //
-        meadow_logging_write(mfl_error, "Error unknown ESP log destination.");
-        meadow_os_raise_simple_exception(espcp_status_codes_invalid_configuration_file);
     }
     return(esp_log_destination_none);
 }
@@ -1725,6 +1728,8 @@ static char *hcom_nx_validate_esp_log_components(char *components)
                 if (!found)
                 {
                     kmm_free(duplicate);
+                    meadow_logging_write(mfl_error, "Info: unknown ESP log component, logging is turned off.");
+                    meadow_os_raise_simple_exception(espcp_status_codes_invalid_configuration_file);
                     return(NULL);
                 }
                 component = strtok_r(residual, ";", &residual);
@@ -1817,13 +1822,21 @@ static meadow_configuration_t *hcom_nx_config_process_meadow_config_file(void)
                         if (hcom_nx_validate_esp_log_components(configuration->coprocessor->log_components) == NULL)
                         {
                             meadow_configuration->esp_log_components = NULL;
-                            meadow_logging_write(mfl_error, "Error unknown ESP log component.");
-                            meadow_os_raise_simple_exception(espcp_status_codes_invalid_configuration_file);
                         }
                         else
                         {
                             meadow_configuration->esp_log_components = kmm_strdup(configuration->coprocessor->log_components);
                         }
+                    }
+                    uint32_t udp_port = hcom_nx_config_parse_unsigned_integer(configuration->coprocessor->log_udp_port, 30000);
+                    if (udp_port > SHRT_MAX)
+                    {
+                        meadow_logging_write(mfl_info, "Info: UDP greater than maximum, using 30,000.");
+                        meadow_configuration->esp_log_udp_port = 30000;
+                    }
+                    else
+                    {
+                        meadow_configuration->esp_log_udp_port = udp_port;
                     }
                     meadow_configuration->esp_log_udp_port = hcom_nx_config_parse_unsigned_integer(configuration->coprocessor->log_udp_port, 30000);
                 }
