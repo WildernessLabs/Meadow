@@ -611,17 +611,17 @@ struct meadow_configuration_s
   /**
    * @brief Which components should generate log messages?
    */
-  char *log_components;
+  char *esp_log_components;
 
   /**
    * @brief Where should any ESP log messages be sent?
    */
-  esp_log_destination_t log_destination;
+  esp_log_destination_t esp_log_destination;
 
   /**
    * @brief UDP port to send ESP32 messages to when UDP logging is active.
    */
-  uint32_t log_udp_port;
+  uint32_t esp_log_udp_port;
 
   /**
    * @brief MAC address of the board. 

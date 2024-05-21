@@ -1602,7 +1602,7 @@ static esp_log_destination_t hcom_nx_config_esp_log_destination(char const *dest
 {
     if (destination != NULL)
     {
-        for (int index = 0; index < sizeof(valid_esp_log_destinations) / sizeof(esp_log_destination_t); index++)
+        for (int index = 0; index < sizeof(valid_esp_log_destinations) / sizeof(valid_esp_log_destinations[0]); index++)
         {
             int length = strlen(valid_esp_log_destinations[index].name);
             if ((strnlen(destination, length + 1) == length) && (strcasecmp(destination, valid_esp_log_destinations[index].name) == 0))
@@ -1640,33 +1640,42 @@ static esp_log_destination_t hcom_nx_config_esp_log_destination(char const *dest
  ****************************************************************************/
 static char *hcom_nx_validate_esp_log_components(char *components)
 {
+    char *result = components;
+
     if (components != NULL)
     {
-        char *residual;
-        char *duplicate = kmm_strdup(components);
-        char *component = strtok_r(duplicate, ";", &residual);
-        while (component != NULL)
+        if (*components == '\0')
         {
-            bool found = false;
-            for (int index = 0; index < sizeof(esp_log_component_names) / sizeof(char *); index++)
-            {
-                int length = strlen(esp_log_component_names[index]);
-                if ((strnlen(component, length + 1) == length) && (strcasecmp(component, esp_log_component_names[index]) == 0))
-                {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found)
-            {
-                kmm_free(duplicate);
-                return(NULL);
-            }
-            component = strtok_r(residual, ";", &residual);
+            result = NULL;
         }
-        kmm_free(duplicate);
+        else
+        {
+            char *residual;
+            char *duplicate = kmm_strdup(components);
+            char *component = strtok_r(duplicate, ";", &residual);
+            while (component != NULL)
+            {
+                bool found = false;
+                for (int index = 0; index < sizeof(esp_log_component_names) / sizeof(char *); index++)
+                {
+                    int length = strlen(esp_log_component_names[index]);
+                    if ((strnlen(component, length + 1) == length) && (strcasecmp(component, esp_log_component_names[index]) == 0))
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    kmm_free(duplicate);
+                    return(NULL);
+                }
+                component = strtok_r(residual, ";", &residual);
+            }
+            kmm_free(duplicate);
+        }
     }
-    return(components);
+    return(result);
 }
 
 /****************************************************************************
@@ -1736,27 +1745,26 @@ static meadow_configuration_t *hcom_nx_config_process_meadow_config_file(void)
                     meadow_configuration->automatically_reconnect = hcom_nx_config_parse_boolean(configuration->coprocessor->automatically_reconnect, false);
                     meadow_configuration->automatically_start_network = hcom_nx_config_parse_boolean(configuration->coprocessor->automatically_start_network, false);
                     meadow_configuration->maximum_retry_count = hcom_nx_config_parse_unsigned_integer(configuration->coprocessor->maximum_retry_count, 3);
-                    meadow_configuration->log_destination = hcom_nx_config_esp_log_destination(configuration->coprocessor->log_destination);
-                    // meadow_configuration->log_components = kmm_strdup(configuration->coprocessor->log_components);
+                    meadow_configuration->esp_log_destination = hcom_nx_config_esp_log_destination(configuration->coprocessor->log_destination);
                     if (configuration->coprocessor->log_components != NULL)
                     {
                         if (hcom_nx_validate_esp_log_components(configuration->coprocessor->log_components) == NULL)
                         {
-                            meadow_configuration->log_components = NULL;
+                            meadow_configuration->esp_log_components = NULL;
                             meadow_logging_write(mfl_error, "Error unknown ESP log component.");
                             meadow_os_raise_simple_exception(espcp_status_codes_invalid_configuration_file);
                         }
                         else
                         {
-                            meadow_configuration->log_components = kmm_strdup(configuration->coprocessor->log_components);
+                            meadow_configuration->esp_log_components = kmm_strdup(configuration->coprocessor->log_components);
                         }
                     }
-                    meadow_configuration->log_udp_port = hcom_nx_config_parse_unsigned_integer(configuration->coprocessor->log_udp_port, 30000);
+                    meadow_configuration->esp_log_udp_port = hcom_nx_config_parse_unsigned_integer(configuration->coprocessor->log_udp_port, 30000);
                 }
                 else
                 {
                     meadow_configuration->esp_spi_speed_hz = DEFAULT_STM_ESP_SPI_SPEED;
-                    meadow_configuration->log_destination = esp_log_destination_none;
+                    meadow_configuration->esp_log_destination = esp_log_destination_none;
                 }
                 hcom_nx_config_process_network_section(configuration->network, meadow_configuration);
                 if (configuration->internal_debug != NULL)
@@ -1816,6 +1824,16 @@ static meadow_configuration_t *hcom_nx_config_process_meadow_config_file(void)
     MEADOW_TRACE_INFORMATION("    Automatically start network: %d\n", meadow_configuration->automatically_start_network);
     MEADOW_TRACE_INFORMATION("    Automatically reconnect: %d\n", meadow_configuration->automatically_reconnect);
     MEADOW_TRACE_INFORMATION("    Maximum retry count: %d\n", meadow_configuration->maximum_retry_count);
+    MEADOW_TRACE_INFORMATION("    Log destination: %d\n", meadow_configuration->esp_log_destination);
+    if (meadow_configuration->esp_log_components == NULL)
+    {
+        MEADOW_TRACE_INFORMATION("    Log components: NULL\n");
+    }
+    else
+    {
+        MEADOW_TRACE_INFORMATION("    Log components: %s\n", meadow_configuration->esp_log_components);
+    }
+    MEADOW_TRACE_INFORMATION("    Log UDP port: %d\n", meadow_configuration->esp_log_udp_port);
     char address[INET_ADDRSTRLEN];
     MEADOW_TRACE_INFORMATION("Network:\n");
     MEADOW_TRACE_INFORMATION("    Ethernet:\n");
