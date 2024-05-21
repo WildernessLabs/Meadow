@@ -47,6 +47,8 @@
 
 #include "stm32f777zit6-meadow.h"
 #include "hcom_nx_config_manager.h"
+#include <meadow/hcom_bbreg_defn.h>
+#include <meadow/meadow_os.h>
 
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 #include <meadow/meadow_hw_version.h>
@@ -122,6 +124,11 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   //  Prepare the logging system and clear the log file.
   //
   meadow_logging_init_os_logging();
+
+  //
+  //  The bootloader will have put the reset reason into BBR30 for us.
+  //
+  syslog(1, "Meadow reset code: 0x%02x\n", meadow_os_reset_reason());
 
   //
   //  We need to perform early initialisation of the ESP system to put
