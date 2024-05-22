@@ -120,6 +120,28 @@ struct yaml_coprocessor_s
      * Maximum number of retry attempts before the system should return an error condition.
      */
     char *maximum_retry_count;
+
+    /**
+     * @brief Which components should generate log messages?
+     * 
+     *  Valid components are: WiFi, System and Bluetooth.
+     * 
+     *  Multiple components can be specified as a comma delimited list.
+     */
+    char *log_components;
+
+    /**
+     * @brief Where should any ESP log messages be sent?
+     *
+     *  Valid values are UART, UDP and JTAG.  This property requires that the  log_components
+     *  is set to one of the components in order to generate any output.
+     */
+    char *log_destination;
+
+    /**
+     * @brief UDP port to use for log messages.
+     */
+    char *log_udp_port;
 };
 typedef struct yaml_coprocessor_s yaml_coprocessor_t;
 
@@ -134,6 +156,9 @@ static const cyaml_schema_field_t configuration_coprocessor_section_schema[] =
     CYAML_FIELD_STRING_PTR("AutomaticallyStartNetwork", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_start_network, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("AutomaticallyReconnect", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, automatically_reconnect, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("MaximumRetryCount", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, maximum_retry_count, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("LogComponents", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, log_components, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("LogDestination", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, log_destination, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("LogUdpPort", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, log_udp_port, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
 

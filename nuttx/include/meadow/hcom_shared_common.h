@@ -424,6 +424,34 @@ struct meadow_version_number_s
 };
 typedef struct meadow_version_number_s meadow_version_number_t;
 
+/**
+ * @brief Where should the ESP log messages be sent?
+ */
+typedef enum esp_log_destination_e
+{
+  esp_log_destination_none = 0,
+  esp_log_destination_uart = 1,
+  esp_log_destination_jtag = 2,
+  esp_log_destination_udp = 3,
+} esp_log_destination_t;
+
+/**
+ * @brief Table to hold the names of the log destinations along with the enum value.
+ * 
+ */
+typedef struct meadow_log_destinations_s
+{
+  /**
+   * @brief Name of the log destination.
+   */
+  char *name;
+
+  /**
+   * @brief Value of the log destination.
+   */
+  esp_log_destination_t destination;
+} meadow_log_destinations_t;
+
 //  Structure to hold the configuration of the Meadow board.
 struct meadow_configuration_s
 {
@@ -580,6 +608,21 @@ struct meadow_configuration_s
    *  @brief Automatically reconnect to the preconfigured access point?
    */
   uint8_t automatically_reconnect;
+
+  /**
+   * @brief Which components should generate log messages?
+   */
+  char *esp_log_components;
+
+  /**
+   * @brief Where should any ESP log messages be sent?
+   */
+  esp_log_destination_t esp_log_destination;
+
+  /**
+   * @brief UDP port to send ESP32 messages to when UDP logging is active.
+   */
+  uint32_t esp_log_udp_port;
 
   /**
    * @brief MAC address of the board. 

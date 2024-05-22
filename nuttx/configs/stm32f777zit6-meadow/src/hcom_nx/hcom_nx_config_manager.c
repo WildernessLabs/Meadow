@@ -185,6 +185,28 @@ const struct meadow_uart_mapping_s hcom_nx_uart_mapping [] =
     { MEADOW_UART6_NAME, MEADOW_COM6_NAME},
 }; 
 
+/**
+ * @brief Names of the valid ESP log destinations. 
+ */
+meadow_log_destinations_t valid_esp_log_destinations[] =
+{
+    { "jtag", esp_log_destination_jtag },
+    { "udp", esp_log_destination_udp },
+    { "uart", esp_log_destination_uart },
+};
+
+/**
+ * @brief Valid components that can generate generate log information.
+ */
+static char *esp_log_component_names[] = {
+    "wifi",
+    "system",
+    "bluetooth",
+    "thread",
+    "spi",
+    "messages"
+};
+
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -1615,6 +1637,110 @@ static void hcom_nx_config_process_network_section(yaml_network_t *network_confi
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_esp_log_destination
+ *
+ * Description:
+ *  Parse the list of destinations for the ESP log data.
+ * 
+ *  An invalid destination string will raise an invalid configuration file
+ *  exception to managed code.
+ *
+ * Input Parameters:
+ *  destination - string holding the destination name.
+ *
+ * Returned Value:
+ *  esp_log_destination_t destination type.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static esp_log_destination_t hcom_nx_config_esp_log_destination(char const *destination)
+{
+    if (destination != NULL)
+    {
+        if (*destination != '\0')
+        {
+            for (int index = 0; index < sizeof(valid_esp_log_destinations) / sizeof(valid_esp_log_destinations[0]); index++)
+            {
+                int length = strlen(valid_esp_log_destinations[index].name);
+                if ((strnlen(destination, length + 1) == length) && (strcasecmp(destination, valid_esp_log_destinations[index].name) == 0))
+                {
+                    return(valid_esp_log_destinations[index].destination);
+                }
+            }
+            //
+            //  If we get here then the destination string is not one of the valid destinations.
+            //  Log the issue, raise an exception and return the default destination of None.
+            //
+            meadow_logging_write(mfl_error, "Info: Unknown ESP log destination, defaulting to None.");
+            meadow_os_raise_simple_exception(espcp_status_codes_invalid_configuration_file);
+        }
+    }
+    return(esp_log_destination_none);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_validate_esp_log_components
+ *
+ * Description:
+ *  Parse the list of components that can generate logging information and
+ *  compare against the list of acceptable components.
+ * 
+ * Input Parameters:
+ *  components - semi-colon separated list of components.
+ *
+ * Returned Value:
+ *  NULL if the list contains one or more invalid entries, pointer to the
+ *  components string if all entries are valid.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static char *hcom_nx_validate_esp_log_components(char *components)
+{
+    char *result = components;
+
+    if (components != NULL)
+    {
+        if (*components == '\0')
+        {
+            result = NULL;
+        }
+        else
+        {
+            char *residual;
+            char *duplicate = kmm_strdup(components);
+            char *component = strtok_r(duplicate, ";", &residual);
+            while (component != NULL)
+            {
+                bool found = false;
+                for (int index = 0; index < sizeof(esp_log_component_names) / sizeof(char *); index++)
+                {
+                    int length = strlen(esp_log_component_names[index]);
+                    if ((strnlen(component, length + 1) == length) && (strcasecmp(component, esp_log_component_names[index]) == 0))
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    kmm_free(duplicate);
+                    meadow_logging_write(mfl_error, "Info: unknown ESP log component, logging is turned off.");
+                    meadow_os_raise_simple_exception(espcp_status_codes_invalid_configuration_file);
+                    return(NULL);
+                }
+                component = strtok_r(residual, ";", &residual);
+            }
+            kmm_free(duplicate);
+        }
+    }
+    return(result);
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_process_meadow_config_file
  *
  * Description:
@@ -1690,10 +1816,34 @@ static meadow_configuration_t *hcom_nx_config_process_meadow_config_file(void)
                     meadow_configuration->automatically_reconnect = hcom_nx_config_parse_boolean(configuration->coprocessor->automatically_reconnect, false);
                     meadow_configuration->automatically_start_network = hcom_nx_config_parse_boolean(configuration->coprocessor->automatically_start_network, false);
                     meadow_configuration->maximum_retry_count = hcom_nx_config_parse_unsigned_integer(configuration->coprocessor->maximum_retry_count, 3);
+                    meadow_configuration->esp_log_destination = hcom_nx_config_esp_log_destination(configuration->coprocessor->log_destination);
+                    if (configuration->coprocessor->log_components != NULL)
+                    {
+                        if (hcom_nx_validate_esp_log_components(configuration->coprocessor->log_components) == NULL)
+                        {
+                            meadow_configuration->esp_log_components = NULL;
+                        }
+                        else
+                        {
+                            meadow_configuration->esp_log_components = kmm_strdup(configuration->coprocessor->log_components);
+                        }
+                    }
+                    uint32_t udp_port = hcom_nx_config_parse_unsigned_integer(configuration->coprocessor->log_udp_port, 30000);
+                    if (udp_port > SHRT_MAX)
+                    {
+                        meadow_logging_write(mfl_info, "Info: UDP greater than maximum, using 30,000.");
+                        meadow_configuration->esp_log_udp_port = 30000;
+                    }
+                    else
+                    {
+                        meadow_configuration->esp_log_udp_port = udp_port;
+                    }
+                    meadow_configuration->esp_log_udp_port = hcom_nx_config_parse_unsigned_integer(configuration->coprocessor->log_udp_port, 30000);
                 }
                 else
                 {
                     meadow_configuration->esp_spi_speed_hz = DEFAULT_STM_ESP_SPI_SPEED;
+                    meadow_configuration->esp_log_destination = esp_log_destination_none;
                 }
                 hcom_nx_config_process_network_section(configuration->network, meadow_configuration);
                 if (configuration->internal_debug != NULL)
@@ -1753,6 +1903,16 @@ static meadow_configuration_t *hcom_nx_config_process_meadow_config_file(void)
     MEADOW_TRACE_INFORMATION("    Automatically start network: %d\n", meadow_configuration->automatically_start_network);
     MEADOW_TRACE_INFORMATION("    Automatically reconnect: %d\n", meadow_configuration->automatically_reconnect);
     MEADOW_TRACE_INFORMATION("    Maximum retry count: %d\n", meadow_configuration->maximum_retry_count);
+    MEADOW_TRACE_INFORMATION("    Log destination: %d\n", meadow_configuration->esp_log_destination);
+    if (meadow_configuration->esp_log_components == NULL)
+    {
+        MEADOW_TRACE_INFORMATION("    Log components: NULL\n");
+    }
+    else
+    {
+        MEADOW_TRACE_INFORMATION("    Log components: %s\n", meadow_configuration->esp_log_components);
+    }
+    MEADOW_TRACE_INFORMATION("    Log UDP port: %d\n", meadow_configuration->esp_log_udp_port);
     char address[INET_ADDRSTRLEN];
     MEADOW_TRACE_INFORMATION("Network:\n");
     MEADOW_TRACE_INFORMATION("    Ethernet:\n");
