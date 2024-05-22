@@ -1288,6 +1288,9 @@ mono_invoke_unhandled_exception_hook (MonoObject *exc)
 			msg = g_strdup ("Nested exception trying to figure out what went wrong");
 		}
 		mono_runtime_printf_err ("[ERROR] FATAL UNHANDLED EXCEPTION: %s", msg);
+#if defined(__NuttX__)
+		g_error (msg); // g_error on Meadow.OS completes the abort
+#endif
 		g_free (msg);
 #if defined(HOST_IOS)
 		g_assertion_message ("Terminating runtime due to unhandled exception");
