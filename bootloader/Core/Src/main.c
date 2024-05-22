@@ -52,6 +52,7 @@
 /* USER CODE BEGIN PV */
 uint8_t board_version = 0;
 uint8_t bootloader_status = bootloader_no_op;
+uint32_t resetReason = 0x0a0a;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -91,6 +92,16 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
+
+  //
+  //	Grab the RCC clock control and status register contents and save
+  //	them for later.
+  //
+  resetReason = RCC->CSR;
+  //
+  //	Clear the reset status register as otherwise the bits can hang around.
+  //
+  __HAL_RCC_CLEAR_RESET_FLAGS();
 
   /* USER CODE END Init */
 
@@ -615,7 +626,14 @@ void BootMeadowOS(void)
 	SysTick->LOAD = 0;
 	SysTick->VAL  = 0;
 
-     HAL_DeInit();
+	//
+	//	Write the reset reason into battery backed register 30 ready
+	//	for the OS to pick up when it starts.
+	//
+	HAL_PWR_EnableBkUpAccess();
+	*((uint32_t *) 0x400028c8) = resetReason;
+
+    HAL_DeInit();
 
     // Perform Jump
 	JumpOS();

@@ -38,8 +38,12 @@
 #include <stdlib.h>
 #include <nuttx/kmalloc.h>
 
+#include <arch/board/board.h>
+#include "../hcom_nx/hcom_nx_common.h"
+
 #include <meadow/meadow_os.h>
 #include <meadow/meadow_hw_version.h>
+#include <meadow/hcom_bbreg_defn.h>
 
 #include "../hcom_nx/hcom_nx_config_manager.h"
 
@@ -130,7 +134,7 @@ uint32_t meadow_os_reset_cycle_count(void)
  ****************************************************************************/
 uint32_t meadow_os_reset_reason(void)
 {
-    return(0);
+    return((getreg32(HCOM_NX_MEADOW_RESET_REASON_BBR) & 0xff000000) >> 24);
 }
 
 /****************************************************************************
