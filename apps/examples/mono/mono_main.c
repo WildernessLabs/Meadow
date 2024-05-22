@@ -55,8 +55,36 @@ extern void mono_set_assemblies_path(const char *);
  * Private Data
  ****************************************************************************/
 
+#define MONO_CRASH_FILE CRASH_DIR "/" "mono_error.txt"
+#define MONO_CRASH_FILE_SIZE 65536
+
 static void induce_reset (void)
 {
+  // Any error reporting must not cause cascading failures.
+  // If error reporting fails, we still recover by resetting.
+  mkdir(CRASH_DIR, 0777);
+  FILE *crash_file = fopen(MONO_CRASH_FILE, "w");
+  if (crash_file)
+  {
+    const char *assertion_msg = monoeg_get_assertion_message ();
+    if (assertion_msg)
+    {
+      int chars_left = strnlen(assertion_msg, MONO_CRASH_FILE_SIZE);
+      char *p = (char *) assertion_msg;
+      const char *end = assertion_msg + chars_left;
+      while (p != end)
+      {
+        int write_count = fwrite(p, sizeof(char), chars_left, crash_file);
+        if (write_count < 1) // abandon on error or no progress, even observed once
+          goto reset;
+        p += write_count;
+        chars_left -= write_count;
+      }
+    }
+    fclose(crash_file);
+  }
+
+reset:
   // TODO: If the runtime is asking for an abort, it is unstable, and any further execution
   // from any Mono thread is suspect, so waiting before resetting is a slight invititation for catastrophe.
   // However, this allows for HCOM and the user to catch a glimpse of the abort reason.

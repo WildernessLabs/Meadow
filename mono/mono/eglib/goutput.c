@@ -139,10 +139,7 @@ g_logv_nofree (const gchar *log_domain, GLogLevelFlags log_level, const gchar *f
 {
 	char *msg;
 
-	if (internal_abort_func) {
-		g_async_safe_vprintf (format, args);
-		return NULL;
-	} else if (g_vasprintf (&msg, format, args) < 0) {
+	if (g_vasprintf (&msg, format, args) < 0) {
 		return NULL;
 	}
 
@@ -353,6 +350,7 @@ g_log_default_handler (const gchar *log_domain, GLogLevelFlags log_level, const 
 		message);
 
 	if (log_level & fatal) {
+		failure_assertion = message;
 		fflush (stdout);
 		fflush (stderr);
 		g_assert_abort ();
