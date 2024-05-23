@@ -124,7 +124,7 @@ struct yaml_coprocessor_s
     /**
      * @brief Which components should generate log messages?
      * 
-     *  Valid components are: WiFi, System and Bluetooth.
+     *  Valid components are: WiFi, System, Bluetooth etc.
      * 
      *  Multiple components can be specified as a comma delimited list.
      */
