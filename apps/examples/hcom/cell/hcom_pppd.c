@@ -212,13 +212,14 @@ bool meadow_cell_is_connected(void)
 //====================================================================
 // This function is to get the script according to the state (GPS, Signal Quality
 // or Scan). After the selected script will be performed in PPPD thread.
-static void hcom_pppd_get_script(int state, char *script)
+static void hcom_pppd_get_script(int state, char *script, int timeout)
 {
   // TODO: Add GPS timeout to cell config yaml
   // TODO: Add a parameter to specify the desired NMEA sentences
   switch (state)
   {
     case CELL_AT_CMD_GPS:
+      timeout = timeout > 0 ? timeout : GPS_AT_CMD_TIMEOUT;
       hcom_logging_syslog(LOG_INFO, "%s-%d-Cell GPS/GNSS\n", thisFile, __LINE__);
       snprintf_chk(hcom_cell_handler.script, CONNECT_SCRIPT_MAX_SIZE,
         "TIMEOUT %d \"\" "
@@ -234,21 +235,23 @@ static void hcom_pppd_get_script(int state, char *script)
         "AT+QGPSEND PAUSE 3 OK "
         "AT+QCFG=\\\"gpio\\\",1,64,1,0,0,1 PAUSE 3 OK "
         "AT+QCFG=\\\"gpio\\\",3,64,0,1 PAUSE 3 OK "
-        "\\c", GPS_AT_CMD_TIMEOUT);
+        "\\c", timeout);
       break;
 
     case CELL_AT_CMD_SIGNAL_QUALITY:
+      timeout = timeout > 0 ? timeout : GET_CSQ_AT_CMD_TIMEOUT;
       hcom_logging_syslog(LOG_INFO, "%s-%d-Cell Signal Quality\n", thisFile, __LINE__);
       snprintf_chk(hcom_cell_handler.script, CONNECT_SCRIPT_MAX_SIZE,
         "TIMEOUT %d \"\" AT+CSQ PAUSE 3 OK \\c",
-        GET_CSQ_AT_CMD_TIMEOUT);
+        timeout);
       break;
 
     case CELL_AT_CMD_SCAN:
+      timeout = timeout > 0 ? timeout : NETWORK_SCAN_AT_CMD_TIMEOUT;
       hcom_logging_syslog(LOG_INFO, "%s-%d-Cell Scan Network\n", thisFile, __LINE__);
       snprintf_chk(hcom_cell_handler.script, CONNECT_SCRIPT_MAX_SIZE,
         "TIMEOUT %d \"\" AT+COPS=? PAUSE 3 OK \\c",
-        NETWORK_SCAN_AT_CMD_TIMEOUT);
+        timeout);
       break;
 
     default:
@@ -256,12 +259,12 @@ static void hcom_pppd_get_script(int state, char *script)
   }
 }
 
-void meadow_cell_change_state(int state)
+void meadow_cell_change_state(int state, int timeout)
 {
   if (hcom_cell_handler.script != NULL)
     {
       memset(hcom_cell_handler.script, 0x00, sizeof(hcom_cell_handler.script));
-      hcom_pppd_get_script(state, hcom_cell_handler.script);
+      hcom_pppd_get_script(state, hcom_cell_handler.script, timeout);
 
       if (state != 0)
         {
