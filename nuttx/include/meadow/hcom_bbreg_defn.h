@@ -73,8 +73,20 @@
 // This register stores the following bit fields. Most are so user
 // preferences can survive a restart.
 #define HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER  (STM32_RTC_BK31R)
-
+//
+//  BBR used by the boot loader to store the reset reason.
+//
 #define HCOM_NX_MEADOW_RESET_REASON_BBR         (STM32_RTC_BK30R)
+//
+//  BBR used to store the number of times the board has been reset.
+//  This value will be set in the bootloader.
+//
+#define HCOM_NX_MEADOW_RESET_COUNT_BBR          (STM32_RTC_BK29R)
+//
+//  BBR used to store the number of times the board has been power cycled.
+//  This value will be set in the bootloader.
+//
+#define HCOM_NX_MEADOW_POWER_CYCLE_COUNT_BBR    (STM32_RTC_BK28R)
 
 #define HCOM_BBREG_RESTART_ALL_32_BITS_MASK 0xffffffff
 // This mask defines the syslog level
