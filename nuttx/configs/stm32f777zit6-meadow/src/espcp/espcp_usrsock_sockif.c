@@ -1995,8 +1995,6 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
                             espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
                             if (response == NULL)
                             {
-                                free(payload);
-                                free(message);
                                 result = -ENOMEM;
                             }
                             else
