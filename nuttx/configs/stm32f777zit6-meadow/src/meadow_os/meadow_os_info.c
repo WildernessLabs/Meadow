@@ -91,7 +91,7 @@
  ****************************************************************************/
 uint32_t meadow_os_power_cycle_count(void)
 {
-    return(0);
+    return(getreg32(HCOM_NX_MEADOW_POWER_CYCLE_COUNT_BBR));
 }
 
 /****************************************************************************
@@ -113,7 +113,7 @@ uint32_t meadow_os_power_cycle_count(void)
  ****************************************************************************/
 uint32_t meadow_os_reset_cycle_count(void)
 {
-    return(0);
+    return(getreg32(HCOM_NX_MEADOW_RESET_COUNT_BBR));
 }
 
 /****************************************************************************

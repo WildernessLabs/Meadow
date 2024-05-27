@@ -26,6 +26,8 @@
 #include "usb_device.h"
 #include "gpio.h"
 #include "fmc.h"
+#include "../../../nuttx/include/meadow/bootloader/meadow_os_persistent_data.h"
+
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -39,6 +41,14 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+//
+//	Define the locations of the battery backed registers.  These values should match
+//	the values in hcom_bbreg_defn.h
+//
+#define HCOM_NX_MEADOW_POWER_CYCLE_COUNT_BBR	0x400028c0
+#define HCOM_NX_MEADOW_RESET_COUNT_BBR			0x400028c4
+#define HCOM_NX_MEADOW_RESET_REASON_BBR			0x400028c8
 
 /* USER CODE END PD */
 
@@ -69,6 +79,10 @@ void BackupPrimaryImage(void);
 uint8_t VerifyPrimaryImage(void);
 uint8_t VerifySecondaryImage(void);
 void CheckPreviousOperationFailure(void);
+void UpdateBootCount(uint32_t);
+void WritePagesToFlash(uint32_t, uint8_t *, uint32_t);
+uint8_t *ReadPagesFromFlash(uint32_t, uint32_t);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -102,6 +116,11 @@ int main(void)
   //	Clear the reset status register as otherwise the bits can hang around.
   //
   __HAL_RCC_CLEAR_RESET_FLAGS();
+  //
+  //	Enable access to the battery backed registers as these will be used
+  //	prior to OS start up.
+  //
+  HAL_PWR_EnableBkUpAccess();
 
   /* USER CODE END Init */
 
@@ -520,21 +539,6 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
-//static void MX_GPIO_DeInit(void)
-//{
-//  GPIO_InitTypeDef GPIO_InitStruct = {0};
-//
-//  /* GPIO Ports Clock Enable */
-//  __HAL_RCC_GPIOA_CLK_ENABLE();
-//
-//  /*Configure GPIO pins : OnboardLedGreen_Pin OnboardLedBlue_Pin OnboardLedRed_Pin */
-//  HAL_GPIO_DeInit(GPIOA, OnboardLedGreen_Pin);
-//  HAL_GPIO_DeInit(GPIOA, OnboardLedBlue_Pin);
-//  HAL_GPIO_DeInit(GPIOA, OnboardLedRed_Pin);
-//  __HAL_RCC_GPIOA_CLK_DISABLE();
-//
-//
-//}
 void NVIC_DeInit(void)
 {
 	uint8_t tmp;
@@ -579,6 +583,8 @@ void BootMeadowOS(void)
 	uint32_t i=0;
 	void (*JumpOS)(void);
 
+	UpdateBootCount(resetReason);
+
 	//	De-Init anything that uses HAL here before Systick timer Disabled
 #ifdef ENABLE_BL_UART
 	HAL_UART_DeInit(&huart4);
@@ -586,8 +592,10 @@ void BootMeadowOS(void)
 #ifdef ENABLE_BL_CDC
 	USBD_DeInit(&hUsbDeviceFS);
 #endif
+
 	QSPI_Disable_4Byte_Addressing();
 	QSPI_Disable_QPI();
+
 	HAL_QSPI_DeInit(&hqspi);
 
 	//Turn off Green LED to indicate exiting BL
@@ -630,8 +638,7 @@ void BootMeadowOS(void)
 	//	Write the reset reason into battery backed register 30 ready
 	//	for the OS to pick up when it starts.
 	//
-	HAL_PWR_EnableBkUpAccess();
-	*((uint32_t *) 0x400028c8) = resetReason;
+	*((uint32_t *) HCOM_NX_MEADOW_RESET_REASON_BBR) = resetReason;
 
     HAL_DeInit();
 
@@ -675,19 +682,60 @@ void WriteNuttxPrimaryBlock(uint32_t block, uint32_t* data_block, uint32_t block
 	HAL_FLASH_Lock();
 }
 
+//
+//	Read the boot information from flash and update the reset and power
+//	cycle counts.
+//
+//	Assumptions:
+//		HAL_PWR_EnableBkUpAccess has been called before this function.
+//
+void UpdateBootCount(uint32_t resetReason)
+{
+	os_persistent_data_t *os_persistent_data = (os_persistent_data_t *) ReadPagesFromFlash(OS_PERSISTENT_DATA_LOC, OS_PERSISTENT_DATA_SIZE);
+	os_persistent_data->reset_count++;
+	if ((resetReason & 0xff000000) == 0)
+	{
+		os_persistent_data->power_cycle_count++;
+	}
+	WritePagesToFlash(OS_PERSISTENT_DATA_LOC, (uint8_t *) os_persistent_data, OS_PERSISTENT_DATA_SIZE);
+	//
+	//	Last thing we do is to store the counts in BBRs for the OS to pick up later.
+	//
+	*((uint32_t *) HCOM_NX_MEADOW_RESET_COUNT_BBR) = os_persistent_data->reset_count;
+	*((uint32_t *) HCOM_NX_MEADOW_POWER_CYCLE_COUNT_BBR) = os_persistent_data->power_cycle_count;
+	free(os_persistent_data);
+}
+
+//
+//	Overwrite a page in flash.  The page must be overwritten with zeroes before writing
+//	the page of data.
+//
+void WritePagesToFlash(uint32_t page_start_addr, uint8_t* buffer, uint32_t size)
+{
+	uint8_t *zeroes = calloc(size, 1);
+	QSPI_Quad_Write_Page(page_start_addr, zeroes, size);
+	QSPI_Quad_Write_Page(page_start_addr, buffer, size);
+	free(zeroes);
+}
+
+//
+//	Read a page from flash.
+//
+uint8_t *ReadPagesFromFlash(uint32_t page_start_addr, uint32_t size)
+{
+	uint8_t *buffer = calloc(size, 1);
+	QSPI_Quad_Read(page_start_addr, buffer, size);
+	return(buffer);
+}
+
 void setOTAData(uint8_t *buf)
 {
-	uint8_t *zeroes = calloc (QSPI_PAGE_SIZE, 1);
-	QSPI_Quad_Write_Page(OTA_DATA_LOC, zeroes, QSPI_PAGE_SIZE);
-	QSPI_Quad_Write_Page(OTA_DATA_LOC, buf, QSPI_PAGE_SIZE);
-	free(zeroes);
+	WritePagesToFlash(OTA_DATA_LOC, buf, OTA_DATA_SIZE);
 }
 
 uint8_t * getOTAData()
 {
-	uint8_t *data_buf = calloc (QSPI_PAGE_SIZE, 1);
-	QSPI_Quad_Read(OTA_DATA_LOC, data_buf, QSPI_PAGE_SIZE);
-	return data_buf;
+	return(ReadPagesFromFlash(OTA_DATA_LOC, OTA_DATA_SIZE));
 }
 
 void SetOTAFlagState(uint8_t flag, uint8_t state)
