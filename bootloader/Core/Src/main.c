@@ -692,6 +692,10 @@ void WriteNuttxPrimaryBlock(uint32_t block, uint32_t* data_block, uint32_t block
 void UpdateBootCount(uint32_t resetReason)
 {
 	os_persistent_data_t *os_persistent_data = (os_persistent_data_t *) ReadPagesFromFlash(OS_PERSISTENT_DATA_LOC, OS_PERSISTENT_DATA_SIZE);
+	if (os_persistent_data->version == 0)
+	{
+		os_persistent_data->version = 1;
+	}
 	os_persistent_data->reset_count++;
 	if ((resetReason & 0xff000000) == 0)
 	{
