@@ -60,6 +60,7 @@
 #define DISCONNECT_SCRIPT_MAX_SIZE 64
 #define AUTHENTICATION_CMD_MAX_SIZE 128
 #define OPERATOR_SELECTION_CMD_MAX_SIZE 128
+#define NMEA_SENTENCES_MAX_SIZE 256
 #define GPS_AT_CMD_TIMEOUT 600
 #define NETWORK_SCAN_AT_CMD_TIMEOUT 600
 #define GET_CSQ_AT_CMD_TIMEOUT 120
@@ -210,61 +211,96 @@ bool meadow_cell_is_connected(void)
 }
 
 //====================================================================
-// This function is to get the script according to the state (GPS, Signal Quality
-// or Scan). After the selected script will be performed in PPPD thread.
-static void hcom_pppd_get_script(int state, char *script, int timeout)
-{
-  // TODO: Add GPS timeout to cell config yaml
-  // TODO: Add a parameter to specify the desired NMEA sentences
-  switch (state)
-  {
-    case CELL_AT_CMD_GPS:
-      timeout = timeout > 0 ? timeout : GPS_AT_CMD_TIMEOUT;
-      hcom_logging_syslog(LOG_INFO, "%s-%d-Cell GPS/GNSS\n", thisFile, __LINE__);
-      snprintf_chk(hcom_cell_handler.script, CONNECT_SCRIPT_MAX_SIZE,
-        "TIMEOUT %d \"\" "
-        "AT+QGPS=1,2,180,1 PAUSE 3 OK " 
-        "AT+QCFG=\\\"gpio\\\",1,64,1,0,0,1 PAUSE 3 OK "
-        "AT+QCFG=\\\"gpio\\\",3,64,1,1 PAUSE 3 OK "
-        "AT+QGPSCFG=\\\"nmeasrc\\\",1 PAUSE 120 OK "
-        "AT+QGPSGNMEA=\\\"GSV\\\" PAUSE 3 OK "
-        "AT+QGPSGNMEA=\\\"GGA\\\" PAUSE 3 OK "
-        "AT+QGPSGNMEA=\\\"RMC\\\" PAUSE 3 OK "
-        "AT+QGPSGNMEA=\\\"GSA\\\" PAUSE 3 OK "
-        "AT+QGPSGNMEA=\\\"VTG\\\" PAUSE 3 OK "
-        "AT+QGPSEND PAUSE 3 OK "
-        "AT+QCFG=\\\"gpio\\\",1,64,1,0,0,1 PAUSE 3 OK "
-        "AT+QCFG=\\\"gpio\\\",3,64,0,1 PAUSE 3 OK "
-        "\\c", timeout);
-      break;
-
-    case CELL_AT_CMD_SIGNAL_QUALITY:
-      timeout = timeout > 0 ? timeout : GET_CSQ_AT_CMD_TIMEOUT;
-      hcom_logging_syslog(LOG_INFO, "%s-%d-Cell Signal Quality\n", thisFile, __LINE__);
-      snprintf_chk(hcom_cell_handler.script, CONNECT_SCRIPT_MAX_SIZE,
-        "TIMEOUT %d \"\" AT+CSQ PAUSE 3 OK \\c",
-        timeout);
-      break;
-
-    case CELL_AT_CMD_SCAN:
-      timeout = timeout > 0 ? timeout : NETWORK_SCAN_AT_CMD_TIMEOUT;
-      hcom_logging_syslog(LOG_INFO, "%s-%d-Cell Scan Network\n", thisFile, __LINE__);
-      snprintf_chk(hcom_cell_handler.script, CONNECT_SCRIPT_MAX_SIZE,
-        "TIMEOUT %d \"\" AT+COPS=? PAUSE 3 OK \\c",
-        timeout);
-      break;
-
-    default:
-      break;
-  }
+// Function to check if a specific NMEA sentence type is enabled
+int hcom_pppd_is_nmea_type_enabled(int nmea_types, int nmea_type) {
+    return nmea_types & nmea_type;
 }
 
-void meadow_cell_change_state(int state, int timeout)
+//====================================================================
+// This function is to get the script according to the state (GPS, Signal Quality
+// or Scan). After the selected script will be performed in PPPD thread.
+static int hcom_pppd_get_script(int state, char *script, void *data)
 {
+    int timeout;
+    
+    switch (state)
+    {
+        case CELL_AT_CMD_GPS:
+        {
+            hcom_pppd_gps_config_t *gps_config = (hcom_pppd_gps_config_t *)data;
+            timeout = gps_config->timeout > 0 ? gps_config->timeout : GPS_AT_CMD_TIMEOUT;
+
+            char *nmea_sentences = (char *)malloc(NMEA_SENTENCES_MAX_SIZE * sizeof(char));
+            if (nmea_sentences == NULL) {
+                hcom_logging_syslog(LOG_ERR, "%s-%d-Unable to allocate memory for NMEA sentences\n", thisFile, __LINE__);
+                return -ENOMEM;
+            }
+            nmea_sentences[0] = '\0'; // Initialize with empty string
+
+            if (hcom_pppd_is_nmea_type_enabled(gps_config->nmea_types, NMEA_GSV))
+                strcat(nmea_sentences, "AT+QGPSGNMEA=\\\"GSV\\\" PAUSE 3 OK ");
+            if (hcom_pppd_is_nmea_type_enabled(gps_config->nmea_types, NMEA_GGA))
+                strcat(nmea_sentences, "AT+QGPSGNMEA=\\\"GGA\\\" PAUSE 3 OK ");
+            if (hcom_pppd_is_nmea_type_enabled(gps_config->nmea_types, NMEA_RMC))
+                strcat(nmea_sentences, "AT+QGPSGNMEA=\\\"RMC\\\" PAUSE 3 OK ");
+            if (hcom_pppd_is_nmea_type_enabled(gps_config->nmea_types, NMEA_GSA))
+                strcat(nmea_sentences, "AT+QGPSGNMEA=\\\"GSA\\\" PAUSE 3 OK ");
+            if (hcom_pppd_is_nmea_type_enabled(gps_config->nmea_types, NMEA_VTG))
+                strcat(nmea_sentences, "AT+QGPSGNMEA=\\\"VTG\\\" PAUSE 3 OK ");
+
+            // TODO: Remove the pause of 120 sec
+            snprintf(script, CONNECT_SCRIPT_MAX_SIZE,
+                "TIMEOUT %d \"\" "
+                "AT+QGPS=1,2,180,1 PAUSE 3 OK " 
+                "AT+QCFG=\\\"gpio\\\",1,64,1,0,0,1 PAUSE 3 OK "
+                "AT+QCFG=\\\"gpio\\\",3,64,1,1 PAUSE 3 OK "
+                "AT+QGPSCFG=\\\"nmeasrc\\\",1 PAUSE 120 OK "
+                "%s"
+                "AT+QGPSEND PAUSE 3 OK "
+                "AT+QCFG=\\\"gpio\\\",1,64,1,0,0,1 PAUSE 3 OK "
+                "AT+QCFG=\\\"gpio\\\",3,64,0,1 PAUSE 3 OK "
+                "\\c", timeout, nmea_sentences);
+
+            free(nmea_sentences);
+            break;
+        }
+        case CELL_AT_CMD_SIGNAL_QUALITY:
+        {
+            hcom_pppd_signal_quality_config_t *signal_quality_config = (hcom_pppd_signal_quality_config_t *)data;
+            timeout = signal_quality_config->timeout > 0 ? signal_quality_config->timeout : GET_CSQ_AT_CMD_TIMEOUT;
+            snprintf(script, CONNECT_SCRIPT_MAX_SIZE,
+                "TIMEOUT %d \"\" AT+CSQ PAUSE 3 OK \\c",
+                timeout);
+            break;
+        }
+        case CELL_AT_CMD_SCAN:
+        {
+            hcom_pppd_scan_config_t *scan_config = (hcom_pppd_scan_config_t *)data;
+            timeout = scan_config->timeout > 0 ? scan_config->timeout : NETWORK_SCAN_AT_CMD_TIMEOUT;
+            snprintf(script, CONNECT_SCRIPT_MAX_SIZE,
+                "TIMEOUT %d \"\" AT+COPS=? PAUSE 3 OK \\c",
+                timeout);
+            break;
+        }
+        default:
+            break;
+    }
+
+    return OK;
+}
+
+int meadow_cell_change_state(int state, void *data)
+{
+  int ret = OK;
   if (hcom_cell_handler.script != NULL)
     {
       memset(hcom_cell_handler.script, 0x00, sizeof(hcom_cell_handler.script));
-      hcom_pppd_get_script(state, hcom_cell_handler.script, timeout);
+      int ret = hcom_pppd_get_script(state, hcom_cell_handler.script, data);
+      if (ret < 0)
+      {
+        hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to get cell command script\n", thisFile, __LINE__);
+        return ret;
+      }
 
       if (state != 0)
         {
@@ -287,6 +323,8 @@ void meadow_cell_change_state(int state, int timeout)
         }
     }
   hcom_logging_syslog(LOG_INFO, "%s-%d-Cell current state: %d\n", thisFile, __LINE__, hcom_cell_handler.state);
+
+  return ret;
 }
 
 void pppd_set_state(hcom_pppd_handler_t *handler, int state)

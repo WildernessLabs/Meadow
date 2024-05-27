@@ -53,10 +53,16 @@
 #define CELL_CHAT_DONE              (1 << 5)
 #define CELL_CHAT_FAILED            (1 << 6)
 
+// Define constants for each NMEA sentence type
+#define NMEA_GSV (1 << 0)
+#define NMEA_GGA (1 << 1)
+#define NMEA_RMC (1 << 2)
+#define NMEA_GSA (1 << 3)
+#define NMEA_VTG (1 << 4)
+
 /****************************************************************************
  * Public Data
  ****************************************************************************/
-
 struct hcom_pppd_handler_s
 {
     int state;
@@ -65,9 +71,24 @@ struct hcom_pppd_handler_s
 };
 typedef struct hcom_pppd_handler_s hcom_pppd_handler_t;
 
-/****************************************************************************
- * Public Data
- ****************************************************************************/
+struct hcom_pppd_gps_config_s
+{
+    int timeout;
+    int nmea_types;
+};
+typedef struct hcom_pppd_gps_config_s hcom_pppd_gps_config_t;
+
+struct hcom_pppd_signal_quality_config_s
+{
+    int timeout;
+};
+typedef struct hcom_pppd_signal_quality_config_s hcom_pppd_signal_quality_config_t;
+
+struct hcom_pppd_scan_config_s
+{
+    int timeout;
+};
+typedef struct hcom_pppd_scan_config_s hcom_pppd_scan_config_t;
 
 enum hcom_cell_err_e
 {
@@ -86,5 +107,6 @@ typedef enum hcom_cell_err_e hcom_cell_err_t;
 void pppd_set_state(hcom_pppd_handler_t *handler, int state);
 void pppd_clear_state(hcom_pppd_handler_t *handler, int state);
 int hcom_pppd_start(void);
+int hcom_pppd_is_nmea_type_enabled(int nmea_types, int nmea_type);
 
 #endif //__CONFIGS_MEADOW_SRC_HCOM_CELL_PPPD__H
