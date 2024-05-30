@@ -576,7 +576,7 @@ convert_socketflags (gint32 sflags)
 #undef IP_OPTIONS
 #undef IP_HDRINCL
 #undef IP_TOS
-#undef IP_TTL
+#define IP_TTL 64 // define in net/netconfig.h
 #undef IP_MULTICAST_IF
 #undef IP_MULTICAST_TTL
 #undef IP_MULTICAST_LOOP
