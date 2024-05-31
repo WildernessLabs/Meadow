@@ -1564,6 +1564,8 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
  *  0 on success, negated errno on error.
  * 
  ****************************************************************************/
+static int counter;
+
 static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
 {
     MEADOW_TRACE_INFORMATION("poll teardown\n");
@@ -1573,11 +1575,19 @@ static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
     }
 
     int result = 0;
+    counter++;
 
     espcp_lock_poll_requests_queue();
     espcp_poll_request_list_item_t *pr = (espcp_poll_request_list_item_t *) gl_find_item(_espcp_poll_requests, 
                                                 (uint32_t) fds->fd, espcp_usrsock_poll_request_compare_fd_pointer);
-    espcp_unlock_poll_requests_queue();
+    if (counter < 30)
+    {
+        espcp_unlock_poll_requests_queue();
+    }
+    else
+    {
+        syslog(LOG_INFO, "max counter achieved, not unlocking the pr queue\n");
+    }
 
     if (pr == NULL)
     {
@@ -1591,10 +1601,18 @@ static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
         espcp_poll_request_t *request = (espcp_poll_request_t *) zalloc(sizeof(espcp_poll_request_t));
         if (request == NULL)
         {
-            espcp_lock_poll_requests_queue();
-            gl_remove_item(_espcp_poll_requests, (uint32_t) fds->fd, espcp_usrsock_poll_request_compare_fd_pointer);
-            free(pr);
-            espcp_unlock_poll_requests_queue();
+            if (counter < 30)
+            {
+                espcp_lock_poll_requests_queue();
+                gl_remove_item(_espcp_poll_requests, (uint32_t) fds->fd, espcp_usrsock_poll_request_compare_fd_pointer);
+                free(pr);
+                espcp_unlock_poll_requests_queue();
+            }
+            else 
+            {
+                gl_remove_item(_espcp_poll_requests, (uint32_t) fds->fd, espcp_usrsock_poll_request_compare_fd_pointer);
+                free(pr);
+            }
             return (-ENOMEM);
         }
         request->socket_handle = psock->s_esp32_sockfd;
@@ -1638,10 +1656,19 @@ static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
             }
         }
 
-        espcp_lock_poll_requests_queue();
-        gl_remove_item(_espcp_poll_requests, (uint32_t) fds->fd, espcp_usrsock_poll_request_compare_fd_pointer);
-        free(pr);
-        espcp_unlock_poll_requests_queue();
+        if (counter < 30)
+        {
+            espcp_lock_poll_requests_queue();
+            gl_remove_item(_espcp_poll_requests, (uint32_t) fds->fd, espcp_usrsock_poll_request_compare_fd_pointer);
+            free(pr);
+            espcp_unlock_poll_requests_queue();
+        }
+        else
+        {
+            gl_remove_item(_espcp_poll_requests, (uint32_t) fds->fd, espcp_usrsock_poll_request_compare_fd_pointer);
+            free(pr);      
+        }
+
         espcp_delete_message_and_payload(message);
     }
 
