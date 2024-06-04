@@ -3514,7 +3514,7 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
     new_ctx->write_buf = writebuf;
     new_ctx->mbedtls_ctx = ssl;
     new_ctx->mbedtls_fd = server_fd;
-    return new_ctx;
+    return (intptr_t) new_ctx;
 
 error:
     printf(" Failed to Connected \n");
@@ -3526,7 +3526,7 @@ error:
     if (server_fd) {
         g_free (server_fd);
     }
-    return NULL;
+    return (intptr_t) NULL;
 }
 
 int mono_mbedtls_handshake(MonoMbedTlsContext *ctx)
@@ -3562,7 +3562,7 @@ int mono_mbedtls_write (MonoMbedTlsContext * ctx, int length)
 
     do
     {
-        while( ( ret = mbedtls_ssl_write(ctx->mbedtls_ctx, ctx->write_buf + written, length - written)) < 0 )
+        while( ( ret = mbedtls_ssl_write(ctx->mbedtls_ctx, (const unsigned char *) (ctx->write_buf + written), length - written)) < 0 )
         {
             if( ret != MBEDTLS_ERR_SSL_WANT_READ &&
                 ret != MBEDTLS_ERR_SSL_WANT_WRITE)
