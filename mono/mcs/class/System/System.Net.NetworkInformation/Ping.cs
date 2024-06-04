@@ -377,7 +377,7 @@ namespace System.Net.NetworkInformation {
 						if (error == SocketError.TimedOut) {
 							return new PingReply (null, new byte [0], options, 0, IPStatus.TimedOut);
 						}
-						throw new NotSupportedException (String.Format ("Unexpected socket error during ping request: {0}", error));
+						throw new IOException (String.Format ("Unexpected socket error during ping request: {0}", error));
 					}
 					long rtt = (long) sw.ElapsedMilliseconds;
 					int headerLength = (bytes [0] & 0xF) << 2;
