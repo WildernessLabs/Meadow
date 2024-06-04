@@ -1799,8 +1799,8 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
     int32_t result = -1;
     if (message == NULL)
     {
-        free(payload);
-        result = -ENOMEM;
+        MEADOW_TRACE_DEBUG("recvfrom - result ENOMEM\n");
+        result = -ENOMEM;   // Message and payload deleted at the end of the method.
     }
     else
     {
