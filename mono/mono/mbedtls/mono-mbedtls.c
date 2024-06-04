@@ -3548,7 +3548,6 @@ int mono_mbedtls_read (MonoMbedTlsContext * ctx, int length)
     if (ctx->mbedtls_ctx != NULL && ctx->read_buf != 0)
     {
         char *buffer = (char *)ctx->read_buf;
-        memset(buffer, 0, sizeof(buffer));
         ret = mbedtls_ssl_read(ctx->mbedtls_ctx, (unsigned char*)buffer, length);
     }
     return ret;
