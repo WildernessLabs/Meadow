@@ -50,7 +50,7 @@
 #include <meadow/meadow_thread_config.h>
 #include <meadow/meadow_client_cert.h>
 
-#define USE_MEADOW_DEBUG_HELPERS
+// #define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
@@ -369,10 +369,6 @@ void espcp_dispatch_event(espcp_message_t *message)
 
     if (message != NULL)
     {
-        #if defined(USE_MEADOW_DEBUG_HELPERS)
-            espcp_dump_message(message);
-        #endif
-        
         espcp_event_handlers_t *handler = NULL;
         switch (message->interface)
         {
@@ -618,7 +614,9 @@ void espcp_pass_to_managed_event_handler(espcp_message_t *message)
         eventData.function = message->function;
         eventData.status_code = message->status_code;
 
-        MEADOW_TRACE_INFORMATION("Interface: %d, function: %d, status code: %d\n", eventData.interface, eventData.function, eventData.status_code);
+        #if defined(USE_MEADOW_DEBUG_HELPERS)
+            espcp_dump_message(message);
+        #endif
 
         if (message->payload_length > 0)
         {
