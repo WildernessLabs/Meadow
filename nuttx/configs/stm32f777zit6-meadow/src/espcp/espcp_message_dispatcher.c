@@ -145,6 +145,13 @@ static bool espcp_check_message_id(uint32_t message_id, void *list_item)
  *  None
  *
  ****************************************************************************/
+void count_and_dump_handler(void) {
+    sem_wait(&g_messages_waiting_for_a_response_mutex);
+    syslog(1, "Dumping ESP32 message list...\n");
+    gl_count_and_dump_items(g_messages_waiting_for_a_response);
+    sem_post(&g_messages_waiting_for_a_response_mutex);
+}
+
 int espcp_setup_message_dispatcher(void)
 {
     int result = OK;
@@ -194,6 +201,10 @@ int espcp_setup_message_dispatcher(void)
     g_messages_waiting_for_a_response = gl_create_empty_linked_list();
 
     result = sem_init(&g_messages_waiting_for_a_response_mutex, 0, 1);
+
+    syslog(1, "Add espcp list counter to the scheduler");
+
+    lps_add_handler(count_and_dump_handler, 60);
 
     return (result);
 }

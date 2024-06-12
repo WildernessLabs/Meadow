@@ -214,6 +214,33 @@ void *gl_find_item(gl_linked_list_t *list, uint32_t key, comparison_function_t c
     return(data);
 }
 
+uint32_t gl_count_and_dump_items(gl_linked_list_t *list)
+{
+    gl_lock(list);
+    uint32_t count = 0;
+
+    gl_linked_list_item_t *item = list->head;
+    while (item != NULL)
+    {
+        // espcp_message_t *message = item->data;
+        // syslog(1, "Message ID: %u\n", message->message_id);
+        // syslog(1, "Message Type: %u\n", message->message_type);
+        // syslog(1, "Interface: %u\n", message->interface);
+        // syslog(1, "Function: %u\n", message->function);
+        // syslog(1, "Status Code: %u\n", message->status_code);
+        // syslog(1, "Packet Offset: %u\n", message->packet_offset);
+        // syslog(1, "Packet Length: %u\n", message->packet_length);
+        // syslog(1, "Payload Length: %u\n", message->payload_length);
+        // syslog(1, "Payload: %.*s\n", message->payload_length, message->payload);
+        count++;
+        item = item->child;
+    }
+    syslog(1, "Total number of items: %u\n", count);
+    gl_unlock(list);
+
+    return count;
+}
+
 /****************************************************************************
  * Name: gl_remove_item
  *
