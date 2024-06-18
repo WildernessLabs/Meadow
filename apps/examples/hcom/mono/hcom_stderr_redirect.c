@@ -377,6 +377,12 @@ int hcom_mono_stderr_read_fifo_loop()
     }
   }   // while (!_shutting_down)
 
+  if (_stderr_buffer != NULL)
+  {
+    free(_stderr_buffer);
+    _stderr_buffer = NULL;
+  }
+
   return OK;
 }
 
