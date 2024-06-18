@@ -294,6 +294,11 @@ struct yaml_internal_debug_s
      *  the connection between the debugger and the ESP32 will be broken.
      */
     char *debugger_attached_to_esp;
+
+    /**
+     * @brief Copy the managed application output to the UART (COM1)?
+     */
+    char * copy_application_output_to_uart;
 };
 typedef struct yaml_internal_debug_s yaml_internal_debug_t;
 
@@ -307,6 +312,7 @@ static const cyaml_schema_field_t configuration_debug_section_schema[] =
     CYAML_FIELD_STRING_PTR("TraceLevel", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_internal_debug_t, trace_level, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("Uart1Use", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_internal_debug_t, uart1_use, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("DebuggerAttachedToEsp", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_internal_debug_t, debugger_attached_to_esp, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("CopyApplicationOutputToUart", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_internal_debug_t, copy_application_output_to_uart, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
 
