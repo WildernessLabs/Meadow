@@ -102,6 +102,13 @@ pthread_t _uart_thread_handle;
  */
 int _pipe_handles[2];
 
+/**
+ * @brief Should we send the ESP logging information the the UART ?
+ * 
+ * This is a configuration item in the meadow.config.yaml file.
+ */
+bool _send_log_to_uart = false;
+
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -167,7 +174,10 @@ static void hcom_esp32_network_monitor_process_line(char *line)
         }
         else
         {
-            hcom_logging_syslog(LOG_INFO, "ESP Log: %s\n", line);
+            if (_send_log_to_uart)
+            {
+                hcom_logging_syslog(LOG_INFO, "ESP Log: %s\n", line);
+            }
         }
     }
 }
@@ -318,6 +328,18 @@ int hcom_esp32_network_monitor_start(void)
     {
         return(EALREADY);
     }
+
+    meadow_configuration_t *config = meadow_os_deep_copy_config();
+    if (config == NULL)
+    {
+        hcom_logging_syslog(LOG_ERR, "%s@%d-Deep copy config failed\n", __FILE__, __LINE__);
+        return -ENOMEM;
+    }
+    if ((config->esp_log_destination == esp_log_destination_uart) && config->use_uart1_for_trace)
+    {
+        _send_log_to_uart = true;
+    }
+    meadow_os_config_free_resources(config);
 
     int result = ERROR;
 
