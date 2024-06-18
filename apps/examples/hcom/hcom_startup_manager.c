@@ -134,6 +134,21 @@ syslog(2, "hcom_main() running\n"); usleep(10 * 1000);
   // Special non-standard nuttx function required for signaling semaphores
   sem_setprotocol(&_startupWaitSem, SEM_PRIO_NONE);
 
+  //
+  //  We take a copy of the config and set and application global variables first
+  //  to make them available to the various components that need them.  Doing this
+  //  at startup saves having to make repeated calls to get the configuration from
+  //  the OS.
+  //
+  meadow_configuration_t *config = meadow_os_deep_copy_config();
+  if (config == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Deep copy config failed\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
+  g_copy_application_output_to_uart = config->copy_application_output_to_uart && config->use_uart1_for_trace;
+  meadow_os_config_free_resources(config);
+
   // Allocates memory for moving reading ramlog. Nothing to wait for.
   ret = hcom_diag_logging_setup();
   if (ret < 0)

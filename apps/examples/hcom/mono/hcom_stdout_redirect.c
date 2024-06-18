@@ -46,6 +46,7 @@
 
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
+#include <meadow/hcom_shared_common.h>
 
 #include <sys/stat.h>
 #include <ctype.h>
@@ -69,6 +70,27 @@ static bool _shutting_down;
 static int _read_fd;
 static int _stdout_fd;
 static bool _lowPowerActive;
+
+/**
+ * @brief Somewhere to hold the stderr we will send to COM1 if UART copy is enabled
+ */
+static char *_stdout_buffer = NULL;
+
+/**
+ * @brief Position of the current character in the line buffer for stdout.
+ */
+static int _current_buffer_index = 0;
+
+/****************************************************************************
+ * Public Data
+ ****************************************************************************/
+
+/**
+ * @brief Should we copy the application output to the UART (COM1)?
+ * 
+ * This is shared between the stdout and strerr redirect code.
+ */
+bool g_copy_application_output_to_uart = false;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -163,6 +185,17 @@ int hcom_mono_stdout_create_infrastructure()
     
     hcom_startup_mgr_release_sem_err(ret);
     return ret;
+  }
+
+  if (g_copy_application_output_to_uart)
+  {
+    _stdout_buffer = (char *) malloc(HCOM_MONO_APP_STDOUT_REDIRECT_BUFF_SIZE + 1);
+    if (_stdout_buffer == NULL)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Unable to allocate memory for stdout buffer\n",
+        thisFile, __LINE__);
+      return -ENOMEM;
+    }
   }
 
   // The startup semaphore will be released by the new thread
@@ -303,9 +336,32 @@ int hcom_mono_stdout_read_fifo_loop()
       else
         availBufSpace = readReturn;
 
-      // Includes ctrl chararacter(s)
+      if ((g_copy_application_output_to_uart) && (_stdout_buffer != NULL))
+      {
+        for (int index = 0; index < availBufSpace; index++)
+        {
+          if ((buffer[index] >= ' ') && (buffer[index] <= '~'))
+          {
+            _stdout_buffer[_current_buffer_index] = buffer[index];
+          }
+          if ((buffer[index] == '\n') || (_current_buffer_index >= HCOM_MONO_APP_STDOUT_REDIRECT_BUFF_SIZE - 2))
+          {
+            _stdout_buffer[_current_buffer_index] = '\n';
+            _stdout_buffer[_current_buffer_index + 1] = '\0';
+            _current_buffer_index = 0;
+            hcom_logging_syslog(LOG_INFO, "%s", (char *) _stdout_buffer);
+          }
+          else
+          {
+            _current_buffer_index++;
+          }
+        }
+      }
+
+      // Includes ctrl character(s)
       ret = hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_TEXT_MONO_STDOUT, 0, (char *) buffer,
               availBufSpace, thisFile, __LINE__);
+
       if (ret < 0)
       {
         if(ret == -EAGAIN)

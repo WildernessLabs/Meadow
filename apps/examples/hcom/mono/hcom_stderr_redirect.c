@@ -70,6 +70,16 @@ static int _read_fd;
 static int _stderr_fd;
 static bool _lowPowerActive;
 
+/**
+ * @brief Somewhere to hold the stderr we will send to COM1 if UART copy is enabled
+ */
+static char *_stderr_buffer = NULL;
+
+/**
+ * @brief Position of the current character in the line buffer for stdout.
+ */
+static int _current_buffer_index = 0;
+
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -163,6 +173,17 @@ int hcom_mono_stderr_create_infrastructure()
     
     hcom_startup_mgr_release_sem_err(ret);
     return ret;
+  }
+
+  if (g_copy_application_output_to_uart)
+  {
+    _stderr_buffer = (char *) malloc(HCOM_MONO_APP_STDERR_REDIRECT_BUFF_SIZE + 1);
+    if (_stderr_buffer == NULL)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Unable to allocate memory for stderr buffer\n",
+        thisFile, __LINE__);
+      return -ENOMEM;
+    }
   }
 
   // The startup semaphore will be released by the new thread
@@ -303,9 +324,32 @@ int hcom_mono_stderr_read_fifo_loop()
       else
         availBufSpace = readReturn;
 
-      // Includes ctrl chararacter(s)
+      if ((g_copy_application_output_to_uart) && (_stderr_buffer != NULL))
+      {
+        for (int index = 0; index < availBufSpace; index++)
+        {
+          if ((buffer[index] >= ' ') && (buffer[index] <= '~'))
+          {
+            _stderr_buffer[_current_buffer_index] = buffer[index];
+          }
+          if ((buffer[index] == '\n') || (_current_buffer_index >= HCOM_MONO_APP_STDERR_REDIRECT_BUFF_SIZE - 2))
+          {
+            _stderr_buffer[_current_buffer_index] = '\n';
+            _stderr_buffer[_current_buffer_index + 1] = '\0';
+            _current_buffer_index = 0;
+            hcom_logging_syslog(LOG_INFO, "%s", (char *) _stderr_buffer);
+          }
+          else
+          {
+            _current_buffer_index++;
+          }
+        }
+      }
+
+      // Includes ctrl character(s)
       ret = hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_TEXT_MONO_STDERR, 0, (char *) buffer,
               availBufSpace, thisFile, __LINE__);
+
       if (ret < 0)
       {
         if(ret == -EAGAIN)
