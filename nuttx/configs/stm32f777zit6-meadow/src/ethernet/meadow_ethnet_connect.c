@@ -189,6 +189,7 @@ void *meadow_ethnet_connect_kthread(int argc, char *argv[])
       {
         syslog(LOG_ERR, "%s@%d-clock_gettime, ret:%d, errno:%d\n",
                     thisFile, __LINE__, ret, errno);
+        sched_unlock();
         return NULL;
       }
 
