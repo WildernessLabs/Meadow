@@ -365,8 +365,6 @@ espcp_message_t *espcp_get_event_data(uint32_t message_id)
  ****************************************************************************/
 void espcp_dispatch_event(espcp_message_t *message)
 {
-    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
-
     if (message != NULL)
     {
         espcp_event_handlers_t *handler = NULL;
@@ -415,8 +413,6 @@ void espcp_dispatch_event(espcp_message_t *message)
             }
         }
     }
-
-    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }
 
 /****************************************************************************
@@ -614,7 +610,9 @@ void espcp_pass_to_managed_event_handler(espcp_message_t *message)
         eventData.function = message->function;
         eventData.status_code = message->status_code;
 
-        MEADOW_TRACE_INFORMATION("Interface: %d, function: %d, status code: %d\n", eventData.interface, eventData.function, eventData.status_code);
+        #if defined(USE_MEADOW_DEBUG_HELPERS)
+            espcp_dump_message(message);
+        #endif
 
         if (message->payload_length > 0)
         {
@@ -665,6 +663,5 @@ void espcp_pass_to_managed_event_handler(espcp_message_t *message)
     {
         espcp_delete_message_and_payload(message);
     }
-
     MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }
