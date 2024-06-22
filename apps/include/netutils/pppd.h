@@ -86,9 +86,11 @@ struct pppd_settings_s
 
   /* PPP Callbacks */
 
-  void (* connect_callback)(void); 
-  void (* disconnect_callback)(int err_base);
-    
+  void (* connect_event)(void); 
+  void (* disconnect_event)(int err_base);
+  void (* connecting_event)(void);
+  void (* retry_count_exceeded_event)(void);
+
   /* Cell Handler*/
 
   hcom_pppd_handler_t *cell_handler;

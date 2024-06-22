@@ -222,7 +222,7 @@ void ppp_reconnect(FAR struct ppp_context_s *ctx)
   lcp_disconnect(ctx, ++ctx->ppp_id);
   sleep(1);
   lcp_disconnect(ctx, ++ctx->ppp_id);
-  pppd_settings->disconnect_callback(CELL_PPPD_LOST_CONNECTION_ERR);
+  pppd_settings->disconnect_event(CELL_PPPD_LOST_CONNECTION_ERR);
   sleep(1);
   write(ctx->ctl.fd, "+++", 3);
   sleep(2);
@@ -233,7 +233,7 @@ void ppp_reconnect(FAR struct ppp_context_s *ctx)
       ret = chat(&ctx->ctl, pppd_settings->disconnect_script, pppd_settings->cell_at_cmds_output);
       if (ret < 0)
         {
-          pppd_settings->disconnect_callback(CELL_PPPD_TIMEOUT_ERR);
+          pppd_settings->disconnect_event(CELL_PPPD_TIMEOUT_ERR);
           debug_printf("ppp: disconnect script failed\n");
         }
     }
@@ -252,6 +252,8 @@ void ppp_reconnect(FAR struct ppp_context_s *ctx)
       
   if (pppd_settings->connect_script)
     {
+      pppd_settings->connecting_event();
+
       do
         {
           ret = chat(&ctx->ctl, pppd_settings->connect_script, pppd_settings->cell_at_cmds_output);
@@ -261,20 +263,20 @@ void ppp_reconnect(FAR struct ppp_context_s *ctx)
               hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
                 "Cell connect script failed, retrying...", thisFile, __LINE__);
 #endif
-              pppd_settings->disconnect_callback(CELL_PPPD_TIMEOUT_ERR);
               debug_printf("ppp: connect script failed\n");
               --retry;
               if (retry == 0)
                 {
+                  pppd_settings->retry_count_exceeded_event();
                   retry = PPP_MAX_CONNECT;
 #ifdef PPP_ARCH_HAVE_MODEM_RESET
                   ppp_arch_modem_reset(pppd_settings->ttyname);
 #endif
-                  sleep(45);
+                  sleep(15);
                 }
               else
                 {
-                  sleep(10);
+                  sleep(5);
                 }
             }
         }

@@ -82,7 +82,7 @@ static hcom_cell_err_t cell_err;
 //====================================================================
 // This function is used to generate the connection and disconnection script
 // based on cell settings and is later passed to the pppd() function
-static int pppd_create_connect_scripts(cell_settings_t *cell_settings, char **connect_script, char **disconnect_script)
+static int hcom_pppd_create_connect_scripts(cell_settings_t *cell_settings, char **connect_script, char **disconnect_script)
 {
   char *authentication_cmd = (char *)malloc(AUTHENTICATION_CMD_MAX_SIZE * sizeof(char));
   if (authentication_cmd == NULL)
@@ -205,11 +205,6 @@ static int pppd_create_connect_scripts(cell_settings_t *cell_settings, char **co
   return OK;
 }
 
-bool meadow_cell_is_connected(void)
-{
-    return cell_connected;
-}
-
 //====================================================================
 // This function is to get the script according to the state (GPS, Signal Quality
 // or Scan). After the selected script will be performed in PPPD thread.
@@ -255,6 +250,279 @@ static void hcom_pppd_get_script(int state, char *script)
     default:
       break;
   }
+}
+
+espcp_event_data_t *hcom_ppd_create_message(uint32_t function, uint32_t status_code,
+                            uint32_t message_id)
+{
+  espcp_event_data_t *message = (espcp_event_data_t*)malloc(sizeof(espcp_event_data_t));
+  if (message != NULL)
+  {
+    memset(message, 0, sizeof(espcp_event_data_t));
+
+    message->interface = ESPCP_CELL_INTERFACE;
+    message->function = function;
+    message->status_code = status_code;
+    message->message_id = message_id;
+  }
+  return message;
+}
+
+int hcom_pppd_raise_event(uint32_t function, uint32_t status_code,
+                            uint32_t message_id)
+{
+  espcp_event_data_t *message = hcom_ppd_create_message(function, status_code, message_id);
+  int result  = ERROR;
+  if (message != NULL)
+  {
+    uint32_t encondedEventDataSize = ESPCP_EVENT_DATA_SIZE;
+    uint8_t *encondedData = (uint8_t*)malloc(encondedEventDataSize);
+    espcp_encode_event_data(message, encondedData);
+  
+    result = espcp_queue_event_messages(encondedData);
+    free(message);
+  }
+  return result;
+}
+
+void hcom_pppd_connected_event(void) 
+{
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Cell network has been successfully connected\n", thisFile, __LINE__);
+
+    espcp_event_data_t message;
+
+    message.interface = ESPCP_CELL_INTERFACE;
+    message.function = ESPCP_CELL_CONNECTED_EVENT;
+    message.status_code = ESPCP_COMPLETED_OK_STATUS_CODE;
+    message.message_id = ESPCP_SIMPLE_EVENT_MESSAGE_ID;
+
+    uint32_t encodedEventDataSize = ESPCP_EVENT_DATA_SIZE;
+    uint8_t *encodedData = (uint8_t *) malloc(encodedEventDataSize);
+
+    cell_connected = true;
+
+    espcp_encode_event_data(&message, encodedData);
+
+    int result = espcp_queue_event_messages(encodedData);
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Cell connected event message result: %d\n", thisFile, __LINE__, result);
+}
+
+void hcom_pppd_disconnected_event(int err_base) 
+{
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Cell network has been disconnected, error: %d\n", thisFile, __LINE__, err_base);
+
+    espcp_event_data_t message;
+
+    message.interface = ESPCP_CELL_INTERFACE;
+    
+    if (err_base == CELL_PPPD_LOST_CONNECTION_ERR)
+    {
+      message.function = ESPCP_CELL_DISCONNECTED_EVENT;
+    }
+    else
+    {
+      message.function = ESPCP_CELL_ERROR_EVENT;
+    }
+ 
+    message.status_code = ESPCP_FAILURE_STATUS_CODE;
+    message.message_id = ESPCP_SIMPLE_EVENT_MESSAGE_ID;
+
+    uint32_t encodedEventDataSize = ESPCP_EVENT_DATA_SIZE;
+    uint8_t *encodedData = (uint8_t *) malloc(encodedEventDataSize);
+
+    espcp_encode_event_data(&message, encodedData);
+
+    int result = espcp_queue_event_messages(encodedData);
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Cell disconnected event message result: %d\n", thisFile, __LINE__, result);
+
+    cell_connected = false;
+    cell_err = err_base;
+}
+
+void hcom_pppd_connecting_event(void)
+{
+  hcom_logging_syslog(LOG_INFO, "%s-%d-Cell network starts to connecting\n", thisFile, __LINE__);
+  int result = ERROR;
+
+  result = hcom_pppd_raise_event(ESPCP_CELL_CONNECTING_EVENT, ESPCP_COMPLETED_OK_STATUS_CODE, ESPCP_SIMPLE_EVENT_MESSAGE_ID);
+  hcom_logging_syslog(LOG_INFO, "%s-%d-Cell event message result: %d\n", thisFile, __LINE__, result);
+}
+
+void hcom_pppd_retry_exceeded_event(void)
+{
+  hcom_logging_syslog(LOG_INFO, "%s-%d-Cell network retry exceeded\n", thisFile, __LINE__);
+  int result = ERROR;
+
+  result = hcom_pppd_raise_event(ESPCP_CELL_RETRY_EXCEEDED_EVENT, ESPCP_COMPLETED_OK_STATUS_CODE, ESPCP_SIMPLE_EVENT_MESSAGE_ID);
+  hcom_logging_syslog(LOG_INFO, "%s-%d-Cell event message result: %d\n", thisFile, __LINE__, result);
+}
+
+void hcom_pppd_at_cmd_event(int ret)
+{
+  espcp_event_data_t message;
+
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Cell chat failed: %d\n", thisFile, __LINE__, ret);
+    return;
+  }
+
+  if (strlen(cell_at_cmds_output))
+  {
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Cell: %s \n", thisFile, __LINE__, cell_at_cmds_output);
+    message.interface = ESPCP_CELL_INTERFACE;
+    message.function = ESPCP_CELL_AT_CMD_EVENT;
+    message.status_code = ESPCP_COMPLETED_OK_STATUS_CODE;
+    message.message_id = ESPCP_SIMPLE_EVENT_MESSAGE_ID;
+
+    uint32_t encodedEventDataSize = ESPCP_EVENT_DATA_SIZE;
+    uint8_t *encodedData = (uint8_t *) malloc(encodedEventDataSize);
+
+    espcp_encode_event_data(&message, encodedData);
+
+    int result = espcp_queue_event_messages(encodedData);
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Cell event message result: %d\n", thisFile, __LINE__, result);
+  }
+}
+
+static int hcom_pppd_create_handler(void)
+{
+  hcom_cell_handler.state = CELL_RESUMED;
+  hcom_cell_handler.callback = (void *)hcom_pppd_at_cmd_event;
+  hcom_cell_handler.script = (char *)malloc(CONNECT_SCRIPT_MAX_SIZE);
+
+  if (hcom_cell_handler.script == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate cell handler script\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
+
+  return OK;
+}
+
+//====================================================================
+// This is the PPPD (Point-to-Point Protocol Daemon) thread, which is 
+// responsible to send AT commands to the modem, through the chat app, 
+// and to manage the PPP connection.
+static void *pppd_thread(void *cell_settings_ptr)
+{
+    cell_settings_t *cell_settings = (cell_settings_t *) cell_settings_ptr;
+
+    if (cell_settings == NULL)
+    {
+        hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting cell settings\n", thisFile, __LINE__);
+        sleep(20);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-Failed starting PPPD\n", thisFile, __LINE__);
+        cell_err = CELL_INVALID_SETTING_ERR;
+        hcom_pppd_disconnected_event(cell_err);
+        return NULL;
+    }
+
+    if (cell_settings->module_id == CELL_UNKNOWN_MODULE)
+    {
+        hcom_logging_syslog(LOG_INFO, "%s-%d-Invalid cell module id: %u\n", thisFile, __LINE__, cell_settings->module_id);
+        sleep(20);
+        hcom_logging_syslog(LOG_INFO, "%s-%d-Failed starting PPPD\n", thisFile, __LINE__);
+        cell_err = CELL_INVALID_MODEM_ERR;
+        hcom_pppd_disconnected_event(cell_err);
+        return NULL;
+    }
+
+    char *connect_script = (char *)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
+    if (connect_script == NULL)
+    {
+        hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate memory for connect script\n", thisFile, __LINE__);
+        return NULL;
+    }
+
+    char *disconnect_script = (char *)malloc(DISCONNECT_SCRIPT_MAX_SIZE * sizeof(char));
+    if (disconnect_script == NULL)
+    {
+        free(connect_script);
+        hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate memory for disconnect script\n", thisFile, __LINE__);
+        return NULL;
+    }
+
+    cell_at_cmds_output = (char *)malloc(CONNECT_SCRIPT_OUTPUT_MAX_SIZE * sizeof(char));
+    if (cell_at_cmds_output == NULL)
+    {
+        free(connect_script);
+        free(disconnect_script);
+        hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate memory for cell AT commands output\n", thisFile, __LINE__);
+        return NULL;
+    }
+
+    int ret;
+    ret = hcom_pppd_create_connect_scripts(cell_settings, &connect_script, &disconnect_script);
+    if (ret < 0)
+    {
+        hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to generate connect scripts, ret=%d\n", thisFile, __LINE__, ret);
+        free(connect_script);
+        free(disconnect_script);
+        free(cell_at_cmds_output);
+        return NULL;
+    }
+
+    ret = hcom_pppd_create_handler();
+    if (ret < 0)
+    {
+        hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to create pppd handler, ret=%d\n", thisFile, __LINE__, ret);
+        free(connect_script);
+        free(disconnect_script);
+        free(cell_at_cmds_output);
+        return NULL;
+    }
+
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Chat scripts created: %s\n %s\n",
+                        thisFile, __LINE__, connect_script, disconnect_script);
+
+    const struct pppd_settings_s pppd_settings =
+    {
+        .disconnect_script = disconnect_script,
+        .connect_script = connect_script,
+        .ttyname = cell_settings->ttyname,
+        .connect_event = (void*)hcom_pppd_connected_event,
+        .disconnect_event = (void*)hcom_pppd_disconnected_event,
+        .connecting_event = (void *)hcom_pppd_connecting_event,
+        .retry_count_exceeded_event = (void *)hcom_pppd_retry_exceeded_event,
+        .cell_at_cmds_output = cell_at_cmds_output,
+        .cell_handler = &hcom_cell_handler,
+#ifdef CONFIG_NETUTILS_PPPD_PAP
+            .pap_username = cell_settings->pap_user,
+            .pap_password = cell_settings->pap_password,
+#endif
+    };
+
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Starting PPPD\n", thisFile, __LINE__);
+    pppd(&pppd_settings);
+
+    sleep(20);
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Failed after starting PPPD\n", thisFile, __LINE__);
+    hcom_pppd_disconnected_event(cell_err);
+
+    return NULL;
+}
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+bool meadow_cell_is_connected(void)
+{
+    return cell_connected;
+}
+
+int meadow_get_cell_at_cmds_output(unsigned char *buf)
+{
+    size_t len = strlen(cell_at_cmds_output) + 1;
+    memcpy(buf, cell_at_cmds_output, len);
+
+    return len;
+}
+
+int meadow_get_cell_error (void)
+{
+  return (int)cell_err;
 }
 
 void meadow_cell_change_state(int state)
@@ -611,7 +879,7 @@ int hcom_pppd_start()
                             thisFile, __LINE__);
         
         cell_err = CELL_PPPD_THREAD_ERR;
-        meadow_cell_disconnected_event(cell_err);
+        hcom_pppd_disconnected_event(cell_err);
 
         meadow_os_config_free_resources(config);
         return -ret;
