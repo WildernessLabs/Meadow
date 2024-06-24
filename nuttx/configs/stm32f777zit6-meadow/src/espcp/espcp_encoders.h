@@ -497,6 +497,44 @@ struct espcp_file_name_list_s
 };
 typedef struct espcp_file_name_list_s espcp_file_name_list_t;
 
+/**
+ * @brief Logging configuration message data.
+ */
+struct espcp_logging_configuration_s
+{
+    /**
+     * @brief Where should the log information go?
+     */
+    uint8_t interface;
+
+    /**
+     * @brief Which port should be used if UDP logging is to be used.
+     */
+    uint16_t udp_port;
+
+    /**
+     * @brief Which components should we log?
+     */
+    char *components_to_log;
+};
+typedef struct espcp_logging_configuration_s espcp_logging_configuration_t;
+
+/**
+ * @brief A message to send to the logging system.
+ */
+struct espcp_log_message_s
+{
+    /**
+     * @brief Log level for this message.
+     */
+    uint8_t level;
+
+    /**
+     * @brief Message to send to the logging destination.
+     */
+    char *message;
+};
+typedef struct espcp_log_message_s espcp_log_message_t;
 
 /*
  *      Encoding methods for the ESP32 SPI communications layer.
@@ -611,6 +649,9 @@ espcp_file_name_and_contents_t *espcp_extract_file_name_and_contents(uint8_t *);
 void espcp_encode_file_name_list(espcp_file_name_list_t *, uint8_t *);
 int espcp_file_name_list_buffer_size(espcp_file_name_list_t *);
 espcp_file_name_list_t *espcp_extract_file_name_list(uint8_t *);
-
+int espcp_encoded_logging_configuration_buffer_size(espcp_logging_configuration_t *);
+void espcp_encode_logging_configuration(espcp_logging_configuration_t *, uint8_t *);
+int espcp_encoded_log_message_buffer_size(espcp_log_message_t *);
+void espcp_encode_log_message(espcp_log_message_t *, uint8_t *);
 
 #endif /* _ESPCP_ENCODERS_H */
