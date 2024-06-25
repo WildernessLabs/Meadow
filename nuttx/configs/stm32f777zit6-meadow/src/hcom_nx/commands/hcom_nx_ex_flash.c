@@ -59,13 +59,52 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+#define error(x, ...)                                                                          \
+  do                                                                                           \
+  {                                                                                            \
+    if (cmdData)                                                                               \
+    {                                                                                          \
+      cmdData->logLen = snprintf(cmdData->logMsg, HCOM_NX_CMD_LOG_MSG_SIZE, x, ##__VA_ARGS__); \
+    }                                                                                          \
+    else                                                                                       \
+    {                                                                                          \
+      char buf1[256];                                                                          \
+      snprintf(buf1, sizeof(buf1), x, ##__VA_ARGS__);                                          \
+      syslog(LOG_ERR, buf1);                                                                   \
+    }                                                                                          \
+  } while (0);
+#define info(x, ...)                                                  \
+  do                                                                  \
+  {                                                                   \
+    if (cmdData)                                                      \
+    {                                                                 \
+      char buf2[256];                                                 \
+      snprintf(buf2, sizeof(buf2), "%s@d-%s\n", thisFile, __LINE__, x); \
+      snprintf(buf2, sizeof(buf2), buf2, ##__VA_ARGS__);              \
+      cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,   \
+                             buf2, thisFile, __LINE__);               \
+    }                                                                 \
+    else                                                              \
+    {                                                                 \
+      char buf3[256];                                                 \
+      snprintf(buf3, sizeof(buf3), x, ##__VA_ARGS__);                 \
+      syslog(LOG_ERR, buf3);                                          \
+    }                                                                 \
+  } while (0);
 
-/* Configuration ************************************************************/
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+
+/**
+ * @brief Name of this file.
+ */
 static char *thisFile = __FILE__;
 
+/**
+ * @brief Pointer to the _mtd driver for the flash memory on the board.
+ */
 static FAR struct mtd_dev_s *_mtd;
 
 /****************************************************************************
@@ -76,14 +115,45 @@ static FAR struct mtd_dev_s *_mtd;
  * Public Functions
  ****************************************************************************/
 
+/****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_setup
+ *
+ * Description:
+ *  Copy the pointer to the flash driver into a static local variable.
+ *
+ * Input Parameters:
+ *  mtd - Pointer to the flash driver.
+ *
+ * Returned Value:
+ *  OK
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
 int hcom_nx_exec_ex_flash_setup(FAR struct mtd_dev_s *mtd)
 {
   _mtd = mtd;
   return OK;
 }
 
-//=======================================================================================
-// Called from host PC
+/****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_erase_ex_flash
+ *
+ * Description:
+ *  Process the CLI request to erase all of the flash memory.
+ *
+ * Input Parameters:
+ *  cmdData - Pointer to the command data structure holding the parameters
+ *            (arguments) from CLI.
+ *
+ * Returned Value:
+ *  OK on success, negative error code on error.
+ *
+ * Assumptions/Limitations:
+ *  _mtd is set for the current flash driver.
+ *
+ ****************************************************************************/
 int hcom_nx_exec_ex_flash_erase_ex_flash(struct hcom_nx_cmd_data *cmdData)
 {
   int ret;
@@ -118,6 +188,23 @@ int hcom_nx_exec_ex_flash_erase_ex_flash(struct hcom_nx_cmd_data *cmdData)
 
 //========================================================================
 // Called from host PC
+/****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_verify_ex_flash
+ *
+ * Description:
+ *  Verify that the external flash has been erased.
+ *
+ * Input Parameters:
+ *  cmdData - Pointer to the command data structure holding the parameters
+ *            (arguments) from CLI.
+ *
+ * Returned Value:
+ *  OK on success, negative error code on error.
+ *
+ * Assumptions/Limitations:
+ *  _mtd is set for the current flash driver.
+ *
+ ****************************************************************************/
 int hcom_nx_exec_ex_flash_verify_ex_flash(struct hcom_nx_cmd_data *cmdData)
 {
   FAR struct mtd_geometry_s geo;
@@ -207,8 +294,25 @@ int hcom_nx_exec_ex_flash_verify_ex_flash(struct hcom_nx_cmd_data *cmdData)
   return OK;
 }
 
-//=======================================================================================
-// userData contains the partition number, if partitioning is in use
+/****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_renew_file_system
+ *
+ * Description:
+ *  Process the CLI request to renew the file system.
+ * 
+ *  This method erases the first 16 blocks of the file system.  This makes
+ *  the file system appear as if it is new and no files are present.
+ *
+ * Input Parameters:
+ *  cmdData - userData in cmdData contains the partition id.
+ *
+ * Returned Value:
+ *  OK on success, negative error code on error.
+ *
+ * Assumptions/Limitations:
+ *  _mtd is set for the current flash driver.
+ *
+ ****************************************************************************/
 int hcom_nx_exec_ex_flash_renew_file_system(struct hcom_nx_cmd_data *cmdData)
 {
   int ret;
@@ -229,8 +333,22 @@ int hcom_nx_exec_ex_flash_renew_file_system(struct hcom_nx_cmd_data *cmdData)
    return OK;
 }
 
-//======================================================================================
-// Get the block size.
+/****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_get_block_size
+ *
+ * Description:
+ *  Get the block size for the flash memory.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  Block size in bytes.
+ *
+ * Assumptions/Limitations:
+ *  _mtd is set for the current flash driver.
+ *
+ ****************************************************************************/
 uint32_t hcom_nx_exec_ex_flash_get_block_size(void)
 {
   struct mtd_geometry_s geo;
@@ -239,16 +357,49 @@ uint32_t hcom_nx_exec_ex_flash_get_block_size(void)
   return(geo.blocksize);
 }
 
-//======================================================================================
-// Get the block size.
+/****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_read_absolute_block
+ *
+ * Description:
+ *  Read a block from flash memory.
+ *
+ * Input Parameters:
+ *  blockNumber - The block number to read.
+ *  destinationAddress - Address in memory to place the data from the flash 
+ *                       memory.
+ *
+ * Returned Value:
+ *  OK.
+ *
+ * Assumptions/Limitations:
+ *  _mtd is set for the current flash driver.
+ *
+ ****************************************************************************/
 int hcom_nx_exec_ex_flash_read_absolute_block(uint32_t blockNumber, void *destinationAddress)
 {
   MTD_BREAD(_mtd, blockNumber, 1, destinationAddress);
   return OK;
 }
 
-//======================================================================================
-// Copy a number of blocks from the flash into memory.
+/****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_copy_blocks_to_memory
+ *
+ * Description:
+ *  Read a number of blocks from flash memory into a data buffer.
+ *
+ * Input Parameters:
+ *  startBlock - The block number to start reading from.
+ *  destinationAddress - Address in memory to place the data from the flash.
+ *  numberOfBlocks - The number of blocks to read.
+ *
+ * Returned Value:
+ *  OK.
+ *
+ * Assumptions/Limitations:
+ *  _mtd is set for the current flash driver.
+ *  The destinationAddress must have enough space to hold the data.
+ *
+ ****************************************************************************/
 // #pragma GCC optimize("O0")
 int hcom_nx_exec_ex_flash_copy_blocks_to_memory(uint32_t startBlock, void *destinationAddress, uint32_t numberOfBlocks)
 {
@@ -296,8 +447,23 @@ int hcom_nx_exec_ex_flash_copy_blocks_to_memory(uint32_t startBlock, void *desti
   return(result);
 }
 
-//======================================================================================
-// Called from host PC
+/****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_mono_flash
+ *
+ * Description:
+ *  Read a number of blocks from flash memory into a data buffer.
+ *
+ * Input Parameters:
+ *  cmdData - Pointer to the command data structure holding the parameters
+ *           (arguments) from CLI.
+ *
+ * Returned Value:
+ *  OK.
+ *
+ * Assumptions/Limitations:
+ *  _mtd is set for the current flash driver.
+ *
+ ****************************************************************************/
 int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
 {
   int ret;
@@ -482,40 +648,25 @@ int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmdData)
     return OK;
 }
 
-#define error(x, ...)                                                                          \
-  do                                                                                           \
-  {                                                                                            \
-    if (cmdData)                                                                               \
-    {                                                                                          \
-      cmdData->logLen = snprintf(cmdData->logMsg, HCOM_NX_CMD_LOG_MSG_SIZE, x, ##__VA_ARGS__); \
-    }                                                                                          \
-    else                                                                                       \
-    {                                                                                          \
-      char buf1[256];                                                                          \
-      snprintf(buf1, sizeof(buf1), x, ##__VA_ARGS__);                                          \
-      syslog(LOG_ERR, buf1);                                                                   \
-    }                                                                                          \
-  } while (0);
-#define info(x, ...)                                                  \
-  do                                                                  \
-  {                                                                   \
-    if (cmdData)                                                      \
-    {                                                                 \
-      char buf2[256];                                                 \
-      snprintf(buf2, sizeof(buf2), "%s@d-%s\n", thisFile, __LINE__, x); \
-      snprintf(buf2, sizeof(buf2), buf2, ##__VA_ARGS__);              \
-      cmdData->send_host_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,   \
-                             buf2, thisFile, __LINE__);               \
-    }                                                                 \
-    else                                                              \
-    {                                                                 \
-      char buf3[256];                                                 \
-      snprintf(buf3, sizeof(buf3), x, ##__VA_ARGS__);                 \
-      syslog(LOG_ERR, buf3);                                          \
-    }                                                                 \
-  } while (0);
-
-static int flash_buf(uint8_t* data_buf, off_t size, off_t offset)
+/****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_write_buffer_to_flash
+ *
+ * Description:
+ *   Write the buffer of data to the specified location in flash.
+ *
+ * Input Parameters:
+ *   data_buf - Pointer to the data to be written to flash.
+ *   size - Amount of data to write to flash.
+ *   offset - Offset in flash to write the data.
+ *
+ * Returned Value:
+ *  OK if successful, -1 if there was a problem.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+int  hcom_nx_exec_ex_flash_write_buffer_to_flash(uint8_t* data_buf, off_t size, off_t offset)
 {
   struct hcom_nx_cmd_data *cmdData = NULL;
   struct mtd_geometry_s geo;
@@ -563,6 +714,25 @@ static int flash_buf(uint8_t* data_buf, off_t size, off_t offset)
   return OK;
 }
 
+/****************************************************************************
+ * Name: flash_file
+ *
+ * Description:
+ *   Write the contents of the specified file into the location (offset) in
+ *   flash.
+ * 
+ * Input Parameters:
+ *   path - Path to the file to be written to flash.
+ *   size - Amount of data to write to flash.
+ *   offset - Offset in flash to write the data.
+ *
+ * Returned Value:
+ *  OK if successful, -1 or -errno if there was a problem.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
 static int flash_file(const char *path, off_t size, off_t offset)
 {
   struct hcom_nx_cmd_data *cmdData = NULL;
@@ -596,7 +766,6 @@ static int flash_file(const char *path, off_t size, off_t offset)
 
   info("Erasing flash memory");
 
-  int offsetInPages = offset / geo.blocksize;
   int offsetInEraseBlocks = offset / geo.erasesize;
 
   size_t numBlocksToErase = fileSize / geo.erasesize;
@@ -668,8 +837,22 @@ typedef struct
   uint8_t reserved[0x1000 - 7]; // min struct size = flash geo.erasesize
 } OTAState;
 
-//======================================================================================
-// Called from updater
+/****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_OS_update_flash1
+ *
+ * Description:
+ *   Part 1 update - AUpdate the operating system.
+ * 
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *  OK if successful, -1 or -errno if there was a problem.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
 int hcom_nx_exec_ex_flash_OS_update_flash1(void)
 {
   int ret;
@@ -677,8 +860,11 @@ int hcom_nx_exec_ex_flash_OS_update_flash1(void)
   ret = flash_file(UPDATE_OS_DIR HCOM_NX_FS_NUTTX_UPDATE_FILENAME, HCOM_NX_FS_NUTTX_UPDATE_SIZE, HCOM_NX_FS_MONO_RAW_PARTITION_SIZE);
   if (ret)
     return ret;
+  //
+  //  Save the current OTA state to flash
+  //
   state.update = 0x1;
-  ret = flash_buf((uint8_t*)&state, sizeof(OTAState), HCOM_NX_FS_MONO_RAW_PARTITION_SIZE + HCOM_NX_FS_NUTTX_UPDATE_SIZE);
+  ret = hcom_nx_exec_ex_flash_write_buffer_to_flash((uint8_t*)&state, sizeof(OTAState), HCOM_NX_FS_MONO_RAW_PARTITION_SIZE + HCOM_NX_FS_NUTTX_UPDATE_SIZE);
   if (ret)
     return ret;
   ret = unlink(UPDATE_OS_DIR HCOM_NX_FS_NUTTX_UPDATE_FILENAME);
@@ -688,8 +874,23 @@ int hcom_nx_exec_ex_flash_OS_update_flash1(void)
   return 0; // restarts; never actually returns
 }
 
-//======================================================================================
-// Called from updater
+/****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_OS_update_flash2
+ *
+ * Description:
+ *   Part 2 update - Update the runtime system.
+ *   flash.
+ * 
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *  OK if successful, -1 or -errno if there was a problem.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
 int hcom_nx_exec_ex_flash_OS_update_flash2(void)
 {
   int ret;
