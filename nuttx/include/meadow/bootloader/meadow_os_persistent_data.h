@@ -36,13 +36,54 @@
 #ifndef __INCLUDE_MEADOW_BOOTLOADER_MEADOW_OS_PERSISTENT_DATA_H
 #define __INCLUDE_MEADOW_BOOTLOADER_MEADOW_OS_PERSISTENT_DATA_H
 
+/****************************************************************************
+ * 
+ * The persistent data storage is split into two sections.  The first section
+ * is considered safe safe data.  The second half of the sector is considered
+ * unsafe data.
+ * 
+ * Safe dat is data that will not prevent the system from starting.  This is
+ * data such as the reboot count, power cycle count etc.  So these are simple
+ * numbers that provide information.
+ * 
+ * Unsafe data is data that could prevent the system from starting.  This
+ * could be configuration data that may be used at startup.
+ * 
+ * The split between the two types of data has been made so that safe data
+ * will persist even if the flash is erased.  Unsafe data will be reset when
+ * the flash is erased.
+ * 
+ ****************************************************************************/
+
 #include <stdint.h>
 
-//
-//  OS persistent information is stored ina single 4,096 byte block of flash
-//  storage after the OTA data.  Full information can be found in the partitions.h
-//  header file in this directory.
-//
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+/**
+ * @brief Current persistent data structure version.
+ */
+#define OS_PERSISTENT_DATA_VERSION      1
+
+/**
+ * @brief Size of the persistent data in flash.  This defaults to the flash page
+ *        length of 4096 bytes.
+ */
+#define OS_PERSISTENT_DATA_SIZE         4096
+
+/**
+ * @brief Amount of storage reserved for data this is considered safe.
+ */
+#define OS_PERSISTENT_DATA_SAFE_SIZE    (OS_PERSISTENT_DATA_SIZE / 2)
+
+/****************************************************************************
+ * Public type definitions.
+ ****************************************************************************/
+
+/**
+ * @brief Data structure holding the data that should persist across reboots.
+ */
 struct os_persistent_data_s
 {
     //
@@ -64,8 +105,16 @@ struct os_persistent_data_s
     //  will not necessarily increment the power cycle count.
     //
     uint32_t reset_count;
-} __attribute((packed));
 
+    //
+    //  Pad out the rest of the safe data area with unused data.
+    //
+    uint8_t unused_safe_data[OS_PERSISTENT_DATA_SAFE_SIZE - (3 * sizeof(uint32_t))];
+
+    //
+    //  Unsafe data storage starts here.
+    //
+} __attribute((packed));
 typedef struct os_persistent_data_s os_persistent_data_t;
 
 #endif // __INCLUDE_MEADOW_BOOTLOADER_MEADOW_OS_PERSISTENT_DATA_H
