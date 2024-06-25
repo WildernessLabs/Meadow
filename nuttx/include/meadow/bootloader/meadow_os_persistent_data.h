@@ -75,7 +75,7 @@
 #define OS_PERSISTENT_DATA_SIZE         4096
 
 /**
- * @brief Amount of storage reserved for data this is considered safe.
+ * @brief Amount of storage reserved for data that is considered safe.
  */
 #define OS_PERSISTENT_DATA_SAFE_SIZE    (OS_PERSISTENT_DATA_SIZE / 2)
 
