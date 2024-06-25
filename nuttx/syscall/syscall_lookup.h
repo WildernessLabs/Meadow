@@ -407,6 +407,8 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
   SYSCALL_LOOKUP(meadow_cloud_release_private_key,    1, STUB_meadow_cloud_release_private_key)
 #endif
 
+  SYSCALL_LOOKUP(meadow_ntpc_start,        0, STUB_meadow_ntpc_start)
+
   SYSCALL_LOOKUP(meadow_client_cert_retrieve_credentials,        6, STUB_meadow_client_cert_retrieve_credentials)
   SYSCALL_LOOKUP(meadow_client_cert_release_credentials,         3, STUB_meadow_client_cert_release_credentials)
 

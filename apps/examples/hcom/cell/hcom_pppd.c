@@ -39,6 +39,7 @@
 
 #include <meadow/hcom_protocol.h>
 #include <meadow/meadow_os.h>
+#include <meadow/meadow_ntpc.h>
 
 #include <mqueue.h>
 #include <string.h>
@@ -324,6 +325,16 @@ void meadow_cell_connected_event(void)
     uint8_t *encodedData = (uint8_t *) malloc(encodedEventDataSize);
 
     cell_connected = true;
+
+    meadow_configuration_t *config = meadow_os_deep_copy_config();
+    bool get_time = config->get_network_time_at_startup;
+
+    if (get_time)
+    {
+        meadow_ntpc_start();
+    }
+
+    meadow_os_config_free_resources(config);
 
     espcp_encode_event_data(&message, encodedData);
 
