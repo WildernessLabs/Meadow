@@ -67,7 +67,7 @@ int meadow_client_cert_initialize() {
         fclose(client_cert_file);
 
         // Storing client certificate
-        syslog(LOG_INFO, "Storing client certificate length: %d\nContent: %s", client_cert_len, client_cert);
+        syslog(LOG_INFO, "Storing client certificate length: %d\nContent: %s\n", client_cert_len, client_cert);
         ret = espcp_file_system_write_file(CLIENT_CERT_FILE, (const char *)client_cert, client_cert_len + 1);
         if (ret < 0)
         {
@@ -110,7 +110,7 @@ int meadow_client_cert_initialize() {
         fclose(private_key_file);
 
         // Storing client certificate private key
-        syslog(LOG_INFO, "Storing private key length: %d\nContent: %s", private_key_len, private_key);
+        syslog(LOG_INFO, "Storing private key length: %d\nContent: %s\n", private_key_len, private_key);
         ret = espcp_file_system_write_file(CLIENT_CERT_PRIVATE_KEY_FILE, (const char *)private_key, private_key_len + 1);
         if (ret < 0)
         {
@@ -185,7 +185,7 @@ int meadow_client_cert_retrieve_credentials(FAR const char **client_cert_buf_ptr
     const char *client_cert_buf = espcp_file_system_read_file(CLIENT_CERT_FILE, &client_cert_length);
     if (client_cert_buf == NULL)
     {
-        syslog(LOG_ERR, "Fail to retrieve client cert");
+        syslog(LOG_ERR, "Fail to retrieve client cert\n");
         return -1;
     }
 
@@ -200,7 +200,7 @@ int meadow_client_cert_retrieve_credentials(FAR const char **client_cert_buf_ptr
     const char *private_key_buf = espcp_file_system_read_file(CLIENT_CERT_PRIVATE_KEY_FILE, &private_key_length);
     if (private_key_buf == NULL)
     {
-        syslog(LOG_ERR, "Fail to retrieve client cert private key");
+        syslog(LOG_ERR, "Fail to retrieve client cert private key\n");
         return -1;
     }
 
@@ -215,7 +215,7 @@ int meadow_client_cert_retrieve_credentials(FAR const char **client_cert_buf_ptr
     const char *private_key_pass_buf = espcp_file_system_read_file(CLIENT_CERT_PRIVATE_KEY_PASS_FILE, &private_key_pass_length);
     if (private_key_pass_buf == NULL)
     {
-        syslog(LOG_ERR, "Fail to retrieve client cert private key passphrase");
+        syslog(LOG_ERR, "Fail to retrieve client cert private key passphrase\n");
         return -1;
     }
 

@@ -3136,4 +3136,109 @@ espcp_file_name_list_t *espcp_extract_file_name_list(uint8_t *buffer)
     return(file_name_list);
 }
 
+/****************************************************************************
+* Name: espcp_encoded_logging_configuration_buffer_size
+*
+* Description:
+*  Work out how much storage is needed to hold the encoded version of the
+*  espcp_logging_configuration_t object.
+*  
+*  Note that the returned pointer points to a block of memory on the heap and
+*  this should eventually be released calling free(...).
+*  
+* Input Parameters:
+*  logging_configuration - pointer to the logging configuration.
+*
+* Returned Value:
+*  Number of bytes required to store the encoded espcp_logging_configuration_t
+*  object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_encoded_logging_configuration_buffer_size(espcp_logging_configuration_t *logging_configuration)
+{
+    int result = 4;
+    if (logging_configuration->components_to_log != NULL)
+    {
+        result = 4 + strlen(logging_configuration->components_to_log);
+    }
+    return(result);
+}
 
+/****************************************************************************
+ * Name: espcp_encode_logging_configuration
+ *
+ * Description:
+ * Convert the espcp_logging_configuration_t object into a byte stream that can
+ * be sent to the ESP32.
+ * 
+ * Input Parameters:
+ *   logging_configuration - object to be encoded.
+ * 
+ * Returned Value
+ *  None
+ *
+ * Assumptions/Limitations:
+ *   None
+ * 
+ * ****************************************************************************/
+void espcp_encode_logging_configuration(espcp_logging_configuration_t *logging_configuration, uint8_t *buffer)
+{
+    *buffer = logging_configuration->interface;
+    buffer++;
+    espcp_encode_uint16(logging_configuration->udp_port, buffer);
+    buffer += 2;
+    espcp_encode_string(logging_configuration->components_to_log, buffer);
+}
+
+/****************************************************************************
+* Name: espcp_encoded_log_message_buffer_size
+*
+* Description:
+*  Work out how much storage is needed to hold the encoded version of the
+*  espcp_log_message_t object.
+*  
+*  Note that the returned pointer points to a block of memory on the heap and
+*  this should eventually be released calling free(...).
+*  
+* Input Parameters:
+*  log_message - pointer to the log_message object.
+*
+* Returned Value:
+*  Number of bytes required to store the encoded espcp_log_message_t
+*  object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_encoded_log_message_buffer_size(espcp_log_message_t *log_message)
+{
+    return(2 + strlen(log_message->message));
+}
+
+/****************************************************************************
+ * Name: espcp_encode_log_message
+ *
+ * Description:
+ * Convert the espcp_log_message_t object into a byte stream that can
+ * be sent to the ESP32.
+ * 
+ * Input Parameters:
+ *   log_message - object to be encoded.
+ * 
+ * Returned Value
+ *  None
+ *
+ * Assumptions/Limitations:
+ *   None
+ * 
+ * ****************************************************************************/
+void espcp_encode_log_message(espcp_log_message_t *log_message, uint8_t *buffer)
+{
+    *buffer = log_message->level;
+    buffer++;
+    espcp_encode_string(log_message->message, buffer);
+}

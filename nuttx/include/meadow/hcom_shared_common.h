@@ -437,7 +437,6 @@ typedef enum esp_log_destination_e
 
 /**
  * @brief Table to hold the names of the log destinations along with the enum value.
- * 
  */
 typedef struct meadow_log_destinations_s
 {
@@ -492,6 +491,11 @@ struct meadow_configuration_s
    *  @brief Should profiler output be diverted to UART1?
    */
   uint8_t use_uart1_for_profiling;
+
+  /**
+   * @brief Copy the managed application output to UART (COM1) ?
+   */
+  uint8_t copy_application_output_to_uart;
 
   /**
    *  @brief Clock speed of the SPI interface between the STM32 and the ESP32.
@@ -899,3 +903,12 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 #define MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER        1
 
 #endif  // __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H
+
+/****************************************************************************
+ * Public Data
+ ****************************************************************************/
+
+/**
+ * @brief Should we copy the application output to the UART (COM1)?
+ */
+extern bool g_copy_application_output_to_uart;

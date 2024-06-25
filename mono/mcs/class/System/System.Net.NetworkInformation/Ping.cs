@@ -45,7 +45,7 @@ namespace System.Net.NetworkInformation {
 	[MonoTODO ("IPv6 support is missing")]
 	public class Ping : Component, IDisposable
 	{
-#if !MONOTOUCH
+#if !MONOTOUCH && !NUTTX
 		[StructLayout(LayoutKind.Sequential)]
 		struct cap_user_header_t
 		{
@@ -88,7 +88,7 @@ namespace System.Net.NetworkInformation {
 		
 		public event PingCompletedEventHandler PingCompleted;
 
-#if !MONOTOUCH && !ORBIS
+#if !MONOTOUCH && !ORBIS && !NUTTX
 		static Ping ()
 		{
 			if (Environment.OSVersion.Platform == PlatformID.Unix) {
@@ -121,7 +121,7 @@ namespace System.Net.NetworkInformation {
 			identifier = (ushort)(randomIdentifier [0] + (randomIdentifier [1] << 8));
 		}
 
-#if !MONOTOUCH && !ORBIS
+#if !MONOTOUCH && !ORBIS && !NUTTX
 		[DllImport ("libc", EntryPoint="capget")]
 		static extern int capget (ref cap_user_header_t header, ref cap_user_data_t data);
 
@@ -218,16 +218,21 @@ namespace System.Net.NetworkInformation {
 				throw new ArgumentException ("buffer");
 			// options can be null.
 
-#if MONOTOUCH
-			throw new InvalidOperationException ();
-#else
+#if !MONOTOUCH && !NUTTX
 			if (canSendPrivileged)
 				return SendPrivileged (address, timeout, buffer, options);
 			return SendUnprivileged (address, timeout, buffer, options);
 #endif
+
+#if NUTTX
+
+			return SendIcmpRequestOverSocket (address, timeout, buffer, options);
+#else
+			throw new InvalidOperationException ();
+#endif
 		}
 
-#if !MONOTOUCH
+#if !MONOTOUCH && !NUTTX
 		private PingReply SendPrivileged (IPAddress address, int timeout, byte [] buffer, PingOptions options)
 		{
 			IPEndPoint target = new IPEndPoint (address, 0);
@@ -337,8 +342,72 @@ namespace System.Net.NetworkInformation {
 			throw new PlatformNotSupportedException ("Ping is not supported on this platform.");
 #endif // MONO_FEATURE_PROCESS_START
 		}
-#endif // !MONOTOUCH
+#endif // !MONOTOUCH && !NUTTX
 
+#if NUTTX
+		private PingReply SendIcmpRequestOverSocket (IPAddress address, int timeout, byte [] buffer, PingOptions options)
+		{
+			IPEndPoint target = new IPEndPoint (address, 0);
+
+			using (Socket s = new Socket (AddressFamily.InterNetwork, SocketType.Raw, ProtocolType.Icmp)) {
+				if (options != null) {
+					s.DontFragment = options.DontFragment;
+					s.Ttl = (short) options.Ttl;
+				}
+				s.SendTimeout = timeout;
+				s.ReceiveTimeout = timeout;
+
+				IcmpMessage send = new IcmpMessage (8, 0, identifier, 0, buffer);
+
+				byte [] bytes = send.GetBytes ();
+				s.SendBufferSize = bytes.Length;
+				s.SendTo (bytes, bytes.Length, SocketFlags.None, target);
+
+				var sw = Stopwatch.StartNew ();
+
+				// receive
+				bytes = new byte [100];
+				do {
+					EndPoint endpoint = target;
+					SocketError error = 0;
+					int rc = s.ReceiveFrom (bytes, 0, 100, SocketFlags.None,
+							ref endpoint, out error);
+
+					if (error != SocketError.Success) {
+						if (error == SocketError.TimedOut) {
+							return new PingReply (null, new byte [0], options, 0, IPStatus.TimedOut);
+						}
+						throw new IOException (String.Format ("Unexpected socket error during ping request: {0}", error));
+					}
+					long rtt = (long) sw.ElapsedMilliseconds;
+					int headerLength = (bytes [0] & 0xF) << 2;
+					int bodyLength = rc - headerLength;
+
+					// Ping reply to different request. discard it.
+					if (!((IPEndPoint) endpoint).Address.Equals (target.Address)) {
+						long t = timeout - rtt;
+						if (t <= 0)
+							return new PingReply (null, new byte [0], options, 0, IPStatus.TimedOut);
+						s.ReceiveTimeout = (int) t;
+						continue;
+					}
+
+					IcmpMessage recv = new IcmpMessage (bytes, headerLength, bodyLength);
+
+					/* discard ping reply to different request or echo requests if running on same host. */
+					if (recv.Identifier != identifier || recv.Type == 8) {
+						long t = timeout - rtt;
+						if (t <= 0)
+							return new PingReply (null, new byte [0], options, 0, IPStatus.TimedOut);
+						s.ReceiveTimeout = (int) t;
+						continue; 
+					}
+
+					return new PingReply (address, recv.Data, options, rtt, recv.IPStatus);
+				} while (true);
+			}
+		}
+#endif
 		// Async
 
 		public void SendAsync (IPAddress address, int timeout, byte [] buffer, object userToken)
@@ -527,7 +596,7 @@ namespace System.Net.NetworkInformation {
 				}
 			}
 		}
-
+	#if !NUTTX
 		private string BuildPingArgs (IPAddress address, int timeout, PingOptions options)
 		{
 			CultureInfo culture = CultureInfo.InvariantCulture;
@@ -547,6 +616,7 @@ namespace System.Net.NetworkInformation {
 
 			return args.ToString ();
 		}
+	#endif // !NUTTX
 #endif // !MONOTOUCH
 
 		public Task<PingReply> SendPingAsync (IPAddress address, int timeout, byte [] buffer)

@@ -6,6 +6,9 @@
 #ifndef _SHARED_ENUMS_H
 #define _SHARED_ENUMS_H
 
+#include <meadow/hcom_shared_common.h>
+#include "syslog.h"
+
 /*
  *    Status and error codes for the various function calls.
  */
@@ -153,7 +156,9 @@ enum espcp_system_function
     espcp_system_function_file_system_write_file = 9,
     espcp_system_function_file_system_read_file = 10,
     espcp_system_function_file_system_delete_file = 11,
-    espcp_system_function_os_exception = 12
+    espcp_system_function_os_exception = 12,
+    espcp_system_function_logging_configuration = 13,
+    espcp_system_function_log_message = 14,
 };
 typedef enum espcp_system_function espcp_system_function_t;
 
@@ -207,7 +212,9 @@ enum espcp_wi_fi_function
     espcp_wi_fi_function_access_point_started_event = 42,
     espcp_wi_fi_function_access_point_stopped_event = 43,
     espcp_wi_fi_function_node_connected_event = 44,
-    espcp_wi_fi_function_node_disconnected_event = 45
+    espcp_wi_fi_function_node_disconnected_event = 45,
+    espcp_wi_fi_function_network_connection_retry_count_exceeded_event = 46,
+    espcp_wi_fi_function_network_connecting_event = 47,
 };
 typedef enum espcp_wi_fi_function espcp_wi_fi_function_t;
 
@@ -583,6 +590,83 @@ enum espcp_esp32_reset_codes
 };
 typedef enum espcp_esp32_reset_codes espcp_esp32_reset_codes_t;
 
+/**
+ * @brief Where should the ESP log messages be sent?
+ * 
+ * Definitions here can be found in hcom_shared_common.h
+ */
+typedef enum espcp_log_destination
+{
+    /**
+     * @brief Noe logging destination.
+     */
+    espcp_log_destination_none = esp_log_destination_none,
+
+    /**
+     * @brief Send log messages to the UART.
+     */
+    espcp_log_destination_uart = esp_log_destination_uart,
+
+    /**
+     * @brief Send log messages to the JTAG.
+     */
+    espcp_log_destination_jtag = esp_log_destination_jtag,
+
+    /**
+     * @brief Send log messages to the UDP.
+     */
+    espcp_log_destination_udp = esp_log_destination_udp,
+} espcp_log_destination_t;
+
+/**
+ * @brief Log levels (taken from syslog.h)
+ */
+typedef enum espcp_log_level
+{
+    /**
+     * @brief No logging, not really taken from syslog.h but here to represent no logging.
+     */
+    espcp_log_level_none = 255,
+
+    /**
+     * @brief Emergency log level.
+     */
+    espcp_log_level_emergency = LOG_EMERG,
+
+    /**
+     * @brief Alert log level.
+     */
+    espcp_log_level_alert = LOG_ALERT,
+
+    /**
+     * @brief Critical log level.
+     */
+    espcp_log_level_critical = LOG_CRIT,
+
+    /**
+     * @brief Error log level.
+     */
+    espcp_log_level_error = LOG_ERR,
+
+    /**
+     * @brief Warning log level.
+     */
+    espcp_log_level_warning = LOG_WARNING,
+
+    /**
+     * @brief Notice log level.
+     */
+    espcp_log_level_notice = LOG_NOTICE,
+
+    /**
+     * @brief Information log level.
+     */
+    espcp_log_level_information = LOG_INFO,
+
+    /**
+     * @brief Debug log level.
+     */
+    espcp_log_level_debug = LOG_DEBUG,
+} espcp_log_level_t;
 
 #endif /* _SHARED_ENUMS_H */
-

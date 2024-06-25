@@ -463,13 +463,13 @@ bool hcom_host_send_is_host_xmit_blocked()
   ssize_t writeRet = write(_comms_write_fd, &oneZero, 1);
   if(writeRet == 1)
   {
-    // Write successfull, no longer blocked
+    // Write successful, no longer blocked
     _lastXmitBlocked = false;
     return false;   // Not blocked
   }
   
   // This is where we exit if the host PC exists but CLI (or equal)
-  // is not running (i.e. not consuming chararacters).
+  // is not running (i.e. not consuming characters).
   _lastXmitBlocked = true;
   return true;    // blocked or some error
 }
@@ -595,6 +595,14 @@ int hcom_host_send_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength)
 
       return -errno;
     }
+
+    // Under rare conditions (e.g. Meadow powered with +5 and connected to USB
+    // and while sending the USB cable is removed) an ENOTCONN can be
+    // returned. Under these circumstances we'll return to the caller as if
+    // the message was sent. The next message a caller sends will be handled
+    // like any other message.
+    if(errno == ENOTCONN)
+      return OK;    // Return leaving _lastXmitBlocked = true
 
     return -errno;
   } // while (remainingBytes > 0)

@@ -232,6 +232,10 @@ meadow_configuration_t *meadow_os_deep_copy_config(void)
         }
         hcom_nx_config_unlock();
     }
+    //
+    //  Now set the strings we do not care about to NULL.
+    //
+    result->esp_log_components = NULL;
 
     return(result);
 }
