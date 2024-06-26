@@ -70,7 +70,7 @@
  * @brief Size of the persistent data in flash.  This defaults to the flash page
  *        length of 4096 bytes.
  */
-#define OS_PERSISTENT_DATA_SIZE         4096
+// #define OS_PERSISTENT_DATA_SIZE         4096
 
 /**
  * @brief Amount of storage reserved for data that is considered safe.
