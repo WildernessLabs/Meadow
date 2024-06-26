@@ -692,8 +692,9 @@ void WriteNuttxPrimaryBlock(uint32_t block, uint32_t* data_block, uint32_t block
 void UpdateBootCount(uint32_t resetReason)
 {
 	os_persistent_data_t *os_persistent_data = (os_persistent_data_t *) ReadPagesFromFlash(OS_PERSISTENT_DATA_LOC, OS_PERSISTENT_DATA_SIZE);
-	if (os_persistent_data->version == 0)
+	if ((os_persistent_data->version == 0) || (os_persistent_data->version == 0xffffffff))
 	{
+		memset(os_persistent_data, 0, OS_PERSISTENT_DATA_SIZE);
 		os_persistent_data->version = 1;
 	}
 	os_persistent_data->reset_count++;
@@ -702,6 +703,13 @@ void UpdateBootCount(uint32_t resetReason)
 		os_persistent_data->power_cycle_count++;
 	}
 	WritePagesToFlash(OS_PERSISTENT_DATA_LOC, (uint8_t *) os_persistent_data, OS_PERSISTENT_DATA_SIZE);
+
+	//
+	//	Temporary debug code, will be removed for release.
+	//
+	os_persistent_data_t *readData = (os_persistent_data_t *) ReadPagesFromFlash(OS_PERSISTENT_DATA_LOC, OS_PERSISTENT_DATA_SIZE);
+	free(readData);
+
 	//
 	//	Last thing we do is to store the counts in BBRs for the OS to pick up later.
 	//
