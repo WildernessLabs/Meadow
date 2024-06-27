@@ -270,7 +270,10 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     rtcWakeupTime = (hcom_nx_upd_rtc_wakeup_time_t*)arg;
     ret = pwrmgmt_mono_cmd_time_wakeup_period(rtcWakeupTime->hdrMsg,
               rtcWakeupTime->msgLen);
-#endif
+#endif  // HCOM_INCLUDE_ISO8601_SUPPORT > 0
+
+#endif  // defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
+
   case HCOM_NX_UPD_UPDATE_OS1:
     // Stage a updated OS bin
     ret = hcom_nx_exec_ex_flash_OS_update_flash1();
@@ -280,7 +283,6 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     // Stage a updated external flash OS bin
     ret = hcom_nx_exec_ex_flash_OS_update_flash2();
     return ret;
-#endif
 
 // At present (Sept 2021) The only use for this feature is with ethernet
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
