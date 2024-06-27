@@ -98,7 +98,8 @@ enum configuration_values
     cv_subnet_mask,                                 // 23
     cv_default_gateway,                             // 24
     cv_sd_storage_supported,                        // 25
-    cv_reserved_pins                                // 26
+    cv_reserved_pins,                               // 26
+    cv_ntp_refresh_period_seconds                   // 27
 };
 typedef enum configuration_values configuration_values_t;
 

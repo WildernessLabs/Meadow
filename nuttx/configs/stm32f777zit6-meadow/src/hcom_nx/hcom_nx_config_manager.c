@@ -2465,6 +2465,9 @@ int hcom_nx_config_get_set_config_value(int item, uint8_t direction, uint8_t *bu
             case cv_get_time_at_startup:
                 result = hcom_nx_config_get_uint8_value(config->get_network_time_at_startup, buffer, buffer_length);
                 break;
+            case cv_ntp_refresh_period_seconds:
+                result = hcom_nx_config_get_uint32_value(config->ntp_refresh_period_seconds, buffer, buffer_length);
+                break;
             case cv_mac_address:
                 result = hcom_nx_config_get_bytes(config->board_mac_address, sizeof(config->board_mac_address), buffer, buffer_length);
                 break;
