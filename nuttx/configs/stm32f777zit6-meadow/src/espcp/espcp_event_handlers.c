@@ -474,12 +474,12 @@ void espcp_system_get_configuration_event_handler(espcp_message_t *message)
 
             if (payload != NULL)
             {
-                message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system,
+                espcp_message_t *logging_configuration_message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system,
                                                        espcp_system_function_logging_configuration, espcp_status_codes_completed_ok,
                                                        espcp_get_next_message_id(), payload, payload_length);
-                if (message != NULL)
+                if (logging_configuration_message != NULL)
                 {
-                    espcp_queue_message(message, false);
+                    espcp_queue_message(logging_configuration_message, false);
                 }
                 else
                 {
