@@ -356,6 +356,61 @@ uint32_t hcom_nx_exec_ex_flash_get_block_size(void)
 }
 
 /****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_get_erase_block_size
+ *
+ * Description:
+ *  Get the erase blocksize for the flash memory.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  Size of the erase block for the current flash memory.
+ * 
+ * Assumptions/Limitations:
+ *  _mtd is set for the current flash driver.
+ *
+ ****************************************************************************/
+uint32_t hcom_nx_exec_ex_flash_get_erase_block_size(void)
+{
+  struct mtd_geometry_s geo;
+
+  _mtd->ioctl(_mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t) &geo));
+  return(geo.erasesize);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_get_geometry
+ *
+ * Description:
+ *  Get a pointer to the geometry structure for the flash memory.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  OK if successful, -1 otherwise.
+ *
+ * Assumptions/Limitations:
+ *  _mtd is set for the current flash driver.
+ *
+ ****************************************************************************/
+int hcom_nx_exec_ex_flash_get_geometry(struct mtd_geometry_s *geometry)
+{
+  int result = OK;
+
+  if (geometry != NULL)
+  {
+    if (_mtd->ioctl(_mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t) geometry)) != 0)
+    {
+      result = -1;
+    }
+  }
+
+  return(result);
+}
+
+/****************************************************************************
  * Name: hcom_nx_exec_ex_flash_read_absolute_block
  *
  * Description:
@@ -679,7 +734,7 @@ int  hcom_nx_exec_ex_flash_write_buffer_to_flash(uint8_t* data_buf, off_t size, 
   struct mtd_geometry_s geo;
   _mtd->ioctl(_mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t)&geo));
 
-  info("Erasing flash memory");
+  info("Erasing flash memory\n");
 
   int offsetInPages = offset / geo.blocksize;
   int offsetInEraseBlocks = offset / geo.erasesize;
@@ -690,7 +745,7 @@ int  hcom_nx_exec_ex_flash_write_buffer_to_flash(uint8_t* data_buf, off_t size, 
   {
     return -1;
   }
-  info("Erase success");
+  info("Erase success\n");
 
   uint8_t *buf = calloc(geo.blocksize, 1);
 
@@ -701,7 +756,7 @@ int  hcom_nx_exec_ex_flash_write_buffer_to_flash(uint8_t* data_buf, off_t size, 
       ssize_t writtenBlocks = MTD_BWRITE(_mtd, i + offsetInPages, 1, buf);
       if (writtenBlocks != 1)
       {
-        error("Error while writing block %d to flash", i);
+        error("Error while writing block %d to flash\n", i);
         free(buf);
         return -1;
       }
@@ -749,7 +804,7 @@ static int flash_file(const char *path, off_t size, off_t offset)
   int filefd = open(path, O_RDONLY);
   if (filefd == -1)
   {
-    error("%s@%d-File not found: %s.", thisFile, __LINE__, path);
+    error("%s@%d-File not found: %s.\n", thisFile, __LINE__, path);
     return -1;
   }
 
@@ -771,7 +826,7 @@ static int flash_file(const char *path, off_t size, off_t offset)
   struct mtd_geometry_s geo;
   _mtd->ioctl(_mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t)&geo));
 
-  info("Erasing flash memory");
+  info("Erasing flash memory\n");
 
   int offsetInEraseBlocks = offset / geo.erasesize;
 
@@ -781,7 +836,7 @@ static int flash_file(const char *path, off_t size, off_t offset)
   {
     return -1;
   }
-  info("Erase success");
+  info("Erase success\n");
 
   uint8_t buf[geo.blocksize];
   size_t numBlocksToWrite = fileSize / geo.blocksize;
@@ -797,7 +852,7 @@ static int flash_file(const char *path, off_t size, off_t offset)
     ssize_t writtenBlocks = MTD_BWRITE(_mtd, i + numBlocksToSkip, 1, buf);
     if (writtenBlocks != 1)
     {
-      error("Error while writing block %d to flash", i);
+      error("Error while writing block %d to flash\n", i);
       goto cleanup;
     }
 
@@ -808,12 +863,15 @@ static int flash_file(const char *path, off_t size, off_t offset)
     {
       lastPercentSent = percentDone / 10;
 
-      info("Flashing %d%% complete", percentDone);
+      info("Flashing %d%% complete\n", percentDone);
     }
 
 #define NUTTX_UPDATE_VERIFY 0
 #if NUTTX_UPDATE_VERIFY > 0
     uint8_t verify[geo.blocksize];
+    //
+    //  Don't we need to add numBlocksToSkip here?
+    //
     MTD_BREAD(_mtd, i, 1, verify);
 
     if (memcmp(buf, verify, geo.blocksize) != 0)
@@ -823,7 +881,7 @@ static int flash_file(const char *path, off_t size, off_t offset)
     }
 #endif
   }
-  info("Flash operation complete");
+  info("Flash operation complete\n");
 cleanup:
   close(filefd);
   // if(cmdData->logLevel != LOG_NONE)
@@ -886,7 +944,6 @@ int hcom_nx_exec_ex_flash_OS_update_flash1(void)
  *
  * Description:
  *   Part 2 update - Update the runtime system.
- *   flash.
  * 
  * Input Parameters:
  *   None.
@@ -909,4 +966,116 @@ int hcom_nx_exec_ex_flash_OS_update_flash2(void)
     return ret;
   hcom_nx_common_utils_host_restart_meadow();
   return 0; // restarts; never actually returns
+}
+
+/****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_persistent_data_location
+ *
+ * Description:
+ *   Get the location of the OS persistent data in flash memory.  This is one
+ *   erase block past the start of the OtA data block.
+ * 
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *  Location in flash of the OS persistent data.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+uint32_t hcom_nx_exec_ex_flash_persistent_data_location(void)
+{
+  uint32_t location = HCOM_NX_FS_MONO_RAW_PARTITION_SIZE + HCOM_NX_FS_NUTTX_UPDATE_SIZE;
+  location += hcom_nx_exec_ex_flash_get_erase_block_size();
+  return(location);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_read_persistent_data
+ *
+ * Description:
+ *   Read the OS persistent data from flash and copy it into the block of
+ *   memory pointed to by data.
+ * 
+ * Input Parameters:
+ *   data - Block of memory large enough to hold the persistent data.
+ *
+ * Returned Value:
+ *  OK if successful, -1 or -errno if there was a problem.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+int hcom_nx_exec_ex_flash_read_persistent_data(meadow_os_persistent_data_t *data)
+{
+  static_assert(sizeof(meadow_os_persistent_data_t) <= OS_PERSISTENT_DATA_SIZE);
+
+  if (data == NULL)
+  {
+    return(-EINVAL);
+  }
+
+  uint8_t *buffer = zalloc(OS_PERSISTENT_DATA_SIZE);
+  if (buffer == NULL)
+  {
+    return(-ENOMEM);
+  }
+
+  uint32_t location = hcom_nx_exec_ex_flash_persistent_data_location();
+  uint32_t pageLocation = location / hcom_nx_exec_ex_flash_get_block_size();
+  size_t pagesToRead = OS_PERSISTENT_DATA_SIZE / hcom_nx_exec_ex_flash_get_block_size();
+  // hcom_nx_exec_ex_flash_read_absolute_block(pageLocation, buffer);
+  
+  size_t pagesRead = MTD_BREAD(_mtd, pageLocation, pagesToRead, buffer);
+  if (pagesRead != pagesToRead)
+  {
+    free(buffer);
+    return(-EIO);
+  }
+  memcpy(data, buffer, sizeof(meadow_os_persistent_data_t));
+
+  free(buffer);
+
+  return(OK);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_OS_update_flash2
+ *
+ * Description:
+ *   Write the persistent data to flash.
+ * 
+ * Input Parameters:
+ *   data - pointer to the persistent data to be written to flash.
+ *
+ * Returned Value:
+ *  OK if successful, -1 or -errno if there was a problem.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+int hcom_nx_exec_ex_flash_write_persistent_data(meadow_os_persistent_data_t *data)
+{
+  static_assert(sizeof(meadow_os_persistent_data_t) <= OS_PERSISTENT_DATA_SIZE);
+
+  if (data == NULL)
+  {
+    return(-EINVAL);
+  }
+
+  uint8_t *buffer = (uint8_t *) zalloc(OS_PERSISTENT_DATA_SIZE);
+  if (buffer == NULL)
+  {
+    return(-ENOMEM);
+  }
+  memcpy(buffer, data, sizeof(meadow_os_persistent_data_t));
+  uint32_t location = hcom_nx_exec_ex_flash_persistent_data_location();
+  int result = hcom_nx_exec_ex_flash_write_buffer_to_flash(buffer, OS_PERSISTENT_DATA_SIZE, location);
+  free(buffer);
+
+  return(result);
 }

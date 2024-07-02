@@ -4,7 +4,8 @@
         "socket.h": "c",
         "meadow_kernel_tests.h": "c",
         "network_tests.h": "c",
-        "meadow_debug_helpers.h": "c"
+        "meadow_debug_helpers.h": "c",
+        "meadow_os.h": "c"
     },
     "cSpell.words": [
         "cppcheck",

@@ -129,6 +129,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   //  The bootloader will have put the reset reason into BBR30 for us.
   //
   syslog(1, "Meadow reset code: 0x%02x\n", meadow_os_reset_reason());
+  meadow_os_reset_update_counters();
 
   //
   //  We need to perform early initialisation of the ESP system to put

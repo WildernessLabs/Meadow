@@ -70,6 +70,7 @@
 #include <meadow/hcom_upd_shared.h>
 #include <meadow/hcom_protocol.h>
 #include <meadow/meadow_thread_config.h>
+#include <meadow/meadow_os_persistent_data.h>
 
 #include "../../bootloader/Core/Inc/ota_data.h"
 
@@ -165,8 +166,11 @@ extern "C"
   int hcom_nx_exec_ex_flash_OS_update_flash1(void);
   int hcom_nx_exec_ex_flash_OS_update_flash2(void);
   uint32_t hcom_nx_exec_ex_flash_get_block_size(void);
+  int hcom_nx_exec_ex_flash_get_geometry(struct mtd_geometry_s *);
   int hcom_nx_exec_ex_flash_read_absolute_block(uint32_t blockNumber, void *destinationAddress);
   int hcom_nx_exec_ex_flash_copy_blocks_to_memory(uint32_t startBlock, void *destinationAddress, uint32_t numberOfBlocks);
+  int hcom_nx_exec_ex_flash_read_persistent_data(meadow_os_persistent_data_t *data);
+  int hcom_nx_exec_ex_flash_write_persistent_data(meadow_os_persistent_data_t *data);
   
   // Syslog tracing
   int hcom_nx_exec_trace_do_not_send_to_host(struct hcom_nx_cmd_data *cmdData);

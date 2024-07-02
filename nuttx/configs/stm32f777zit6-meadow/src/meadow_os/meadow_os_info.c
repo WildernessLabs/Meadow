@@ -43,6 +43,7 @@
 
 #include <meadow/meadow_os.h>
 #include <meadow/meadow_hw_version.h>
+#include <meadow/meadow_os_persistent_data.h>
 #include <meadow/hcom_bbreg_defn.h>
 
 #include "../hcom_nx/hcom_nx_config_manager.h"
@@ -64,6 +65,16 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+
+/**
+ * @brief Number of times the board has been reset due to power on / power loss
+ */
+static uint32_t _power_cycle_count = 0;
+
+/**
+ * @brief Number of times the board has been reset.
+ */
+static uint32_t _reset_cycle_count = 0;
 
 /****************************************************************************
  * Private Functions
@@ -91,7 +102,7 @@
  ****************************************************************************/
 uint32_t meadow_os_power_cycle_count(void)
 {
-    return(0);
+    return(_power_cycle_count);
 }
 
 /****************************************************************************
@@ -113,7 +124,7 @@ uint32_t meadow_os_power_cycle_count(void)
  ****************************************************************************/
 uint32_t meadow_os_reset_cycle_count(void)
 {
-    return(0);
+    return(_reset_cycle_count);
 }
 
 /****************************************************************************
@@ -135,6 +146,72 @@ uint32_t meadow_os_reset_cycle_count(void)
 uint32_t meadow_os_reset_reason(void)
 {
     return((getreg32(HCOM_NX_MEADOW_RESET_REASON_BBR) & 0xff000000) >> 24);
+}
+
+/****************************************************************************
+ * Name: meadow_os_reset_update_counters
+ *
+ * Description:
+ *  Use the reset reason to update the reset counters.
+ * 
+ *  The reset counter is normally always incremented.  The power cycle counter
+ *  is only incremented if the reset reason is a power related.
+ * 
+ *  The counters are read from the OS permanent storage on flash, updated and
+ *  then written back to flash.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  OK if successful, ERROR otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+int meadow_os_reset_update_counters(void)
+{
+    meadow_os_persistent_data_t data;
+
+    if (hcom_nx_exec_ex_flash_read_persistent_data(&data) != OK)
+    {
+        return(ERROR);
+    }
+
+    //
+    //  We need to check if the flash has been erased in which case we
+    //  need to initialise data with some sensible values.
+    //
+    //  Newly erased flash will have the entire sector set to 0xff.
+    //
+    if (data.version == 0xffffffff)
+    {
+        memset(&data, 0, sizeof(meadow_os_persistent_data_t));
+        data.version = OS_PERSISTENT_DATA_VERSION;
+    }
+
+    data.reset_count++;
+    uint8_t power_flags = MEADOW_OS_RESET_BROWNOUT
+                        | MEADOW_OS_RESET_POWER_CYCLE
+                        | MEADOW_OS_RESET_LOW_POWER;
+    uint32_t reason = meadow_os_reset_reason();
+    if ((reason & power_flags) || (reason == 0))
+    {
+        data.power_cycle_count++;
+    }
+
+    if (hcom_nx_exec_ex_flash_write_persistent_data(&data) != OK)
+    {
+        return(ERROR);
+    }
+
+    _power_cycle_count = data.power_cycle_count;
+    _reset_cycle_count = data.reset_count;
+
+    MEADOW_TRACE_INFORMATION("Reset cycle count: %d, Power cycle count: %d\n",
+                            data.reset_count, data.power_cycle_count);
+    return(OK);
 }
 
 /****************************************************************************
