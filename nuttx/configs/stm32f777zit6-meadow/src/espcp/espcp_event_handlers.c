@@ -622,6 +622,7 @@ void espcp_pass_to_managed_event_handler(espcp_message_t *message)
     if (hcom_nx_bbreg_is_bbr_bit_set(HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT))
     {
         MEADOW_TRACE_INFORMATION("Mono is disabled, message for managed code will be deleted.\n");
+        MEADOW_TRACE_INFORMATION("Message interface: %d, function: %d, status code: %d\n", message->interface, message->function, message->status_code);
         delete_message = true;
     }
     else
