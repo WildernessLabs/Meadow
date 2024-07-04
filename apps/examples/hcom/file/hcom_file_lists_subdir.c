@@ -242,7 +242,7 @@ int hcom_file_lists_all_files_in_subdirectories(const HcomProtoHdrMsg_t *hdrMsg,
                   fileInformation, thisFile, __LINE__);
 
     hcom_logging_syslog(LOG_INFO,
-              "%s@%d-A total of %ul file%s using %lu KB (%d bytes) and %d director%s \n",
+              "%s@%d-A total of %lu file%s using %lu KB (%d bytes) and %d director%s \n",
               thisFile, __LINE__,
               fileCount, fileCount == 1 ? "" : "s",
               totalFlashSizeKB, totalSizeOfFiles,
