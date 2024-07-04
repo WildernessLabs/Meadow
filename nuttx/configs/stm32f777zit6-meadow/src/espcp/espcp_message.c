@@ -475,4 +475,17 @@ void espcp_dump_message(espcp_message_t *message)
     MEADOW_TRACE_INFORMATION("************************************************************\n");
 }
 
-#endif
+#else
+
+/**
+ *  @brief Dump the given message to the debug output.
+ * 
+ * This is intentionally empty as the debug helpers are not enabled and is here to ensure that the system will link
+ * correctly if the debug helpers are not enabled in this file but are enabled elsewhere.
+ */
+void espcp_dump_message(espcp_message_t *message)
+{
+
+}
+
+#endif // USE_MEADOW_DEBUG_HELPERS
