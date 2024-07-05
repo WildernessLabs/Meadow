@@ -39,6 +39,7 @@
 
 #include <meadow/hcom_protocol.h>
 #include <meadow/meadow_os.h>
+#include <meadow/meadow_ntpc.h>
 
 #include <mqueue.h>
 #include <string.h>
@@ -73,6 +74,8 @@ static bool cell_connected = false;
 static char *cell_at_cmds_output;
 static hcom_pppd_handler_t hcom_cell_handler;
 static hcom_cell_err_t cell_err;
+static bool ntpc_thread_running = false;
+static pthread_mutex_t ntpc_thread_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /****************************************************************************
  * Private Functions
@@ -309,6 +312,53 @@ int meadow_get_cell_error (void)
   return (int)cell_err;
 }
 
+void* hcom_pppd_ntpc_thread(void* arg)
+{
+    meadow_ntpc_start();
+
+    pthread_mutex_lock(&ntpc_thread_mutex);
+    ntpc_thread_running = false;
+    pthread_mutex_unlock(&ntpc_thread_mutex);
+
+    return NULL;
+}
+
+void hcom_pppd_start_ntpc_thread_if_not_running()
+{
+    pthread_mutex_lock(&ntpc_thread_mutex);
+    if (!ntpc_thread_running)
+    {
+        pthread_t thread;
+        pthread_attr_t attr;
+        struct sched_param param;
+        int ret;
+        
+        // Initialize thread attributes
+        pthread_attr_init(&attr);
+
+        size_t stack_size = HCOM_THREAD_STACKSIZE_CELL_PPPD;
+        pthread_attr_setstacksize(&attr, stack_size);
+
+        pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
+        pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
+
+        param.sched_priority = HCOM_THREAD_PRIORITY_CELL_PPPD;
+        pthread_attr_setschedparam(&attr, &param);
+
+        // Create the pthread to run ntpc_thread
+        ret = pthread_create(&thread, &attr, hcom_pppd_ntpc_thread, NULL);
+        if (ret != 0)
+        {
+            hcom_logging_syslog(LOG_ERR, "%s-%d-Error creating NTP thread: %d\n", thisFile, __LINE__, ret);
+        } 
+        else
+        {
+            ntpc_thread_running = true;
+        }
+    }
+    pthread_mutex_unlock(&ntpc_thread_mutex);
+}
+
 void meadow_cell_connected_event(void) 
 {
     hcom_logging_syslog(LOG_INFO, "%s-%d-Cell network has been successfully connected\n", thisFile, __LINE__);
@@ -324,6 +374,16 @@ void meadow_cell_connected_event(void)
     uint8_t *encodedData = (uint8_t *) malloc(encodedEventDataSize);
 
     cell_connected = true;
+
+    meadow_configuration_t *config = meadow_os_deep_copy_config();
+    bool get_time = config->get_network_time_at_startup;
+
+    if (get_time)
+    {
+        hcom_pppd_start_ntpc_thread_if_not_running();
+    }
+
+    meadow_os_config_free_resources(config);
 
     espcp_encode_event_data(&message, encodedData);
 

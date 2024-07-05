@@ -3129,3 +3129,36 @@ void hcom_nx_config_init(void)
         syslog(LOG_ERR, "Configuration should only be initialised once.\n");
     }
 }
+
+/****************************************************************************
+ * Name: map_interface_type_to_espcp_interface
+ *
+ * Description:
+ *  Converts the provided interface type to the corresponding espcp_esp32_interfaces_t
+ *  enumeration value.
+ *
+ * Input Parameters:
+ *  interface_type - The interface type value to be converted. This value should be one of
+ *                   the MEADOW_IFT_* defines (e.g., MEADOW_IFT_ESP32, MEADOW_IFT_ETHERNET, MEADOW_IFT_CELL).
+ *
+ * Returned Value:
+ *  Returns the corresponding espcp_esp32_interfaces_t value.
+ *  If the provided interface_type does not match any known types, espcp_esp32_interfaces_none is returned.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+espcp_esp32_interfaces_t hcom_nx_map_interface_type_to_espcp_interface(uint32_t interface_type)
+{
+    switch (interface_type) {
+        case MEADOW_IFT_ESP32:
+            return espcp_esp32_interfaces_wi_fi;
+        case MEADOW_IFT_ETHERNET:
+            return espcp_esp32_interfaces_wired_ethernet;
+        case MEADOW_IFT_CELL:
+            return espcp_esp32_interfaces_cell;
+        default:
+            return espcp_esp32_interfaces_none;
+    }
+}

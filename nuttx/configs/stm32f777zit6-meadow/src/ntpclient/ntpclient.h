@@ -71,8 +71,8 @@
 #  define CONFIG_NETUTILS_NTPCLIENT_SIGWAKEUP 18
 #endif
 
-#define NTP_INITIAL_SOCKET_TIMEOUT      5
-#define NTP_MAXIMUM_SOCKET_TIMEOUT      40
+#define NTP_INITIAL_SOCKET_TIMEOUT      120
+#define NTP_MAXIMUM_SOCKET_TIMEOUT      300
 
 /****************************************************************************
  * Public Types

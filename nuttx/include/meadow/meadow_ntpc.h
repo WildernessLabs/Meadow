@@ -1,6 +1,6 @@
 /****************************************************************************
- * meadow_watchdogs.h
- *
+ * meadow_ntpc.h
+ * 
  *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
@@ -32,44 +32,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-
-#ifndef __MEADOW_WATCHDOGS_H
-#define __MEADOW_WATCHDOGS_H
-
-/****************************************************************************
- * Included Files
- ****************************************************************************/
-
-#include <unistd.h>
-#include <syslog.h>
+#ifndef __MEADOW_NTPC_H
+#define __MEADOW_NTPC_H
 
 #include <nuttx/config.h>
-#include <nuttx/timers/watchdog.h>
 
 #include <meadow/hcom_shared_common.h>
-#include <meadow/meadow_os.h>
 
-#include "../nuttx/wdog.h"
+void meadow_ntpc_start(void);
 
-/****************************************************************************
- * Preprocessor Definitions
- ****************************************************************************/
-
-#define ENABLE_MEADOW_WATCHDOGS
-
-#define WATCHDOG_POLL_TIMEOUT_MILLISECONDS    (300 * 1000)
-#define WATCHDOG_CLOSE_TIMEOUT_MILLISECONDS   (300 * 1000)
-#define WATCHDOG_SOCKET_TIMEOUT_MILLISECONDS  (300 * 1000)
-#define WATCHDOG_RECV_TIMEOUT_MILLISECONDS    (300 * 1000)
-#define WATCHDOG_SEND_TIMEOUT_MILLISECONDS    (300 * 1000)
-#define WATCHDOG_SENDTO_TIMEOUT_MILLISECONDS  (300 * 1000)
-
-/****************************************************************************
- * Public Function Prototypes
- ****************************************************************************/
-
-void meadow_watchdog_reset_system(int argc, char *argv[]);
-void meadow_watchdog_activate(struct wdog_s *watchdog, uint32_t timeout);
-void meadow_watchdog_deactivate(struct wdog_s *watchdog);
-
-#endif /* __MEADOW_WATCHDOGS_H */
+#endif /* __MEADOW_NTPC_H */

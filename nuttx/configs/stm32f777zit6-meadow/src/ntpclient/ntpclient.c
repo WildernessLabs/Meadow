@@ -387,7 +387,24 @@ void ntpc_raise_time_changed_event(enum espcp_esp32_interfaces interface)
     {
         message->message_type = espcp_message_types_event;
         message->interface = interface;
-        message->function = espcp_wi_fi_function_ntp_update_event;
+
+        switch (interface)
+        {
+            case espcp_esp32_interfaces_wi_fi:
+                message->function = espcp_wi_fi_function_ntp_update_event;
+                break;
+            case espcp_esp32_interfaces_cell:
+                message->function = espcp_cell_function_ntp_update_event;
+                break;
+            case espcp_esp32_interfaces_wired_ethernet:
+                message->function = espcp_ethernet_function_ntp_update_event;
+                break;
+            default:
+                // Handle unknown interface
+                message->function = espcp_wi_fi_function_ntp_update_event;
+                break;
+        }
+
         message->status_code = espcp_status_codes_completed_ok;
         espcp_dispatch_event(message);
     }
@@ -431,10 +448,12 @@ static uint32_t ntpc_daemon(void)
     int current_server = 0;
     char server_name[64];
     int retry_count = 0;
-    while (getting_time && (retry_count < 3))
+    while (getting_time && (retry_count < 10))
     {
         hcom_nx_config_lock();
         config = hcom_nx_config_get_pointer();
+        uint32_t default_interface_type = config->default_interface->interface_type;
+        enum espcp_esp32_interfaces espcp_esp32_interface = hcom_nx_map_interface_type_to_espcp_interface(default_interface_type);
         strncpy(server_name, config->ntp_servers[current_server], 64);
         hcom_nx_config_unlock();
         MEADOW_TRACE_INFORMATION("Getting time from %s\n", server_name);
@@ -456,7 +475,7 @@ static uint32_t ntpc_daemon(void)
                     sched_unlock();
                     getting_time = false;
                     MEADOW_TRACE_INFORMATION("Time received from server.\n");
-                    ntpc_raise_time_changed_event(espcp_esp32_interfaces_wi_fi);
+                    ntpc_raise_time_changed_event(espcp_esp32_interface);
                 }
             }
             close(sd);

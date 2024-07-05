@@ -135,7 +135,8 @@ enum espcp_esp32_interfaces
     espcp_esp32_interfaces_mesh_network = 3,
     espcp_esp32_interfaces_system = 4,
     espcp_esp32_interfaces_transport = 5,
-    espcp_esp32_interfaces_wired_ethernet = 6
+    espcp_esp32_interfaces_wired_ethernet = 6,
+    espcp_esp32_interfaces_cell = 7
 };
 typedef enum espcp_esp32_interfaces espcp_esp32_interfaces_t;
 
@@ -230,6 +231,30 @@ enum espcp_bluetooth_function
     espcp_bluetooth_function_client_write_request_event = 4
 };
 typedef enum espcp_bluetooth_function espcp_bluetooth_function_t;
+
+/*
+ *    Cell functions available on the ESP32
+ */
+enum espcp_cell_function
+{
+    espcp_cell_function_network_connected_event = 0,
+    espcp_cell_function_network_disconnected_event = 1,
+    espcp_cell_function_error_event = 2,
+    espcp_cell_function_at_cmd_event = 4,
+    espcp_cell_function_ntp_update_event = 5,
+};
+typedef enum espcp_cell_function espcp_cell_function_t;
+
+/*
+ *    Ethernet functions available on the ESP32
+ */
+enum espcp_ethernet_function
+{
+    espcp_ethernet_function_network_connected_event = 36,
+    espcp_ethernet_function_network_disconnected_event = 37,
+    espcp_ethernet_function_ntp_update_event = 38,
+};
+typedef enum espcp_ethernet_function espcp_ethernet_function_t;
 
 /*
  *    Transport functions available on the ESP32

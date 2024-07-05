@@ -199,6 +199,11 @@ CSRCS += misc/meadow_client_cert.c
 CSRCS += misc/meadow_watchdog.c
 
 #
+#	Add Meadow NTP custom implementation
+#
+CSRCS += misc/meadow_ntpc.c
+
+#
 #	Add Meadow Cloud support
 #
 CSRCS += meadow_cloud/meadow_cloud.c

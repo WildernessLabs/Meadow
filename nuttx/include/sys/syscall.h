@@ -577,8 +577,10 @@
 #  define SYS_meadow_cloud_release_private_key                SYS_getrandom
 #endif
 
-#  define SYS_meadow_client_cert_retrieve_credentials        (SYS_meadow_cloud_release_private_key + 1)
-#  define SYS_meadow_client_cert_release_credentials         (SYS_meadow_cloud_release_private_key + 2)
+#  define SYS_meadow_ntpc_start   (SYS_meadow_cloud_release_private_key + 1)
+
+#  define SYS_meadow_client_cert_retrieve_credentials        (SYS_meadow_ntpc_start + 1)
+#  define SYS_meadow_client_cert_release_credentials         (SYS_meadow_ntpc_start + 2)
 
 #if defined(CONFIG_ARCH_BOARD_MEADOW)
 #  define SYS_meadow_os_deep_copy_config                (SYS_meadow_client_cert_release_credentials + 1)
