@@ -40,26 +40,56 @@
 
 #include <syslog.h>
 
+
+#if defined(MEADOW_USE_HCOM_DEBUG_HELPERS)
+
+/**
+ *  The following trace macros are always defined.
+ */
+#define MEADOW_CRITICAL_LOG(format, ...) hcom_logging_syslog((LOG_CRIT), format, ##__VA_ARGS__)
+#define MEADOW_EMERGENCY_LOG(format, ...) hcom_logging_syslog((LOG_EMERG), format, ##__VA_ARGS__)
+
+#else
+
 /**
  *  The following trace macros are always defined.
  */
 #define MEADOW_CRITICAL_LOG(format, ...) syslog((LOG_CRIT), format, ##__VA_ARGS__)
 #define MEADOW_EMERGENCY_LOG(format, ...) syslog((LOG_EMERG), format, ##__VA_ARGS__)
 
+#endif
+
 /**
  *  Define USE_MEADOW_DEBUG_HELPERS in your source file and then include this file to use these defintions.
  */
-#if defined(USE_MEADOW_DEBUG_HELPERS)
-
-#warning "Meadow debug helpers are active, this may interfere with .NET applications!"
+#if defined(USE_MEADOW_DEBUG_HELPERS) || defined(MEADOW_USE_HCOM_DEBUG_HELPERS)
 
 // #if defined(__KERNEL__) && defined(CONFIG_BUILD_PROTECTED)
-#if defined(CONFIG_BUILD_PROTECTED)
+#if defined(CONFIG_BUILD_PROTECTED) && !defined(MEADOW_USE_HCOM_DEBUG_HELPERS)
     #define LOG_INFO    1
     #define LOG_DEBUG   1
     #define LOG_CRIT    1
     #define LOG_ERR     1
 #endif
+
+#if defined(MEADOW_USE_HCOM_DEBUG_HELPERS)
+
+#pragma message "Meadow HCOM debug helpers are active, this may interfere with .NET applications!"
+
+//
+//  Trace and debug output macros from user space (HCOM etc.)
+//
+#define MEADOW_TRACE_INFORMATION(format, ...) hcom_logging_syslog((LOG_INFO), format, ##__VA_ARGS__)
+
+#define MEADOW_TRACE_DEBUG(format, ...) hcom_logging_syslog((LOG_DEBUG), format, ##__VA_ARGS__)
+
+#define MEADOW_TRACE_ERROR(format, ...) hcom_logging_syslog((LOG_CRIT), format, ##__VA_ARGS__)
+
+#define MEADOW_TRACE_CRITICAL(format, ...) hcom_logging_syslog((LOG_CRIT), format, ##__VA_ARGS__)
+
+#else
+
+#pragma message "Meadow OS debug helpers are active, this may interfere with .NET applications!"
 
 //
 //  Trace and debug output macros.
@@ -71,6 +101,10 @@
 #define MEADOW_TRACE_ERROR(format, ...) syslog((LOG_CRIT), format, ##__VA_ARGS__)
 
 #define MEADOW_TRACE_CRITICAL(format, ...) syslog((LOG_CRIT), format, ##__VA_ARGS__)
+
+#endif
+
+
 
 //
 //  Turn optimisation off for files with Meadow debug helpers turned on.
