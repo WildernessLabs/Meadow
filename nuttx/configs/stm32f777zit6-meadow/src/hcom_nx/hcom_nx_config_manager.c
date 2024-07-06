@@ -204,7 +204,8 @@ static char *esp_log_component_names[] = {
     "bluetooth",
     "thread",
     "spi",
-    "messages"
+    "messages",             // Messages between the STM32 and ESP32
+    "buffers",              // Contents of buffers on the ESP32 (e.g. sendto buffer)               
 };
 
 /****************************************************************************
@@ -1728,7 +1729,7 @@ static char *hcom_nx_validate_esp_log_components(char *components)
                 if (!found)
                 {
                     kmm_free(duplicate);
-                    meadow_logging_write(mfl_error, "Info: unknown ESP log component, logging is turned off.");
+                    meadow_logging_write(mfl_error, "Info: Unknown ESP log component, logging is turned off.");
                     meadow_os_raise_simple_exception(espcp_status_codes_invalid_configuration_file);
                     return(NULL);
                 }
@@ -2671,7 +2672,7 @@ void hcom_nx_config_process_wifi_credentials_file(void)
             else
             {
                 //
-                // Invalid paramters
+                // Invalid parameters
                 //
                 meadow_logging_write(mfl_error, "Invalid WiFi credentials file\n");
                 meadow_os_raise_simple_exception(espcp_status_codes_invalid_WiFi_configuration_file);
@@ -2685,9 +2686,10 @@ void hcom_nx_config_process_wifi_credentials_file(void)
         if (err == CYAML_ERR_INVALID_VALUE)
         {
             //
-            // Invalid garbage in the file
+            //  The wifi.config.yaml file could not be processed.  This is usually due to a malformed file
+            //  or invalid data.
             //
-            meadow_logging_write(mfl_info, "Bad formation or garbage on the WiFi file.\n");
+            meadow_logging_write(mfl_info, "WiFi config file appears to be malformed or has invalid contents.\n");
             meadow_os_raise_simple_exception(espcp_status_codes_invalid_WiFi_configuration_file);
         }
         else
