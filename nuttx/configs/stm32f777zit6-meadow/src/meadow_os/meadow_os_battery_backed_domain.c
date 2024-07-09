@@ -35,9 +35,18 @@
 
 #include <nuttx/config.h>
 
+#include <stdint.h>
+#include <string.h>
+
 #include <nuttx/kmalloc.h>
 
 #include <arch/board/board.h>
+
+//
+//  Following two includes are needed for the battery backed register definitions.
+//
+#include "chip/stm32f76xx77xx_memorymap.h"
+#include "chip/stm32_rtcc.h"
 
 #include <meadow/meadow_os_battery_backed_domain.h>
 #include <meadow/hcom_bbreg_defn.h>
@@ -140,7 +149,7 @@ static bool meadow_os_bbd_is_bbr_address_valid(uint32_t address)
  *  None
  *
  ****************************************************************************/
-static bool inline meadow_os_bbd_is_bbr_number_valid(utin32_t number)
+static bool inline meadow_os_bbd_is_bbr_number_valid(uint32_t number)
 {
     return(number <= MEADOW_OS_BBD_REGISTER_NUMBER_MAX);
 }
@@ -163,7 +172,7 @@ static bool inline meadow_os_bbd_is_bbr_number_valid(utin32_t number)
  ****************************************************************************/
 static uint32_t inline *meadow_os_bbd_bbr_number_to_address(uint32_t number)
 {
-    return(MEADOW_OS_BBR_BASE_ADDRESS + (register_number * 4));
+    return((uint32_t *) (MEADOW_OS_BBR_BASE_ADDRESS + (number * 4)));
 }
 
 /****************************************************************************
@@ -194,11 +203,14 @@ static uint32_t inline *meadow_os_bbd_bbr_number_to_address(uint32_t number)
 void meadow_os_bbd_strdup_to_sram(const char *message)
 {
     meadow_os_bbd_clear_sram();
-    strncpy((char *) BATTERY_BACKED_DOMAIN_SRAM_ADDRESS, message, BATTERY_BACKED_DOMAIN_SRAM_LENGTH - 1);
+    if (message != NULL)
+    {
+        strncpy((char *) BATTERY_BACKED_DOMAIN_SRAM_ADDRESS, message, BATTERY_BACKED_DOMAIN_SRAM_LENGTH - 1);
+    }
 }
 
 /****************************************************************************
- * Name: meadow_os_bbd_sram_strdup
+ * Name: meadow_os_bbd_strdup_from_sram
  *
  * Description:
  *  Duplicate the string held in battery backed RAM
@@ -216,9 +228,9 @@ void meadow_os_bbd_strdup_to_sram(const char *message)
  *  Caller will release the memory holding the duplicated string.
  *
  ****************************************************************************/
-char *meadow_os_bbd_sram_strdup(void)
+char *meadow_os_bbd_strdup_from_sram(void)
 {
-    return(strndup((char *) BATTERY_BACKED_DOMAIN_SRAM_ADDRESS), BATTERY_BACKED_DOMAIN_SRAM_LENGTH - 1);
+    return(strndup((char *) BATTERY_BACKED_DOMAIN_SRAM_ADDRESS, BATTERY_BACKED_DOMAIN_SRAM_LENGTH - 1));
 }
 
 /****************************************************************************
@@ -263,7 +275,7 @@ int meadow_os_bbd_register_get_value(uint32_t register_number, uint32_t *value)
 {
     int result = OK;
 
-    if (!meadow_os_nnd_is_bbr_number_valid(register_number))
+    if (!meadow_os_bbd_is_bbr_number_valid(register_number))
     {
         result = ERROR;
     }
@@ -296,13 +308,13 @@ int meadow_os_bbd_register_set_value(uint32_t register_number, uint32_t value)
 {
     int result = OK;
 
-    if (!meadow_os_nnd_is_bbr_number_valid(register_number))
+    if (!meadow_os_bbd_is_bbr_number_valid(register_number))
     {
         result = ERROR;
     }
     else
     {
-        setreg32(meadow_os_bbd_bbr_number_to_address(register_number), value);
+        putreg32(value, meadow_os_bbd_bbr_number_to_address(register_number));
     }
 
     return(result);
@@ -329,7 +341,7 @@ int meadow_os_bbd_register_set_bits(uint32_t register_number, uint32_t value)
 {
     int result = OK;
 
-    if (!meadow_os_nnd_is_bbr_number_valid(register_number))
+    if (!meadow_os_bbd_is_bbr_number_valid(register_number))
     {
         result = ERROR;
     }
@@ -338,10 +350,10 @@ int meadow_os_bbd_register_set_bits(uint32_t register_number, uint32_t value)
         uint32_t *address = meadow_os_bbd_bbr_number_to_address(register_number);
         uint32_t current_value = getreg32(address);
         current_value |= value;
-        setreg32(address, current_value);
+        putreg32(current_value, address);
     }
 
-    return(result§);
+    return(result);
 }
 
 /****************************************************************************
@@ -365,7 +377,7 @@ int meadow_os_bbd_register_clear_bits(uint32_t register_number, uint32_t value)
 {
     int result = OK;
 
-    if (!meadow_os_nnd_is_bbr_number_valid(register_number))
+    if (!meadow_os_bbd_is_bbr_number_valid(register_number))
     {
         result = ERROR;
     }
@@ -374,7 +386,7 @@ int meadow_os_bbd_register_clear_bits(uint32_t register_number, uint32_t value)
         uint32_t *address = meadow_os_bbd_bbr_number_to_address(register_number);
         uint32_t current_value = getreg32(address);
         current_value &= ~value;
-        setreg32(address, current_value);
+        putreg32(current_value, address);
     }
 
     return(result);

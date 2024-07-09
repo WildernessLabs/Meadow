@@ -49,6 +49,7 @@
 #include "hcom_nx_config_manager.h"
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/meadow_os.h>
+#include <meadow/meadow_os_fault_handling.h>
 
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 #include <meadow/meadow_hw_version.h>
@@ -161,6 +162,12 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   // Start trace messaging if so configured
   hcom_nx_trace_insure_correct_config((config->use_uart1_for_trace ? true : false), false, (config->use_uart1_for_profiling ? true : false));
   hcom_nx_config_unlock();
+
+  meadow_os_fault_handler_check_fault_code();
+
+  // usleep(1000000);
+
+  // *((uint32_t *) NULL) = 0;  //  Force a fault to test the fault handling system.
 
   //
   //  Set the system clock to the OS build time to help with SSL.

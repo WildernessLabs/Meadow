@@ -74,7 +74,21 @@
 // preferences can survive a restart.
 #define HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER  (STM32_RTC_BK31R)
 
+//
+//  This register is used by the bootloader to send the reset reason to the
+//  NuttX.
+//
 #define HCOM_NX_MEADOW_RESET_REASON_BBR         (STM32_RTC_BK30R)
+#define HCOM_NX_MEADOW_RESET_REASON_BBR_NUM     30
+
+//
+//  This register is used by the fault handling system to record information
+//  about the source of the last fault.
+//
+//  See meadow_os_fault_handling.c for more information.
+//
+#define HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR      (STM32_RTC_BK29R)
+#define HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM  29
 
 #define HCOM_BBREG_RESTART_ALL_32_BITS_MASK 0xffffffff
 // This mask defines the syslog level
