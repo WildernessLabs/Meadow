@@ -59,7 +59,6 @@
 
 #include <nuttx/board.h>
 #include <nuttx/mm/mm.h>
-#include <nuttx/config.h>
 #include <limits.h>
 
 #include <nuttx/arch.h>
