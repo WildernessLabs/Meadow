@@ -413,7 +413,7 @@ void hcom_mono_remote_dbg_read_mono_send_to_host_loop(struct remote_dbg_session 
     if (firstDebugMessage == 1)
     {
       firstDebugMessage = 0;
-      usleep(2000000);
+      usleep(4000000);
     }
 
     // Forward data as-is to CLI to forward to VS
