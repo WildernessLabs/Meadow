@@ -44,7 +44,6 @@
 #include <debug.h>
 
 #include <nuttx/net/net.h>
-#include <meadow/meadow_watchdog.h>
 
 #include "socket/socket.h"
 
@@ -102,9 +101,6 @@ int psock_poll(FAR struct socket *psock, FAR struct pollfd *fds, bool setup)
 
 int net_poll(int sockfd, struct pollfd *fds, bool setup)
 {
-  struct wdog_s g_watchdog_poll;
-  meadow_watchdog_activate(&g_watchdog_poll, WATCHDOG_POLL_TIMEOUT_MILLISECONDS);
-
   FAR struct socket *psock;
   int ret;
 
@@ -119,7 +115,6 @@ int net_poll(int sockfd, struct pollfd *fds, bool setup)
   psock = sockfd_socket(sockfd);
   if (!psock || psock->s_crefs <= 0)
     {
-      meadow_watchdog_deactivate(&g_watchdog_poll);
       return -EBADF;
     }
 
@@ -128,7 +123,6 @@ int net_poll(int sockfd, struct pollfd *fds, bool setup)
   ret = psock_poll(psock, fds, setup);
   ninfo("result %d\n", ret);
 
-  meadow_watchdog_deactivate(&g_watchdog_poll);
   return ret;
 }
 

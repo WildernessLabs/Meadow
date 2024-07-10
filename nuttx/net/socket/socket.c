@@ -49,7 +49,6 @@
 
 #include "../../configs/stm32f777zit6-meadow/src/hcom_nx/hcom_nx_config_manager.h"
 #include <meadow/hcom_shared_common.h>
-#include <meadow/meadow_watchdog.h>
 
 #ifdef CONFIG_NET
 
@@ -218,9 +217,6 @@ int psock_socket(int domain, int type, int protocol, FAR struct socket *psock)
 
 int socket(int domain, int type, int protocol)
 {
-  struct wdog_s g_watchdog_socket;
-  meadow_watchdog_activate(&g_watchdog_socket, WATCHDOG_SOCKET_TIMEOUT_MILLISECONDS);
-
   FAR struct socket *psock;
   int errcode;
   int sockfd;
@@ -259,7 +255,6 @@ int socket(int domain, int type, int protocol)
 
   ninfo("socket exit %d\n", sockfd);
   
-  meadow_watchdog_deactivate(&g_watchdog_socket);
   return sockfd;
 
 errout_with_sockfd:
@@ -270,7 +265,6 @@ errout:
 
   ninfo("result %d\n", errcode);
 
-  meadow_watchdog_deactivate(&g_watchdog_socket);
   return ERROR;
 }
 
