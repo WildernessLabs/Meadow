@@ -61,7 +61,7 @@
 #include "up_internal.h"
 #include "chip.h"
 
-#include <meadow/meadow_os_fault_handling.h>
+#include <meadow/hcom_shared_common.h>
 
 /****************************************************************************
  * Pre-processor Definitions

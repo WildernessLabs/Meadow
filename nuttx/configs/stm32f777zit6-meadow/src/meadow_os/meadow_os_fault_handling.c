@@ -37,6 +37,7 @@
 
 #include <stdlib.h>
 
+#include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/meadow_os_fault_handling.h>
 #include <meadow/meadow_os_battery_backed_domain.h>
@@ -150,6 +151,13 @@ void meadow_os_fault_handler_check_fault_code(void)
             char *fault_string = meadow_os_bbd_strdup_from_sram();
             syslog(LOG_INFO, "Meadow OS Component has errored: %s\n", fault_string);
             free(fault_string);
+        }
+    }
+    else
+    {
+        if (_fault_status & FAULT_LOGGING_RT_COMPONENT_ERRORED)
+        {
+            syslog(LOG_INFO, "Meadow RT Component has errored.\n");
         }
     }
     //
