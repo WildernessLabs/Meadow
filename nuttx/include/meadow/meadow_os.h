@@ -107,6 +107,7 @@ int meadow_os_reset_update_counters(void);
 //
 uint32_t meadow_os_native_protocol_version(void);
 void meadow_os_raise_simple_exception(uint32_t);
+void meadow_os_reset_board(int);
 //
 //  ESP coprocessor specific methods.
 //
