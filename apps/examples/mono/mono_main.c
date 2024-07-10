@@ -32,6 +32,9 @@
 #include <meadow/hcom_shared_common.h>
 #include "../hcom/hcom_common.h"
 
+#include <meadow/meadow_os.h>
+#include <meadow/meadow_os_battery_backed_domain.h>
+
 #include "ota.h"
 
 typedef struct {
@@ -86,14 +89,14 @@ static void induce_reset (void)
 
 reset:
   // TODO: If the runtime is asking for an abort, it is unstable, and any further execution
-  // from any Mono thread is suspect, so waiting before resetting is a slight invititation for catastrophe.
+  // from any Mono thread is suspect, so waiting before resetting is a slight invitation for catastrophe.
   // However, this allows for HCOM and the user to catch a glimpse of the abort reason.
   // This should be removed when the Mono abort reason is saved across resets.
   fprintf(stderr, "Unrecoverable .NET Runtime error. Meadow will restart in 5 seconds\n");
   fflush (stderr);
   sleep(5);
 
-  *((int *) NULL) = 0;
+  meadow_os_reset_board(0);
 }
 
 /****************************************************************************
