@@ -48,6 +48,7 @@
 #include "chip/stm32f76xx77xx_memorymap.h"
 #include "chip/stm32_rtcc.h"
 
+#include <meadow/hcom_shared_common.h>
 #include <meadow/meadow_os_battery_backed_domain.h>
 #include <meadow/hcom_bbreg_defn.h>
 

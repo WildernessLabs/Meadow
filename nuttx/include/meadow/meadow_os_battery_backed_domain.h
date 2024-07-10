@@ -45,12 +45,12 @@
  * Public Functions
  ****************************************************************************/
 
-void meadow_os_bbd_strdup_to_sram(const char *);
 void meadow_os_bbd_clear_sram(void);
-char *meadow_os_bbd_strdup_from_sram(void);
-int meadow_os_bbd_register_get_value(uint32_t, uint32_t *);
-int meadow_os_bbd_register_set_value(uint32_t, uint32_t);
-int meadow_os_bbd_register_set_bits(uint32_t, uint32_t);
 int meadow_os_bbd_register_clear_bits(uint32_t, uint32_t);
+int meadow_os_bbd_register_get_value(uint32_t, uint32_t *);
+int meadow_os_bbd_register_set_bits(uint32_t, uint32_t);
+int meadow_os_bbd_register_set_value(uint32_t, uint32_t);
+char *meadow_os_bbd_strdup_from_sram(void);
+void meadow_os_bbd_strdup_to_sram(const char *);
 
 #endif // __MEADOW_OS_BATTERY_BACKED_DOMAIN_H
