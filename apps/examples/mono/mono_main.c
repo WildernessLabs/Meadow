@@ -99,7 +99,7 @@ static void induce_reset(void)
   //
   //  Now we actually start Phase 1.
   //
-  const char *assertion_msg = monoeg_get_assertion_message ();
+  const char *assertion_msg = monoeg_get_assertion_message();
   if (assertion_msg)
   {
     meadow_os_bbd_strdup_to_sram(assertion_msg);
@@ -146,6 +146,17 @@ static void induce_reset(void)
       fclose(crash_file);
       meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
     }
+    else
+    {
+      fault_status |= FAULT_LOGGING_RT_FILE_ERROR;
+      meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
+    }
+  }
+  else
+  {
+    meadow_os_bbd_strdup_to_sram("Mono error message is NULL.");
+    fault_status |= FAULT_LOGGING_RT_PHASE1_COMPLETED;
+    meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
   }
 
   // TODO: If the runtime is asking for an abort, it is unstable, and any further execution

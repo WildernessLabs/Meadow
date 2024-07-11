@@ -302,6 +302,11 @@
  */
 #define FAULT_LOGGING_RT_PHASE2_COMPLETED       (FAULT_LOGGING_PHASE2_COMPLETED << FAULT_LOGGING_RT_BIT_SHIFT)
 
+/**
+ * @brief File creation error (RT has tried to create a log file but failed).
+ */
+#define FAULT_LOGGING_RT_FILE_ERROR             ((1 << 5) << FAULT_LOGGING_RT_BIT_SHIFT)
+
 //==================================================
 //  Structure to hold cell network interface information
 struct cell_settings_s
