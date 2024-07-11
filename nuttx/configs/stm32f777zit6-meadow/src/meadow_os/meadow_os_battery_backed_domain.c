@@ -214,24 +214,23 @@ void meadow_os_bbd_strdup_to_sram(const char *message)
  * Name: meadow_os_bbd_strdup_from_sram
  *
  * Description:
- *  Duplicate the string held in battery backed RAM
+ *  Copy the string held in battery backed RAM into the specified location.
  * 
- *  The message will be truncated to the 4095 bytes (allowing 1 byte for the
- *  terminating NULL).
- *
  * Input Parameters:
- *  message - String to be saved.
+ *  destination - Location for the copy of the SRAM string.
+ *  length - Length of the destination buffer.  Ideally this should be 4096
+ *           bytes.
  *
  * Returned Value:
- *  Pointer to the duplicated string.
+ *  Pointer to destination.
  *
  * Assumptions/Limitations:
- *  Caller will release the memory holding the duplicated string.
+ *  None
  *
  ****************************************************************************/
-char *meadow_os_bbd_strdup_from_sram(void)
+char *meadow_os_bbd_strdup_from_sram(char *destination, int length)
 {
-    return(strndup((char *) BATTERY_BACKED_DOMAIN_SRAM_ADDRESS, BATTERY_BACKED_DOMAIN_SRAM_LENGTH - 1));
+    return(strncpy(destination, (char *) BATTERY_BACKED_DOMAIN_SRAM_ADDRESS, length));
 }
 
 /****************************************************************************

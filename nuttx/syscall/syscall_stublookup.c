@@ -443,7 +443,7 @@ uintptr_t  STUB_meadow_os_bbd_register_clear_bits(int nbr, uintptr_t parm1, uint
 uintptr_t  STUB_meadow_os_bbd_register_get_value(int nbr, uintptr_t parm1, uintptr_t parm2);
 uintptr_t  STUB_meadow_os_bbd_register_set_bits(int nbr, uintptr_t parm1, uintptr_t parm2);
 uintptr_t  STUB_meadow_os_bbd_register_set_value(int nbr, uintptr_t parm1, uintptr_t parm2);
-uintptr_t  STUB_meadow_os_bbd_strdup_from_sram(int nbr);
+uintptr_t  STUB_meadow_os_bbd_strdup_from_sram(int nbr, uintptr_t parm1, uintptr_t parm2);
 void STUB_meadow_os_bbd_strdup_to_sram(int nbr, uintptr_t parm1);
 uintptr_t STUB_meadow_os_reset_board(int nbr, uintptr_t parm1);
 #endif
