@@ -67,7 +67,14 @@ extern void mono_set_assemblies_path(const char *);
  * Name: induce_reset
  *
  * Description:
- *  
+ *  Registered Mono error handler.  This will be registered with Mono in
+ *  mono_main.
+ * 
+ *  The handler will eventually force the board to reset after the error
+ *  message has been written to BKPSRAM and a file.
+ * 
+ *  Note that any issues recording the error message will result in the
+ *  board being reset anyway.
  *
  * Input Parameters:
  *  None.
