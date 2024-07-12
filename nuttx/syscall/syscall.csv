@@ -77,7 +77,7 @@
 "meadow_os_bbd_register_get_value","meadow/meadow_os_battery_backed_domain.h","defined(CONFIG_ARCH_BOARD_MEADOW)","int","uint32_t","uint32_t *"
 "meadow_os_bbd_register_set_bits","meadow/meadow_os_battery_backed_domain.h","defined(CONFIG_ARCH_BOARD_MEADOW)","int","uint32_t","uint32_t"
 "meadow_os_bbd_register_set_value","meadow/meadow_os_battery_backed_domain.h","defined(CONFIG_ARCH_BOARD_MEADOW)","int","uint32_t","uint32_t"
-"meadow_os_bbd_strdup_from_sram","meadow/meadow_os_battery_backed_domain.h","defined(CONFIG_ARCH_BOARD_MEADOW)","char *","char *","int"
+"meadow_os_bbd_strdup_from_sram","meadow/meadow_os_battery_backed_domain.h","defined(CONFIG_ARCH_BOARD_MEADOW)","void","char *","int"
 "meadow_os_bbd_strdup_to_sram","meadow/meadow_os_battery_backed_domain.h","defined(CONFIG_ARCH_BOARD_MEADOW)","void","const char *"
 "meadow_os_config_free_resources","meadow/meadow_os.h","defined(CONFIG_ARCH_BOARD_MEADOW)","void","meadow_configuration_t *"
 "meadow_os_deep_copy_config","meadow/meadow_os.h","defined(CONFIG_ARCH_BOARD_MEADOW)","meadow_configuration_t *"

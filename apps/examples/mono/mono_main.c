@@ -151,6 +151,10 @@ static void induce_reset(void)
       fault_status |= FAULT_LOGGING_RT_FILE_ERROR;
       meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
     }
+    //
+    //  Try to use syslog as well in case something is listening to the serial port.
+    //
+    syslog(LOG_ERR, "Mono error message: %s\n", assertion_msg);
   }
   else
   {
