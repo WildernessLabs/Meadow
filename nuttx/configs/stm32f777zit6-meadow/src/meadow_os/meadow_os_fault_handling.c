@@ -187,9 +187,9 @@ static void meadow_os_fault_handler_process_os_fault(uint8_t fault)
     }
     else
     {
-        char *result = meadow_os_bbd_strdup_from_sram(fault_string, MEADOW_OS_BBD_SRAM_SIZE);
-        syslog(LOG_INFO, "Fault message:\n%s\n", fault_string);
-        syslog(LOG_INFO, "%s\n", result);
+        meadow_os_bbd_strdup_from_sram(fault_string, MEADOW_OS_BBD_SRAM_SIZE);
+        syslog(LOG_INFO, "Fault message:\n");
+        syslog(LOG_INFO, "%s\n", fault_string);
         free(fault_string);
     }
 }
@@ -236,9 +236,9 @@ static void meadow_os_fault_handler_process_rt_fault(uint8_t fault)
     }
     else
     {
-        char *result = meadow_os_bbd_strdup_from_sram(fault_string, MEADOW_OS_BBD_SRAM_SIZE);
-        syslog(LOG_INFO, "Fault message:\n%s\n", fault_string);
-        syslog(LOG_INFO, "%s\n", result);
+        meadow_os_bbd_strdup_from_sram(fault_string, MEADOW_OS_BBD_SRAM_SIZE);
+        syslog(LOG_INFO, "Fault message:\n");
+        syslog(LOG_INFO, "%s\n", fault_string);
         free(fault_string);
     }
 }
@@ -275,7 +275,11 @@ void meadow_os_fault_handler_check_fault_code(void)
         {
             meadow_os_fault_handler_process_os_fault(_fault_status && 0xff);
         }
-        else
+        //
+        //  We will check the runtime fault status in case the RT reporting faulted and
+        //  created an error in the OS (which will have been reported above).
+        //
+        if (_fault_status & FAULT_LOGGING_RT_COMPONENT_ERRORED)
         {
             meadow_os_fault_handler_process_rt_fault((_fault_status >> FAULT_LOGGING_RT_BIT_SHIFT) && 0xff);
         }
