@@ -46,12 +46,17 @@
 /****************************************************************************
  * Uncomment the #define below to turn on debug help macros.
  ****************************************************************************/
-// #define USE_MEADOW_DEBUG_HELPERS
+#define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
+/**
+ * @brief Number of bytes to reserve for the fault message.
+ */
+#define FAULT_BUFFER_LENGTH         256
 
 /****************************************************************************
  * Local type defintions.
@@ -144,8 +149,8 @@ static void meadow_os_fault_logging_phase_string(uint8_t fault, char *buffer, ui
 {
     snprintf(buffer, length, "BKPSRAM %s (%s), Persistent storage %s (%s)",
         (fault & FAULT_LOGGING_PHASE1_STARTED) ? "started" : "not started",
-        (fault & FAULT_LOGGING_PHASE1_COMPLETED) ? " completed" : "incomplete",
-        (fault & FAULT_LOGGING_PHASE2_STARTED) ? "not started" : " not started",
+        (fault & FAULT_LOGGING_PHASE1_COMPLETED) ? "completed" : "incomplete",
+        (fault & FAULT_LOGGING_PHASE2_STARTED) ? "started" : "not started",
         (fault & FAULT_LOGGING_PHASE2_COMPLETED) ? "completed" : "incomplete");
 }
 
@@ -169,14 +174,14 @@ static void meadow_os_fault_handler_process_os_fault(uint8_t fault)
 {
     char *message;
 
-    message = (char *) malloc(256);
+    message = (char *) malloc(FAULT_BUFFER_LENGTH);
     if (message == NULL)
     {
         syslog(LOG_INFO, "OS Fault: Unable to allocate memory for fault message.\n");
     }
     else
     {
-        meadow_os_fault_logging_phase_string(fault, message, sizeof(message));
+        meadow_os_fault_logging_phase_string(fault, message, FAULT_BUFFER_LENGTH);
         syslog(LOG_INFO, "OS Fault: %s\n", message);
         free(message);
     }
@@ -214,14 +219,14 @@ static void meadow_os_fault_handler_process_rt_fault(uint8_t fault)
 {
     char *message;
 
-    message = (char *) malloc(256);
+    message = (char *) malloc(FAULT_BUFFER_LENGTH);
     if (message == NULL)
     {
         syslog(LOG_INFO, "RT Fault: Unable to allocate memory for fault message.\n");
     }
     else
     {
-        meadow_os_fault_logging_phase_string(fault, message, sizeof(message));
+        meadow_os_fault_logging_phase_string(fault, message, FAULT_BUFFER_LENGTH);
         syslog(LOG_INFO, "RT Fault: %s\n", message);
         free(message);
         if (fault & FAULT_LOGGING_RT_FILE_ERROR)
@@ -273,7 +278,7 @@ void meadow_os_fault_handler_check_fault_code(void)
     {
         if (_fault_status & FAULT_LOGGING_OS_COMPONENT_ERRORED)
         {
-            meadow_os_fault_handler_process_os_fault(_fault_status && 0xff);
+            meadow_os_fault_handler_process_os_fault(_fault_status & 0xff);
         }
         //
         //  We will check the runtime fault status in case the RT reporting faulted and
@@ -281,7 +286,7 @@ void meadow_os_fault_handler_check_fault_code(void)
         //
         if (_fault_status & FAULT_LOGGING_RT_COMPONENT_ERRORED)
         {
-            meadow_os_fault_handler_process_rt_fault((_fault_status >> FAULT_LOGGING_RT_BIT_SHIFT) && 0xff);
+            meadow_os_fault_handler_process_rt_fault((_fault_status >> FAULT_LOGGING_RT_BIT_SHIFT) & 0xff);
         }
         //
         //  Clear any fault codes before we exit.
