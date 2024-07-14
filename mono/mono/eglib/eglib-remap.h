@@ -282,6 +282,7 @@
 #define g_assert_abort monoeg_assert_abort
 #define g_assertion_message monoeg_assertion_message
 #define g_get_assertion_message monoeg_get_assertion_message
+#define g_set_assertion_message monoeg_set_assertion_message
 #define g_malloc monoeg_malloc
 #define g_malloc0 monoeg_malloc0
 #define g_ptr_array_grow monoeg_ptr_array_grow

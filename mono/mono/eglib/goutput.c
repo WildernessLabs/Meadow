@@ -172,6 +172,12 @@ g_get_assertion_message (void)
 }
 
 void
+g_set_assertion_message (const char *message)
+{
+	failure_assertion = message;
+}
+
+void
 g_assertion_message (const gchar *format, ...)
 {
 	va_list args;
