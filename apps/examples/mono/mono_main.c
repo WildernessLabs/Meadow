@@ -44,6 +44,20 @@ typedef struct {
   void *addr;
 } MonoDlMapping;
 
+typedef enum {
+	G_LOG_FLAG_RECURSION          = 1 << 0,
+	G_LOG_FLAG_FATAL              = 1 << 1,
+	
+	G_LOG_LEVEL_ERROR             = 1 << 2,
+	G_LOG_LEVEL_CRITICAL          = 1 << 3,
+	G_LOG_LEVEL_WARNING           = 1 << 4,
+	G_LOG_LEVEL_MESSAGE           = 1 << 5,
+	G_LOG_LEVEL_INFO              = 1 << 6,
+	G_LOG_LEVEL_DEBUG             = 1 << 7,
+	
+	G_LOG_LEVEL_MASK              = ~(G_LOG_FLAG_RECURSION | G_LOG_FLAG_FATAL)
+} GLogLevelFlags;
+
 #include "mappings-meadow.h"
 #include "mappings-system-native.h"
 #include "mappings-mbedtls.h"
@@ -57,11 +71,19 @@ extern int mono_main_driver(int, char **);
 extern void mono_set_assemblies_path(const char *);
 
 /****************************************************************************
- * Private Data
+ * Local defintions.
  ****************************************************************************/
 
 #define MONO_CRASH_FILE CRASH_DIR "/" "mono_error.txt"
 #define MONO_CRASH_FILE_SIZE 65536
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+/****************************************************************************
+ * Local methods.
+ ****************************************************************************/
 
 /****************************************************************************
  * Name: induce_reset
@@ -100,68 +122,64 @@ static void induce_reset(void)
   //  Now we actually start Phase 1.
   //
   const char *assertion_msg = monoeg_get_assertion_message();
-  if (assertion_msg)
+  if (assertion_msg == NULL)
   {
-    meadow_os_bbd_strdup_to_sram(assertion_msg);
-    fault_status |= FAULT_LOGGING_RT_PHASE1_COMPLETED | FAULT_LOGGING_RT_PHASE2_STARTED;
-    meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
-    //
-    //  Phase 1 marked as complete and Phase 2 marked as started. Start generating a file
-    //  containing the full error message.  This may be longer than 4096 bytes hence writing
-    //  to a file.
-    //
-    mkdir(CRASH_DIR, 0777);
-    FILE *crash_file = fopen(MONO_CRASH_FILE, "w");
-    if (crash_file)
+    assertion_msg = "No Mono error message available";
+  }
+
+  meadow_os_bbd_strdup_to_sram(assertion_msg);
+  fault_status |= FAULT_LOGGING_RT_PHASE1_COMPLETED | FAULT_LOGGING_RT_PHASE2_STARTED;
+  meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
+  //
+  //  Phase 1 marked as complete and Phase 2 marked as started. Start generating a file
+  //  containing the full error message.  This may be longer than 4096 bytes hence writing
+  //  to a file.
+  //
+  mkdir(CRASH_DIR, 0777);
+  FILE *crash_file = fopen(MONO_CRASH_FILE, "w");
+  if (crash_file)
+  {
+    if (assertion_msg)
     {
-      if (assertion_msg)
+      //
+      //  Assume Phase 2 will complete successfully.
+      //
+      fault_status |= FAULT_LOGGING_RT_PHASE2_COMPLETED;
+      //
+      int chars_left = strnlen(assertion_msg, MONO_CRASH_FILE_SIZE);
+      char *p = (char *) assertion_msg;
+      const char *end = assertion_msg + chars_left;
+      while (p != end)
       {
-        //
-        //  Assume Phase 2 will complete successfully.
-        //
-        fault_status |= FAULT_LOGGING_RT_PHASE2_COMPLETED;
-        //
-        int chars_left = strnlen(assertion_msg, MONO_CRASH_FILE_SIZE);
-        char *p = (char *) assertion_msg;
-        const char *end = assertion_msg + chars_left;
-        while (p != end)
+        int write_count = fwrite(p, sizeof(char), chars_left, crash_file);
+        if (write_count < 1) 
         {
-          int write_count = fwrite(p, sizeof(char), chars_left, crash_file);
-          if (write_count < 1) 
-          {
-            //
-            //  Abandon on any error and record Phase 2 as possibly incomplete.
-            //
-            p = end;
-            fault_status &= ~FAULT_LOGGING_RT_PHASE2_COMPLETED;
-          }
-          else
-          {
-            p += write_count;
-            chars_left -= write_count;
-          }
+          //
+          //  Abandon on any error and record Phase 2 as possibly incomplete.
+          //
+          p = (char *) end;
+          fault_status &= ~FAULT_LOGGING_RT_PHASE2_COMPLETED;
+        }
+        else
+        {
+          p += write_count;
+          chars_left -= write_count;
         }
       }
-      fflush(crash_file);
-      fclose(crash_file);
-      meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
     }
-    else
-    {
-      fault_status |= FAULT_LOGGING_RT_FILE_ERROR;
-      meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
-    }
-    //
-    //  Try to use syslog as well in case something is listening to the serial port.
-    //
-    syslog(LOG_ERR, "Mono error message: %s\n", assertion_msg);
+    fflush(crash_file);
+    fclose(crash_file);
+    meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
   }
   else
   {
-    meadow_os_bbd_strdup_to_sram("Mono error message is NULL.");
-    fault_status |= FAULT_LOGGING_RT_PHASE1_COMPLETED;
+    fault_status |= FAULT_LOGGING_RT_FILE_ERROR;
     meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
   }
+  //
+  //  Try to use syslog as well in case something is listening to the serial port.
+  //
+  syslog(LOG_ERR, "Mono error message: %s\n", assertion_msg);
 
   // TODO: If the runtime is asking for an abort, it is unstable, and any further execution
   // from any Mono thread is suspect, so waiting before resetting is a slight invitation for catastrophe.
