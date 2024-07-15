@@ -37,6 +37,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_bbreg_defn.h>
@@ -128,7 +129,7 @@ void meadow_os_fault_handler_save_os_state(void)
     fault_status |= (FAULT_LOGGING_OS_COMPONENT_ERRORED | FAULT_LOGGING_OS_PHASE1_STARTED);
     meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
     const char *sysbuffer = ramlog_get_sysbuffer_pointer();
-    char *hard_fault = NULL;
+    const char *hard_fault = NULL;
     if (sysbuffer != NULL)
     {
         char *my_copy = kmm_strdup(sysbuffer);
@@ -157,6 +158,9 @@ void meadow_os_fault_handler_save_os_state(void)
         {
             hard_fault = sysbuffer;
         }
+        //
+        //  Think about how we can remove the stack dump.
+        //
     }
     else
     {
