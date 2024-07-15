@@ -704,6 +704,7 @@ int ramlog_register(FAR const char *devpath, FAR char *buffer, size_t buflen)
   /* Sanity checking */
 
   DEBUGASSERT(devpath && buffer && buflen > 1);
+  memset(buffer, 0, buflen);
 
   /* Allocate a RAM logging device structure */
 
@@ -861,6 +862,27 @@ int ramlog_putc(int ch)
   /* Return the character added on success */
 
   return ch;
+}
+
+/****************************************************************************
+ * Name: ramlog_get_sysbuffer_pointer
+ *
+ * Description:
+ *  Get a pointer to the RAMLOG buffer.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+const char *ramlog_get_sysbuffer_pointer()
+{
+  return(g_sysbuffer);
 }
 #endif
 

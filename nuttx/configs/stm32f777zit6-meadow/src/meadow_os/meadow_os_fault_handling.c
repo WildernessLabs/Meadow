@@ -66,6 +66,10 @@
  * External data
  ****************************************************************************/
 
+/**
+ * @brief Pointer to the RAMLOG buffer containing any characters logged but
+ *        not yet sent to the serial port.
+ */
 extern char *g_sysbuffer;
 
 /****************************************************************************
@@ -85,6 +89,8 @@ static uint32_t _fault_status = 0;
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+
+extern char *ramlog_get_sysbuffer_pointer();
 
 /****************************************************************************
  * Name: meadow_os_fault_handler_save_os_state
@@ -121,7 +127,42 @@ void meadow_os_fault_handler_save_os_state(void)
     //
     fault_status |= (FAULT_LOGGING_OS_COMPONENT_ERRORED | FAULT_LOGGING_OS_PHASE1_STARTED);
     meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
-    meadow_os_bbd_strdup_to_sram("Unable to save OS fault information.");
+    const char *sysbuffer = ramlog_get_sysbuffer_pointer();
+    char *hard_fault = NULL;
+    if (sysbuffer != NULL)
+    {
+        char *my_copy = kmm_strdup(sysbuffer);
+        if (my_copy)
+        {
+            char *up_hard_fault = strstr(my_copy, "up_hardfault");
+            if (up_hard_fault)
+            {
+                char *start = up_hard_fault;
+                while ((start > my_copy) && ((*start != '\n') && (*start != '\r')))
+                {
+                    start--;
+                }
+                if ((*start == '\n') || (*start == '\r'))
+                {
+                    start++;
+                }
+                hard_fault = start;
+            }
+            else
+            {
+                hard_fault = my_copy;
+            }
+        }
+        else
+        {
+            hard_fault = sysbuffer;
+        }
+    }
+    else
+    {
+        hard_fault = "Unable to save OS fault information.";
+    }
+    meadow_os_bbd_strdup_to_sram(hard_fault);
     fault_status |= FAULT_LOGGING_OS_PHASE1_COMPLETED;
     meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
 }

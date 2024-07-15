@@ -62,6 +62,7 @@
 #include "chip.h"
 
 #include <meadow/hcom_shared_common.h>
+#include <meadow/meadow_os_fault_handling.h>
 
 /****************************************************************************
  * Pre-processor Definitions
