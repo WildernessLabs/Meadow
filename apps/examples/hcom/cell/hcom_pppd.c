@@ -45,9 +45,10 @@
 
 #include "netutils/chat.h"
 #include "netutils/pppd.h"
+#include "netutils/ntpclient.h"
 
 #include "hcom_pppd.h"
-#include "../misc/espcp_utils.c"
+#include "../misc/espcp_utils.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -324,6 +325,16 @@ void meadow_cell_connected_event(void)
     uint8_t *encodedData = (uint8_t *) malloc(encodedEventDataSize);
 
     cell_connected = true;
+
+    meadow_configuration_t *config = meadow_os_deep_copy_config();
+    bool get_time = config->get_network_time_at_startup;
+
+    if (get_time)
+    {
+        ntpc_start();
+    }
+
+    meadow_os_config_free_resources(config);
 
     espcp_encode_event_data(&message, encodedData);
 
