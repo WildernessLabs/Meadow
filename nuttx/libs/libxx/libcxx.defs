@@ -21,7 +21,7 @@
 LIBCXX_VERSION=$(patsubst "%",%,$(CONFIG_LIBCXX_VERSION))
 
 # Download and unpack tarball if no git repo found
-ifeq ($(wildcard libcxx/.git),)
+
 libcxx-$(LIBCXX_VERSION).src.tar.xz:
 	$(call DOWNLOAD,https://github.com/llvm/llvm-project/releases/download/llvmorg-$(LIBCXX_VERSION),libcxx-$(LIBCXX_VERSION).src.tar.xz)
 
@@ -32,7 +32,7 @@ libcxx: libcxx-$(LIBCXX_VERSION).src.tar.xz
 	$(Q) patch -p2 < mbstate_t.patch
 	$(Q) patch -p0 < 0001-libcxx-remove-mach-time-h.patch
 	$(Q) touch $@
-endif
+
 
 $(TOPDIR)/include/libcxx: libcxx
 	$(Q) $(DIRLINK) $(CURDIR)/libcxx/include $(TOPDIR)/include/libcxx
@@ -47,8 +47,8 @@ ifeq ($(wildcard libcxx/.git),)
 	$(call DELDIR, libcxx)
 endif
 
-CXXFLAGS += ${DEFINE_PREFIX}_LIBCPP_BUILDING_LIBRARY
-CXXFLAGS += ${INCDIR_PREFIX}$(CURDIR)/libcxx/src
+CXXFLAGS += -D_LIBCPP_BUILDING_LIBRARY -D__NuttX__
+CXXFLAGS += -I $(CURDIR)/libcxx/src -I $(CURDIR)/libcxx/include
 
 ifeq ($(CONFIG_LIBSUPCXX), y)
 CXXFLAGS += ${DEFINE_PREFIX}__GLIBCXX__

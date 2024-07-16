@@ -57,7 +57,7 @@ OBJS = $(AOBJS) $(COBJS) $(CXXOBJS) $(CPPOBJS)
 BIN = libcxx$(LIBEXT)
 
 all: $(BIN)
-.PHONY: depend clean distclean context
+.PHONY: depend clean distclean
 
 $(AOBJS): %$(OBJEXT): %.S
 	$(call ASSEMBLE, $<, $@)
@@ -74,17 +74,8 @@ $(CPPOBJS): %$(OBJEXT): %.cpp
 $(BIN): $(OBJS)
 	$(call ARCHIVE, $@, $(OBJS))
 
-context::
-
-makedepfile: $(CXXSRCS:.cxx=.ddx) $(CPPSRCS:.cpp=.ddp)
-	$(call CATFILE, Make.dep, $^)
-	$(call DELFILE, $^)
-
-.depend: Makefile $(SRCS) $(TOPDIR)$(DELIM).config
-	$(Q) $(MAKE) makedepfile
-	$(Q) touch $@
-
-depend: .depend
+.depend: Makefile $(SRCS)
+	$(Q) $(MKDEP) $(DEPPATH) "$(CXX)" -- $(CXXFLAGS) -- $(SRCS) >Make.dep
 
 clean:
 	$(call DELFILE, $(BIN))
