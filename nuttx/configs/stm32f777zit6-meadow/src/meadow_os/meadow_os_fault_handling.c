@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include <nuttx/kstring.h>
 
@@ -50,7 +51,7 @@
 /****************************************************************************
  * Uncomment the #define below to turn on debug help macros.
  ****************************************************************************/
-#define USE_MEADOW_DEBUG_HELPERS
+// #define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
@@ -61,6 +62,11 @@
  * @brief Number of bytes to reserve for the fault message.
  */
 #define FAULT_BUFFER_LENGTH         256
+
+/**
+ * @brief Name and location of the OS crash report file.
+ */
+#define MEADOW_OS_CRASH_FILE_NAME   CRASH_DIR "/oscrash_report.txt"
 
 /****************************************************************************
  * Local type defintions.
@@ -332,6 +338,9 @@ static void meadow_os_fault_handler_process_os_fault_message(uint8_t fault)
     }
     else
     {
+        mkdir(CRASH_DIR, 0777);
+        FILE *crash_file = fopen(MEADOW_OS_CRASH_FILE_NAME, "w");
+
         meadow_os_bbd_strdup_from_sram(fault_string, MEADOW_OS_BBD_SRAM_SIZE);
         MEADOW_TRACE_INFORMATION("Fault message:\n");
         char *line = fault_string;
@@ -348,6 +357,10 @@ static void meadow_os_fault_handler_process_os_fault_message(uint8_t fault)
                 if ((memcmp(line, "up_", 3) == 0) || (memcmp(line, "arm_", 4) == 0))
                 {
                     MEADOW_TRACE_INFORMATION("%s\n", line);
+                    if (crash_file)
+                    {
+                        fprintf(crash_file, "%s\n", line);
+                    }
                 }
                 line = end + 1;
                 if ((*line == '\n') || (*line == '\r'))
@@ -355,6 +368,10 @@ static void meadow_os_fault_handler_process_os_fault_message(uint8_t fault)
                     line++;
                 }
             }
+        }
+        if (crash_file)
+        {
+            fclose(crash_file);
         }
         free(fault_string);
     }
