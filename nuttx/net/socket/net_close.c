@@ -48,7 +48,6 @@
 #include <assert.h>
 
 #include <nuttx/net/net.h>
-#include <meadow/meadow_watchdog.h>
 
 #include "socket/socket.h"
 
@@ -137,9 +136,6 @@ int psock_close(FAR struct socket *psock)
 
 int net_close(int sockfd)
 {
-  struct wdog_s g_watchdog_close;
-  meadow_watchdog_activate(&g_watchdog_close, WATCHDOG_CLOSE_TIMEOUT_MILLISECONDS);
-
   int ret;
 
   ninfo("close(%d)\n", sockfd);
@@ -148,7 +144,6 @@ int net_close(int sockfd)
 
   ninfo("result %d\n", ret);
 
-  meadow_watchdog_deactivate(&g_watchdog_close);
   return(ret);
 }
 
