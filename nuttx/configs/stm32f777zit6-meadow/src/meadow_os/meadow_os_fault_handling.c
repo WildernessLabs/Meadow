@@ -39,10 +39,13 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <nuttx/kstring.h>
+
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/meadow_os_fault_handling.h>
 #include <meadow/meadow_os_battery_backed_domain.h>
+#include "../hcom_nx/hcom_nx_common.h"
 
 /****************************************************************************
  * Uncomment the #define below to turn on debug help macros.
@@ -67,12 +70,6 @@
  * External data
  ****************************************************************************/
 
-/**
- * @brief Pointer to the RAMLOG buffer containing any characters logged but
- *        not yet sent to the serial port.
- */
-extern char *g_sysbuffer;
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -84,14 +81,120 @@ extern char *g_sysbuffer;
 static uint32_t _fault_status = 0;
 
 /****************************************************************************
+ * External Functions
+ ****************************************************************************/
+
+extern char *ramlog_get_sysbuffer_pointer(void);
+
+/****************************************************************************
  * Private Functions
  ****************************************************************************/
 
 /****************************************************************************
+ * Name: find_line_start
+ *
+ * Description:
+ *  Find the start of a line in the buffer moving back from the start until
+ *  then start of the line is found or the endstop is reached.
+ * 
+ * Input Parameters:
+ *  buffer - buffer to search.
+ *  endstop - point where we will always stop even if we have not found the
+ *            start of the line.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static char *find_line_start(char *start, char *endstop)
+{
+    while ((start > endstop) && ((*start != '\n') && (*start != '\r')))
+    {
+        start--;
+    }
+    if ((*start == '\n') || (*start == '\r'))
+    {
+        start++;
+    }
+    return(start);
+}
+
+/****************************************************************************
+ * Name: find_line_end
+ *
+ * Description:
+ *  Find the end of line (or the end of the buffer).
+ * 
+ * Input Parameters:
+ *  buffer - Line of text to search.
+ *
+ * Returned Value:
+ *  Pointer to the terminating character for this line.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static char *find_line_end(char *buffer)
+{
+    while ((*buffer != '\0') && ((*buffer != '\n') && (*buffer != '\r')))
+    {
+        buffer++;
+    }
+    return(buffer);
+}
+
+/****************************************************************************
+ * Name: remove_stack_dump
+ *
+ * Description:
+ *  Remove the stack trace from the OS error message.  Depending upon options
+ *  this may compile to an empty method.
+ * 
+ * Input Parameters:
+ *  hard_fault - Pointer to the hard fault message.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static void remove_stack_dump(char *hard_fault)
+{
+#if !defined(CONFIG_MEADOW_LOGGING_ENABLE_STACK_DUMP)
+#pragma message "Stack dump is disabled."
+    //
+    //  Stack dump is disabled so we find the stack dump and then the task list and move
+    //  the task list over the stack dump and truncate the data.
+    //
+    char *stackdump = strstr(hard_fault, "up_stackdump");
+    if (stackdump)
+    {
+        stackdump = find_line_start(stackdump, hard_fault);
+        char *showtasks = strstr(stackdump, "up_showtasks");
+        if (showtasks)
+        {
+            showtasks = find_line_start(showtasks, stackdump);
+            while (*showtasks != '\0')
+            {
+                *stackdump++ = *showtasks++;
+            }
+        }
+        *stackdump = '\0';
+    }
+#else
+#warning "Stack dump is enabled."
+#endif
+}
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
-
-extern char *ramlog_get_sysbuffer_pointer();
 
 /****************************************************************************
  * Name: meadow_os_fault_handler_save_os_state
@@ -129,7 +232,7 @@ void meadow_os_fault_handler_save_os_state(void)
     fault_status |= (FAULT_LOGGING_OS_COMPONENT_ERRORED | FAULT_LOGGING_OS_PHASE1_STARTED);
     meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
     const char *sysbuffer = ramlog_get_sysbuffer_pointer();
-    const char *hard_fault = NULL;
+    char *hard_fault = NULL;
     if (sysbuffer != NULL)
     {
         char *my_copy = kmm_strdup(sysbuffer);
@@ -138,16 +241,7 @@ void meadow_os_fault_handler_save_os_state(void)
             char *up_hard_fault = strstr(my_copy, "up_hardfault");
             if (up_hard_fault)
             {
-                char *start = up_hard_fault;
-                while ((start > my_copy) && ((*start != '\n') && (*start != '\r')))
-                {
-                    start--;
-                }
-                if ((*start == '\n') || (*start == '\r'))
-                {
-                    start++;
-                }
-                hard_fault = start;
+                hard_fault = find_line_start(up_hard_fault, my_copy);
             }
             else
             {
@@ -158,9 +252,7 @@ void meadow_os_fault_handler_save_os_state(void)
         {
             hard_fault = sysbuffer;
         }
-        //
-        //  Think about how we can remove the stack dump.
-        //
+        remove_stack_dump(hard_fault);
     }
     else
     {
@@ -239,7 +331,29 @@ static void meadow_os_fault_handler_process_os_fault(uint8_t fault)
     {
         meadow_os_bbd_strdup_from_sram(fault_string, MEADOW_OS_BBD_SRAM_SIZE);
         syslog(LOG_INFO, "Fault message:\n");
-        syslog(LOG_INFO, "%s\n", fault_string);
+        char *line = fault_string;
+        while (strlen(line) > 0)
+        {
+            while (!isalpha(*line))
+            {
+                line++;
+            }
+            if (strlen(line) > 0)
+            {
+                char *end = find_line_end(line);
+                *end = 0;
+                if ((memcmp(line, "up_", 3) == 0) || (memcmp(line, "arm_", 4) == 0))
+                {
+                    syslog(LOG_INFO, "%s\n", line);
+                }
+                line = end + 1;
+                if ((*line == '\n') || (*line == '\r'))
+                {
+                    line++;
+                }
+            }
+        }
+        // syslog(LOG_INFO, "%s\n", fault_string);
         free(fault_string);
     }
 }
@@ -333,6 +447,7 @@ void meadow_os_fault_handler_check_fault_code(void)
         {
             meadow_os_fault_handler_process_rt_fault((_fault_status >> FAULT_LOGGING_RT_BIT_SHIFT) & 0xff);
         }
+        meadow_os_bbd_clear_sram();
         //
         //  Clear any fault codes before we exit.
         //
