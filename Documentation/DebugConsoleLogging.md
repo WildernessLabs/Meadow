@@ -18,7 +18,7 @@ For Project Lab users there is a ready made board that will do this conversion. 
 
 ![Project Lab and USB UART Click 3 Boards](ProjectLabAndMikroBusSerial.jpg)
 
-Other adapters are available and in ese cases only two connections are required:
+Other adapters are available and in these cases only two connections are required:
 
 * GND on the adapter to GND on the Meadow board
 * R<sub>x</sub> on the adapter to T<sub>x</sub> on the Meadow board
