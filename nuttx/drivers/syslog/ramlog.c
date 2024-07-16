@@ -880,7 +880,7 @@ int ramlog_putc(int ch)
  *  None.
  *
  ****************************************************************************/
-const char *ramlog_get_sysbuffer_pointer()
+const char *ramlog_get_sysbuffer_pointer(void)
 {
   return(g_sysbuffer);
 }
