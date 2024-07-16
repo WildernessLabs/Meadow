@@ -84,6 +84,11 @@ static uint32_t _fault_status = 0;
  * External Functions
  ****************************************************************************/
 
+/**
+ * @brief Get a pointer to the system logging buffer.
+ * 
+ * @return Pointer to the system logging buffer.
+ */
 extern char *ramlog_get_sysbuffer_pointer(void);
 
 /****************************************************************************
@@ -109,7 +114,7 @@ extern char *ramlog_get_sysbuffer_pointer(void);
  *  None.
  *
  ****************************************************************************/
-static char *find_line_start(char *start, char *endstop)
+static char *find_line_start(const char *start, const char *endstop)
 {
     while ((start > endstop) && ((*start != '\n') && (*start != '\r')))
     {
@@ -119,7 +124,7 @@ static char *find_line_start(char *start, char *endstop)
     {
         start++;
     }
-    return(start);
+    return((char *) start);
 }
 
 /****************************************************************************
@@ -138,13 +143,13 @@ static char *find_line_start(char *start, char *endstop)
  *  None.
  *
  ****************************************************************************/
-static char *find_line_end(char *buffer)
+static char *find_line_end(const char *buffer)
 {
     while ((*buffer != '\0') && ((*buffer != '\n') && (*buffer != '\r')))
     {
         buffer++;
     }
-    return(buffer);
+    return((char *) buffer);
 }
 
 /****************************************************************************
@@ -164,10 +169,9 @@ static char *find_line_end(char *buffer)
  *  None.
  *
  ****************************************************************************/
-static void remove_stack_dump(char *hard_fault)
+static void remove_stack_dump(const char *hard_fault)
 {
 #if !defined(CONFIG_MEADOW_LOGGING_ENABLE_STACK_DUMP)
-#pragma message "Stack dump is disabled."
     //
     //  Stack dump is disabled so we find the stack dump and then the task list and move
     //  the task list over the stack dump and truncate the data.
@@ -187,8 +191,6 @@ static void remove_stack_dump(char *hard_fault)
         }
         *stackdump = '\0';
     }
-#else
-#warning "Stack dump is enabled."
 #endif
 }
 
@@ -232,7 +234,7 @@ void meadow_os_fault_handler_save_os_state(void)
     fault_status |= (FAULT_LOGGING_OS_COMPONENT_ERRORED | FAULT_LOGGING_OS_PHASE1_STARTED);
     meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
     const char *sysbuffer = ramlog_get_sysbuffer_pointer();
-    char *hard_fault = NULL;
+    const char *hard_fault = NULL;
     if (sysbuffer != NULL)
     {
         char *my_copy = kmm_strdup(sysbuffer);
@@ -292,7 +294,7 @@ static void meadow_os_fault_logging_phase_string(uint8_t fault, char *buffer, ui
 }
 
 /****************************************************************************
- * Name: meadow_os_fault_handler_process_os_fault
+ * Name: meadow_os_fault_handler_process_os_fault_message
  *
  * Description:
  *  Decode the OS fault status and send the results to syslog.
@@ -304,33 +306,34 @@ static void meadow_os_fault_logging_phase_string(uint8_t fault, char *buffer, ui
  *  None.
  *
  * Assumptions/Limitations:
- *  The fault has already been identified as an OS issue.
+ *  - The fault has already been identified as an OS issue.
+ *  - BKPSRAM will be cleared by the caller.
  *
  ****************************************************************************/
-static void meadow_os_fault_handler_process_os_fault(uint8_t fault)
+static void meadow_os_fault_handler_process_os_fault_message(uint8_t fault)
 {
     char *message;
 
     message = (char *) malloc(FAULT_BUFFER_LENGTH);
     if (message == NULL)
     {
-        syslog(LOG_INFO, "OS Fault: Unable to allocate memory for fault message.\n");
+        MEADOW_TRACE_INFORMATION("OS Fault: Unable to allocate memory for fault message.\n");
     }
     else
     {
         meadow_os_fault_logging_phase_string(fault, message, FAULT_BUFFER_LENGTH);
-        syslog(LOG_INFO, "OS Fault: %s\n", message);
+        MEADOW_TRACE_INFORMATION("OS Fault: %s\n", message);
         free(message);
     }
     char *fault_string = (char *) malloc(MEADOW_OS_BBD_SRAM_SIZE);
     if (fault_string == NULL)
     {
-        syslog(LOG_INFO, "OS Fault: Unable to allocate memory for fault message.\n");
+        MEADOW_TRACE_INFORMATION("OS Fault: Unable to allocate memory for fault message.\n");
     }
     else
     {
         meadow_os_bbd_strdup_from_sram(fault_string, MEADOW_OS_BBD_SRAM_SIZE);
-        syslog(LOG_INFO, "Fault message:\n");
+        MEADOW_TRACE_INFORMATION("Fault message:\n");
         char *line = fault_string;
         while (strlen(line) > 0)
         {
@@ -344,7 +347,7 @@ static void meadow_os_fault_handler_process_os_fault(uint8_t fault)
                 *end = 0;
                 if ((memcmp(line, "up_", 3) == 0) || (memcmp(line, "arm_", 4) == 0))
                 {
-                    syslog(LOG_INFO, "%s\n", line);
+                    MEADOW_TRACE_INFORMATION("%s\n", line);
                 }
                 line = end + 1;
                 if ((*line == '\n') || (*line == '\r'))
@@ -353,13 +356,12 @@ static void meadow_os_fault_handler_process_os_fault(uint8_t fault)
                 }
             }
         }
-        // syslog(LOG_INFO, "%s\n", fault_string);
         free(fault_string);
     }
 }
 
 /****************************************************************************
- * Name: meadow_os_fault_handler_process_rt_fault
+ * Name: meadow_os_fault_handler_process_rt_fault_message
  *
  * Description:
  *  Decode the RT fault status and send the results to syslog.
@@ -371,38 +373,38 @@ static void meadow_os_fault_handler_process_os_fault(uint8_t fault)
  *  None.
  *
  * Assumptions/Limitations:
- *  None.
+ *  BKPSRAM will be cleared by the caller.
  *
  ****************************************************************************/
-static void meadow_os_fault_handler_process_rt_fault(uint8_t fault)
+static void meadow_os_fault_handler_process_rt_fault_message(uint8_t fault)
 {
     char *message;
 
     message = (char *) malloc(FAULT_BUFFER_LENGTH);
     if (message == NULL)
     {
-        syslog(LOG_INFO, "RT Fault: Unable to allocate memory for fault message.\n");
+        MEADOW_TRACE_INFORMATION("RT Fault: Unable to allocate memory for fault message.\n");
     }
     else
     {
         meadow_os_fault_logging_phase_string(fault, message, FAULT_BUFFER_LENGTH);
-        syslog(LOG_INFO, "RT Fault: %s\n", message);
+        MEADOW_TRACE_INFORMATION("RT Fault: %s\n", message);
         free(message);
         if (fault & FAULT_LOGGING_RT_FILE_ERROR)
         {
-            syslog(LOG_INFO, "RT Fault: Error writing fault information to crash log file.\n");
+            MEADOW_TRACE_INFORMATION("RT Fault: Error writing fault information to crash log file.\n");
         }
     }
     char *fault_string = (char *) malloc(MEADOW_OS_BBD_SRAM_SIZE);
     if (fault_string == NULL)
     {
-        syslog(LOG_INFO, "OS Fault: Unable to allocate memory for fault message.\n");
+        MEADOW_TRACE_INFORMATION("OS Fault: Unable to allocate memory for fault message.\n");
     }
     else
     {
         meadow_os_bbd_strdup_from_sram(fault_string, MEADOW_OS_BBD_SRAM_SIZE);
-        syslog(LOG_INFO, "Fault message:\n");
-        syslog(LOG_INFO, "%s\n", fault_string);
+        MEADOW_TRACE_INFORMATION("Fault message:\n");
+        MEADOW_TRACE_INFORMATION("%s\n", fault_string);
         free(fault_string);
     }
 }
@@ -437,7 +439,7 @@ void meadow_os_fault_handler_check_fault_code(void)
     {
         if (_fault_status & FAULT_LOGGING_OS_COMPONENT_ERRORED)
         {
-            meadow_os_fault_handler_process_os_fault(_fault_status & 0xff);
+            meadow_os_fault_handler_process_os_fault_message(_fault_status & 0xff);
         }
         //
         //  We will check the runtime fault status in case the RT reporting faulted and
@@ -445,7 +447,7 @@ void meadow_os_fault_handler_check_fault_code(void)
         //
         if (_fault_status & FAULT_LOGGING_RT_COMPONENT_ERRORED)
         {
-            meadow_os_fault_handler_process_rt_fault((_fault_status >> FAULT_LOGGING_RT_BIT_SHIFT) & 0xff);
+            meadow_os_fault_handler_process_rt_fault_message((_fault_status >> FAULT_LOGGING_RT_BIT_SHIFT) & 0xff);
         }
         meadow_os_bbd_clear_sram();
         //
