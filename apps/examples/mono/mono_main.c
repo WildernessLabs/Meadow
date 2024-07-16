@@ -50,6 +50,7 @@ typedef struct {
  ****************************************************************************/
 extern int mono_main_driver(int, char **);
 extern void mono_set_assemblies_path(const char *);
+extern const char *monoeg_get_assertion_message(void);
 
 /****************************************************************************
  * Private Data

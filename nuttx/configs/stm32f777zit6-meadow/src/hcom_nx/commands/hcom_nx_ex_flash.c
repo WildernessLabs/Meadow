@@ -56,6 +56,12 @@
 #include <sys/stat.h>
 
 /****************************************************************************
+ * Uncomment the #define below to turn on debug help macros.
+ ****************************************************************************/
+// #define USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
+
+/****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
@@ -73,6 +79,11 @@
       syslog(LOG_ERR, buf1);                                                                   \
     }                                                                                          \
   } while (0);
+
+#if defined(USE_MEADOW_DEBUG_HELPERS)
+//
+//  Output information messages when debugging.
+//
 #define info(x, ...)                                                  \
   do                                                                  \
   {                                                                   \
@@ -91,7 +102,12 @@
       syslog(LOG_ERR, buf3);                                          \
     }                                                                 \
   } while (0);
-
+#else
+//
+//  No output when not debugging.
+//
+#define info(x, ...)
+#endif
 
 /****************************************************************************
  * Private Data
