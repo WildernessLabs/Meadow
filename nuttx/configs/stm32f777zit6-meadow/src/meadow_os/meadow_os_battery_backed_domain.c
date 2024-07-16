@@ -82,11 +82,6 @@
  */
 #define MEADOW_OS_BBR_MAXIMUM_ADDRESS               (MEADOW_OS_BBR_BASE_ADDRESS + (MEADOW_OS_BBD_REGISTER_NUMBER_MAX * 4))
 
-/**
- * @brief Length of the battery backed domain SRAM.
- */
-#define BATTERY_BACKED_DOMAIN_SRAM_LENGTH           4092
-
 /****************************************************************************
  * Local type defintions.
  ****************************************************************************/
@@ -206,7 +201,7 @@ void meadow_os_bbd_strdup_to_sram(const char *message)
     meadow_os_bbd_clear_sram();
     if (message != NULL)
     {
-        strncpy((char *) BATTERY_BACKED_DOMAIN_SRAM_ADDRESS, message, BATTERY_BACKED_DOMAIN_SRAM_LENGTH - 1);
+        strncpy((char *) BATTERY_BACKED_DOMAIN_SRAM_ADDRESS, message, MEADOW_OS_BBD_SRAM_SIZE - 1);
     }
 }
 
@@ -251,7 +246,7 @@ void meadow_os_bbd_strdup_from_sram(char *destination, int length)
  ****************************************************************************/
 void meadow_os_bbd_clear_sram(void)
 {
-    memset((void *) BATTERY_BACKED_DOMAIN_SRAM_ADDRESS, 0, BATTERY_BACKED_DOMAIN_SRAM_LENGTH);
+    memset((void *) BATTERY_BACKED_DOMAIN_SRAM_ADDRESS, 0, MEADOW_OS_BBD_SRAM_SIZE);
 }
 
 /****************************************************************************

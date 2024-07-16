@@ -35,8 +35,6 @@
 #ifndef __MEADOW_OS_BATTERY_BACKED_DOMAIN_H
 #define __MEADOW_OS_BATTERY_BACKED_DOMAIN_H
 
-#pragma once
-
 #include <nuttx/config.h>
 
 #include <stdint.h>
@@ -44,6 +42,11 @@
 /****************************************************************************
  * Definitions
  ****************************************************************************/
+
+/**
+ *  @brief Address of the battery backed domain SRAM.
+ */
+#define BATTERY_BACKED_DOMAIN_SRAM_ADDRESS          0x40024000
 
 /**
  * @brief Size of battery backed SRAM in bytes.
