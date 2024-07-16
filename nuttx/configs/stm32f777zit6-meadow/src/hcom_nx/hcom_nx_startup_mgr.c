@@ -129,8 +129,9 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   //
   //  The bootloader will have put the reset reason into BBR30 for us.
   //
-  syslog(1, "Meadow reset code: 0x%02x\n", meadow_os_reset_reason());
   meadow_os_reset_update_counters();
+  syslog(1, "Meadow reset code: 0x%02x, reset count: %d, power cycle count %d\n", meadow_os_reset_reason(),
+            meadow_os_reset_cycle_count(), meadow_os_power_cycle_count());
 
   //
   //  We need to perform early initialisation of the ESP system to put
@@ -164,10 +165,6 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   hcom_nx_config_unlock();
 
   meadow_os_fault_handler_check_fault_code();
-
-  // usleep(1000000);
-
-  // *((uint32_t *) NULL) = 0;  //  Force a fault to test the fault handling system.
 
   //
   //  Set the system clock to the OS build time to help with SSL.
