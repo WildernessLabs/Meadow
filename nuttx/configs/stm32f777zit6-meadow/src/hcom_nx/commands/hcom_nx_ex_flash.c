@@ -1009,6 +1009,30 @@ uint32_t hcom_nx_exec_ex_flash_persistent_data_location(void)
 }
 
 /****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_assert_data_location
+ *
+ * Description:
+ *   Get the location of the assertion data from up_assert in flash memory.
+ *   this is 2 erase block past the start of the OtA data block.
+ * 
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *  Location in flash of the OS persistent data.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+uint32_t hcom_nx_exec_ex_flash_assert_data_location(void)
+{
+  uint32_t location = HCOM_NX_FS_MONO_RAW_PARTITION_SIZE + HCOM_NX_FS_NUTTX_UPDATE_SIZE;
+  location += (2 * hcom_nx_exec_ex_flash_get_erase_block_size());
+  return(location);
+}
+
+/****************************************************************************
  * Name: hcom_nx_exec_ex_flash_read_persistent_data
  *
  * Description:
@@ -1059,7 +1083,7 @@ int hcom_nx_exec_ex_flash_read_persistent_data(meadow_os_persistent_data_t *data
 }
 
 /****************************************************************************
- * Name: hcom_nx_exec_ex_flash_OS_update_flash2
+ * Name: hcom_nx_exec_ex_flash_write_persistent_data
  *
  * Description:
  *   Write the persistent data to flash.
@@ -1095,3 +1119,79 @@ int hcom_nx_exec_ex_flash_write_persistent_data(meadow_os_persistent_data_t *dat
 
   return(result);
 }
+
+/****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_write_assertion_data
+ *
+ * Description:
+ *   Write the assertion data to flash.
+ * 
+ * Input Parameters:
+ *   data - pointer to the assertion data to be written to flash.
+ *   length - amount of the data to be written.
+ *
+ * Returned Value:
+ *  OK if successful, -1 or -errno if there was a problem.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+int hcom_nx_exec_ex_flash_write_assertion_data(const char *data, uint32_t length)
+{
+  int result;
+
+  if (data == NULL)
+  {
+    result = -EINVAL;
+  }
+  else
+  {
+    uint32_t location = hcom_nx_exec_ex_flash_assert_data_location();
+    off_t amount_to_write = length > HCOM_NX_MAXIMUM_ASSERTION_DATA_SIZE ? HCOM_NX_MAXIMUM_ASSERTION_DATA_SIZE : length;
+    result = hcom_nx_exec_ex_flash_write_buffer_to_flash((uint8_t *) data, amount_to_write, location);
+  }
+
+  return(result);
+}
+
+/****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_read_assertion_data
+ *
+ * Description:
+ *   Read the assertion data from the last call to up_assert from flash.
+ * 
+ * Input Parameters:
+ *   data - Block of memory large enough to hold the assertion data.
+ *
+ * Returned Value:
+ *  OK if successful, -1 or -errno if there was a problem.
+ *
+ * Assumptions/Limitations:
+ *  data must be large enough to hold the assertion data.
+ *
+ ****************************************************************************/
+int hcom_nx_exec_ex_flash_read_assertion_data(const char *data)
+{
+  int result = OK;
+
+  if (data == NULL)
+  {
+    result = -EINVAL;
+  }
+  else
+  {
+    uint32_t location = hcom_nx_exec_ex_flash_assert_data_location();
+    uint32_t pageLocation = location / hcom_nx_exec_ex_flash_get_block_size();
+    size_t pagesToRead = HCOM_NX_MAXIMUM_ASSERTION_DATA_SIZE / hcom_nx_exec_ex_flash_get_block_size();
+    
+    size_t pagesRead = MTD_BREAD(_mtd, pageLocation, pagesToRead, data);
+    if (pagesRead != pagesToRead)
+    {
+      result = -EIO;
+    }
+  }
+
+  return(result);
+}
+

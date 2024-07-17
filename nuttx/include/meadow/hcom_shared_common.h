@@ -92,9 +92,10 @@
 #define MEADOW_SDCARD_FILE_SYS_TYPE  "vfat"
 #define MEADOW_SDCARD_BLOCK_NAME   "/dev/mmcsd0"
 
-#define HCOM_NX_FS_MONO_RAW_PARTITION_SIZE 0x300000 // 3MB
-#define HCOM_NX_FS_OTA_RESERVED_SPACE 0x200000 // 2MB reserved space for updates
-#define HCOM_NX_FS_NUTTX_UPDATE_SIZE 0x1C0000   // (2MB - 256KB)
+#define HCOM_NX_FS_MONO_RAW_PARTITION_SIZE 0x300000   // 3MB
+#define HCOM_NX_FS_OTA_RESERVED_SPACE 0x200000        // 2MB reserved space for updates
+#define HCOM_NX_FS_NUTTX_UPDATE_SIZE 0x1C0000         // (2MB - 256KB)
+#define HCOM_NX_MAXIMUM_ASSERTION_DATA_SIZE 0x8000    // 32 Kb
 
 //==================================================
 // Host text message buffer sizes for text messages
@@ -213,6 +214,99 @@
 #define F7_MICRO_V2_B15_PIN GPIO_PORTB | GPIO_PIN15
 #define F7_MICRO_V2_B12_PIN GPIO_PORTB | GPIO_PIN12
 #define F7_MICRO_V2_G12_PIN GPIO_PORTG | GPIO_PIN12
+
+//==================================================
+//  Fault handler bit definitions.
+
+/**
+ * @brief Meadow OS Component has errored
+ */
+#define FAULT_LOGGING_COMPONENT_ERRORED         (1 << 0)
+
+/**
+ * @brief Meadow OS Component has started phase 1 logging.
+ */
+#define FAULT_LOGGING_PHASE1_STARTED            (1 << 1)
+
+/**
+ * @brief Meadow OS Component has completed phase 1 logging.
+ */
+#define FAULT_LOGGING_PHASE1_COMPLETED          (1 << 2)
+
+/**
+ * @brief Meadow OS Component has started phase 2 logging.
+ */
+#define FAULT_LOGGING_PHASE2_STARTED            (1 << 3)
+
+/**
+ * @brief Meadow OS Component has completed phase 2 logging.
+ */
+#define FAULT_LOGGING_PHASE2_COMPLETED          (1 << 4)
+
+/**
+ * @brief Number of bits to shift the OS component fault logging flags in the status register.
+ */
+#define FAULT_LOGGING_OS_BIT_SHIFT              0
+
+/**
+ * @brief Number of bits to shift the runtime component fault logging flags in the status register.
+ */
+#define FAULT_LOGGING_RT_BIT_SHIFT              8
+
+/**
+ * @brief Meadow OS Component has errored
+ */
+#define FAULT_LOGGING_OS_COMPONENT_ERRORED      (FAULT_LOGGING_COMPONENT_ERRORED << FAULT_LOGGING_OS_BIT_SHIFT)
+
+/**
+ * @brief Meadow OS Component has started phase 1 logging.
+ */
+#define FAULT_LOGGING_OS_PHASE1_STARTED         (FAULT_LOGGING_PHASE1_STARTED << FAULT_LOGGING_OS_BIT_SHIFT)
+
+/**
+ * @brief Meadow OS Component has completed phase 1 logging.
+ */
+#define FAULT_LOGGING_OS_PHASE1_COMPLETED       (FAULT_LOGGING_PHASE1_COMPLETED << FAULT_LOGGING_OS_BIT_SHIFT)
+
+/**
+ * @brief Meadow OS Component has started phase 2 logging.
+ */
+#define FAULT_LOGGING_OS_PHASE2_STARTED         (FAULT_LOGGING_PHASE2_STARTED << FAULT_LOGGING_OS_BIT_SHIFT)
+
+/**
+ * @brief Meadow OS Component has completed phase 2 logging.
+ */
+#define FAULT_LOGGING_OS_PHASE2_COMPLETED       (FAULT_LOGGING_PHASE2_COMPLETED << FAULT_LOGGING_OS_BIT_SHIFT)
+
+/**
+ * @brief Meadow RT Component has errored
+ */
+#define FAULT_LOGGING_RT_COMPONENT_ERRORED      (FAULT_LOGGING_COMPONENT_ERRORED << FAULT_LOGGING_RT_BIT_SHIFT)
+
+/**
+ * @brief Meadow RT Component has started phase 1 logging.
+ */
+#define FAULT_LOGGING_RT_PHASE1_STARTED         (FAULT_LOGGING_PHASE1_STARTED << FAULT_LOGGING_RT_BIT_SHIFT)
+
+/**
+ * @brief Meadow RT Component has completed phase 1 logging.
+ */
+#define FAULT_LOGGING_RT_PHASE1_COMPLETED       (FAULT_LOGGING_PHASE1_COMPLETED << FAULT_LOGGING_RT_BIT_SHIFT)
+
+/**
+ * @brief Meadow RT Component has started phase 2 logging.
+ */
+#define FAULT_LOGGING_RT_PHASE2_STARTED         (FAULT_LOGGING_PHASE2_STARTED << FAULT_LOGGING_RT_BIT_SHIFT)
+
+/**
+ * @brief Meadow RT Component has completed phase 2 logging.
+ */
+#define FAULT_LOGGING_RT_PHASE2_COMPLETED       (FAULT_LOGGING_PHASE2_COMPLETED << FAULT_LOGGING_RT_BIT_SHIFT)
+
+/**
+ * @brief File creation error (RT has tried to create a log file but failed).
+ */
+#define FAULT_LOGGING_RT_FILE_ERROR             ((1 << 5) << FAULT_LOGGING_RT_BIT_SHIFT)
 
 //==================================================
 //  Structure to hold cell network interface information

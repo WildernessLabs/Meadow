@@ -591,7 +591,15 @@
 #  define SYS_meadow_os_espcp_reset                     (SYS_meadow_client_cert_release_credentials + 8)
 #  define SYS_meadow_os_espcp_enter_programming_mode    (SYS_meadow_client_cert_release_credentials + 9)
 #  define SYS_meadow_os_espcp_monitor_process_line      (SYS_meadow_client_cert_release_credentials + 10)
-#  define SYS_meadow_os_get_gateway_address             (SYS_meadow_client_cert_release_credentials + 11)
+#  define SYS_meadow_os_bbd_clear_sram                  (SYS_meadow_client_cert_release_credentials + 11)
+#  define SYS_meadow_os_bbd_register_clear_bits         (SYS_meadow_client_cert_release_credentials + 12)
+#  define SYS_meadow_os_bbd_register_get_value          (SYS_meadow_client_cert_release_credentials + 13)
+#  define SYS_meadow_os_bbd_register_set_bits           (SYS_meadow_client_cert_release_credentials + 14)
+#  define SYS_meadow_os_bbd_register_set_value          (SYS_meadow_client_cert_release_credentials + 15)
+#  define SYS_meadow_os_bbd_strdup_from_sram            (SYS_meadow_client_cert_release_credentials + 16)
+#  define SYS_meadow_os_bbd_strdup_to_sram              (SYS_meadow_client_cert_release_credentials + 17)
+#  define SYS_meadow_os_reset_board                     (SYS_meadow_client_cert_release_credentials + 18)
+#  define SYS_meadow_os_get_gateway_address             (SYS_meadow_client_cert_release_credentials + 19)
 #else
 #  define SYS_meadow_os_get_gateway_address             SYS_meadow_client_cert_release_credentials
 #endif

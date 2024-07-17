@@ -1,8 +1,8 @@
 /****************************************************************************
- * \apps\examples\hcom\tests\meadow_os_userspace_tests.c
+ * meadow_os_fault_handling.h
  * 
  *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
- *   Author:  Wilderness Labs
+ *   Author:  Wilderness Labs (Mark Stevens)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,83 +32,27 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
+#ifndef __MEADOW_OS_FAULT_HANDLING_H
+#define __MEADOW_OS_FAULT_HANDLING_H
 
-/****************************************************************************
- * Included Files
- ****************************************************************************/
+#pragma once
 
 #include <nuttx/config.h>
 
-#if defined (CONFIG_MEADOW_OS_TESTS)
-
 #include <stdint.h>
-
-#include "../hcom_common.h"
-#include <meadow/meadow_os.h>
-#include <meadow/meadow_kernel_tests.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
 /****************************************************************************
- * Private types
- ****************************************************************************/
-
-/****************************************************************************
- * Private Data
- ****************************************************************************/
-
-/****************************************************************************
- * Private Function Prototypes
+ * Public type defintions.
  ****************************************************************************/
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+void meadow_os_fault_handler_save_os_state(void);
+void meadow_os_fault_handler_check_fault_code(void);
 
-/****************************************************************************
- * Name: meadow_os_userspace_assert_test
- *
- * Description:
- *  Execute the userspace assert test in the OS.
- *
- * Input Parameters:
- *  userdata - Value passed to the test from the meadow command line.
- *             See: -v / --value parameter in meadow command line.
- *
- * Returned Value:
- *  None.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-void meadow_os_userspace_assert_test(uint32_t userdata)
-{
-    *((uint32_t *) NULL) = 0;
-}
-
-/****************************************************************************
- * Name: meadow_os_userspace_board_reset_test
- *
- * Description:
- *  Check that we can reset the board from user space.
- *
- * Input Parameters:
- *  userdata - Value passed to the test from the meadow command line.
- *             See: -v / --value parameter in meadow command line.
- *
- * Returned Value:
- *  None.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-void meadow_os_userspace_board_reset_test(uint32_t userdata)
-{
-    meadow_os_reset_board(0);
-}
-
-#endif /* CONFIG_MEADOW_OS_TESTS */
+#endif /* __MEADOW_OS_FAULT_HANDLING_H */

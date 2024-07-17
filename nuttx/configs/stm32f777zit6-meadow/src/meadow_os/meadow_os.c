@@ -1,7 +1,7 @@
 /****************************************************************************
- * meadow_os.h
- * 
- *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ * meadow_os.c
+ *
+ *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,88 +32,59 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-#ifndef __MEADOW_OS_H
-#define __MEADOW_OS_H
 
-#include <meadow/hcom_shared_common.h>
+#include <nuttx/config.h>
+
+#include <stdlib.h>
+
+#include <arch/board/board.h>
+
+#include <meadow/meadow_os.h>
 
 /****************************************************************************
  * Uncomment the #define below to turn on debug help macros.
  ****************************************************************************/
+// #define USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
 
-/**
- * The following list of reset codes are derived from RM0410 document from
- * STM.  The values are taken from the RCC-CSR register bits.  Specifically,
- * bits 24 - 31 inclusive.
- * 
- * The bit patterns below assume that the CSR register has been shifted right
- * by 24 bits.
- */
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
 
-/**
- * @brief Set when either a brownout reset or a POR/PDR reset occurs.
- */
-#define MEADOW_OS_RESET_BROWNOUT                0x02
+/****************************************************************************
+ * Local type defintions.
+ ****************************************************************************/
 
-/**
- * @brief Reset triggered by the NRST pin.
- */
-#define MEADOW_OS_RESET_RESET_PIN               0x04
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
 
-/**
- * @brief POR/PDR reset.
- */
-#define MEADOW_OS_RESET_POWER_CYCLE             0x08
-
-/**
- * @brief Software reset.
- */
-#define MEADOW_OS_RESET_SOFTWARE                0x10
-
-/**
- * @brief Independent watchdog reset from the Vdd domain.
- */
-#define MEADOW_OS_RESET_INDEPENDENT_WATCHDOG    0x20
-
-/**
- * @brief Windows watchdog reset.
- */
-#define MEADOW_OS_RESET_WINDOW_WATCHDOG         0x40
-
-/**
- * @brief Low power management reset.
- */
-#define MEADOW_OS_RESET_LOW_POWER               0x80
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-//
-//  Configuration methods.
-//
-void meadow_os_config_free_resources(meadow_configuration_t *);
-meadow_configuration_t *meadow_os_deep_copy_config(void);
-//
-//  Power cycle, and reset methods.
-//
-uint32_t meadow_os_power_cycle_count(void);
-uint32_t meadow_os_reset_cycle_count(void);
-uint32_t meadow_os_reset_reason(void);
-uint32_t meadow_os_hardware_version(void);
-int meadow_os_reset_update_counters(void);
-//
-//  Misc methods.
-//
-uint32_t meadow_os_native_protocol_version(void);
-void meadow_os_raise_simple_exception(uint32_t);
-void meadow_os_reset_board(int);
-//
-//  ESP coprocessor specific methods.
-//
-void meadow_os_espcp_reset(void);
-uint32_t meadow_os_espcp_enter_programming_mode(void);
-void meadow_os_espcp_monitor_process_line(char *);
-int meadow_os_get_gateway_address(char *);
-
-#endif /* __MEADOW_OS_H */
+/****************************************************************************
+ * Name: meadow_os_reset_board
+ *
+ * Description:
+ *  Reset the board.
+ *
+ * Input Parameters:
+ *  status - Status code for the reset.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void meadow_os_reset_board(int status)
+{
+    MEADOW_TRACE_INFORMATION("Reset board called with status %d\n", status);
+    board_reset(status);
+}

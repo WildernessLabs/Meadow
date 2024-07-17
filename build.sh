@@ -332,24 +332,7 @@ fi
 # fi
 
 if $ENABLE_STACK_DUMP; then
-  #
-  # This is used to turn off RAMLOG and enables stack dumps to be sent to USART1 (COM1).
-  #
-  printf "\n\n********** Enabling stack dump to USART1 (COM1).  This will disable RAMLOG. **********\n\n"
-  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable DEV_CONSOLE
-  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SERIAL_CONSOLE
-  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable USART1_SERIAL_CONSOLE
-  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SYSLOG_WRITE
-  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SYSLOG_SERIAL_CONSOLE
-  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable SYSLOG_CONSOLE
-
-  kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine NO_SERIAL_CONSOLE
-  kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine RAMLOG
-  kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine RAMLOG_BUFSIZE
-  kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine RAMLOG_NPOLLWAITERS
-  kconfig-tweak --file $NUTTX_CONFIG_FILE --undefine RAMLOG_SYSLOG
-
-  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable STACK_COLORATION
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable MEADOW_LOGGING_ENABLE_STACK_DUMP
 fi
 
 if $ENABLE_ASSERTS; then
