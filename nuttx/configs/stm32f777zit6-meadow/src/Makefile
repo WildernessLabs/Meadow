@@ -87,6 +87,10 @@ ifeq ($(CONFIG_STM32F7_SDMMC2),y)
 CSRCS += meadow_sdmmc.c
 endif
 
+ifeq ($(CONFIG_USBDEV_COMPOSITE),y)
+CSRCS += stm32_composite.c
+endif
+
 ifeq ($(CONFIG_MEADOW_HCOM),y)
 CSRCS += hcom_nx/hcom_nx_upd.c \
 hcom_nx/hcom_nx_startup_mgr.c \
