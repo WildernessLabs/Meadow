@@ -45,6 +45,18 @@
 #include <meadow/meadow_pwr_mgmt.h>
 
 #include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <debug.h>
+#include <sys/boardctl.h>
+
+#include <nuttx/usb/usbdev.h>
+#include <nuttx/usb/composite.h>
+#include <nuttx/usb/cdcacm.h>
+#include <nuttx/usb/usbdev_trace.h>
 
 // Diagnostic only
 // #define USE_MEADOW_DEBUG_HELPERS
@@ -80,6 +92,47 @@ static FAR void *hcom_host_recv_pthread(FAR void *arg);
 static int hcom_host_recv_low_power_notification(bool lpStart);
 static void hcom_host_receive_takesem(sem_t *semaphore);
 
+static int enable_usbcomposite(void)
+{
+  struct boardioc_usbdev_ctrl_s ctrl;
+  FAR void *handle;
+  int ret;
+
+/* Perform architecture-specific initialization */
+
+  ctrl.usbdev   = BOARDIOC_USBDEV_COMPOSITE;
+  ctrl.action   = BOARDIOC_USBDEV_INITIALIZE;
+  ctrl.instance = 0;
+  ctrl.config   = 0;
+  ctrl.handle   = &handle;
+
+  ret = boardctl(BOARDIOC_USBDEV_CONTROL, (uintptr_t)&ctrl);
+  if (ret < 0)
+    {
+      printf("conn_main: boardctl(BOARDIOC_USBDEV_CONTROL) failed: %d\n",
+             -ret);
+      return -1;
+    }
+
+  /* Initialize the USB composite device device */
+
+  ctrl.usbdev   = BOARDIOC_USBDEV_COMPOSITE;
+  ctrl.action   = BOARDIOC_USBDEV_CONNECT;
+  ctrl.instance = 0;
+  ctrl.config   = 0;
+  ctrl.handle   = &handle;
+
+  ret = boardctl(BOARDIOC_USBDEV_CONTROL, (uintptr_t)&ctrl);
+  if (ret < 0)
+    {
+      printf("conn_main: boardctl(BOARDIOC_USBDEV_CONTROL) failed: %d\n",
+             -ret);
+      return -1;
+    }
+
+  return 0;
+}
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -102,6 +155,15 @@ int hcom_host_recv_setup()
     syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
     return -ENOMEM;
   }
+
+  /* Enable USB Composite to create /dev/ttyACM0 and /dev/ttyACM1 */
+
+  ret = enable_usbcomposite();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-USB Composite failed\n", thisFile, __LINE__);
+      return -ENODEV;
+    }
 
   // Should this really be configurable via menuconfig?
   // Currently it must be '/dev/ttyACM0' and is defined by
