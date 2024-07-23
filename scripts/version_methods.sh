@@ -46,13 +46,10 @@ generate_build_info() {
 
   VERSION_BUILD=$(get_version_change_distance $1)
 
-  echo "$VERSION_MAJOR.$VERSION_MINOR.$VERSION_REVISION.$VERSION_BUILD" > $scriptdir/esp32/version.txt
-
   echo Calculated version: ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_REVISION}.${VERSION_BUILD} '('${MEADOW_GIT_HASH:0-8}:${MEADOW_GIT_REF}')'
 
   git checkout HEAD $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld
   git checkout HEAD $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h
-  git checkout HEAD $scriptdir/esp32/main/version.h
 
   #
   # Get the date / time components in UTC format.
@@ -82,9 +79,7 @@ generate_build_info() {
   do
     inject_value $s $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld
     inject_value $s $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h
-    inject_value $s $scriptdir/esp32/main/build_info.template
   done
-  cp $scriptdir/esp32/main/build_info.template $scriptdir/esp32/main/build_info.h
 
   #
   # If there are no arguments then we assume that we are building for the ESP32
@@ -143,10 +138,6 @@ END
 restore_versioned_files() {
   git checkout HEAD $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld
   git checkout HEAD $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h
-  git checkout HEAD $scriptdir/esp32/version.txt
-  git checkout HEAD $scriptdir/esp32/main/build_info.template
   rm $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld.bak
   rm $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h.bak
-  rm $scriptdir/esp32/main/build_info.template.bak
-  rm $scriptdir/esp32/main/build_info.h
 }
