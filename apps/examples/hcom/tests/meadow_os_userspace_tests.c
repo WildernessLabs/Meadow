@@ -39,13 +39,13 @@
 
 #include <nuttx/config.h>
 
+#if defined (CONFIG_MEADOW_OS_TESTS)
+
 #include <stdint.h>
 
 #include "../hcom_common.h"
-#include <meadow/hcom_upd_shared.h>
-#include <meadow/hcom_shared_common.h>
+#include <meadow/meadow_os.h>
 #include <meadow/meadow_kernel_tests.h>
-#include "../diag/hcom_diag_gpio.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -88,3 +88,27 @@ void meadow_os_userspace_assert_test(uint32_t userdata)
 {
     *((uint32_t *) NULL) = 0;
 }
+
+/****************************************************************************
+ * Name: meadow_os_userspace_board_reset_test
+ *
+ * Description:
+ *  Check that we can reset the board from user space.
+ *
+ * Input Parameters:
+ *  userdata - Value passed to the test from the meadow command line.
+ *             See: -v / --value parameter in meadow command line.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+void meadow_os_userspace_board_reset_test(uint32_t userdata)
+{
+    meadow_os_reset_board(0);
+}
+
+#endif /* CONFIG_MEADOW_OS_TESTS */

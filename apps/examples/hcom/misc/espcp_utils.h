@@ -1,6 +1,6 @@
-/****************************************************************************
- * meadow_watchdogs.h
- *
+/*************************************************************************
+ * \apps\examples\hcom\misc\espcp_utils.h
+ * 
  *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
@@ -33,43 +33,66 @@
  *
  ****************************************************************************/
 
-#ifndef __MEADOW_WATCHDOGS_H
-#define __MEADOW_WATCHDOGS_H
+
+#ifndef __CONFIGS_MEADOW_SRC_HCOM_MISC_ESPCP_UTILS__H
+#define __CONFIGS_MEADOW_SRC_HCOM_MISC_ESPCP_UTILS__H
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
-#include <unistd.h>
-#include <syslog.h>
-
-#include <nuttx/config.h>
-#include <nuttx/timers/watchdog.h>
-
+#include "../hcom_common.h"
+#include <meadow/hcom_protocol.h>
 #include <meadow/hcom_shared_common.h>
 #include <meadow/meadow_os.h>
 
-#include "../nuttx/wdog.h"
-
 /****************************************************************************
- * Preprocessor Definitions
+ * Pre-processor Definitions
  ****************************************************************************/
 
-#define ENABLE_MEADOW_WATCHDOGS
+#define ESPCP_MAXIMUM_MESSAGE_QUEUE_LENGTH       10
+#define ESPCP_EVENT_DATA_SIZE                    13
+#define ESPCP_EVENT_MESSAGE_QUEUE_NAME           "/Esp32Events"
+#define ESPCP_REQUEST_MESSAGE_QUEUE_NAME         "/Esp32Requests"
+#define ESPCP_EVENT_HANDLER_MESSAGE_QUEUE_NAME   "/IncomingEvents"
+#define ESPCP_DEFAULT_MESSAGE_PRIORITY           1
 
-#define WATCHDOG_POLL_TIMEOUT_MILLISECONDS    (300 * 1000)
-#define WATCHDOG_CLOSE_TIMEOUT_MILLISECONDS   (300 * 1000)
-#define WATCHDOG_SOCKET_TIMEOUT_MILLISECONDS  (300 * 1000)
-#define WATCHDOG_RECV_TIMEOUT_MILLISECONDS    (300 * 1000)
-#define WATCHDOG_SEND_TIMEOUT_MILLISECONDS    (300 * 1000)
-#define WATCHDOG_SENDTO_TIMEOUT_MILLISECONDS  (300 * 1000)
+// Note: Most of these definitions are in the esp32 codebase (espcp_shared_enums.h)
+#define ESPCP_CELL_CONNECTED_EVENT        0x00
+#define ESPCP_CELL_DISCONNECTED_EVENT     0x01
+#define ESPCP_CELL_ERROR_EVENT            0x02
+#define ESPCP_CELL_AT_CMD_EVENT           0x04
+
+#define ESPCP_WIFI_NTP_UPDATE_EVENT       0x26
+#define ESPCP_ETHERNET_NTP_UPDATE_EVENT   0x26
+#define ESPCP_CELL_NTP_UPDATE_EVENT       0x05
+
+#define ESPCP_WIFI_INTERFACE              0x01
+#define ESPCP_ETHERNET_INTERFACE          0x06
+#define ESPCP_CELL_INTERFACE              0x07
+#define ESPCP_NONE_INTERFACE              0x00
+
+#define ESPCP_SIMPLE_EVENT_MESSAGE_ID     0x00
+#define ESPCP_COMPLETED_OK_STATUS_CODE    0x00
+#define ESPCP_FAILURE_STATUS_CODE         0x03
 
 /****************************************************************************
- * Public Function Prototypes
+ * Pre-processor Definitions
  ****************************************************************************/
 
-void meadow_watchdog_reset_system(int argc, char *argv[]);
-void meadow_watchdog_activate(struct wdog_s *watchdog, uint32_t timeout);
-void meadow_watchdog_deactivate(struct wdog_s *watchdog);
+struct espcp_event_data_s
+{
+    uint8_t interface;
+    uint32_t function;
+    uint32_t status_code;
+    uint32_t message_id;
+};
+typedef struct espcp_event_data_s espcp_event_data_t;
 
-#endif /* __MEADOW_WATCHDOGS_H */
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+int espcp_queue_event_messages(uint8_t *message);
+
+#endif //__CONFIGS_MEADOW_SRC_HCOM_MISC_ESPCP_UTILS__H

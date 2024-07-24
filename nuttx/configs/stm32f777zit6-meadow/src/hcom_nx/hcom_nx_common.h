@@ -59,7 +59,6 @@
 
 #include <nuttx/board.h>
 #include <nuttx/mm/mm.h>
-#include <nuttx/config.h>
 #include <limits.h>
 
 #include <nuttx/arch.h>
@@ -168,10 +167,14 @@ extern "C"
   uint32_t hcom_nx_exec_ex_flash_get_block_size(void);
   int hcom_nx_exec_ex_flash_get_geometry(struct mtd_geometry_s *);
   int hcom_nx_exec_ex_flash_read_absolute_block(uint32_t blockNumber, void *destinationAddress);
+  int  hcom_nx_exec_ex_flash_write_buffer_to_flash(uint8_t* data_buf, off_t size, off_t offset);
   int hcom_nx_exec_ex_flash_copy_blocks_to_memory(uint32_t startBlock, void *destinationAddress, uint32_t numberOfBlocks);
   int hcom_nx_exec_ex_flash_read_persistent_data(meadow_os_persistent_data_t *data);
   int hcom_nx_exec_ex_flash_write_persistent_data(meadow_os_persistent_data_t *data);
-  
+  uint32_t hcom_nx_exec_ex_flash_assert_data_location(void);
+  int hcom_nx_exec_ex_flash_write_assertion_data(const char *data, uint32_t length);
+  int hcom_nx_exec_ex_flash_read_assertion_data(const char *data);
+
   // Syslog tracing
   int hcom_nx_exec_trace_do_not_send_to_host(struct hcom_nx_cmd_data *cmdData);
   int hcom_nx_exec_trace_do_send_to_host(struct hcom_nx_cmd_data *cmdData);

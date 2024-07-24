@@ -49,6 +49,16 @@
 #include <dirent.h>
 #include <sys/stat.h>
 
+//
+//  Defining the MEADOW_USE_HCOM_DEBUG_HELPERS macro allows the expansion of
+//  the MEADOW_TRACE_INFORMATION into a call to hcom_logging_syslog with the
+//  log level set to LOG_INFO.
+//
+//  This macro should be commented for production code.
+//
+// #define MEADOW_USE_HCOM_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
+
 #if defined (CONFIG_DIR_MGMT_TESTS)
 #pragma message "(--) hcom_file_lists_subdir.c"
 #endif
@@ -123,7 +133,7 @@ int hcom_file_lists_all_files_in_subdirectories(const HcomProtoHdrMsg_t *hdrMsg,
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
               fileInformation, thisFile, __LINE__);
 
-  hcom_logging_syslog(LOG_INFO, "%s@%d-%s\n",
+  MEADOW_TRACE_INFORMATION("%s@%d-%s\n",
               thisFile, __LINE__, dnldShared->dnldFullPathName);
 
   while((direntry = readdir(dirp)) != NULL)
@@ -168,7 +178,7 @@ int hcom_file_lists_all_files_in_subdirectories(const HcomProtoHdrMsg_t *hdrMsg,
         hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
                       fileInformation, thisFile, __LINE__);
 
-        hcom_logging_syslog(LOG_INFO, "%s@%d-%s%s checksum:0x%08x, %lu KB (%d bytes)\n",
+        MEADOW_TRACE_INFORMATION("%s@%d-%s%s checksum:0x%08x, %lu KB (%d bytes)\n",
                   thisFile, __LINE__,
                   useFullPath ? dnldShared->dnldFullPathName : "",
                   direntry->d_name,
@@ -186,7 +196,7 @@ int hcom_file_lists_all_files_in_subdirectories(const HcomProtoHdrMsg_t *hdrMsg,
         hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
                   fileInformation, thisFile, __LINE__);
 
-        hcom_logging_syslog(LOG_INFO, "%s@%d-%s%s\n",
+        MEADOW_TRACE_INFORMATION("%s@%d-%s%s\n",
                   thisFile, __LINE__,
                   useFullPath ? dnldShared->dnldFullPathName : "",
                   direntry->d_name);
@@ -208,7 +218,7 @@ int hcom_file_lists_all_files_in_subdirectories(const HcomProtoHdrMsg_t *hdrMsg,
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
                 fileInformation, thisFile, __LINE__);
 
-      hcom_logging_syslog(LOG_INFO, "%s@%d-/%s\n",
+      MEADOW_TRACE_INFORMATION("%s@%d-/%s\n",
                 thisFile, __LINE__, direntry->d_name);
     }
     else if(DIRENT_ISBLK(direntry->d_type) &&
@@ -222,7 +232,7 @@ int hcom_file_lists_all_files_in_subdirectories(const HcomProtoHdrMsg_t *hdrMsg,
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_LIST_MEMBER, 0,
                 fileInformation, thisFile, __LINE__);
 
-      hcom_logging_syslog(LOG_INFO, "%s@%d-/%s\n",
+      MEADOW_TRACE_INFORMATION("%s@%d-/%s\n",
                 thisFile, __LINE__, direntry->d_name);
     }
     // Ignore character devices and links
@@ -241,8 +251,7 @@ int hcom_file_lists_all_files_in_subdirectories(const HcomProtoHdrMsg_t *hdrMsg,
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CRC_MEMBER, 0,
                   fileInformation, thisFile, __LINE__);
 
-    hcom_logging_syslog(LOG_INFO,
-              "%s@%d-A total of %ul file%s using %lu KB (%d bytes) and %d director%s \n",
+    MEADOW_TRACE_INFORMATION("%s@%d-A total of %lu file%s using %lu KB (%d bytes) and %d director%s \n",
               thisFile, __LINE__,
               fileCount, fileCount == 1 ? "" : "s",
               totalFlashSizeKB, totalSizeOfFiles,

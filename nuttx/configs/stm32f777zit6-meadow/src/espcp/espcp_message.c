@@ -276,7 +276,6 @@ static meadow_debug_mapping_t status_codes[] =
     { espcp_status_codes_esp_reset_deep_sleep, "espcp_status_codes_esp_reset_deep_sleep" },
     { espcp_status_codes_esp_reset_brownout, "espcp_status_codes_esp_reset_brownout" },
     { espcp_status_codes_esp_reset_sdio, "espcp_status_codes_esp_reset_sdio" },
-
 };
 
 /**
@@ -289,7 +288,8 @@ static meadow_debug_mapping_t interfaces[] =
     { espcp_esp32_interfaces_blue_tooth, "espcp_esp32_interfaces_blue_tooth" },
     { espcp_esp32_interfaces_mesh_network, "espcp_esp32_interfaces_mesh_network" },
     { espcp_esp32_interfaces_system, "espcp_esp32_interfaces_system" },
-    { espcp_esp32_interfaces_transport, "espcp_esp32_interfaces_transport" }
+    { espcp_esp32_interfaces_transport, "espcp_esp32_interfaces_transport" },
+    { espcp_esp32_interfaces_wired_ethernet, "espcp_esp32_interfaces_wired_ethernet" },
 };
 
 /**
@@ -450,6 +450,7 @@ void espcp_dump_message(espcp_message_t *message)
     uint32_t mapping_length = 0;
     switch (message->interface)
     {
+        case espcp_esp32_interfaces_wired_ethernet:
         case espcp_esp32_interfaces_wi_fi:
             mapping = wifi_functions;
             mapping_length = sizeof(wifi_functions);
@@ -475,4 +476,17 @@ void espcp_dump_message(espcp_message_t *message)
     MEADOW_TRACE_INFORMATION("************************************************************\n");
 }
 
-#endif
+#else
+
+/**
+ *  @brief Dump the given message to the debug output.
+ * 
+ * This is intentionally empty as the debug helpers are not enabled and is here to ensure that the system will link
+ * correctly if the debug helpers are not enabled in this file but are enabled elsewhere.
+ */
+void espcp_dump_message(espcp_message_t *message)
+{
+
+}
+
+#endif // USE_MEADOW_DEBUG_HELPERS

@@ -61,6 +61,9 @@
 #include "up_internal.h"
 #include "chip.h"
 
+#include <meadow/hcom_shared_common.h>
+#include <meadow/meadow_os_fault_handling.h>
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -81,6 +84,14 @@
 #ifdef CONFIG_ARCH_STACKDUMP
 static uint32_t s_last_regs[XCPTCONTEXT_REGS];
 #endif
+
+/**
+ * @brief How many times has up_assert been called?
+ * 
+ * This is used to determine if we should execute the Meadow OS fault handling
+ * code as this may have caused an issue last time.
+ */
+static uint32_t _up_assert_entry_count = 0;
 
 /****************************************************************************
  * Private Functions
@@ -642,6 +653,12 @@ void up_assert(const uint8_t *filename, int lineno)
 #ifdef CONFIG_BOARD_CRASHDUMP
   board_crashdump(up_getsp(), running_task(), filename, lineno);
 #endif
+
+  if (!_up_assert_entry_count)
+  {
+    _up_assert_entry_count++;
+    meadow_os_fault_handler_save_os_state();
+  }
 
   _up_assert(EXIT_FAILURE);
 }

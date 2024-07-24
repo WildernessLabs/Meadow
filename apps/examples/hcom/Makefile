@@ -95,6 +95,7 @@ HCOM_SRCS = comms/hcom_host_encode.c \
 	tests/diag_ethernet_chat_test.c \
 	tests/tensorflow_tests.c \
 	tests/meadow_os_userspace_tests.c \
+	tests/meadow_bbd_tests.c \
 	ota/hcom_ota.c
 
 ifeq ($(CONFIG_HCOM_ESP32_COMMS),y)

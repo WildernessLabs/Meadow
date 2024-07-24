@@ -48,7 +48,6 @@
 
 #include <nuttx/cancelpt.h>
 #include <nuttx/net/net.h>
-#include <meadow/meadow_watchdog.h>
 
 #include "socket/socket.h"
 
@@ -239,9 +238,6 @@ ssize_t psock_sendto(FAR struct socket *psock, FAR const void *buf,
 ssize_t sendto(int sockfd, FAR const void *buf, size_t len, int flags,
                FAR const struct sockaddr *to, socklen_t tolen)
 {
-  struct wdog_s g_watchdog_sendto;
-  meadow_watchdog_activate(&g_watchdog_sendto, WATCHDOG_SENDTO_TIMEOUT_MILLISECONDS);
-
   FAR struct socket *psock;
   ssize_t ret;
 
@@ -266,6 +262,5 @@ ssize_t sendto(int sockfd, FAR const void *buf, size_t len, int flags,
   leave_cancellation_point();
   ninfo("result %d\n", ret);
 
-  meadow_watchdog_deactivate(&g_watchdog_sendto);
   return ret;
 }

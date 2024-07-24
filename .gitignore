@@ -272,3 +272,4 @@ Tensorflow/**/*.a
 Tensorflow/**/*.so
 Tensorflow/**/*.map
 Tensorflow/**/*.disassembly
+**/.DS_Store

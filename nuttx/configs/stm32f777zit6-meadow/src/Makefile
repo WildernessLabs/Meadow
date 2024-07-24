@@ -204,11 +204,14 @@ CSRCS += misc/meadow_watchdog.c
 CSRCS += meadow_cloud/meadow_cloud.c
 
 #
-#	Add Meadow OS syscall implementations.
+#	Add Meadow OS methods.
 #
 CSRCS += meadow_os/meadow_os_config.c \
          meadow_os/meadow_os_info.c \
+         meadow_os/meadow_os.c \
          meadow_os/meadow_os_exceptions.c \
-		 meadow_os/meadow_os_espcp.c
+		 meadow_os/meadow_os_espcp.c \
+		 meadow_os/meadow_os_fault_handling.c \
+		 meadow_os/meadow_os_battery_backed_domain.c
 
 include $(TOPDIR)/configs/Board.mk

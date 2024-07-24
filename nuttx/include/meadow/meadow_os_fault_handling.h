@@ -1,8 +1,8 @@
 /****************************************************************************
- * meadow_watchdogs.h
- *
+ * meadow_os_fault_handling.h
+ * 
  *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
- *   Author:  Wilderness Labs
+ *   Author:  Wilderness Labs (Mark Stevens)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,44 +32,27 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
+#ifndef __MEADOW_OS_FAULT_HANDLING_H
+#define __MEADOW_OS_FAULT_HANDLING_H
 
-#ifndef __MEADOW_WATCHDOGS_H
-#define __MEADOW_WATCHDOGS_H
-
-/****************************************************************************
- * Included Files
- ****************************************************************************/
-
-#include <unistd.h>
-#include <syslog.h>
+#pragma once
 
 #include <nuttx/config.h>
-#include <nuttx/timers/watchdog.h>
 
-#include <meadow/hcom_shared_common.h>
-#include <meadow/meadow_os.h>
-
-#include "../nuttx/wdog.h"
+#include <stdint.h>
 
 /****************************************************************************
- * Preprocessor Definitions
+ * Pre-processor Definitions
  ****************************************************************************/
-
-#define ENABLE_MEADOW_WATCHDOGS
-
-#define WATCHDOG_POLL_TIMEOUT_MILLISECONDS    (300 * 1000)
-#define WATCHDOG_CLOSE_TIMEOUT_MILLISECONDS   (300 * 1000)
-#define WATCHDOG_SOCKET_TIMEOUT_MILLISECONDS  (300 * 1000)
-#define WATCHDOG_RECV_TIMEOUT_MILLISECONDS    (300 * 1000)
-#define WATCHDOG_SEND_TIMEOUT_MILLISECONDS    (300 * 1000)
-#define WATCHDOG_SENDTO_TIMEOUT_MILLISECONDS  (300 * 1000)
 
 /****************************************************************************
- * Public Function Prototypes
+ * Public type defintions.
  ****************************************************************************/
 
-void meadow_watchdog_reset_system(int argc, char *argv[]);
-void meadow_watchdog_activate(struct wdog_s *watchdog, uint32_t timeout);
-void meadow_watchdog_deactivate(struct wdog_s *watchdog);
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+void meadow_os_fault_handler_save_os_state(void);
+void meadow_os_fault_handler_check_fault_code(void);
 
-#endif /* __MEADOW_WATCHDOGS_H */
+#endif /* __MEADOW_OS_FAULT_HANDLING_H */

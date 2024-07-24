@@ -46,35 +46,7 @@
 #include <mqueue.h>
 #include <string.h>
 
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-#define ESPCP_MAXIMUM_MESSAGE_QUEUE_LENGTH       10
-#define ESPCP_EVENT_DATA_SIZE                    13
-#define ESPCP_EVENT_MESSAGE_QUEUE_NAME           "/Esp32Events"
-#define ESPCP_REQUEST_MESSAGE_QUEUE_NAME         "/Esp32Requests"
-#define ESPCP_EVENT_HANDLER_MESSAGE_QUEUE_NAME   "/IncomingEvents"
-#define ESPCP_DEFAULT_MESSAGE_PRIORITY           1
-
-// Note: these definitions are in the esp32 codebase
-#define ESPCP_CELL_CONNECTED_EVENT        0x00
-#define ESPCP_CELL_DISCONNECTED_EVENT     0x01
-#define ESPCP_CELL_ERROR_EVENT            0x02
-#define ESPCP_CELL_AT_CMD_EVENT           0x04
-#define ESPCP_CELL_INTERFACE              0x07
-#define ESPCP_SIMPLE_EVENT_MESSAGE_ID     0x00
-#define ESPCP_COMPLETED_OK_STATUS_CODE    0x00
-#define ESPCP_FAILURE_STATUS_CODE         0x03
-
-struct espcp_event_data_s
-{
-    uint8_t interface;
-    uint32_t function;
-    uint32_t status_code;
-    uint32_t message_id;
-};
-typedef struct espcp_event_data_s espcp_event_data_t;
+#include "espcp_utils.h"
 
 /****************************************************************************
  * Private Data

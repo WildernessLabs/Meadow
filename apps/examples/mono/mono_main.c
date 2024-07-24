@@ -32,6 +32,11 @@
 #include <meadow/hcom_shared_common.h>
 #include "../hcom/hcom_common.h"
 
+#include <meadow/hcom_bbreg_defn.h>
+
+#include <meadow/meadow_os.h>
+#include <meadow/meadow_os_battery_backed_domain.h>
+
 #include "ota.h"
 
 typedef struct {
@@ -50,50 +55,128 @@ typedef struct {
  ****************************************************************************/
 extern int mono_main_driver(int, char **);
 extern void mono_set_assemblies_path(const char *);
+extern const char *monoeg_get_assertion_message(void);
 
 /****************************************************************************
- * Private Data
+ * Local defintions.
  ****************************************************************************/
 
 #define MONO_CRASH_FILE CRASH_DIR "/" "mono_error.txt"
 #define MONO_CRASH_FILE_SIZE 65536
 
-static void induce_reset (void)
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+/****************************************************************************
+ * Local methods.
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: induce_reset
+ *
+ * Description:
+ *  Registered Mono error handler.  This will be registered with Mono in
+ *  mono_main.
+ * 
+ *  The handler will eventually force the board to reset after the error
+ *  message has been written to BKPSRAM and a file.
+ * 
+ *  Note that any issues recording the error message will result in the
+ *  board being reset anyway.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static void induce_reset(void)
 {
-  // Any error reporting must not cause cascading failures.
-  // If error reporting fails, we still recover by resetting.
+  //
+  //  First we record that the run-time has errored and that we are attempting Phase 1
+  //  error recording.  This involves getting the full error message and writing as
+  //  much as possible to BKPSRAM (limited to 4096 bytes maximum).
+  //
+  uint32_t fault_status;
+  fault_status = (FAULT_LOGGING_RT_COMPONENT_ERRORED | FAULT_LOGGING_RT_PHASE1_STARTED);
+  meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
+  //
+  //  Now we actually start Phase 1.
+  //
+  const char *assertion_msg = monoeg_get_assertion_message();
+  if (assertion_msg == NULL)
+  {
+    assertion_msg = "No Mono error message available";
+  }
+
+  meadow_os_bbd_strdup_to_sram(assertion_msg);
+  fault_status |= FAULT_LOGGING_RT_PHASE1_COMPLETED | FAULT_LOGGING_RT_PHASE2_STARTED;
+  meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
+  //
+  //  Phase 1 marked as complete and Phase 2 marked as started. Start generating a file
+  //  containing the full error message.  This may be longer than 4096 bytes hence writing
+  //  to a file.
+  //
   mkdir(CRASH_DIR, 0777);
   FILE *crash_file = fopen(MONO_CRASH_FILE, "w");
   if (crash_file)
   {
-    const char *assertion_msg = monoeg_get_assertion_message ();
     if (assertion_msg)
     {
+      //
+      //  Assume Phase 2 will complete successfully.
+      //
+      fault_status |= FAULT_LOGGING_RT_PHASE2_COMPLETED;
+      //
       int chars_left = strnlen(assertion_msg, MONO_CRASH_FILE_SIZE);
       char *p = (char *) assertion_msg;
       const char *end = assertion_msg + chars_left;
       while (p != end)
       {
         int write_count = fwrite(p, sizeof(char), chars_left, crash_file);
-        if (write_count < 1) // abandon on error or no progress, even observed once
-          goto reset;
-        p += write_count;
-        chars_left -= write_count;
+        if (write_count < 1) 
+        {
+          //
+          //  Abandon on any error and record Phase 2 as possibly incomplete.
+          //
+          p = (char *) end;
+          fault_status &= ~FAULT_LOGGING_RT_PHASE2_COMPLETED;
+        }
+        else
+        {
+          p += write_count;
+          chars_left -= write_count;
+        }
       }
     }
+    fflush(crash_file);
     fclose(crash_file);
+    meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
   }
+  else
+  {
+    fault_status |= FAULT_LOGGING_RT_FILE_ERROR;
+    meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
+  }
+  //
+  //  Try to use syslog as well in case something is listening to the serial port.
+  //
+  syslog(LOG_ERR, "Mono error message: %s\n", assertion_msg);
 
-reset:
   // TODO: If the runtime is asking for an abort, it is unstable, and any further execution
-  // from any Mono thread is suspect, so waiting before resetting is a slight invititation for catastrophe.
+  // from any Mono thread is suspect, so waiting before resetting is a slight invitation for catastrophe.
   // However, this allows for HCOM and the user to catch a glimpse of the abort reason.
   // This should be removed when the Mono abort reason is saved across resets.
   fprintf(stderr, "Unrecoverable .NET Runtime error. Meadow will restart in 5 seconds\n");
   fflush (stderr);
   sleep(5);
 
-  *((int *) NULL) = 0;
+  meadow_os_reset_board(0);
 }
 
 /****************************************************************************

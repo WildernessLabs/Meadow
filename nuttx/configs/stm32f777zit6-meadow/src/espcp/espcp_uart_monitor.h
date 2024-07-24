@@ -70,8 +70,6 @@
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
-int espcp_uart_monitor_start(void);
-int espcp_uart_monitor_running(void);
-int espcp_uart_monitor_stop(void);
+void meadow_os_espcp_monitor_process_line(char *);
 
 #endif /* __ESPCP_UART_MONITOR_H */

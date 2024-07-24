@@ -788,6 +788,7 @@ void           mono_assertion_message_disabled  (const char *file, int line) G_G
 void           mono_assertion_message  (const char *file, int line, const char *condition) G_GNUC_NORETURN;
 void           mono_assertion_message_unreachable (const char *file, int line) G_GNUC_NORETURN;
 const char *   g_get_assertion_message (void);
+void           g_set_assertion_message (const char *);
 
 #ifdef HAVE_C99_SUPPORT
 /* The for (;;) tells gc thats g_error () doesn't return, avoiding warnings */
