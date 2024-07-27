@@ -43,6 +43,7 @@
 #if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
+#include <meadow/hcom_bbreg_defn.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -144,40 +145,70 @@ char *hcom_diag_find_meadow_request_type(uint16_t rqstType)
 void hcom_diag_decode_sending_message_type(const uint8_t *hostRawMsg,
           const uint16_t hostRqstType, const size_t packetSize)
 {
+  // If a syslog is being sent to the CLI, then we need to filter it out.
+  // Why? Because it's already available via COM1 and it generates a lot
+  // of noise.
+  if(hcom_bbreg_is_bbr_bit_set(HCOM_BBREG_ROUTE_TRACE_MSG_TO_HOST_BIT))
+  {
+    if(hostRqstType == HCOM_HOST_REQUEST_TEXT_TRACE_MSG)
+      return;    // This a trace message
+
+  }
+
   char *requestStr = hcom_diag_find_host_request_type(hostRqstType);
 
-  syslog(2, "->Sending '%s' (0x%04x) %u bytes\n",
-        requestStr, hostRqstType, packetSize);
+  // Separate the messages that have text and show some of the text
+  if(((hostRqstType & 0xff00) == HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE) &&
+       (packetSize > HCOM_PROTOCOL_STD_HDR_SIZE))
+  {
+    // This looks to be a text message. It's length indicates it does contain
+    // text.
+    int textLen = 40;    // Arbitrary. Defines how many chars will be displayed
+    if(textLen > (packetSize - HCOM_PROTOCOL_STD_HDR_SIZE))
+      textLen = packetSize - HCOM_PROTOCOL_STD_HDR_SIZE;
+
+    syslog(2, "->Sending %s (0x%04x) %03u bytes, msg text:'%.*s')\n",
+          requestStr, hostRqstType, packetSize, textLen, 
+          hostRawMsg + HCOM_PROTOCOL_STD_HDR_SIZE);
+  }
+  else
+  {
+    // No text
+    syslog(2, "->Sending %s (0x%04x) %03u bytes\n",
+          requestStr, hostRqstType, packetSize);
+  }
+
   hcom_diag_print_buffer(hostRawMsg, packetSize, 1);
 }
 
+//======================================================================
 char *hcom_diag_find_host_request_type(uint16_t hostRqstType)
 {
   switch(hostRqstType)
   {
-    case HCOM_HOST_REQUEST_UNDEFINED_REQUEST:      return "UNDEFINED_REQUEST";
-    case HCOM_HOST_REQUEST_TEXT_REJECTED:          return "TEXT_REJECTED";
-    case HCOM_HOST_REQUEST_TEXT_ACCEPTED:          return "TEXT_ACCEPTED";
-    case HCOM_HOST_REQUEST_TEXT_CONCLUDED:         return "TEXT_CONCLUDED";
-    case HCOM_HOST_REQUEST_TEXT_ERROR:             return "TEXT_ERROR";
-    case HCOM_HOST_REQUEST_TEXT_INFORMATION:       return "TEXT_INFORMATION";
-    case HCOM_HOST_REQUEST_TEXT_LIST_HEADER:       return "TEXT_LIST_HEADER";
-    case HCOM_HOST_REQUEST_TEXT_LIST_MEMBER:       return "TEXT_LIST_MEMBER";
-    case HCOM_HOST_REQUEST_TEXT_CRC_MEMBER:        return "TEXT_CRC_MEMBER";
-    case HCOM_HOST_REQUEST_TEXT_MONO_STDOUT:       return "TEXT_MONO_STDOUT";
-    case HCOM_HOST_REQUEST_TEXT_DEVICE_INFO:       return "TEXT_DEVICE_INFO";
-    case HCOM_HOST_REQUEST_TEXT_TRACE_MSG:         return "TEXT_TRACE_MSG";
-    case HCOM_HOST_REQUEST_TEXT_RECONNECT:         return "TEXT_RECONNECT";
-    case HCOM_HOST_REQUEST_TEXT_MONO_STDERR:       return "TEXT_MONO_STDERR";
-    case HCOM_HOST_REQUEST_INIT_DOWNLOAD_OKAY:     return "FILE_START_OKAY";
-    case HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL:     return "FILE_START_FAIL";
-    case HCOM_HOST_REQUEST_INIT_UPLOAD_OKAY:       return "INIT_UPLOAD_OKAY";
-    case HCOM_HOST_REQUEST_INIT_UPLOAD_FAIL:       return "INIT_UPLOAD_FAIL";
-    case HCOM_HOST_REQUEST_DNLD_FAIL_RESEND:       return "DNLD_FAIL_RESEND";
-    case HCOM_HOST_REQUEST_DEVICE_PUBLIC_KEY:      return "DEVICE_PUBLIC_KEY";
-    case HCOM_HOST_REQUEST_TEXT_NEXT_LOW_PWR:      return "TEXT_NEXT_LOW_PWR";
-    case HCOM_HOST_REQUEST_DEBUGGING_MONO_DATA:    return "DEBUGGING_MONO_DATA";
-    case HCOM_HOST_REQUEST_UPLOADING_FILE_DATA:    return "UPLOADING_FILE_DATA";
+    case HCOM_HOST_REQUEST_UNDEFINED_REQUEST:      return "'UNDEFINED_REQUEST'  ";
+    case HCOM_HOST_REQUEST_TEXT_REJECTED:          return "'TEXT_REJECTED'      ";
+    case HCOM_HOST_REQUEST_TEXT_ACCEPTED:          return "'TEXT_ACCEPTED'      ";
+    case HCOM_HOST_REQUEST_TEXT_CONCLUDED:         return "'TEXT_CONCLUDED'     ";
+    case HCOM_HOST_REQUEST_TEXT_ERROR:             return "'TEXT_ERROR'         ";
+    case HCOM_HOST_REQUEST_TEXT_INFORMATION:       return "'TEXT_INFORMATION'   ";
+    case HCOM_HOST_REQUEST_TEXT_LIST_HEADER:       return "'TEXT_LIST_HEADER'   ";
+    case HCOM_HOST_REQUEST_TEXT_LIST_MEMBER:       return "'TEXT_LIST_MEMBER'   ";
+    case HCOM_HOST_REQUEST_TEXT_CRC_MEMBER:        return "'TEXT_CRC_MEMBER'    ";
+    case HCOM_HOST_REQUEST_TEXT_MONO_STDOUT:       return "'TEXT_MONO_STDOUT'   ";
+    case HCOM_HOST_REQUEST_TEXT_DEVICE_INFO:       return "'TEXT_DEVICE_INFO'   ";
+    case HCOM_HOST_REQUEST_TEXT_TRACE_MSG:         return "'TEXT_TRACE_MSG'     ";
+    case HCOM_HOST_REQUEST_TEXT_RECONNECT:         return "'TEXT_RECONNECT'     ";
+    case HCOM_HOST_REQUEST_TEXT_MONO_STDERR:       return "'TEXT_MONO_STDERR'   ";
+    case HCOM_HOST_REQUEST_INIT_DOWNLOAD_OKAY:     return "'FILE_START_OKAY'    ";
+    case HCOM_HOST_REQUEST_INIT_DOWNLOAD_FAIL:     return "'FILE_START_FAIL'    ";
+    case HCOM_HOST_REQUEST_INIT_UPLOAD_OKAY:       return "'INIT_UPLOAD_OKAY'   ";
+    case HCOM_HOST_REQUEST_INIT_UPLOAD_FAIL:       return "'INIT_UPLOAD_FAIL'   ";
+    case HCOM_HOST_REQUEST_DNLD_FAIL_RESEND:       return "'DNLD_FAIL_RESEND'   ";
+    case HCOM_HOST_REQUEST_DEVICE_PUBLIC_KEY:      return "'DEVICE_PUBLIC_KEY'  ";
+    case HCOM_HOST_REQUEST_TEXT_NEXT_LOW_PWR:      return "'TEXT_NEXT_LOW_PWR'  ";
+    case HCOM_HOST_REQUEST_DEBUGGING_MONO_DATA:    return "'DEBUGGING_MONO_DATA'";
+    case HCOM_HOST_REQUEST_UPLOADING_FILE_DATA:    return "'UPLOADING_FILE_DATA'";
     default:
       return "Host Request Type not found";
   }

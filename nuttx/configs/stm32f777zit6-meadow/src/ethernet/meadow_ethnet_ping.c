@@ -221,6 +221,8 @@ static void ping_text_to_host(int priority, FAR const IPTR char *fmt, ...)
   // syslog(priority, finalString);
 
   va_end(args);
+  
+  free(finalString);
 }
 
 // /****************************************************************************

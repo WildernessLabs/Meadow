@@ -72,7 +72,7 @@ int hcom_host_text_transport_setup()
 //================================================================
 // Create a thread that can be used to transport the syslog message
 // from k-land to here in userland.
-// This thread calls via hcom_via_nx_access into kernelland and lives
+// This thread calls via hcom_via_nx_access into kernel land and lives
 // there until the a message is ready to be sent to the host text.
 void hcom_host_text_transport_create_thread()
 {
@@ -114,8 +114,9 @@ FAR void *hcom_host_text_transport_pthread(FAR void *arg)
   // Stay in this loop
   while(true)
   {
-    // Call into kernelland to get the next host text message. This thread will
-    // wait in kernelland until the next message or terminated, at either point
+    // Call into kernel land to get the next host text message. This thread
+    // will wait in kernel land until the next message or terminated, at
+    // either point
     // it will return.
     stringLen = hcom_via_nx_provide_host_text_transport(&requestType,
           hostTextMsgBuf, HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
@@ -126,6 +127,10 @@ FAR void *hcom_host_text_transport_pthread(FAR void *arg)
       usleep(10 * 1000);
       continue;
     }
+
+    // String is NULL terminated but no '\n'. So, output the text carefully.
+    // syslog(1, "%s@%d-Sending msg:'%.*s' to CLI\n", __FILE__, __LINE__,
+    //     strlen(hostTextMsgBuf), hostTextMsgBuf);
 
     // Forward to host_text and wait again for next message
     hcom_host_send_simple_string_msg(requestType, 0,

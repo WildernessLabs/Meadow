@@ -62,7 +62,7 @@
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// The following provide a thin layer of obstraction and some features to
+// The following provide a thin layer of abstraction and some features to
 // functions existing in hcom_via_nx_gpio_xxx. Plus the names are easier
 // to remember...
 void hcom_diag_gpio_config(uint32_t pin)
@@ -81,9 +81,8 @@ void hcom_diag_gpio_set_high(uint32_t pin)
 //==========================================================
 void hcom_diag_gpio_set_low(uint32_t pin)
 {
-  hcom_via_nx_gpio_write(pin, false);
+  stm32_gpiowrite(pin, false);
 }
-
 
 //==========================================================
 void hcom_diag_gpio_pulse(uint32_t pin, uint32_t usec)
