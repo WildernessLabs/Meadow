@@ -356,7 +356,7 @@ g_log_default_handler (const gchar *log_domain, GLogLevelFlags log_level, const 
 		message);
 
 	if (log_level & fatal) {
-		failure_assertion = message;
+		failure_assertion = (char*) message;
 		fflush (stdout);
 		fflush (stderr);
 		g_assert_abort ();
