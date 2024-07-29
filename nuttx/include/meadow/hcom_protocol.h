@@ -73,10 +73,9 @@ extern uint16_t g_current_hcom_protocol_version;
 // Note: because 'sizeof' and 'offsetof' are process by the C preprocessor
 // and not the compiler, these defines cannot be used in #if statements.
 
-// Define the absolute maximum packet sizes for sent and receive. The length
+// Define the absolute maximum packet size for sent and receive. The length
 // on the wire will be a bit longer because it's encoded.
 #define HCOM_PROTOCOL_CURRENT_PACKET_MAX_SIZE             8192
-#define HCOM_PROTOCOL_MINIMUM_VERSION_PACKET_MAX_SIZE     512
 
 // Allow the protocol to dynamically change the maximum packet size.
 extern uint16_t g_current_hcom_maximum_packet_size;

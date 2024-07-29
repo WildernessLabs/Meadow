@@ -259,7 +259,7 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 #endif
 
   // This will route the message to app side and on to CLI.
-  char *lowPowerNext = "Entering low-power mode";
+  char *lowPowerNext = "Entering low-power mode\n";
   hcom_nx_route_text_to_host(HCOM_HOST_REQUEST_TEXT_NEXT_LOW_PWR,
             lowPowerNext, strlen(lowPowerNext));
   if(ret < 0)

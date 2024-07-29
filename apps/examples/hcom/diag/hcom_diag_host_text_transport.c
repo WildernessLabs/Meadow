@@ -116,8 +116,7 @@ FAR void *hcom_host_text_transport_pthread(FAR void *arg)
   {
     // Call into kernel land to get the next host text message. This thread
     // will wait in kernel land until the next message or terminated, at
-    // either point
-    // it will return.
+    // either point it will return.
     stringLen = hcom_via_nx_provide_host_text_transport(&requestType,
           hostTextMsgBuf, HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
 
@@ -133,6 +132,8 @@ FAR void *hcom_host_text_transport_pthread(FAR void *arg)
     //     strlen(hostTextMsgBuf), hostTextMsgBuf);
 
     // Forward to host_text and wait again for next message
+    // Note: this call will measure the message length based on the '\n' at
+    //  the end of the string.
     hcom_host_send_simple_string_msg(requestType, 0,
            hostTextMsgBuf, __FILE__, __LINE__);
   }

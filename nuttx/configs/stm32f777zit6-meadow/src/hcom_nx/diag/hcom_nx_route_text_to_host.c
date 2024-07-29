@@ -102,7 +102,8 @@ static sem_t _sendCliSem;
  ****************************************************************************/
 int hcom_nx_route_text_to_host_setup()
 {  
-  _sharedMsgBuff = (uint8_t *)malloc(HCOM_PROTOCOL_MINIMUM_VERSION_PACKET_MAX_SIZE);
+  _sharedMsgBuff = (uint8_t *)malloc(HCOM_PROTOCOL_CURRENT_PACKET_MAX_SIZE - \
+            HCOM_PROTOCOL_HEADER_MSG_LENGTH);
 
   sem_init(&_onlyOneSem, 0, 1);
 
@@ -132,6 +133,7 @@ static void hcom_nx_route_text_wait_sem(sem_t *semaphore)
 
 //=================================================================
 // Ship the a generic text message to host
+// Note: The text must end with a '\n' character.
 int hcom_nx_route_text_to_host(uint16_t requestType, char *msgBuff,
           size_t msgLen)
 {
@@ -142,7 +144,6 @@ int hcom_nx_route_text_to_host(uint16_t requestType, char *msgBuff,
   memcpy(_sharedMsgBuff, msgBuff, msgLen);
   _sharedMsgLen = msgLen;
   _sharedRqstType = requestType;
-
 
   // Release pthread to return the message in the shared buffer to the host
   sem_post(&_sendCliSem);
@@ -167,7 +168,6 @@ size_t hcom_nx_text_to_host_transport(uint16_t *requestType,
   static bool firstTime = true;
   size_t msgLength;
 
-
   // The first call must be ignored. Afterward we allow the reader to get the
   // to keep things in sync.
   if(firstTime)
@@ -176,28 +176,36 @@ size_t hcom_nx_text_to_host_transport(uint16_t *requestType,
   }
   else
   {
-    // The caller of this function has entered, indicating that the message
-    // has been sent to the host. Therefore, allow the caller to get the
-    // next message
+    // The previous message has been sent to the host. Therefore, release the
+    // the allow the caller to wait for the next message.
     sem_post(&_readNxtSem);
   }
 
-  // Now we wait for the next message to arrive
+  // Now wait for the next message to arrive
   hcom_nx_route_text_wait_sem(&_sendCliSem);
 
-  // Truncate the message if too long for caller's buffer
+  // Next message has arrived.
+  // Truncate the message if too long for caller's buffer, otherwise use the
+  // message's length.
+  // Note: at this time the lengths of both buffers is
+  // HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN which is 8180 bytes (29Jul2024)
   if(_sharedMsgLen > buffLen)
+  {
     msgLength = buffLen;
+
+    // Fixup the string in the buffer
+    _sharedMsgBuff[buffLen - 1] = '\0';
+    _sharedMsgBuff[buffLen - 2] = '\n';
+  }
   else
+  {
     msgLength = _sharedMsgLen;
+  }
 
   *requestType = _sharedRqstType;
 
-  // Currently, the 2 threads run in a ping-pong fashion, only one can run
-  // at a time. With some effort, once the data has been copied to the userland
-  // buffer, the ramlog reader could be allowed to read the next message.
-  // But, at this time the effort doesn't seem to be worth the benefit.
-  // Note: the pthread must be the one to copy the data into buff.
+  // Note: Even though this code is in kernel land, the app side pthread must
+  // be the one to copy the data into the app side buffer.
   memcpy(buff, _sharedMsgBuff, msgLength);
 
   // Return to userland with the message and its length

@@ -36,6 +36,7 @@
 /****************************************************************************
  * Included Files
  ****************************************************************************/
+#if defined(CONFIG_GPIO_TESTS)
 
 #include <meadow/meadow_hw_version.h>
 #include "../hcom_common.h"
@@ -186,3 +187,5 @@ void hcom_meadow_diag_gpio_tests(uint32_t userData)
     }
   }
 }
+
+#endif

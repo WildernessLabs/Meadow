@@ -249,7 +249,7 @@ typedef struct hcom_nx_upd_host_send_cb_s
 #define HCOM_NX_UPD_GET_UPDATE_FLAG             35
 #define HCOM_NX_UPD_SET_UPDATE_FLAG             36
 #define HCOM_NX_UPD_COPY_RUNTIME_TO_RAM         37
-#define HCOM_NX_UPD_HOST_SEND_MSG_CB            38
+// 38 has been deleted as it is no longer used.
 #define HCOM_NX_UPD_REG_PWR_MGMT_CB             39
 
 #endif  // __INCLUDE_MEADOW_HCOM_NX_SHARED__H

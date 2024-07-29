@@ -704,22 +704,3 @@ int hcom_via_nx_register_pwr_mgmt_callback(pwr_mgmt_notify_callback callback)
   return OK;
 }
 
-//=========================================================================
-// Register callback for allowing Nuttx side application to send messages to
-// host (e.g. CLI).
-int hcom_via_nx_register_host_msg_send_callback(send_host_std_msg_data hostCallback)
-{
-  int ret;
-
-  hcom_nx_upd_host_send_cb_t hostMsgSend = {.hostCallback = hostCallback};
-
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_HOST_SEND_MSG_CB, (unsigned long)&hostMsgSend);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-%s Failed to host msg send callback, errno:%d\n",
-                        thisFile, __LINE__, HCOM_NX_UPD_DRIVER_NAME, errno);
-    return -errno; // ioctl puts returned int into errno
-  }
-  
-  return OK;
-}

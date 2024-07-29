@@ -152,7 +152,6 @@ void hcom_diag_decode_sending_message_type(const uint8_t *hostRawMsg,
   {
     if(hostRqstType == HCOM_HOST_REQUEST_TEXT_TRACE_MSG)
       return;    // This a trace message
-
   }
 
   char *requestStr = hcom_diag_find_host_request_type(hostRqstType);
