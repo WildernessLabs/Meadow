@@ -32,8 +32,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-#if defined(CONFIG_GPIO_TESTS)
-
 #ifndef __CONFIGS_MEADOW_SRC_HCOM_DIAG_GPIO__H
 #define __CONFIGS_MEADOW_SRC_HCOM_DIAG_GPIO__H
 
@@ -116,5 +114,3 @@
 #define DEBUG_PIN_V2_BLUE_LED (0x00040c00)
 
 #endif //__CONFIGS_MEADOW_SRC_HCOM_DIAG_GPIO__H
-
-#endif

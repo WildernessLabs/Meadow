@@ -157,8 +157,9 @@ void hcom_diag_decode_sending_message_type(const uint8_t *hostRawMsg,
   char *requestStr = hcom_diag_find_host_request_type(hostRqstType);
 
   // Separate the messages that have text and show some of the text
-  if(((hostRqstType & 0xff00) == HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE) &&
-       (packetSize > HCOM_PROTOCOL_STD_HDR_SIZE))
+  if(((hostRqstType & HCOM_PROTOCOL_REQUEST_TYPE_MASK) == \
+      HCOM_PROTOCOL_HEADER_SIMPLE_TEXT_TYPE) &&
+      (packetSize > HCOM_PROTOCOL_STD_HDR_SIZE))
   {
     // This looks to be a text message. It's length indicates it does contain
     // text.
