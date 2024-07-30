@@ -1,7 +1,7 @@
 /****************************************************************************
  * /include/meadow/meadow_debug_breakpoint_macro.h
  * 
- *   Copyright (C) 2021-2022 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  * 
  *   Provide macros and method defintions to assist in debugging
