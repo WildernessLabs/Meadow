@@ -446,7 +446,7 @@ void ipcp_rx(FAR struct ppp_context_s *ctx, FAR uint8_t * buffer,
       printip(ctx->sec_dns_addr);
 #endif
       DEBUG1(("\n"));
-      ctx->settings->connect_callback();
+      ctx->settings->connect_event();
       break;
 
     case CONF_REJ:             /* Config Reject */
