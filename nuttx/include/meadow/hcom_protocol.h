@@ -73,10 +73,9 @@ extern uint16_t g_current_hcom_protocol_version;
 // Note: because 'sizeof' and 'offsetof' are process by the C preprocessor
 // and not the compiler, these defines cannot be used in #if statements.
 
-// Define the absolute maximum packet sizes for sent and receive. The length
+// Define the absolute maximum packet size for sent and receive. The length
 // on the wire will be a bit longer because it's encoded.
 #define HCOM_PROTOCOL_CURRENT_PACKET_MAX_SIZE             8192
-#define HCOM_PROTOCOL_MINIMUM_VERSION_PACKET_MAX_SIZE     512
 
 // Allow the protocol to dynamically change the maximum packet size.
 extern uint16_t g_current_hcom_maximum_packet_size;
@@ -284,12 +283,12 @@ typedef struct HcomProtoBinMsg_s HcomProtoBinMsg_t;
 //--------------------------------------------------------------------------
 enum HcomProtoMsgMajorTypes
 {
-  //When the time comes the following Major types should reflect the
+  // When the time comes the following Major types should reflect the
   // name of the above structure is used to send it. The following are
-  // close but some of the following are miscategorized
+  // close but some of the following are not categorized correctly.
   HCOM_PROTOCOL_HEADER_UNDEFINED_TYPE = 0x0000,
 
-  // The header of all mesasges include a 4-byte field called user data. The
+  // The header of all messages include a 4-byte field called user data. The
   // User data field's meaning is determined by the message type
   
   // Header only request types,
@@ -308,6 +307,8 @@ enum HcomProtoMsgMajorTypes
   // can be up to HCOM_PROTOCOL_PACKET_MAX_SIZE minus header size
   HCOM_PROTOCOL_HEADER_SIMPLE_BINARY_TYPE = 0x0400,
 };
+
+#define HCOM_PROTOCOL_REQUEST_TYPE_MASK (0xff00)
 
 // Messages sent from host to Meadow 
 enum HcomMeadowRequestType

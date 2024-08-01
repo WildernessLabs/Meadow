@@ -150,12 +150,6 @@ extern "C"
   // HCOM command handling
   int hcom_nx_route_in_bound_cli_command(struct hcom_nx_cmd_data *cmdData);
 
-  // Allows Nuttx side to send std messages to host (e.g CLI).
-  int hcom_nx_host_send_setup(void);
-  int hcom_nx_host_send_set_send_callback(send_host_std_msg_data hostCallback);
-  int hcom_nx_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
-          size_t totalMsgLen, char *sourceFileName, int sourceLineNumber);
-
   // External flash
   int hcom_nx_exec_ex_flash_setup(FAR struct mtd_dev_s *mtd);
   int hcom_nx_exec_ex_flash_mono_flash(struct hcom_nx_cmd_data *cmd_data);

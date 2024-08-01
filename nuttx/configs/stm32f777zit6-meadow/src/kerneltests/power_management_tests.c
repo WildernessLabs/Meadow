@@ -77,7 +77,7 @@
 /************************************************************************************
  * Private Data
  ************************************************************************************/
-// static char *thisFile = __FILE__;
+static char *thisFile = __FILE__;
 
 /************************************************************************************
  * Public Data
@@ -93,6 +93,7 @@ static int pwrmgmt_enter_test_alarm_timer_parsing(void);
 #endif
 
 #if defined (CONFIG_POWER_MANAGEMENT_TESTS)
+// #if (1)
 
 static void pwmmgmt_test_initialize_wakeup_and_sleep(void);
 
@@ -169,7 +170,7 @@ void meadow_kt_power_management_tests(uint32_t userData)
 #endif
 
     case 2:
-      syslog(2, "==>>power mgmt test #%d - received %u - Power sleep x times for y seconds\n", testCount, userData);
+      syslog(2, "==>>power mgmt test 2 - Test Count:%u - Power Sleep x times for y seconds\n", testCount);
       usleep(20 * 1000);
       
       // Used to verify that multiple sleep events can succeed
@@ -177,7 +178,7 @@ void meadow_kt_power_management_tests(uint32_t userData)
       break;
     
     case 3:
-      syslog(2, "==>>power mgmt test #%d - received %u - Power sleep x times for y seconds\n", testCount, userData);
+      syslog(2, "==>>power mgmt test 3 - Test Count:%u - Power sleep x times for y seconds\n", testCount);
       usleep(20 * 1000);
       
       // Used to verify that both timeout and GPIO interrupt can wake from low-power sleep
@@ -304,11 +305,12 @@ int pwrmgmt_enter_test_sleep_x_times_for_y_seconds()
   if(firstTime)
   {
     firstTime = false;
-    DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D03);    
-    DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D04);
-    DEBUG_SET_HIGH(DEBUG_PIN_V2_D03);
-    DEBUG_SET_HIGH(DEBUG_PIN_V2_D04);
+    // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D03);    
+    // DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D04);
+    // DEBUG_SET_HIGH(DEBUG_PIN_V2_D03);
+    // DEBUG_SET_HIGH(DEBUG_PIN_V2_D04);
   }
+  // syslog(1, "-->%s@%d-Entered. Creating thread.\n", thisFile, __LINE__);
 
   int thread_id = kthread_create("SleepTest",
                                 100,
@@ -332,40 +334,40 @@ void *pwrmgmt_test_sleep_kthread_func(int argc, char *argv[])
 {
   int ret;
   int i;
-  int exeSeconds = 3;
-  int exeCount = 2;
-  static int attempt = 0;
+  int exeSeconds = 5;
+  int exeCount = 3;
+  static int testNumb = 0;
 
-  DEBUG_SET_LOW(DEBUG_PIN_V2_D03);
-  attempt++;
+  // DEBUG_SET_LOW(DEBUG_PIN_V2_D03);
+  testNumb++;
 
   for(i = 0; i < exeCount; i++)
   {
-    // syslog(2, "Attempt:%d, Number:%03d-Sleeping for %d seconds\n", attempt, i + 1, exeSeconds);
-    // usleep(20 * 1000);
+    syslog(2, "===>Test #%d, %03d-Sleeping for %d seconds\n", testNumb, i + 1, exeSeconds);
+    usleep(20 * 1000);
 
-    DEBUG_SET_LOW(DEBUG_PIN_V2_D04);
+    // DEBUG_SET_LOW(DEBUG_PIN_V2_D04);
     
     ret = pwrmgmt_enter_stm32f7_stop_mode(exeSeconds);
     if(ret < 0)
     {
-      syslog(2, "Attempt:%d, Number:%03d-Error:Alarm Test-stop mode ret:%d, errno:%d, will continue\n", attempt, i, ret, errno);
+      syslog(2, "===>Test #%d, interation:%03d-Error:Alarm Test-stop mode ret:%d, errno:%d, continuing\n", testNumb, i, ret, errno);
     }
 
-    // Wokeup, thread is running
-
-    DEBUG_SET_HIGH(DEBUG_PIN_V2_D04);
+    // Sleep ended, thread is running
+    syslog(2, "===>Test #%d, %03d-Sleep Ended after %d seconds\n", testNumb, i + 1, exeSeconds);
+    // DEBUG_SET_HIGH(DEBUG_PIN_V2_D04);
 
     // Was that the last stop mode iteration?
     if(i == (exeCount - 1))
       break;
 
-    // syslog(2, "Attempt:%d, Number:%03d-Awake for %d seconds\n", attempt, i + 1, exeSeconds);
+    // syslog(2, "Test #%d, %03d-Awake for %d seconds\n", testNumb, i + 1, exeSeconds);
     sleep(exeSeconds);
   }
 
-  // syslog(2, "Attempt:%d, Number:%03d-Cycles were executed successfully\n", attempt, exeCount);
-  DEBUG_SET_HIGH(DEBUG_PIN_V2_D03);
+  syslog(2, "Test #%d, %03d-Cycles were executed, thread exiting\n", testNumb, exeCount);
+  // DEBUG_SET_HIGH(DEBUG_PIN_V2_D03);
   return NULL;
 }
 
@@ -394,7 +396,7 @@ int pwmmgmt_test_timer_and_alarm_wakeup(time_t wakeupPeriod)
 
 #if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
   // Configure the hardware
-  // Set alarm wakeup period and wait for ISR to notify that time has elasped
+  // Set alarm wakeup period and wait for ISR to notify that time has elapsed
   syslog(2, "==> Setting RTC alarm for %d seconds\n", wakeupPeriod);
   ret = pwrmgmt_config_rtc_alarm_wakeup_seconds(wakeupPeriod);
   if(ret < 0)
@@ -403,7 +405,7 @@ int pwmmgmt_test_timer_and_alarm_wakeup(time_t wakeupPeriod)
     return ret;
   }
 #elif defined (PWRMGMT_LOW_PWR_MODE_USE_WAKEUP_TIMER)
-  // Set wakeup timer period and wait for ISR to notify time has elasped
+  // Set wakeup timer period and wait for ISR to notify time has elapsed
   syslog(2, "==> Setting RTC wakeup timer for %d seconds\n", wakeupPeriod);
   ret = pwrmgmt_config_rtc_timer_wakeup_seconds(wakeupPeriod);
   if(ret < 0)

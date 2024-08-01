@@ -360,7 +360,6 @@ int hcom_nx_exec_ex_update_ESP32(void);
 int hcom_via_nx_get_update_state(uint8_t flag);
 int hcom_via_nx_set_update_state(uint8_t flag, uint8_t state);
 int hcom_via_nx_register_pwr_mgmt_callback(pwr_mgmt_notify_callback callback);
-int hcom_via_nx_register_host_msg_send_callback(send_host_std_msg_data hostCallback);
 
 // -----------------------------------------------
 // Methods found in meadow_utils.c

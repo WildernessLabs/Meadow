@@ -303,14 +303,6 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   hcom_nx_config_unlock();
 #endif
 
-  // Initialize sending HCOM messages to CLI from Nuttx side
-  ret = hcom_nx_host_send_setup();
-  if (ret != OK)
-  {
-    syslog(LOG_ERR,"ERROR: Failed to initialize host send:%d\n", ret);
-    return ret;
-  }
-
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD) && \
     defined(CONFIG_NETDEV_LATEINIT)
   if(meadow_hw_version_ethernet_supported())

@@ -32,7 +32,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-
 #ifndef __CONFIGS_MEADOW_SRC_HCOM_DIAG_GPIO__H
 #define __CONFIGS_MEADOW_SRC_HCOM_DIAG_GPIO__H
 

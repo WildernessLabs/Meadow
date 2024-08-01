@@ -222,8 +222,6 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 #endif
     return OK;
 
-// At present (Sept 2021) The only use for this feature is with ethernet
-#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
   case HCOM_NX_UPD_HOST_TEXT_TRANSPORT:
     text_transport = (hcom_nx_upd_host_text_transport_t *)arg;
     text_transport->msg_length = hcom_nx_text_to_host_transport(
@@ -231,7 +229,6 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
               text_transport->transport_buf,
               text_transport->buf_length);
     return OK;
-#endif
 
   case HCOM_NX_UPD_RESTORE_UART_CONFIG:
     return hcom_nx_restore_uart_reconfig(arg);
@@ -304,13 +301,6 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     {
       pwr_mgmt_notify_callback *callback = (pwr_mgmt_notify_callback*) arg;
       return pwrmgmt_subscribe_for_low_pwr_notifications(*callback);
-    }
-    break;
-
-  case HCOM_NX_UPD_HOST_SEND_MSG_CB:
-    {
-      send_host_std_msg_data *hostCallback = (send_host_std_msg_data*) arg;
-      return hcom_nx_host_send_set_send_callback(*hostCallback);
     }
     break;
 

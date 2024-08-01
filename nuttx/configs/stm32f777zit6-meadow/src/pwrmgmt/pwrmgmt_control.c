@@ -39,7 +39,7 @@
 // Note: Nuttx has it's own power management implementation but after studying
 // it, I decided to not use it because it made some assumptions about behavior
 // that I thought were not in line with how Meadow was to operate. That said
-// I did use the Nuttx implemention for "inspirition". Peter Moody 25Mar22
+// I did use the Nuttx implementation for "inspiration". Peter Moody 25Mar22
 
 /****************************************************************************
  * Included Files
@@ -83,6 +83,8 @@
 #undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
+// #pragma message "(--)"
+
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
@@ -110,14 +112,14 @@ static pwr_mgmt_notify_callback _regCallback[PWR_MGMT_MAX_CALLBACKS_AVAILABLE];
 // featured implementation. The number that can signup is fixed at build
 // time and there's no unsubscribe.
 // Possible future feature:
-// To allow a registered receipient to post-pone the entry into low-power
-// would require first telling each receipient of the pending change. Each
-// receipient can responds with yes or no. In either case the receipient is
+// To allow a registered recipient to postpone the entry into low-power
+// would require first telling each recipient of the pending change. Each
+// recipient can responds with yes or no. In either case the recipient is
 // responsible to prevent entry into a state where it will get busy.
 // If all respond yes, the low-power mode is entered immediately, by again
 // notifying each callback that low-power transition is happening now.
 // If one or more callbacks indicated that they were busy then entry into
-// the low-power state is post-poned and the caller is responsible to keep
+// the low-power state is postponed and the caller is responsible to keep
 // attempting to enter the low-power state until the busy situation passes.
 static int pwrmgmt_notify_registered_modules(bool lpStart)
 {
@@ -135,7 +137,7 @@ static int pwrmgmt_notify_registered_modules(bool lpStart)
 
     // syslog(2, "%s@%d-Notifying - callback:%p, %s\n", __FILE__, __LINE__, callback, lpStart ? "true" : "false");
 
-    // Notify registered receipient announcing what's about to happen
+    // Notify registered recipient announcing what's about to happen
     ret = callback(lpStart);
     if(ret < 0)
     {
@@ -256,15 +258,10 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 #error "Select Low-Power timing scheme"
 #endif
 
-  // Notify CLI (if listening) of imminent low-power mode entry.
-  uint8_t hdrMsg[HCOM_PROTOCOL_HEADER_MSG_LENGTH];
-  HcomProtoTextMsg_t *msgHdrMsg = (HcomProtoTextMsg_t *)hdrMsg;
-  msgHdrMsg->stdHeader.rqstType = HCOM_HOST_REQUEST_TEXT_NEXT_LOW_PWR;
-  msgHdrMsg->stdHeader.userData = 0;
-  msgHdrMsg->stdHeader.extraData = 0;
-  
-  ret = hcom_nx_host_send_std_msg_data(msgHdrMsg, HCOM_PROTOCOL_HEADER_MSG_LENGTH,
-            thisFile, __LINE__);
+  // This will route the message to app side and on to CLI.
+  char *lowPowerNext = "Entering low-power mode\n";
+  hcom_nx_route_text_to_host(HCOM_HOST_REQUEST_TEXT_NEXT_LOW_PWR,
+            lowPowerNext, strlen(lowPowerNext));
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Error attempting to send msg to host, ret:%d\n",

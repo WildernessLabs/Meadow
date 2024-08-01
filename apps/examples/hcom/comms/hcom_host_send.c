@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\comms\hcom_host_send.c
  * 
- *   Copyright (C) 2019 - 2022 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2024 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -113,15 +113,6 @@ int hcom_host_send_setup()
 
   sem_init(&_hostXmitSem, 0, 1);
 
-  // This allows the Nuttx side via function hcom_nx_host_send_std_msg_data
-  // to send messages to host (e.g. CLI).
-  ret = hcom_via_nx_register_host_msg_send_callback(hcom_host_send_std_msg_data);
-  if(ret < 0)
-  {
-    syslog(LOG_ERR, "%s@%d-Registering send host msg error:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-
   // Register with power management so we can properly shutdown before entering
   // a low-power mode.
   ret = hcom_via_nx_register_pwr_mgmt_callback(hcom_host_send_low_power_notification);
@@ -156,12 +147,30 @@ int hcom_host_send_low_power_notification(bool lpStart)
 {
   // After spending a lot of time attempting to fix the problems caused by
   // being in low-power mode, found that it wasn't possible to fix the problem
-  // in this module. Added this flag so that a transmittion failure caused by
+  // in this module. Added this flag so that a transmission failure caused by
   // being in low-power mode could be identified and the proper action taken
   // to allow the message to be resent.
   if(lpStart)
   {
+    // Wait till nothing is being sent and prevent additional sending
+    hcom_host_send_transmit_takesem(&_hostXmitSem);
+    if(_comms_write_fd > 0)
+    {
+      // If there's a valid fd close and re-open on first msg after return to
+      // non-sleep state.
+      close(_comms_write_fd);
+      _comms_write_fd = -1;
+      _lastXmitBlocked = true;
+    }
+
+    // Only used to detect if errno == ENOTCONN
     _lowPowerActive = true;
+  }
+  else
+  {
+    // Prevent output till sleep ends. Probably not needed since everything
+    // is sleeping.
+    sem_post(&_hostXmitSem);
   }
   return OK;
 }
@@ -181,7 +190,6 @@ int hcom_host_send_low_power_notification(bool lpStart)
 // HcomProtoBinMsg_t, etc.) can be used. The caller populates the proper struct
 // fields and downcasts the type to a HcomProtoStdHdr_t and passes this as
 // 'hdrMsg' to this function.
-// Use hcom_nx_host_send_std_msg_data on Nuttx side
 int hcom_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
           size_t totalMsgLen, char *sourceFileName, int sourceLineNumber)
 {
@@ -208,8 +216,8 @@ int hcom_host_send_std_msg_data(HcomProtoHdrMsg_t *hdrMsg,
 // This function is like the hcom_host_send_buffered_msg() function.
 // The difference is the protocol is now simpler because of using structs
 // to define the message types to be sent. Therefore, this function
-// eleminates the need for com_host_send_buffered_msg().
-// The messy work eleminated by structures by the caller.
+// eliminates the need for com_host_send_buffered_msg().
+// The messy work eliminated by structures by the caller.
 int hcom_host_send_standard_msg(HcomProtoHdrMsg_t *hdrMsg,
           size_t totalLength)
 {
