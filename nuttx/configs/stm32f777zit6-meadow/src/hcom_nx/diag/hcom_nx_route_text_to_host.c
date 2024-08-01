@@ -104,7 +104,11 @@ int hcom_nx_route_text_to_host_setup()
 {  
   _sharedMsgBuff = (uint8_t *)malloc(HCOM_PROTOCOL_CURRENT_PACKET_MAX_SIZE - \
             HCOM_PROTOCOL_HEADER_MSG_LENGTH);
-
+  if(_sharedMsgBuff == NULL)
+  {
+    return -ENOMEM;
+  }
+  
   sem_init(&_onlyOneSem, 0, 1);
 
   // These semaphores are needed for sending trace to CLI. Why? Because there
