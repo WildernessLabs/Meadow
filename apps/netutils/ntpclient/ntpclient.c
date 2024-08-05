@@ -431,12 +431,16 @@ int ntpc_connect_to_server(char *server_name, struct sockaddr_in *server, uint32
  * Name: ntpc_daemon
  *
  * Description:
- *   This the NTP client daemon.  This is a *very* minimal
- *   implementation! An NTP request is and the system clock is set when the
- *   response is received
+ *   This is the NTP client daemon. This implementation initializes a message
+ *   queue for inter-process communication. The daemon waits for a NTP start
+ *   message to begin NTP synchronization operations and can receive a NTP stop
+ *   message to terminate. It sends NTP requests to configured servers and updates
+ *   the system clock upon receiving valid responses. The daemon cycles through
+ *   the configured servers and retries failed attempts a limited number of times.
+ *   The lifecycle of the daemon is controlled using message queue and semaphore
+ *   synchronization.
  *
  ****************************************************************************/
-
 static int ntpc_daemon(int argc, char **argv)
 {
     struct sockaddr_in server;
@@ -464,11 +468,12 @@ static int ntpc_daemon(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    while (1) // Main loop to handle the entire daemon lifecycle
+    // Main loop to handle the entire daemon lifecycle
+    while (1)
     {
-        // Wait for the "NTPC_START" message
+        // Loop to wait for the NTP start message
         hcom_logging_syslog(LOG_INFO, "Waiting for the NTP start message: \n");
-        while (1) // Loop to wait for the start message
+        while (1)
         {
             // Attempt to receive a message from the queue
             ssize_t bytes_read = mq_receive(mq, buffer, NTPC_QUEUE_MSG_MAX_SIZE, NULL);
@@ -478,21 +483,19 @@ static int ntpc_daemon(int argc, char **argv)
                 buffer[bytes_read] = '\0';
                 if (strcmp(buffer, NTPC_START) == 0)
                 {
-                    // Start message received, exit this loop
                     hcom_logging_syslog(LOG_INFO, "Received NTP start message: %s\n", buffer);
                     break;
                 }
             }
             else
             {
-                if (errno == EBADF || errno == EINVAL || errno == EINTR)
+                if (errno == EBADF || errno == EINVAL)
                 {
-                    // Handle specific errors
                     hcom_logging_syslog(LOG_ERR, "Failed to receive NTP message, error: %d\n", errno);
-                    break;
+                    return EXIT_FAILURE;
                 }
                 // Sleep briefly to avoid busy-waiting if no message is available
-                usleep(100000); // 100 ms
+                usleep(100000);
             }
         }
 
@@ -506,28 +509,26 @@ static int ntpc_daemon(int argc, char **argv)
             // Loop to attempt getting time from NTP servers
             while (getting_time && (retry_count < NTP_MAX_RETRY_ATTEMPTS))
             {
-                // Check for NTPC_STOP message
+                // Check for NTP stop message
                 ssize_t bytes_read = mq_receive(mq, buffer, NTPC_QUEUE_MSG_MAX_SIZE, NULL);
                 if (bytes_read >= 0)
                 {
                     buffer[bytes_read] = '\0';
                     if (strcmp(buffer, NTPC_STOP) == 0)
                     {
-                        // Stop message received, exit this loop
                         hcom_logging_syslog(LOG_INFO, "Received NTP stop message: %s\n", buffer);
                         g_ntpc_daemon.state = NTP_STOP_REQUESTED;
+                        sem_post(&g_ntpc_daemon.interlock);
                         break;
                     }
                 }
 
-                // Attempt to connect to an NTP server
                 sd = ntpc_connect_to_server(ntp_servers[current_server], &server, socket_timeout);
                 if (sd >= 0)
                 {
                     memset(&xmit, 0, sizeof(xmit));
                     xmit.lvm = MKLVM(0, 3, NTP_VERSION);
 
-                    // Send an NTP request
                     result = sendto(sd, &xmit, sizeof(struct ntp_datagram_s), 0, (FAR struct sockaddr *) &server, sizeof(struct sockaddr_in));
                     if (result >= 0)
                     {
@@ -539,7 +540,7 @@ static int ntpc_daemon(int argc, char **argv)
                             sched_lock();
                             ntpc_settime(recv.recvtimestamp);
                             sched_unlock();
-                            getting_time = false; // Time successfully updated
+                            getting_time = false;
                             ntpc_update_event();
                             hcom_logging_syslog(LOG_INFO, "NTP update event triggered!\n");
                         }
@@ -558,25 +559,10 @@ static int ntpc_daemon(int argc, char **argv)
                         retry_count++;
                     }
                 }
-
-                // Check for NTPC_STOP message again after processing the request
-                bytes_read = mq_receive(mq, buffer, NTPC_QUEUE_MSG_MAX_SIZE, NULL);
-                if (bytes_read >= 0)
-                {
-                    buffer[bytes_read] = '\0';
-                    if (strcmp(buffer, NTPC_STOP) == 0)
-                    {
-                        // Stop message received, exit this loop
-                        hcom_logging_syslog(LOG_INFO, "Received NTP stop message: %s\n", buffer);
-                        g_ntpc_daemon.state = NTP_STOP_REQUESTED;
-                        break;
-                    }
-                }
             }
 
             if (g_ntpc_daemon.state == NTP_RUNNING)
             {
-                // Wait for the refresh period before trying to get time again
                 hcom_logging_syslog(LOG_INFO, "NTP daemon waiting for %d seconds\n", ntpc_refresh_period_seconds);
                 (void)sleep(ntpc_refresh_period_seconds);
                 getting_time = true;
@@ -595,7 +581,7 @@ static int ntpc_daemon(int argc, char **argv)
         retry_count = 0;
     }
 
-    return 0;
+    return EXIT_FAILURE;
 }
 
 /****************************************************************************
