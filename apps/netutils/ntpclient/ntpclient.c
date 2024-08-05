@@ -49,6 +49,8 @@
 #include <sched.h>
 #include <errno.h>
 #include <debug.h>
+#include <mqueue.h>
+
 #include "../../examples/hcom/hcom_common.h"
 #include "../../examples/hcom/misc/espcp_utils.h"
 
@@ -147,8 +149,6 @@ static char *thisFile = __FILE__;
  ****************************************************************************/
 void ntpc_update_event(void) 
 {
-    hcom_logging_syslog(LOG_INFO, "%s-%d-Cell NTP update event\n", thisFile, __LINE__);
-
     meadow_configuration_t *config = meadow_os_deep_copy_config();
     uint32_t default_interface_type = config->default_interface->interface_type;
     espcp_event_data_t message;
@@ -185,7 +185,7 @@ void ntpc_update_event(void)
     espcp_encode_event_data(&message, encodedData);
 
     int result = espcp_queue_event_messages(encodedData);
-    hcom_logging_syslog(LOG_INFO, "%s-%d-Cell NTP update event message result: %d\n", thisFile, __LINE__, result);
+    hcom_logging_syslog(LOG_INFO, "%s-%d-NTP update event result: %d\n", thisFile, __LINE__, result);
 }
 
 /****************************************************************************
@@ -439,72 +439,163 @@ int ntpc_connect_to_server(char *server_name, struct sockaddr_in *server, uint32
 
 static int ntpc_daemon(int argc, char **argv)
 {
-  struct sockaddr_in server;
-  struct ntp_datagram_s xmit;
-  struct ntp_datagram_s recv;
+    struct sockaddr_in server;
+    struct ntp_datagram_s xmit;
+    struct ntp_datagram_s recv;
 
-  socklen_t socklen;
-  ssize_t nbytes;
-  int sd;
-  int result;
+    socklen_t socklen;
+    ssize_t nbytes;
+    int sd;
+    int result;
 
-  bool getting_time = true;
-  uint32_t socket_timeout = NTP_INITIAL_SOCKET_TIMEOUT;
-  int current_server = 0;
-  int retry_count = 0;
+    bool getting_time = true;
+    uint32_t socket_timeout = NTP_INITIAL_SOCKET_TIMEOUT;
+    int current_server = 0;
+    int retry_count = 0;
 
-  while (1)
-  {
-    while (getting_time && (retry_count < NTP_MAX_RETRY_ATTEMPTS))
+    mqd_t mq;
+    char buffer[NTPC_QUEUE_MSG_MAX_SIZE + 1];
+
+    // Open the message queue for reading with non-blocking mode
+    mq = mq_open(NTPC_QUEUE_INTERFACE, O_RDONLY | O_CREAT | O_NONBLOCK, 0644, NULL);
+    if (mq == (mqd_t)-1)
     {
-      sd = ntpc_connect_to_server(ntp_servers[current_server], &server, socket_timeout);
-      if (sd >= 0)
-      {
-          memset(&xmit, 0, sizeof(xmit));
-          xmit.lvm = MKLVM(0, 3, NTP_VERSION);
-
-          result = sendto(sd, &xmit, sizeof(struct ntp_datagram_s), 0, (FAR struct sockaddr *) &server, sizeof(struct sockaddr_in));
-          if (result >= 0)
-          {
-              socklen = sizeof(struct sockaddr_in);
-              nbytes = recvfrom(sd, (void *) &recv, sizeof(struct ntp_datagram_s), 0, (FAR struct sockaddr *) &server, &socklen);
-              if (nbytes >= (ssize_t) NTP_DATAGRAM_MINSIZE)
-              {
-                  sched_lock();
-                  ntpc_settime(recv.recvtimestamp);
-                  sched_unlock();
-                  getting_time = false;
-                  ntpc_update_event();
-                  hcom_logging_syslog(LOG_INFO, "time updated\n");
-              }
-          }
-          close(sd);
-      }
-      if (getting_time)
-      {
-          current_server++;
-          if (current_server == ntp_server_count)
-          {
-              //
-              //  We can sometimes find ourselves with IP addresses for different
-              //  servers, say 0.uk.pool.ntp.org, 1.uk.pool.ntp.org etc. and we do
-              //  not get a response from any of them.  If we then lookup the IP
-              //  addresses again we just get the values from the cache and loop
-              //  through the servers and do not get a result again.  Flushing the
-              //  DNS cache should force the server IP addresses to change.
-              //
-              dns_clear_answer();
-              current_server = 0;
-              retry_count++;
-          }
-      }
+        hcom_logging_syslog(LOG_ERR, "Failed to open NTP message queue, error: %d\n", errno);
+        return EXIT_FAILURE;
     }
 
-    sleep(ntpc_refresh_period_seconds);
-    getting_time = true;
-  }
+    while (1) // Main loop to handle the entire daemon lifecycle
+    {
+        // Wait for the "NTPC_START" message
+        hcom_logging_syslog(LOG_INFO, "Waiting for the NTP start message: \n");
+        while (1) // Loop to wait for the start message
+        {
+            // Attempt to receive a message from the queue
+            ssize_t bytes_read = mq_receive(mq, buffer, NTPC_QUEUE_MSG_MAX_SIZE, NULL);
+            if (bytes_read >= 0)
+            {
+                // Null-terminate the received message
+                buffer[bytes_read] = '\0';
+                if (strcmp(buffer, NTPC_START) == 0)
+                {
+                    // Start message received, exit this loop
+                    hcom_logging_syslog(LOG_INFO, "Received NTP start message: %s\n", buffer);
+                    break;
+                }
+            }
+            else
+            {
+                if (errno == EBADF || errno == EINVAL || errno == EINTR)
+                {
+                    // Handle specific errors
+                    hcom_logging_syslog(LOG_ERR, "Failed to receive NTP message, error: %d\n", errno);
+                    break;
+                }
+                // Sleep briefly to avoid busy-waiting if no message is available
+                usleep(100000); // 100 ms
+            }
+        }
 
-  return 0;
+        /* Indicate that we have started */
+        g_ntpc_daemon.state = NTP_RUNNING;
+        sem_post(&g_ntpc_daemon.interlock);
+
+        // Main loop to perform NTP operations
+        while (g_ntpc_daemon.state != NTP_STOP_REQUESTED)
+        {
+            // Loop to attempt getting time from NTP servers
+            while (getting_time && (retry_count < NTP_MAX_RETRY_ATTEMPTS))
+            {
+                // Check for NTPC_STOP message
+                ssize_t bytes_read = mq_receive(mq, buffer, NTPC_QUEUE_MSG_MAX_SIZE, NULL);
+                if (bytes_read >= 0)
+                {
+                    buffer[bytes_read] = '\0';
+                    if (strcmp(buffer, NTPC_STOP) == 0)
+                    {
+                        // Stop message received, exit this loop
+                        hcom_logging_syslog(LOG_INFO, "Received NTP stop message: %s\n", buffer);
+                        g_ntpc_daemon.state = NTP_STOP_REQUESTED;
+                        break;
+                    }
+                }
+
+                // Attempt to connect to an NTP server
+                sd = ntpc_connect_to_server(ntp_servers[current_server], &server, socket_timeout);
+                if (sd >= 0)
+                {
+                    memset(&xmit, 0, sizeof(xmit));
+                    xmit.lvm = MKLVM(0, 3, NTP_VERSION);
+
+                    // Send an NTP request
+                    result = sendto(sd, &xmit, sizeof(struct ntp_datagram_s), 0, (FAR struct sockaddr *) &server, sizeof(struct sockaddr_in));
+                    if (result >= 0)
+                    {
+                        socklen = sizeof(struct sockaddr_in);
+                        nbytes = recvfrom(sd, (void *) &recv, sizeof(struct ntp_datagram_s), 0, (FAR struct sockaddr *) &server, &socklen);
+                        if (nbytes >= (ssize_t) NTP_DATAGRAM_MINSIZE)
+                        {
+                            // Successfully received NTP response, update system time
+                            sched_lock();
+                            ntpc_settime(recv.recvtimestamp);
+                            sched_unlock();
+                            getting_time = false; // Time successfully updated
+                            ntpc_update_event();
+                            hcom_logging_syslog(LOG_INFO, "NTP update event triggered!\n");
+                        }
+                    }
+                    close(sd);
+                }
+                if (getting_time)
+                {
+                    // Try the next server if unable to get time
+                    current_server++;
+                    if (current_server == ntp_server_count)
+                    {
+                        // If all servers failed, retry with DNS cache cleared
+                        dns_clear_answer();
+                        current_server = 0;
+                        retry_count++;
+                    }
+                }
+
+                // Check for NTPC_STOP message again after processing the request
+                bytes_read = mq_receive(mq, buffer, NTPC_QUEUE_MSG_MAX_SIZE, NULL);
+                if (bytes_read >= 0)
+                {
+                    buffer[bytes_read] = '\0';
+                    if (strcmp(buffer, NTPC_STOP) == 0)
+                    {
+                        // Stop message received, exit this loop
+                        hcom_logging_syslog(LOG_INFO, "Received NTP stop message: %s\n", buffer);
+                        g_ntpc_daemon.state = NTP_STOP_REQUESTED;
+                        break;
+                    }
+                }
+            }
+
+            if (g_ntpc_daemon.state == NTP_RUNNING)
+            {
+                // Wait for the refresh period before trying to get time again
+                hcom_logging_syslog(LOG_INFO, "NTP daemon waiting for %d seconds\n", ntpc_refresh_period_seconds);
+                (void)sleep(ntpc_refresh_period_seconds);
+                getting_time = true;
+            }
+        }
+
+        /* The NTP client is terminating */
+        hcom_logging_syslog(LOG_INFO, "NTP daemon is terminating\n");
+        g_ntpc_daemon.state = NTP_STOPPED;
+        sem_post(&g_ntpc_daemon.interlock);
+
+        // Reset state and prepare to wait for the start message again
+        getting_time = true;
+        socket_timeout = NTP_INITIAL_SOCKET_TIMEOUT;
+        current_server = 0;
+        retry_count = 0;
+    }
+
+    return 0;
 }
 
 /****************************************************************************

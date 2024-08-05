@@ -44,6 +44,7 @@
 #include <meadow/hcom_shared_common.h>
 #include "ota/hcom_ota.h"
 #include "cell/hcom_pppd.h"
+#include "netutils/ntpclient.h"
 
 #if defined (CONFIG_HCOM_ESP32_COMMS)
 #include "esp32/hcom_esp32_comms.h"
@@ -65,6 +66,7 @@ extern int hcom_main (int argc, char* argv[]);
 static char *thisFile = __FILE__;
 static int _semaphoreRet;
 static sem_t _startupWaitSem;
+static bool getNetworkTimeAtStartup = false;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -147,6 +149,7 @@ syslog(2, "hcom_main() running\n"); usleep(10 * 1000);
     return -ENOMEM;
   }
   g_copy_application_output_to_uart = config->copy_application_output_to_uart && config->use_uart1_for_trace;
+  getNetworkTimeAtStartup = (bool)config->get_network_time_at_startup;
   meadow_os_config_free_resources(config);
 
   // Allocates memory for moving reading ramlog. Nothing to wait for.
@@ -446,6 +449,15 @@ syslog(2, "hcom_main() running\n"); usleep(10 * 1000);
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2, "Startup Manager 20\n"); usleep(20 * 1000);
 #endif
+
+  if (getNetworkTimeAtStartup)
+  {
+    ret = ntpc_start();
+    if (ret < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-ntpc_start failed %d\n", thisFile, __LINE__, ret);
+    }
+  }
 
   // Start PPPD app needed by cell driver, when cell interface is enabled
   ret = hcom_pppd_start();

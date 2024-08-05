@@ -297,7 +297,13 @@ int meadow_eth_conn_process_link_status_change(bool linkStatusUp)
 {
   int ret;
   uint8_t macAddr[IFHWADDRLEN];
-  
+
+  hcom_nx_config_lock();
+  meadow_configuration_t *config = hcom_nx_config_get_pointer();
+  uint32_t refreshPeriod = config->ntp_refresh_period_seconds;
+  bool timeAtStart = config->get_network_time_at_startup;
+  hcom_nx_config_unlock();
+
   MEADOW_TRACE_INFORMATION("%s@%d-Processing LinkStatus change. Now %s\n",
             thisFile, __LINE__, _linkStatusUp ? "Up" : "Down");
 
@@ -336,16 +342,12 @@ int meadow_eth_conn_process_link_status_change(bool linkStatusUp)
     }
 
     // Determine if we should get the NTP time now or ever,.
-    hcom_nx_config_lock();
-    meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    uint32_t refreshPeriod = config->ntp_refresh_period_seconds;
-    bool timeAtStart = config->get_network_time_at_startup;
-    hcom_nx_config_unlock();
     if(refreshPeriod > 0 || timeAtStart)
     {
       // This call will cause the ntpclient.c code to periodically refresh the
       // NTP time without additional intervention.
-      ntpc_start();
+      MEADOW_TRACE_INFORMATION("Sending NTP start message to NTP queue\n");
+      espcp_send_message_to_ntp_queue(NTPC_START);
     }
 
     // We now have an ethernet connection.
@@ -354,6 +356,14 @@ int meadow_eth_conn_process_link_status_change(bool linkStatusUp)
   }
   else
   {
+    // Stop the periodic NTP time request
+    if (timeAtStart)
+    {
+      MEADOW_TRACE_INFORMATION("Sending NTP stop message to NTP queue\n");
+
+      espcp_send_message_to_ntp_queue(NTPC_STOP);
+    }
+
     // Link status transitioned to down
     ret = meadow_eth_conn_report_link_status_change(false);
     if(ret < 0)
@@ -362,9 +372,6 @@ int meadow_eth_conn_process_link_status_change(bool linkStatusUp)
                   thisFile, __LINE__, ret, errno);
       return ret;
     }
-
-    // Stop the periodic NTP time request
-    ntpc_stop();
   }
 
   return ret;

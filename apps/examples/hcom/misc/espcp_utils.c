@@ -64,6 +64,10 @@ void espcp_encode_uint32(uint32_t value, uint8_t *buffer)
     buffer[3] = ((value >> 24) & 0xff);
 }
 
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
 void espcp_encode_event_data(espcp_event_data_t *event_data, uint8_t *buffer)
 {
     *buffer = event_data->interface;
@@ -74,10 +78,6 @@ void espcp_encode_event_data(espcp_event_data_t *event_data, uint8_t *buffer)
     buffer += 4;
     espcp_encode_uint32(event_data->message_id, buffer);
 }
-
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
 
 int espcp_queue_event_messages(uint8_t *message) 
 {
@@ -110,4 +110,50 @@ int espcp_queue_event_messages(uint8_t *message)
     mq_close(event_queue_id);
 
     return 0;
+}
+
+/****************************************************************************
+ * Name: espcp_send_message_to_ntp_queue
+ *
+ * Description:
+ *   Sends a message to the NTP queue, which should have been opened in the
+ *   hcom startup (hcom_startup_manager.c). It sends a provided message to it,
+ *   and then closes the queue. The function logs information and errors at 
+ *   various stages of execution.
+ *
+ * Input Parameters:
+ *   message - The message to be sent to the NTP queue.
+ *
+ ****************************************************************************/
+void espcp_send_message_to_ntp_queue(const char *message)
+{
+    hcom_logging_syslog(LOG_INFO, "%s: Enter\n", __func__);
+
+    mqd_t mq;
+
+    // Open the message queue with write access, create it if it doesn't exist
+    mq = mq_open(NTPC_QUEUE_INTERFACE, O_WRONLY | O_CREAT, 0644, NULL);
+    if (mq == (mqd_t)-1)
+    {
+        hcom_logging_syslog(LOG_INFO, "%s: Failed to open NTP queue\n", __func__);
+        return;
+    }
+
+    // Send the message to the queue
+    if (mq_send(mq, message, strlen(message) + 1, 0) == -1)
+    {
+        hcom_logging_syslog(LOG_INFO, "%s: Failed to send message to NTP queue\n", __func__);
+    } 
+    else
+    {
+        hcom_logging_syslog(LOG_INFO, "%s: Message sent to NTP queue: %s\n", __func__, message);
+    }
+
+    // Close the message queue
+    if (mq_close(mq) == -1)
+    {
+        hcom_logging_syslog(LOG_INFO, "%s: Failed to close NTP queue\n", __func__);
+    }
+
+    hcom_logging_syslog(LOG_INFO, "%s: Exit\n", __func__);
 }

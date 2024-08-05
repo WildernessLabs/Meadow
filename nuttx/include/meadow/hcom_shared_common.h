@@ -215,6 +215,11 @@
 #define F7_MICRO_V2_B12_PIN GPIO_PORTB | GPIO_PIN12
 #define F7_MICRO_V2_G12_PIN GPIO_PORTG | GPIO_PIN12
 
+#define NTPC_QUEUE_INTERFACE "/dev/ntpqueue"
+#define NTPC_QUEUE_MSG_MAX_SIZE 256
+#define NTPC_START "NTPC_START"
+#define NTPC_STOP "NTPC_STOP"
+
 //==================================================
 //  Fault handler bit definitions.
 

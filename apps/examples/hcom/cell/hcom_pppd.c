@@ -74,6 +74,7 @@ static bool cell_connected = false;
 static char *cell_at_cmds_output;
 static hcom_pppd_handler_t hcom_cell_handler;
 static hcom_cell_err_t cell_err;
+static bool get_time;
 
 /****************************************************************************
  * Private Functions
@@ -529,15 +530,10 @@ static void hcom_pppd_connected_event(void)
 
     cell_connected = true;
 
-    meadow_configuration_t *config = meadow_os_deep_copy_config();
-    bool get_time = config->get_network_time_at_startup;
-
     if (get_time)
     {
-        ntpc_start();
+        espcp_send_message_to_ntp_queue(NTPC_START);
     }
-
-    meadow_os_config_free_resources(config);
 
     espcp_encode_event_data(&message, encodedData);
 
@@ -571,6 +567,12 @@ static void hcom_pppd_disconnected_event(int err_base)
     espcp_encode_event_data(&message, encodedData);
 
     int result = espcp_queue_event_messages(encodedData);
+
+    if (get_time)
+    {
+        espcp_send_message_to_ntp_queue(NTPC_STOP);
+    }
+
     hcom_logging_syslog(LOG_INFO, "%s-%d-Cell disconnected event message result: %d\n", thisFile, __LINE__, result);
 
     cell_connected = false;
@@ -619,6 +621,7 @@ int hcom_pppd_start()
         }
 
         memcpy(cell_settings, config->default_cell_settings, sizeof(cell_settings_t));
+        get_time = config->get_network_time_at_startup;
 
         hcom_logging_syslog(LOG_INFO, "%s-%d-cell module id: %u\n", thisFile, __LINE__, cell_settings->module_id);
         hcom_logging_syslog(LOG_INFO, "%s-%d-cell module: %s\n", thisFile, __LINE__, cell_settings->module);
