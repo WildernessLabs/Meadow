@@ -75,7 +75,7 @@
 /**
  * @brief Amount of storage reserved for data that is considered safe.
  */
-#define OS_PERSISTENT_DATA_SAFE_SIZE    (OS_PERSISTENT_DATA_SIZE / 2)
+#define OS_PERSISTENT_DATA_SAFE_SIZE    OS_PERSISTENT_DATA_SIZE
 
 /****************************************************************************
  * Public type definitions.
@@ -110,10 +110,6 @@ struct meadow_os_persistent_data_s
     //  Pad out the rest of the safe data area with unused data.
     //
     uint8_t unused_safe_data[OS_PERSISTENT_DATA_SAFE_SIZE - (3 * sizeof(uint32_t))];
-
-    //
-    //  Unsafe data storage starts here.
-    //
 } __attribute((packed));
 typedef struct meadow_os_persistent_data_s meadow_os_persistent_data_t;
 
