@@ -215,7 +215,7 @@ int meadow_os_reset_update_counters(void)
                         | MEADOW_OS_RESET_POWER_CYCLE
                         | MEADOW_OS_RESET_LOW_POWER;
     uint32_t reason = meadow_os_reset_reason();
-    if ((reason & power_flags) || (reason == 0))
+    if ((reason & power_flags) || (reason == 0) || (data.power_cycle_count == 0))
     {
         data.power_cycle_count++;
     }
