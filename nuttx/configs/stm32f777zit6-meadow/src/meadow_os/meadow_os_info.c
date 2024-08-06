@@ -206,7 +206,7 @@ int meadow_os_reset_update_counters(void)
         //
         //  Assume the file has just been created so there is no data in it.
         //
-        memset(&data, 0, sizeof(meadow_os_persistent_data_t));
+        memset(data, 0, sizeof(meadow_os_persistent_data_t));
         data->version = OS_PERSISTENT_DATA_VERSION;
     }
 
