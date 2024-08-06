@@ -36,11 +36,15 @@
 #include <nuttx/config.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <sys/stat.h>
+#include <nuttx/fs/fs.h>
 #include <nuttx/kmalloc.h>
 
 #include <arch/board/board.h>
 #include "../hcom_nx/hcom_nx_common.h"
 
+#include <meadow/hcom_shared_common.h>
 #include <meadow/meadow_os.h>
 #include <meadow/meadow_hw_version.h>
 #include <meadow/meadow_os_persistent_data.h>
@@ -69,12 +73,12 @@
 /**
  * @brief Number of times the board has been reset due to power on / power loss
  */
-static uint32_t _power_cycle_count = 0;
+static uint32_t _power_cycle_count = 1;
 
 /**
  * @brief Number of times the board has been reset.
  */
-static uint32_t _reset_cycle_count = 0;
+static uint32_t _reset_cycle_count = 1;
 
 /****************************************************************************
  * Private Functions
@@ -173,20 +177,35 @@ uint32_t meadow_os_reset_reason(void)
 int meadow_os_reset_update_counters(void)
 {
     meadow_os_persistent_data_t data;
+    int result;
+    //
+    //  Default on any error will be to set the counts to 1 so let's do that now
+    //  that way we can just return if the is an error.
+    //
+    _power_cycle_count = 1;
+    _reset_cycle_count = 1;
 
-    if (hcom_nx_exec_ex_flash_read_persistent_data(&data) != OK)
+    result = mkdir(MEADOW_SYSTEM_DIR, 0666);
+    struct file f;
+    result = file_open(&f, MEADOW_SYSTEM_OS_PERSISTENT_DATA_FILE, O_RDWR | O_CREAT);
+    if (result < 0)
     {
         return(ERROR);
     }
-
-    //
-    //  We need to check if the flash has been erased in which case we
-    //  need to initialise data with some sensible values.
-    //
-    //  Newly erased flash will have the entire sector set to 0xff.
-    //
-    if (data.version == 0xffffffff)
+    size_t bytes_read = file_read(&f, &data, sizeof(meadow_os_persistent_data_t));
+    if (bytes_read < 0)
     {
+        //
+        //  Error if less than 0.
+        //
+        file_close(&f);
+        return(ERROR);
+    }
+    if (bytes_read != sizeof(meadow_os_persistent_data_t))
+    {
+        //
+        //  Assume the file has just been created so there is no data in it.
+        //
         memset(&data, 0, sizeof(meadow_os_persistent_data_t));
         data.version = OS_PERSISTENT_DATA_VERSION;
     }
@@ -200,14 +219,23 @@ int meadow_os_reset_update_counters(void)
     {
         data.power_cycle_count++;
     }
+    _power_cycle_count = data.power_cycle_count;
+    _reset_cycle_count = data.reset_count;
 
-    if (hcom_nx_exec_ex_flash_write_persistent_data(&data) != OK)
+    int offset = file_seek(&f, 0, SEEK_SET);
+    if (offset < 0)
     {
+        file_close(&f);
+        return(ERROR);
+    }
+    result = file_write(&f, &data, sizeof(meadow_os_persistent_data_t));
+    if (result != sizeof(meadow_os_persistent_data_t))
+    {
+        file_close(&f);
         return(ERROR);
     }
 
-    _power_cycle_count = data.power_cycle_count;
-    _reset_cycle_count = data.reset_count;
+    file_close(&f);
 
     MEADOW_TRACE_INFORMATION("Reset cycle count: %d, Power cycle count: %d\n",
                             data.reset_count, data.power_cycle_count);

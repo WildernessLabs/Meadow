@@ -128,6 +128,8 @@
 #define UPDATE_FIRMWARE_DIR UPDATE_DIR "firmware/"
 #define ROLLBACK_DIR "/meadow0/rollback"
 #define CRASH_DIR "/meadow0/crash"
+#define MEADOW_SYSTEM_DIR                         "/meadow0/system"
+#define MEADOW_SYSTEM_OS_PERSISTENT_DATA_FILE     MEADOW_SYSTEM_DIR "/os_data.bin"
 
 //==================================================
 //  Network interface types.
