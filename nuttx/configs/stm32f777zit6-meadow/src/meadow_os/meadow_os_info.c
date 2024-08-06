@@ -176,29 +176,29 @@ uint32_t meadow_os_reset_reason(void)
  ****************************************************************************/
 int meadow_os_reset_update_counters(void)
 {
-    meadow_os_persistent_data_t data;
-    int result;
-    //
-    //  Default on any error will be to set the counts to 1 so let's do that now
-    //  that way we can just return if the is an error.
-    //
-    _power_cycle_count = 1;
-    _reset_cycle_count = 1;
+    meadow_os_persistent_data_t *data = kmm_malloc(sizeof(meadow_os_persistent_data_t));
+    if (data == NULL)
+    {
+        return(ERROR);
+    }
 
+    int result;
     result = mkdir(MEADOW_SYSTEM_DIR, 0666);
     struct file f;
     result = file_open(&f, MEADOW_SYSTEM_OS_PERSISTENT_DATA_FILE, O_RDWR | O_CREAT);
     if (result < 0)
     {
+        kmm_free(data);
         return(ERROR);
     }
-    size_t bytes_read = file_read(&f, &data, sizeof(meadow_os_persistent_data_t));
+    size_t bytes_read = file_read(&f, data, sizeof(meadow_os_persistent_data_t));
     if (bytes_read < 0)
     {
         //
         //  Error if less than 0.
         //
         file_close(&f);
+        kmm_free(data);
         return(ERROR);
     }
     if (bytes_read != sizeof(meadow_os_persistent_data_t))
@@ -207,34 +207,37 @@ int meadow_os_reset_update_counters(void)
         //  Assume the file has just been created so there is no data in it.
         //
         memset(&data, 0, sizeof(meadow_os_persistent_data_t));
-        data.version = OS_PERSISTENT_DATA_VERSION;
+        data->version = OS_PERSISTENT_DATA_VERSION;
     }
 
-    data.reset_count++;
+    data->reset_count++;
     uint8_t power_flags = MEADOW_OS_RESET_BROWNOUT
                         | MEADOW_OS_RESET_POWER_CYCLE
                         | MEADOW_OS_RESET_LOW_POWER;
     uint32_t reason = meadow_os_reset_reason();
-    if ((reason & power_flags) || (reason == 0) || (data.power_cycle_count == 0))
+    if ((reason & power_flags) || (reason == 0) || (data->power_cycle_count == 0))
     {
-        data.power_cycle_count++;
+        data->power_cycle_count++;
     }
-    _power_cycle_count = data.power_cycle_count;
-    _reset_cycle_count = data.reset_count;
+    _power_cycle_count = data->power_cycle_count;
+    _reset_cycle_count = data->reset_count;
 
     int offset = file_seek(&f, 0, SEEK_SET);
     if (offset < 0)
     {
         file_close(&f);
+        kmm_free(data);
         return(ERROR);
     }
-    result = file_write(&f, &data, sizeof(meadow_os_persistent_data_t));
+    result = file_write(&f, data, sizeof(meadow_os_persistent_data_t));
     if (result != sizeof(meadow_os_persistent_data_t))
     {
         file_close(&f);
+        kmm_free(data);
         return(ERROR);
     }
 
+    kmm_free(data);
     file_close(&f);
 
     MEADOW_TRACE_INFORMATION("Reset cycle count: %d, Power cycle count: %d\n",
