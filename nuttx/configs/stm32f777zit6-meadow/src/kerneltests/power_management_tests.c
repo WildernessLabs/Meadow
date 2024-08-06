@@ -65,6 +65,16 @@
 #pragma message "(--) power_management_tests.c"
 #endif
 
+#if (HCOM_DIAG_MEADOW_OS_SLEEP_WAKE_FOREVER > 0)
+#warning "(--) HCOM_DIAG_MEADOW_OS_SLEEP_WAKE_FOREVER > 0"
+
+#define TEST_PIN_V2_GREEN_LED (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTA | GPIO_PIN1)
+#define TEST_PIN_V2_BLUE_LED  (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTA | GPIO_PIN0)
+// Counter requires open drain not push-pull
+#define TEST_PIN_V2_D03_COUNT (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_SPEED_100MHz | GPIO_PORTB | GPIO_PIN8)
+#define TEST_PIN_V2_D04_IN    (GPIO_INPUT | GPIO_PULLUP | GPIO_PORTB | GPIO_PIN9)
+#endif
+
 // Diagnostic always as this is test code
 // #define USE_MEADOW_DEBUG_HELPERS
 #undef USE_MEADOW_DEBUG_HELPERS
@@ -77,7 +87,9 @@
 /************************************************************************************
  * Private Data
  ************************************************************************************/
+#if defined (CONFIG_POWER_MANAGEMENT_TESTS)
 static char *thisFile = __FILE__;
+#endif
 
 /************************************************************************************
  * Public Data
@@ -95,7 +107,7 @@ static int pwrmgmt_enter_test_alarm_timer_parsing(void);
 #if defined (CONFIG_POWER_MANAGEMENT_TESTS)
 // #if (1)
 
-static void pwmmgmt_test_initialize_wakeup_and_sleep(void);
+static void pwmmgmt_test_interrupt_wakeup_from_sleep(void);
 
 /************************************************************************************
  * Private Functions
@@ -182,7 +194,7 @@ void meadow_kt_power_management_tests(uint32_t userData)
       usleep(20 * 1000);
       
       // Used to verify that both timeout and GPIO interrupt can wake from low-power sleep
-      pwmmgmt_test_initialize_wakeup_and_sleep();
+      pwmmgmt_test_interrupt_wakeup_from_sleep();
       break;
 
     case 52:
@@ -454,7 +466,7 @@ int pwmmgmt_test_timer_and_alarm_wakeup(time_t wakeupPeriod)
 // ============================================================================
 // This test is used to determine if an interrupt can wakeup the F7 from a
 // low-power mode. It simulates being configured via Meadow.Core.
-void pwmmgmt_test_initialize_wakeup_and_sleep(void)
+void pwmmgmt_test_interrupt_wakeup_from_sleep(void)
 {
   int ret;
 
@@ -513,6 +525,91 @@ void pwmmgmt_test_initialize_wakeup_and_sleep(void)
   syslog(2, "%s@%d - Low-power sleep ended, reason:%d\n", __FILE__, __LINE__, wakeReason);
 }
 
+#endif    // #if defined (CONFIG_POWER_MANAGEMENT_TESTS)
+
+#if (HCOM_DIAG_MEADOW_OS_SLEEP_WAKE_FOREVER > 0)
+
+static void *pwrmgmt_test_sleep_wake_kthread(int argc, char *argv[]);
+
+// The following code forces Meadow.OS to run a sleep/wake cycle forever.
+// Its purpose is to verify the Meadow.OS can run sleep/wake forever, well,
+// at least 0xffffffff cycles.
+
+// Called when starting to initialize the thread used to run the test
+int pwmmgmt_test_sleep_wake_only_setup()
+{
+  // syslog(1, "-->%s@%d-Entered. Creating thread.\n", thisFile, __LINE__);
+  int thread_id = kthread_create("SleepWakeForever",
+                                100,
+                                4096,
+                                (main_t) pwrmgmt_test_sleep_wake_kthread,
+                                (char *const *) NULL);
+  if (thread_id <= 0)
+  {
+    syslog(LOG_ERR, "%s@%d-Creation of %s kthread FAILED\n",
+              __FILE__, __LINE__, PWRMGMT_CAL_LSI_THREAD_NAME);
+    return -ENOEXEC;
+  }
+  return OK;
+}
+
+//=====================================================================
+void *pwrmgmt_test_sleep_wake_kthread(int argc, char *argv[])
+{
+  int ret;
+  uint i;
+  const uint stopModeSeconds = 2;
+  const uint awakeSeconds = 2;
+  uint maxCount = 0xffffffff;
+
+  syslog(1, "===>Before SleepWake Cycle starts\n");
+
+  // Wait 5 seconds to insure everything in Meadow.OS us running
+  sleep(5);
+
+  ret = stm32_configgpio((uint32_t)TEST_PIN_V2_GREEN_LED);
+  ret = stm32_configgpio(TEST_PIN_V2_BLUE_LED);
+  ret = stm32_configgpio(TEST_PIN_V2_D03_COUNT);
+  ret = stm32_configgpio(TEST_PIN_V2_D04_IN);
+
+  stm32_gpiowrite(TEST_PIN_V2_GREEN_LED, false);
+  stm32_gpiowrite(TEST_PIN_V2_BLUE_LED, false);
+  stm32_gpiowrite(TEST_PIN_V2_D03_COUNT, false);
+
+  for(i = 0; i < maxCount; i++)
+  {
+    // If the input pin is grounded then execute the test. Otherwise, don't.
+    if(stm32_gpioread(TEST_PIN_V2_D04_IN))
+    {
+      sleep(4);
+      continue;
+    };
+
+    syslog(1, "===>SleepWake Cycle #%05lu, Sleeping for %lu seconds\n", i + 1, stopModeSeconds);
+
+    stm32_gpiowrite(TEST_PIN_V2_D03_COUNT, true);
+    stm32_gpiowrite(TEST_PIN_V2_BLUE_LED, true);
+    stm32_gpiowrite(TEST_PIN_V2_GREEN_LED, false);
+    ret = pwrmgmt_enter_stm32f7_stop_mode(stopModeSeconds);
+    stm32_gpiowrite(TEST_PIN_V2_BLUE_LED, false);
+    stm32_gpiowrite(TEST_PIN_V2_GREEN_LED, true);
+    stm32_gpiowrite(TEST_PIN_V2_D03_COUNT, false);
+
+    if(ret < 0)
+    {
+      syslog(1, "===>SleepWake Cycle #%05lu, Error:ret:%d, errno:%d, continuing\n",
+                i + 1, ret, errno);
+    }
+
+    // Sleep ended
+    syslog(1, "===>SleepWake Cycle #%05lu, Awake for %lu seconds\n", i + 1, awakeSeconds);
+    sleep(awakeSeconds);
+  }
+
+  return NULL;
+}
+
+#endif    // #if defined (HCOM_DIAG_MEADOW_OS_SLEEP_WAKE_FOREVER)
+
 #endif    // #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
-#endif    // #if defined (CONFIG_POWER_MANAGEMENT_TESTS)

@@ -251,6 +251,10 @@ int hcom_nx_diagnostic_app_execute(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t msgLen);
 int meadow_idle_monitor_setup(void);
 
+#if (HCOM_DIAG_MEADOW_OS_SLEEP_WAKE_FOREVER > 0)
+int pwmmgmt_test_sleep_wake_only_setup(void);
+#endif
+
   // Diagnostics
 #if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
   void hcom_nx_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority);

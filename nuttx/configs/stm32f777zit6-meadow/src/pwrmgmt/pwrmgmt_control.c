@@ -94,7 +94,6 @@
  ************************************************************************************/
 
 static char *thisFile = __FILE__;
-static uint32_t _rgbLedState;
 
 // Space for n callbacks for notification of entering low-power mode
 #define PWR_MGMT_MAX_CALLBACKS_AVAILABLE (6)

@@ -408,6 +408,15 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     }
   }
 
+#if (HCOM_DIAG_MEADOW_OS_SLEEP_WAKE_FOREVER > 0)
+ret = pwmmgmt_test_sleep_wake_only_setup();
+if (ret < 0)
+{
+  syslog(LOG_ERR, "ERROR: Failed to initialize sleep/wake:%d\n", ret);
+  return ret;
+}
+#endif
+
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2,  "hcom_nx_setup_mgr 8-Successful exit\n"); usleep(5 * 1000);
 #endif
