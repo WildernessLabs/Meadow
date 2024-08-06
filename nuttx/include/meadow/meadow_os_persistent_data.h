@@ -114,7 +114,7 @@ struct meadow_os_persistent_data_s
     //
     //  Unsafe data storage starts here.
     //
-    // uint8_t unused_unsafe_data[OS_PERSISTENT_DATA_SAFE_SIZE];
+    uint8_t unused_unsafe_data[OS_PERSISTENT_DATA_SAFE_SIZE];
 } __attribute((packed));
 typedef struct meadow_os_persistent_data_s meadow_os_persistent_data_t;
 
