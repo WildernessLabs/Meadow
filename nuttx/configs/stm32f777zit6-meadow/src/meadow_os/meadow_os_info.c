@@ -168,7 +168,7 @@ uint32_t meadow_os_reset_reason(void)
  *  None.
  *
  * Returned Value:
- *  OK if successful, ERROR otherwise.
+ *  OK if successful, -ENOMEM if no memory, ERROR otherwise.
  *
  * Assumptions/Limitations:
  *  None
@@ -179,7 +179,7 @@ int meadow_os_reset_update_counters(void)
     meadow_os_persistent_data_t *data = kmm_malloc(sizeof(meadow_os_persistent_data_t));
     if (data == NULL)
     {
-        return(ERROR);
+        return(-ENOMEM);
     }
 
     int result;
