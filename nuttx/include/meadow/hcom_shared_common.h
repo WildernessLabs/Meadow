@@ -974,6 +974,10 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 // if you wish to have them compiled into Meadow
 #define HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD          0
 
+// The following will force Meadow into an infinite sleep/wake cycle.
+// It was intended to verify that Meadow.OS could Sleep/Wake without failing.
+#define HCOM_DIAG_MEADOW_OS_SLEEP_WAKE_FOREVER        0
+
 //-------------------------------------------------------------------
 // Include test code
 #define HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD      0
