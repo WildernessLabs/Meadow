@@ -430,6 +430,7 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
   SYSCALL_LOOKUP(meadow_os_bbd_strdup_from_sram,          2, STUB_meadow_os_bbd_strdup_from_sram)
   SYSCALL_LOOKUP(meadow_os_bbd_strdup_to_sram,            1, STUB_meadow_os_bbd_strdup_to_sram)
   SYSCALL_LOOKUP(meadow_os_reset_board,                   1, STUB_meadow_os_reset_board)
+  SYSCALL_LOOKUP(meadow_os_coprocessor_deep_sleep,        0, STUB_meadow_os_coprocessor_deep_sleep)
   SYSCALL_LOOKUP(meadow_os_get_gateway_address,           0, STUB_meadow_os_get_gateway_address)
 #endif
 

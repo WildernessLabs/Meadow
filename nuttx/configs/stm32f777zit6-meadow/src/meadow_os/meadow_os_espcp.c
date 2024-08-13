@@ -130,3 +130,24 @@ void meadow_os_espcp_monitor_process_line(char *line)
 {
     espcp_uart_monitor_process_line(line);
 }
+
+/****************************************************************************
+ * Name: meadow_os_coprocessor_deep_sleep
+ *
+ * Description:
+ *  Send the deep sleep message to the ESP32 and update NuttX accordingly.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void meadow_os_coprocessor_deep_sleep(void)
+{
+    espcp_deep_sleep();
+}
