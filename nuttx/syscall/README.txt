@@ -207,7 +207,7 @@ The stub name should match the entry in the syscall_lookup.h with a uintptr_t en
 each of the parameters.
 
 4.
-The final step is to edit the syscall.h file and add an index entry for the method.
+The final step is to edit the nuttx/include/sys/syscall.h file and add an index entry for the method.
 This entry is also wrapped in #ifdef CONFIG_NETDEV_IFINDEX...#endif statements:
 
 #ifdef CONFIG_NETDEV_IFINDEX
