@@ -215,6 +215,7 @@ enum espcp_wi_fi_function
     espcp_wi_fi_function_node_disconnected_event = 45,
     espcp_wi_fi_function_network_connection_retry_count_exceeded_event = 46,
     espcp_wi_fi_function_network_connecting_event = 47,
+    espcp_wi_fi_function_network_got_ip_event = 48,
 };
 typedef enum espcp_wi_fi_function espcp_wi_fi_function_t;
 

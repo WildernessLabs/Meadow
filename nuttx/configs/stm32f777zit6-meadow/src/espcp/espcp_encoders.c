@@ -3242,3 +3242,10 @@ void espcp_encode_log_message(espcp_log_message_t *log_message, uint8_t *buffer)
     buffer++;
     espcp_encode_string(log_message->message, buffer);
 }
+
+espcp_got_ip_event_data_t *espcp_extract_got_ip_event_data(uint8_t *buffer)
+{
+    espcp_got_ip_event_data_t *got_ip_event_data = (espcp_got_ip_event_data_t*)malloc(sizeof(espcp_got_ip_event_data_t));
+    got_ip_event_data->dns_address = espcp_extract_uint32(buffer);
+    return got_ip_event_data;
+}

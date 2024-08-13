@@ -1426,6 +1426,49 @@ void hcom_nx_config_add_default_gateway_dns_file(meadow_configuration_t *config,
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_add_dns_address_into_file
+ *
+ * Description:
+ *  Add the DNS address into DNS resolver file.
+ *
+ * Input Parameters:
+ *  dns - dns address.
+ * 
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+void hcom_nx_config_add_dns_address_into_file(uint32_t dns)
+{
+    FILE *file = fopen(CONFIG_NETDB_RESOLVCONF_PATH, "a");
+    if (file != NULL)
+    {
+        if (dns != 0)
+        {
+            char *new_nameserver = (char *)zalloc(16 + 13);
+            if (new_nameserver != NULL)
+            {
+                memset(new_nameserver, 0, sizeof(new_nameserver));
+                sprintf(new_nameserver,
+                        "nameserver %u.%u.%u.%u\n",
+                        (dns & 0xff),
+                        (dns >> 8) & 0xff,
+                        (dns >> 16) & 0xff,
+                        (dns >> 24) & 0xff);
+
+                fseek(file, 0L, SEEK_END);
+                fputs(new_nameserver, file);
+                free(new_nameserver);
+            }
+        }
+        fclose(file);
+    }
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_update_network_interface
  *
  * Description:
