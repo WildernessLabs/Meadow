@@ -217,8 +217,8 @@
 
 #define NTPC_QUEUE_INTERFACE "/dev/ntpqueue"
 #define NTPC_QUEUE_MSG_MAX_SIZE 256
-#define NTPC_START "NTPC_START"
-#define NTPC_STOP "NTPC_STOP"
+const static uint32_t NTPC_START = 1;
+const static uint32_t NTPC_STOP = 0;
 
 //==================================================
 //  Fault handler bit definitions.

@@ -58,6 +58,8 @@
 #include <meadow/hcom_protocol.h>
 #include <meadow/meadow_os.h>
 #include <netdb.h> 
+// #define MEADOW_USE_HCOM_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
 
 #ifdef CONFIG_LIBC_NETDB
 #  include <netdb.h>
@@ -185,7 +187,7 @@ void ntpc_update_event(void)
     espcp_encode_event_data(&message, encodedData);
 
     int result = espcp_queue_event_messages(encodedData);
-    hcom_logging_syslog(LOG_INFO, "%s-%d-NTP update event result: %d\n", thisFile, __LINE__, result);
+    MEADOW_TRACE_INFORMATION("%s@%d-NTP update event result: %d\n", thisFile, __LINE__, result);
 }
 
 /****************************************************************************
@@ -388,7 +390,7 @@ int ntpc_connect_to_server(char *server_name, struct sockaddr_in *server, uint32
     sd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sd < 0)
     {
-        hcom_logging_syslog(LOG_ERR, "ERROR: socket failed: %d\n", errno);
+        MEADOW_TRACE_ERROR("%s@%d-ERROR: socket failed: %d\n", thisFile, __LINE__, errno);
         return ERROR;
     }
 
@@ -398,7 +400,7 @@ int ntpc_connect_to_server(char *server_name, struct sockaddr_in *server, uint32
     result = setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval));
     if (result < 0)
     {
-        hcom_logging_syslog(LOG_ERR, "ERROR: setsockopt failed: %d\n", errno);
+        MEADOW_TRACE_ERROR("%s@%d-ERROR: setsockopt failed: %d\n", thisFile, __LINE__, errno);
         close(sd);
         return ERROR;
     }
@@ -415,11 +417,11 @@ int ntpc_connect_to_server(char *server_name, struct sockaddr_in *server, uint32
     {
         addr_list = (struct in_addr **)he->h_addr_list;
         server->sin_addr.s_addr = addr_list[0]->s_addr;
-        hcom_logging_syslog(LOG_INFO, "INFO: '%s' resolved to: %s\n", server_name, inet_ntoa(server->sin_addr));
+        MEADOW_TRACE_INFORMATION("%s@%d-INFO: '%s' resolved to: %s\n", thisFile, __LINE__, server_name, inet_ntoa(server->sin_addr));
     }
     else
     {
-        hcom_logging_syslog(LOG_INFO, "ERROR: Failed to resolve '%s'\n", server_name);
+        MEADOW_TRACE_ERROR("%s@%d-ERROR: Failed to resolve '%s'\n", thisFile, __LINE__, server_name);
         close(sd);
         return ERROR;
     }
@@ -458,13 +460,13 @@ static int ntpc_daemon(int argc, char **argv)
     int retry_count = 0;
 
     mqd_t mq;
-    char buffer[NTPC_QUEUE_MSG_MAX_SIZE + 1];
+    char buffer[NTPC_QUEUE_MSG_MAX_SIZE];
 
     // Open the message queue for reading with non-blocking mode
     mq = mq_open(NTPC_QUEUE_INTERFACE, O_RDONLY | O_CREAT | O_NONBLOCK, 0644, NULL);
     if (mq == (mqd_t)-1)
     {
-        hcom_logging_syslog(LOG_ERR, "Failed to open NTP message queue, error: %d\n", errno);
+        MEADOW_TRACE_ERROR("%s@%d-Failed to open NTP message queue, error: %d\n", thisFile, __LINE__, errno);
         return EXIT_FAILURE;
     }
 
@@ -472,18 +474,19 @@ static int ntpc_daemon(int argc, char **argv)
     while (1)
     {
         // Loop to wait for the NTP start message
-        hcom_logging_syslog(LOG_INFO, "Waiting for the NTP start message: \n");
+        MEADOW_TRACE_INFORMATION("%s@%d-Waiting for the NTP start message: \n", thisFile, __LINE__);
         while (1)
         {
             // Attempt to receive a message from the queue
             ssize_t bytes_read = mq_receive(mq, buffer, NTPC_QUEUE_MSG_MAX_SIZE, NULL);
             if (bytes_read >= 0)
             {
-                // Null-terminate the received message
-                buffer[bytes_read] = '\0';
-                if (strcmp(buffer, NTPC_START) == 0)
+                uint32_t received_value;
+                memcpy(&received_value, buffer, sizeof(received_value));
+                MEADOW_TRACE_INFORMATION("%s@%d-Received NTP message: %u\n", thisFile, __LINE__, received_value);
+                if (received_value == NTPC_START)
                 {
-                    hcom_logging_syslog(LOG_INFO, "Received NTP start message: %s\n", buffer);
+                    MEADOW_TRACE_INFORMATION("%s@%d-Received NTP start message: %u\n", thisFile, __LINE__, received_value);
                     break;
                 }
             }
@@ -491,7 +494,7 @@ static int ntpc_daemon(int argc, char **argv)
             {
                 if (errno == EBADF || errno == EINVAL)
                 {
-                    hcom_logging_syslog(LOG_ERR, "Failed to receive NTP message, error: %d\n", errno);
+                    MEADOW_TRACE_ERROR("%s@%d-Failed to receive NTP message, error: %d\n", thisFile, __LINE__, errno);
                     return EXIT_FAILURE;
                 }
                 // Sleep briefly to avoid busy-waiting if no message is available
@@ -513,10 +516,11 @@ static int ntpc_daemon(int argc, char **argv)
                 ssize_t bytes_read = mq_receive(mq, buffer, NTPC_QUEUE_MSG_MAX_SIZE, NULL);
                 if (bytes_read >= 0)
                 {
-                    buffer[bytes_read] = '\0';
-                    if (strcmp(buffer, NTPC_STOP) == 0)
+                    uint32_t received_value;
+                    memcpy(&received_value, buffer, sizeof(received_value));
+                    if (received_value == NTPC_STOP)
                     {
-                        hcom_logging_syslog(LOG_INFO, "Received NTP stop message: %s\n", buffer);
+                        MEADOW_TRACE_INFORMATION("%s@%d-Received NTP stop message: %u\n", thisFile, __LINE__, received_value);
                         g_ntpc_daemon.state = NTP_STOP_REQUESTED;
                         sem_post(&g_ntpc_daemon.interlock);
                         break;
@@ -542,7 +546,7 @@ static int ntpc_daemon(int argc, char **argv)
                             sched_unlock();
                             getting_time = false;
                             ntpc_update_event();
-                            hcom_logging_syslog(LOG_INFO, "NTP update event triggered!\n");
+                            MEADOW_TRACE_INFORMATION("%s@%d-NTP update event triggered!\n", thisFile, __LINE__);
                         }
                     }
                     close(sd);
@@ -553,7 +557,14 @@ static int ntpc_daemon(int argc, char **argv)
                     current_server++;
                     if (current_server == ntp_server_count)
                     {
-                        // If all servers failed, retry with DNS cache cleared
+                        //
+                        //  We can sometimes find ourselves with IP addresses for different
+                        //  servers, say 0.uk.pool.ntp.org, 1.uk.pool.ntp.org etc. and we do
+                        //  not get a response from any of them.  If we then lookup the IP
+                        //  addresses again we just get the values from the cache and loop
+                        //  through the servers and do not get a result again.  Flushing the
+                        //  DNS cache should force the server IP addresses to change.
+                        //                        
                         dns_clear_answer();
                         current_server = 0;
                         retry_count++;
@@ -563,14 +574,14 @@ static int ntpc_daemon(int argc, char **argv)
 
             if (g_ntpc_daemon.state == NTP_RUNNING)
             {
-                hcom_logging_syslog(LOG_INFO, "NTP daemon waiting for %d seconds\n", ntpc_refresh_period_seconds);
+                MEADOW_TRACE_INFORMATION("%s@%d-NTP daemon waiting for %d seconds\n", thisFile, __LINE__, ntpc_refresh_period_seconds);
                 (void)sleep(ntpc_refresh_period_seconds);
                 getting_time = true;
             }
         }
 
         /* The NTP client is terminating */
-        hcom_logging_syslog(LOG_INFO, "NTP daemon is terminating\n");
+        MEADOW_TRACE_INFORMATION("%s@%d-NTP daemon is terminating\n", thisFile, __LINE__);
         g_ntpc_daemon.state = NTP_STOPPED;
         sem_post(&g_ntpc_daemon.interlock);
 
@@ -581,6 +592,13 @@ static int ntpc_daemon(int argc, char **argv)
         retry_count = 0;
     }
 
+    if (mq_close(mq) == -1)
+    {
+        MEADOW_TRACE_ERROR("%s@%d-Failed to close NTP message queue, error: %d\n", thisFile, __LINE__, errno);
+        return EXIT_FAILURE;
+    }
+
+    // Return failure since it should never happen
     return EXIT_FAILURE;
 }
 
@@ -618,8 +636,8 @@ int ntpc_start(void)
           ntpc_refresh_period_seconds = config->ntp_refresh_period_seconds;
           ntp_server_count = config->ntp_servers_count;
 
-          hcom_logging_syslog(LOG_INFO, "%s-%d-ntpc_refresh_period_seconds: %d\n", thisFile, __LINE__, ntpc_refresh_period_seconds);
-          hcom_logging_syslog(LOG_INFO, "%s-%d-ntp_server_count: %d\n", thisFile, __LINE__, ntp_server_count);
+          MEADOW_TRACE_INFORMATION("%s@%d-NTP server count: %d \n", thisFile, __LINE__, ntp_server_count);
+          MEADOW_TRACE_INFORMATION("%s@%d-NTPC refresh period seconds: %d\n", thisFile, __LINE__, ntpc_refresh_period_seconds);
 
           ntp_servers = (char **)malloc(ntp_server_count * sizeof(char *));
           if (ntp_servers == NULL)
@@ -628,7 +646,7 @@ int ntpc_start(void)
             return EXIT_FAILURE;
           }
 
-          hcom_logging_syslog(LOG_INFO, "%s-%d-ntp_servers:\n", thisFile, __LINE__);
+          MEADOW_TRACE_INFORMATION("%s@%d-NTP servers:\n", thisFile, __LINE__);
 
           for (int i = 0; i < ntp_server_count; ++i)
           {
@@ -645,6 +663,7 @@ int ntpc_start(void)
                 return EXIT_FAILURE;
             }
             hcom_logging_syslog(LOG_INFO, "%s-%d-%s\n", thisFile, __LINE__, ntp_servers[i]);
+            MEADOW_TRACE_INFORMATION("%s@%d-%s\n", thisFile, __LINE__, ntp_servers[i]);
           }
 
           meadow_os_config_free_resources(config);
@@ -676,7 +695,7 @@ int ntpc_start(void)
 
   sched_unlock();
 
-  hcom_logging_syslog(LOG_INFO, "%s-%d-ntpc_start launched daemon successfully\n", thisFile, __LINE__);
+  MEADOW_TRACE_INFORMATION("%s@%d-NTP client daemon launched successfully\n", thisFile, __LINE__);
 
   return g_ntpc_daemon.pid;
 }

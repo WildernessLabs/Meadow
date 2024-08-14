@@ -50,7 +50,7 @@
 #include <meadow/meadow_thread_config.h>
 #include <meadow/meadow_client_cert.h>
 
-// #define USE_MEADOW_DEBUG_HELPERS
+#define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
@@ -530,16 +530,16 @@ void espcp_system_error_event_handler(espcp_message_t *message)
  * Name: espcp_send_message_to_ntp_queue
  *
  * Description:
- *   Sends a message to the NTP queue, which should have been opened in the
- *   hcom startup (hcom_startup_manager.c). It sends a provided message to it,
- *   and then closes the queue. The function logs information and errors at 
- *   various stages of execution.
+ *   Sends a uint32_t message to the NTP queue, which should have been opened 
+ *   in the hcom startup (hcom_startup_manager.c). It sends a provided message 
+ *   to it, and then closes the queue. The function logs information and errors 
+ *   at various stages of execution.
  *
  * Input Parameters:
  *   message - The message to be sent to the NTP queue.
  *
  ****************************************************************************/
-void espcp_send_message_to_ntp_queue(const char *message)
+void espcp_send_message_to_ntp_queue(const uint32_t message)
 {
     MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
 
@@ -553,14 +553,13 @@ void espcp_send_message_to_ntp_queue(const char *message)
         return;
     }
 
-    // Send the message to the queue
-    if (mq_send(mq, message, strlen(message) + 1, 0) == -1)
+    if (mq_send(mq, (const char*)&message, sizeof(message), 0) == -1)
     {
         MEADOW_TRACE_ERROR("%s: Failed to send message to NTP queue\n", __func__);
     } 
     else
     {
-        MEADOW_TRACE_INFORMATION("%s: Message sent to NTP queue: %s\n", __func__, message);
+        MEADOW_TRACE_INFORMATION("%s: Message sent to NTP queue: %u\n", __func__, message);
     }
 
     // Close the message queue

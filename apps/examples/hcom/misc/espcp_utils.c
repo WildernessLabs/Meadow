@@ -116,16 +116,16 @@ int espcp_queue_event_messages(uint8_t *message)
  * Name: espcp_send_message_to_ntp_queue
  *
  * Description:
- *   Sends a message to the NTP queue, which should have been opened in the
- *   hcom startup (hcom_startup_manager.c). It sends a provided message to it,
- *   and then closes the queue. The function logs information and errors at 
- *   various stages of execution.
+ *   Sends a uint32_t message to the NTP queue, which should have been opened 
+ *   in the hcom startup (hcom_startup_manager.c). It sends a provided message 
+ *   to it, and then closes the queue. The function logs information and errors 
+ *   at various stages of execution.
  *
  * Input Parameters:
  *   message - The message to be sent to the NTP queue.
  *
  ****************************************************************************/
-void espcp_send_message_to_ntp_queue(const char *message)
+void espcp_send_message_to_ntp_queue(const uint32_t message)
 {
     hcom_logging_syslog(LOG_INFO, "%s: Enter\n", __func__);
 
@@ -140,13 +140,13 @@ void espcp_send_message_to_ntp_queue(const char *message)
     }
 
     // Send the message to the queue
-    if (mq_send(mq, message, strlen(message) + 1, 0) == -1)
+    if (mq_send(mq, (const char*)&message, sizeof(message), 0) == -1)
     {
         hcom_logging_syslog(LOG_INFO, "%s: Failed to send message to NTP queue\n", __func__);
     } 
     else
     {
-        hcom_logging_syslog(LOG_INFO, "%s: Message sent to NTP queue: %s\n", __func__, message);
+        hcom_logging_syslog(LOG_INFO, "%s: Message sent to NTP queue: %u\n", __func__, message);
     }
 
     // Close the message queue
