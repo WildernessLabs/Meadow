@@ -74,7 +74,7 @@ static bool cell_connected = false;
 static char *cell_at_cmds_output;
 static hcom_pppd_handler_t hcom_cell_handler;
 static hcom_cell_err_t cell_err;
-static bool get_time;
+static bool get_time = false;
 
 /****************************************************************************
  * Private Functions

@@ -1569,7 +1569,7 @@ static void hcom_nx_config_process_network_section(yaml_network_t *network_confi
 {
     if (network_config != NULL)
     {
-        config->get_network_time_at_startup = hcom_nx_config_parse_boolean(network_config->get_network_time_at_startup, 0);
+        config->get_network_time_at_startup = hcom_nx_config_parse_boolean(network_config->get_network_time_at_startup, 1);
         if (network_config->ntp_servers_count > 0)
         {
             config->ntp_servers_count = network_config->ntp_servers_count;
