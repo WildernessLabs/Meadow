@@ -50,7 +50,7 @@
 #include <meadow/meadow_thread_config.h>
 #include <meadow/meadow_client_cert.h>
 
-#define USE_MEADOW_DEBUG_HELPERS
+// #define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************

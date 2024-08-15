@@ -577,6 +577,7 @@ static int ntpc_daemon(int argc, char **argv)
                 MEADOW_TRACE_INFORMATION("%s@%d-NTP daemon waiting for %d seconds\n", thisFile, __LINE__, ntpc_refresh_period_seconds);
                 (void)sleep(ntpc_refresh_period_seconds);
                 getting_time = true;
+                retry_count = 0;
             }
         }
 
