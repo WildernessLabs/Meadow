@@ -580,8 +580,8 @@ static int ntpc_daemon(int argc, char **argv)
             }
         }
 
-        /* The NTP client is terminating */
-        MEADOW_TRACE_INFORMATION("%s@%d-NTP daemon is terminating\n", thisFile, __LINE__);
+        /* The NTP client is stopping */
+        MEADOW_TRACE_INFORMATION("%s@%d-NTP daemon is stopping\n", thisFile, __LINE__);
         g_ntpc_daemon.state = NTP_STOPPED;
         sem_post(&g_ntpc_daemon.interlock);
 
@@ -592,14 +592,14 @@ static int ntpc_daemon(int argc, char **argv)
         retry_count = 0;
     }
 
+    /* The NTP client is terminating */
     if (mq_close(mq) == -1)
     {
         MEADOW_TRACE_ERROR("%s@%d-Failed to close NTP message queue, error: %d\n", thisFile, __LINE__, errno);
         return EXIT_FAILURE;
     }
 
-    // Return failure since it should never happen
-    return EXIT_FAILURE;
+    return EXIT_SUCCESS;
 }
 
 /****************************************************************************
@@ -701,10 +701,11 @@ int ntpc_start(void)
 }
 
 /****************************************************************************
- * Name: ntpc_stop
+ * Name: ntpc_stop (deprecated)
  *
  * Description:
- *   Stop the NTP daemon
+ *   Do not use this function to stop the NTP daemon. Instead, send an NTP stop 
+ *   message using espcp_send_message_to_ntp_queue() method.
  *
  * Returned Value:
  *   Zero on success; a negated errno value on failure.  The current
