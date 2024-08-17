@@ -130,7 +130,7 @@ static LOSFreeChunks *los_fast_free_lists [LOS_NUM_FAST_SIZES]; /* 0 is for larg
 static mword los_num_objects = 0;
 static int los_num_sections = 0;
 
-//#define USE_MALLOC
+#define USE_MALLOC
 //#define LOS_CONSISTENCY_CHECK
 //#define LOS_DUMMY
 
