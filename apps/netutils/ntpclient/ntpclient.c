@@ -58,7 +58,7 @@
 #include <meadow/hcom_protocol.h>
 #include <meadow/meadow_os.h>
 #include <netdb.h> 
-// #define MEADOW_USE_HCOM_DEBUG_HELPERS
+#define MEADOW_USE_HCOM_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 #ifdef CONFIG_LIBC_NETDB
