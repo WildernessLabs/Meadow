@@ -191,6 +191,58 @@ void ntpc_update_event(void)
 }
 
 /****************************************************************************
+ * Name: ntpc_meadow_setup
+ *
+ * Description:
+ *   Perform the Meadow specific setup for the NTP client.
+ * 
+ * Input Parameters:
+ *  config - Pointer to the Meadow configuration structure.
+ * 
+ * Returned Value:
+ *   EXIT_SUCCESS or EXIT FAILURE depending on the success or failure of the
+ *   setup.
+ *
+ ****************************************************************************/
+int ntpc_meadow_setup(meadow_configuration_t *config)
+{
+  ntpc_refresh_period_seconds = config->ntp_refresh_period_seconds;
+  ntp_server_count = config->ntp_servers_count;
+
+  MEADOW_TRACE_INFORMATION("%s@%d-NTP server count: %d \n", thisFile, __LINE__, ntp_server_count);
+  MEADOW_TRACE_INFORMATION("%s@%d-NTPC refresh period seconds: %d\n", thisFile, __LINE__, ntpc_refresh_period_seconds);
+
+  ntp_servers = (char **)malloc(ntp_server_count * sizeof(char *));
+  if (ntp_servers == NULL)
+  {
+    nerr("ERROR: Failed to allocate memory for NTP servers\n");
+    return EXIT_FAILURE;
+  }
+
+  MEADOW_TRACE_INFORMATION("%s@%d-NTP servers:\n", thisFile, __LINE__);
+
+  for (int i = 0; i < ntp_server_count; ++i)
+  {
+    ntp_servers[i] = strdup(config->ntp_servers[i]);
+    if (ntp_servers[i] == NULL)
+    {
+        nerr("ERROR: Failed to copy NTP server string\n");
+        /* Free previously allocated strings and array */
+        for (int j = 0; j < i; ++j)
+          {
+            free(ntp_servers[j]);
+          }
+        free(ntp_servers);
+        ntp_servers = NULL;
+        return EXIT_FAILURE;
+    }
+    hcom_logging_syslog(LOG_INFO, "%s-%d-%s\n", thisFile, __LINE__, ntp_servers[i]);
+    MEADOW_TRACE_INFORMATION("%s@%d-%s\n", thisFile, __LINE__, ntp_servers[i]);
+  }
+  return EXIT_SUCCESS;
+}
+
+/****************************************************************************
  * Name: ntpc_getuint32
  *
  * Description:
@@ -634,40 +686,16 @@ int ntpc_start(void)
 
           meadow_configuration_t *config = meadow_os_deep_copy_config();
 
-          ntpc_refresh_period_seconds = config->ntp_refresh_period_seconds;
-          ntp_server_count = config->ntp_servers_count;
-
-          MEADOW_TRACE_INFORMATION("%s@%d-NTP server count: %d \n", thisFile, __LINE__, ntp_server_count);
-          MEADOW_TRACE_INFORMATION("%s@%d-NTPC refresh period seconds: %d\n", thisFile, __LINE__, ntpc_refresh_period_seconds);
-
-          ntp_servers = (char **)malloc(ntp_server_count * sizeof(char *));
-          if (ntp_servers == NULL)
-          {
-            nerr("ERROR: Failed to allocate memory for NTP servers\n");
-            return EXIT_FAILURE;
-          }
-
-          MEADOW_TRACE_INFORMATION("%s@%d-NTP servers:\n", thisFile, __LINE__);
-
-          for (int i = 0; i < ntp_server_count; ++i)
-          {
-            ntp_servers[i] = strdup(config->ntp_servers[i]);
-            if (ntp_servers[i] == NULL)
-            {
-                nerr("ERROR: Failed to copy NTP server string\n");
-                /* Free previously allocated strings and array */
-                for (int j = 0; j < i; ++j)
-                  {
-                    free(ntp_servers[j]);
-                  }
-                free(ntp_servers);
-                return EXIT_FAILURE;
-            }
-            hcom_logging_syslog(LOG_INFO, "%s-%d-%s\n", thisFile, __LINE__, ntp_servers[i]);
-            MEADOW_TRACE_INFORMATION("%s@%d-%s\n", thisFile, __LINE__, ntp_servers[i]);
-          }
+          int result = ntpc_meadow_setup(config);
 
           meadow_os_config_free_resources(config);
+
+          if (result == EXIT_FAILURE)
+          {
+            nerr("ERROR: Failed to setup NTP client\n");
+            sched_unlock();
+            return result;
+          }
 
           sem_init(&g_ntpc_daemon.interlock, 0, 0);
         }
