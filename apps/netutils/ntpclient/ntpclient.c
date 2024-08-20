@@ -751,7 +751,7 @@ int ntpc_start(void)
           {
             nerr("ERROR: Failed to setup NTP client\n");
             sched_unlock();
-            return result;
+            return -EFAULT;
           }
 
           sem_init(&g_ntpc_daemon.interlock, 0, 0);
