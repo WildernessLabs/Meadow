@@ -215,8 +215,9 @@
 #define F7_MICRO_V2_B12_PIN GPIO_PORTB | GPIO_PIN12
 #define F7_MICRO_V2_G12_PIN GPIO_PORTG | GPIO_PIN12
 
-#define NTPC_QUEUE_INTERFACE "/dev/ntpqueue"
-#define NTPC_QUEUE_MSG_MAX_SIZE 256
+// #define NTPC_QUEUE_INTERFACE "/dev/ntpqueue"
+#define NTPC_QUEUE_INTERFACE "/ntpqueue"
+// #define NTPC_QUEUE_MSG_MAX_SIZE 256
 const static uint32_t NTPC_START = 1;
 const static uint32_t NTPC_STOP = 0;
 

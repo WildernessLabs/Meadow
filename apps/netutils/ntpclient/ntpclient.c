@@ -623,6 +623,9 @@ static int ntpc_daemon(int argc, char **argv)
             while (getting_time && (retry_count < NTP_MAX_RETRY_ATTEMPTS))
             {
                 // Check for NTP stop message
+                //
+                //  Maybe should work out if we can use a non-blocking queue with a timed wait.  This will also help with the comment below re-sleep.
+                //
                 ssize_t bytes_read = mq_receive(g_ntpc_queue_handle, (char *) &received_value, sizeof(uint32_t), NULL);
                 if (bytes_read >= 0)
                 {
@@ -683,6 +686,13 @@ static int ntpc_daemon(int argc, char **argv)
             if (g_ntpc_daemon.state == NTP_RUNNING)
             {
                 MEADOW_TRACE_INFORMATION("%s@%d-NTP daemon waiting for %d seconds\n", thisFile, __LINE__, ntpc_refresh_period_seconds);
+                //
+                //  If we use a timed mq_receive then we could take into account the case where the NTP server is sleeping
+                //  and a STOP message arrives.  We could then stop the server immediately.
+                //
+                //  It would also mitigate the situation where a stop / start sequence of events are received, say once every 15 minutes
+                //  but the server is sleeping for 10 hours.  In this scenario we would fill the queue.
+                //
                 (void)sleep(ntpc_refresh_period_seconds);
                 getting_time = true;
                 retry_count = 0;
