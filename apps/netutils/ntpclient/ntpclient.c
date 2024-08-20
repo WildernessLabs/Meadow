@@ -57,7 +57,7 @@
 #include <netinet/in.h>
 #include <meadow/hcom_protocol.h>
 #include <meadow/meadow_os.h>
-#include <netdb.h> 
+#include <netdb.h>
 // #define MEADOW_USE_HCOM_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
@@ -135,6 +135,13 @@ static char** ntp_servers;
 static uint32_t ntp_server_count;
 static unsigned int ntpc_refresh_period_seconds = CONFIG_NETUTILS_NTPCLIENT_POLLDELAYSEC;
 
+/**
+ * @brief ID of the message queue that will be used to send the start and stop messages to the NTP daemon.
+ *
+ * @note We start with an ID of -1 to indicate that the message queue has not been created yet.
+ */
+static mqd_t g_ntpc_queue_handle = (mqd_t) -1;
+
 static char *thisFile = __FILE__;
 
 /****************************************************************************
@@ -149,7 +156,7 @@ static char *thisFile = __FILE__;
  *   the event data, and queue the event messages for processing.
  *
  ****************************************************************************/
-void ntpc_update_event(void) 
+static void ntpc_update_event(void)
 {
     meadow_configuration_t *config = meadow_os_deep_copy_config();
     uint32_t default_interface_type = config->default_interface->interface_type;
@@ -186,8 +193,112 @@ void ntpc_update_event(void)
 
     espcp_encode_event_data(&message, encodedData);
 
-    int result = espcp_queue_event_messages(encodedData);
+    int __attribute__((unused)) result = espcp_queue_event_messages(encodedData);
     MEADOW_TRACE_INFORMATION("%s@%d-NTP update event result: %d\n", thisFile, __LINE__, result);
+}
+
+/****************************************************************************
+ * Name: ntpc_close_message_queue
+ *
+ * Description:
+ *   Close the message queue and set the handle to indicate that the queue is
+ *   closed.
+ *
+ ****************************************************************************/
+static void ntpc_close_message_queue(void)
+{
+  mq_close(g_ntpc_queue_handle);
+  g_ntpc_queue_handle = (mqd_t) -1;
+
+}
+
+/****************************************************************************
+ * Name: ntpc_open_message_queue
+ *
+ * Description:
+ *   Open the message queue for receiving messages to the NTP daemon.
+ *
+ * Returned Value:
+ *   EXIT_SUCCESS or EXIT_FAILURE depending on the success or failure of the
+ *   operation.
+ *
+ ****************************************************************************/
+static int ntpc_open_message_queue(void)
+{
+  if (g_ntpc_queue_handle == (mqd_t) -1)
+  {
+    struct mq_attr queue_attributes = {};
+    queue_attributes.mq_maxmsg = 10;
+    queue_attributes.mq_msgsize = sizeof(uint32_t);
+    queue_attributes.mq_flags = 0;
+    mode_t mode;
+    memset(&mode, 0, sizeof(mode));
+    g_ntpc_queue_handle = mq_open(NTPC_QUEUE_INTERFACE, O_WRONLY | O_CREAT | O_NONBLOCK, mode, &queue_attributes);
+    if (g_ntpc_queue_handle == (mqd_t) -1)
+    {
+      MEADOW_TRACE_ERROR("%s@%d-Failed to open NTP message queue, error: %d\n", thisFile, __LINE__, errno);
+      return EXIT_FAILURE;
+    }
+  }
+  return EXIT_SUCCESS;
+}
+
+/****************************************************************************
+ * Name: ntpc_meadow_setup
+ *
+ * Description:
+ *   Perform the Meadow specific setup for the NTP client.
+ *
+ * Input Parameters:
+ *  config - Pointer to the Meadow configuration structure.
+ *
+ * Returned Value:
+ *   EXIT_SUCCESS or EXIT FAILURE depending on the success or failure of the
+ *   setup.
+ *
+ ****************************************************************************/
+static int ntpc_meadow_setup(meadow_configuration_t *config)
+{
+  if (ntpc_open_message_queue() != EXIT_SUCCESS)
+  {
+    return EXIT_FAILURE;
+  }
+  ntpc_refresh_period_seconds = config->ntp_refresh_period_seconds;
+  ntp_server_count = config->ntp_servers_count;
+
+  MEADOW_TRACE_INFORMATION("%s@%d-NTP server count: %d \n", thisFile, __LINE__, ntp_server_count);
+  MEADOW_TRACE_INFORMATION("%s@%d-NTPC refresh period seconds: %d\n", thisFile, __LINE__, ntpc_refresh_period_seconds);
+
+  ntp_servers = (char **)malloc(ntp_server_count * sizeof(char *));
+  if (ntp_servers == NULL)
+  {
+    nerr("ERROR: Failed to allocate memory for NTP servers\n");
+    ntpc_close_message_queue();
+    return EXIT_FAILURE;
+  }
+
+  MEADOW_TRACE_INFORMATION("%s@%d-NTP servers:\n", thisFile, __LINE__);
+
+  for (int i = 0; i < ntp_server_count; ++i)
+  {
+    ntp_servers[i] = strdup(config->ntp_servers[i]);
+    if (ntp_servers[i] == NULL)
+    {
+        nerr("ERROR: Failed to copy NTP server string\n");
+        /* Free previously allocated strings and array */
+        for (int j = 0; j < i; ++j)
+          {
+            free(ntp_servers[j]);
+          }
+        free(ntp_servers);
+        ntp_servers = NULL;
+        ntpc_close_message_queue();
+        return EXIT_FAILURE;
+    }
+    hcom_logging_syslog(LOG_INFO, "%s-%d-%s\n", thisFile, __LINE__, ntp_servers[i]);
+    MEADOW_TRACE_INFORMATION("%s@%d-%s\n", thisFile, __LINE__, ntp_servers[i]);
+  }
+  return EXIT_SUCCESS;
 }
 
 /****************************************************************************
@@ -365,10 +476,10 @@ static void ntpc_settime(FAR uint8_t *timestamp)
  *
  * Description:
  *  Connect to the NTP server.
- * 
+ *
  *  This method will populate the memory pointed to by the server parameter
  *  with information about the NTP server.
- * 
+ *
  * Input Parameters:
  *  server - Pointer to a socket address structure.
  *
@@ -459,12 +570,12 @@ static int ntpc_daemon(int argc, char **argv)
     int current_server = 0;
     int retry_count = 0;
 
-    mqd_t mq;
-    char buffer[NTPC_QUEUE_MSG_MAX_SIZE];
+    // mqd_t mq;
+    // char buffer[NTPC_QUEUE_MSG_MAX_SIZE];
 
-    // Open the message queue for reading with non-blocking mode
-    mq = mq_open(NTPC_QUEUE_INTERFACE, O_RDONLY | O_CREAT | O_NONBLOCK, 0644, NULL);
-    if (mq == (mqd_t)-1)
+    // // Open the message queue for reading with non-blocking mode
+    // mq = mq_open(NTPC_QUEUE_INTERFACE, O_RDONLY | O_CREAT | O_NONBLOCK, 0644, NULL);
+    if (g_ntpc_queue_handle == (mqd_t) -1)
     {
         MEADOW_TRACE_ERROR("%s@%d-Failed to open NTP message queue, error: %d\n", thisFile, __LINE__, errno);
         return EXIT_FAILURE;
@@ -473,16 +584,15 @@ static int ntpc_daemon(int argc, char **argv)
     // Main loop to handle the entire daemon lifecycle
     while (1)
     {
+        uint32_t received_value;
         // Loop to wait for the NTP start message
         MEADOW_TRACE_INFORMATION("%s@%d-Waiting for the NTP start message: \n", thisFile, __LINE__);
         while (1)
         {
             // Attempt to receive a message from the queue
-            ssize_t bytes_read = mq_receive(mq, buffer, NTPC_QUEUE_MSG_MAX_SIZE, NULL);
+            ssize_t bytes_read = mq_receive(g_ntpc_queue_handle, (char *) &received_value, sizeof(uint32_t), NULL);
             if (bytes_read >= 0)
             {
-                uint32_t received_value;
-                memcpy(&received_value, buffer, sizeof(received_value));
                 MEADOW_TRACE_INFORMATION("%s@%d-Received NTP message: %u\n", thisFile, __LINE__, received_value);
                 if (received_value == NTPC_START)
                 {
@@ -513,11 +623,12 @@ static int ntpc_daemon(int argc, char **argv)
             while (getting_time && (retry_count < NTP_MAX_RETRY_ATTEMPTS))
             {
                 // Check for NTP stop message
-                ssize_t bytes_read = mq_receive(mq, buffer, NTPC_QUEUE_MSG_MAX_SIZE, NULL);
+                //
+                //  Maybe should work out if we can use a non-blocking queue with a timed wait.  This will also help with the comment below re-sleep.
+                //
+                ssize_t bytes_read = mq_receive(g_ntpc_queue_handle, (char *) &received_value, sizeof(uint32_t), NULL);
                 if (bytes_read >= 0)
                 {
-                    uint32_t received_value;
-                    memcpy(&received_value, buffer, sizeof(received_value));
                     if (received_value == NTPC_STOP)
                     {
                         MEADOW_TRACE_INFORMATION("%s@%d-Received NTP stop message: %u\n", thisFile, __LINE__, received_value);
@@ -564,7 +675,7 @@ static int ntpc_daemon(int argc, char **argv)
                         //  addresses again we just get the values from the cache and loop
                         //  through the servers and do not get a result again.  Flushing the
                         //  DNS cache should force the server IP addresses to change.
-                        //                        
+                        //
                         dns_clear_answer();
                         current_server = 0;
                         retry_count++;
@@ -575,6 +686,13 @@ static int ntpc_daemon(int argc, char **argv)
             if (g_ntpc_daemon.state == NTP_RUNNING)
             {
                 MEADOW_TRACE_INFORMATION("%s@%d-NTP daemon waiting for %d seconds\n", thisFile, __LINE__, ntpc_refresh_period_seconds);
+                //
+                //  If we use a timed mq_receive then we could take into account the case where the NTP server is sleeping
+                //  and a STOP message arrives.  We could then stop the server immediately.
+                //
+                //  It would also mitigate the situation where a stop / start sequence of events are received, say once every 15 minutes
+                //  but the server is sleeping for 10 hours.  In this scenario we would fill the queue.
+                //
                 (void)sleep(ntpc_refresh_period_seconds);
                 getting_time = true;
                 retry_count = 0;
@@ -593,12 +711,13 @@ static int ntpc_daemon(int argc, char **argv)
         retry_count = 0;
     }
 
+    ntpc_close_message_queue();
     /* The NTP client is terminating */
-    if (mq_close(mq) == -1)
-    {
-        MEADOW_TRACE_ERROR("%s@%d-Failed to close NTP message queue, error: %d\n", thisFile, __LINE__, errno);
-        return EXIT_FAILURE;
-    }
+    // if (mq_close(g_ntpc_queue_handle) == -1)
+    // {
+    //     MEADOW_TRACE_ERROR("%s@%d-Failed to close NTP message queue, error: %d\n", thisFile, __LINE__, errno);
+    //     return EXIT_FAILURE;
+    // }
 
     return EXIT_SUCCESS;
 }
@@ -634,40 +753,16 @@ int ntpc_start(void)
 
           meadow_configuration_t *config = meadow_os_deep_copy_config();
 
-          ntpc_refresh_period_seconds = config->ntp_refresh_period_seconds;
-          ntp_server_count = config->ntp_servers_count;
-
-          MEADOW_TRACE_INFORMATION("%s@%d-NTP server count: %d \n", thisFile, __LINE__, ntp_server_count);
-          MEADOW_TRACE_INFORMATION("%s@%d-NTPC refresh period seconds: %d\n", thisFile, __LINE__, ntpc_refresh_period_seconds);
-
-          ntp_servers = (char **)malloc(ntp_server_count * sizeof(char *));
-          if (ntp_servers == NULL)
-          {
-            nerr("ERROR: Failed to allocate memory for NTP servers\n");
-            return EXIT_FAILURE;
-          }
-
-          MEADOW_TRACE_INFORMATION("%s@%d-NTP servers:\n", thisFile, __LINE__);
-
-          for (int i = 0; i < ntp_server_count; ++i)
-          {
-            ntp_servers[i] = strdup(config->ntp_servers[i]);
-            if (ntp_servers[i] == NULL)
-            {
-                nerr("ERROR: Failed to copy NTP server string\n");
-                /* Free previously allocated strings and array */
-                for (int j = 0; j < i; ++j)
-                  {
-                    free(ntp_servers[j]);
-                  }
-                free(ntp_servers);
-                return EXIT_FAILURE;
-            }
-            hcom_logging_syslog(LOG_INFO, "%s-%d-%s\n", thisFile, __LINE__, ntp_servers[i]);
-            MEADOW_TRACE_INFORMATION("%s@%d-%s\n", thisFile, __LINE__, ntp_servers[i]);
-          }
+          int result = ntpc_meadow_setup(config);
 
           meadow_os_config_free_resources(config);
+
+          if (result == EXIT_FAILURE)
+          {
+            nerr("ERROR: Failed to setup NTP client\n");
+            sched_unlock();
+            return -EFAULT;
+          }
 
           sem_init(&g_ntpc_daemon.interlock, 0, 0);
         }
@@ -705,7 +800,7 @@ int ntpc_start(void)
  * Name: ntpc_stop (deprecated)
  *
  * Description:
- *   Do not use this function to stop the NTP daemon. Instead, send an NTP stop 
+ *   Do not use this function to stop the NTP daemon. Instead, send an NTP stop
  *   message using espcp_send_message_to_ntp_queue() method.
  *
  * Returned Value:

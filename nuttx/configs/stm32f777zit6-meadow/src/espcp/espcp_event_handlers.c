@@ -543,10 +543,21 @@ void espcp_send_message_to_ntp_queue(const uint32_t message)
 {
     MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
 
+    //
+    //  We should consider if we need O_CREAT here and also in espcp_send_message_to_ntp_queue.
+    //
+    //  Maybe make it so that the queue is always opened before we can get here.
+    //
+    struct mq_attr queue_attributes = {};
+
+    queue_attributes.mq_maxmsg = 10;
+    queue_attributes.mq_msgsize = sizeof(uint32_t);
+    queue_attributes.mq_flags = 0;
+
     mqd_t mq;
 
     // Open the message queue with write access, create it if it doesn't exist
-    mq = mq_open(NTPC_QUEUE_INTERFACE, O_WRONLY | O_CREAT, 0644, NULL);
+    mq = mq_open(NTPC_QUEUE_INTERFACE, O_WRONLY | O_CREAT, 0644, &queue_attributes);
     if (mq == (mqd_t)-1)
     {
         MEADOW_TRACE_ERROR("%s: Failed to open NTP queue\n", __func__);
