@@ -121,5 +121,6 @@ void hcom_nx_config_set_time_to_os_build_time(void);
 void hcom_nx_config_add_default_gateway_dns_file(meadow_configuration_t *, uint32_t);
 void hcom_nx_config_add_dns_address_into_file(uint32_t);
 void hcom_nx_config_update_network_interface(meadow_configuration_t *, uint32_t, uint32_t, uint32_t);
+void hcom_nx_config_update_dns_address(meadow_configuration_t *, uint32_t);
 void hcom_nx_config_clear_network_interface(meadow_configuration_t *);
 #endif // __CONFIGS_MEADOW_SRC_HCOM_NX_CONFIG_MANAGER__H

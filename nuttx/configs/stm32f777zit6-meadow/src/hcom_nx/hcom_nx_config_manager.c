@@ -1448,6 +1448,8 @@ void hcom_nx_config_add_dns_address_into_file(uint32_t dns)
     {
         if (dns != 0)
         {
+            // 13 bytes reserve to "nameserver" + ' ' +'\n'
+            // 16 bytes reserve to DNS address
             char *new_nameserver = (char *)zalloc(16 + 13);
             if (new_nameserver != NULL)
             {
@@ -1495,6 +1497,16 @@ void hcom_nx_config_update_network_interface(meadow_configuration_t *config, uin
         iface->ip_address = ip_address;
         iface->gateway = gateway;
         iface->netmask = netmask;
+    }
+}
+
+
+void hcom_nx_config_update_dns_address(meadow_configuration_t *config, uint32_t dns_address)
+{
+    if (config != NULL)
+    {
+        meadow_network_interface_t *iface = config->default_interface;
+        iface->dns_address = dns_address;
     }
 }
 

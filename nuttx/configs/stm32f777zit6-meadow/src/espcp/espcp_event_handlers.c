@@ -706,11 +706,19 @@ static void espcp_network_got_ip_event_handler(espcp_message_t *message)
     MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
     if (message->status_code == espcp_status_codes_completed_ok)
     {
+        hcom_nx_config_lock();
+        meadow_configuration_t *config = hcom_nx_config_get_pointer();
+
         if (message->payload != NULL)
         {
             espcp_got_ip_event_data_t *espcp_got_ip_data = espcp_extract_got_ip_event_data(message->payload);
-            hcom_nx_config_add_dns_address_into_file(espcp_got_ip_data->dns_address);
+            if (config->default_interface->dns_address != espcp_got_ip_data->dns_address)
+            {
+                hcom_nx_config_update_dns_address(config, espcp_got_ip_data->dns_address);
+                hcom_nx_config_add_dns_address_into_file(espcp_got_ip_data->dns_address);
+            }
         }
+        hcom_nx_config_unlock();
     }
     espcp_pass_to_managed_event_handler(message);
     MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
