@@ -1450,10 +1450,11 @@ void hcom_nx_config_add_dns_address_into_file(uint32_t dns)
         {
             // 13 bytes reserve to "nameserver" + ' ' +'\n'
             // 16 bytes reserve to DNS address
-            char *new_nameserver = (char *)zalloc(16 + 13);
+            int new_server_size = 16 + 13;
+            char *new_nameserver = (char *)zalloc(new_server_size);
             if (new_nameserver != NULL)
             {
-                memset(new_nameserver, 0, sizeof(new_nameserver));
+                memset(new_nameserver, 0, new_server_size);
                 sprintf(new_nameserver,
                         "nameserver %u.%u.%u.%u\n",
                         (dns & 0xff),
