@@ -134,6 +134,7 @@ static int los_num_sections = 0;
 #define USE_MALLOC
 #endif
 
+//#define USE_MALLOC
 //#define LOS_CONSISTENCY_CHECK
 //#define LOS_DUMMY
 
