@@ -70,10 +70,8 @@
 // to be turned off during low-power modes.
 #include "chip/stm32f76xx77xx_memorymap.h"
 
-// #include "stm32_otg.h" introduces a build warning due to the fact that
-// a nuttx specific definition is here. The following is the only line needed
-// from stm32_otg.h. Which is located at /arch/arm/src/stm32f7/stm32_otg.h.
-#  define STM32_OTG_BASE        STM32_USBOTGFS_BASE
+// Need one line from here so that chip/stm32_otg.h will build
+#include "stm32_otg.h"
 #include "chip/stm32_otg.h"
 
 #include "chip/stm32f76xx77xx_pwr.h"
@@ -107,10 +105,33 @@
 
 #define MEADOW_PWRMGMT_SHOW_RTC_NUTTX_TIME (0)
 
+// Diagnostic
+#pragma message "(--) pwrmgmt_enter_stop_mode.c"
+
+#define PWRMGMT_BOOST_PRIORITY_OF_CALLER (1)
+#define PWRMGMT_BOOST_PRIORITY_VALUE (253)
+
+#define PWRMGMT_ADD_CRITICAL_SECTION_SUPPORT (1)
+#define PWRMGMT_ADD_SEMAPHORE_TO_CONTROL_ENTRY (1)
+#define PWRMGMT_ADD_LEDS_FOR_DIAGNOSTIC_INFO (1)
+
+#if (PWRMGMT_ADD_LEDS_FOR_DIAGNOSTIC_INFO > 0)
+// DIAGNOSTIC GPIO
+#define TEST_PIN_V2_D03_STOP_TEST (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_100MHz|GPIO_PORTB | GPIO_PIN8)
+#endif
+
 /************************************************************************************
  * Private Data
  ************************************************************************************/
 // static char *thisFile = __FILE__;
+
+#if (PWRMGMT_ADD_SEMAPHORE_TO_CONTROL_ENTRY > 0)
+static sem_t _stopModeEntry;
+#endif
+
+#if (PWRMGMT_ADD_CRITICAL_SECTION_SUPPORT > 0)
+static irqstate_t _flags;
+#endif
 
 enum MeadowWakeupReason_e
 {
@@ -119,6 +140,7 @@ enum MeadowWakeupReason_e
   wake_reason_gpio_caused_wakeup  = 2,    // GPIO interrupt caused wakeup
 };
 
+static bool _firstTime = true;
 static bool _meadowIsSleeping = false;
 static enum MeadowWakeupReason_e _wakeupReason = wake_reason_unknown;
 
@@ -129,22 +151,32 @@ static enum MeadowWakeupReason_e _wakeupReason = wake_reason_unknown;
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
-// ISR called when the RTC generates an alarm, or the wakeup timer expires. Thus
-// indicating time to exit-power mode.
-// It is necessary to do a few things here to get the Meadow back to a running state.
+// ISR called when the RTC generates an alarm, or the wakeup timer expires,
+// thus, indicating time to exit low-power mode.
 static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context, FAR void *arg)
 {
-  return pwrmgmt_exit_stop_mode(false);
+#if (PWRMGMT_ADD_LEDS_FOR_DIAGNOSTIC_INFO > 0)
+  stm32_gpiowrite(TEST_PIN_V2_D03_STOP_TEST, false);
+#endif
+
+  return pwrmgmt_isr_shared_wakeup_code(false);
 }
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// This public function is executed from the local ISR for timeout and from
-// Meadow interrupt handling code. This allows a GPIO to be configured for
-// wakeup.
-int pwrmgmt_exit_stop_mode(bool gpioWakeup)
+// This public function is executed from the local ISR and from the Meadow
+// interrupt handling code. Thus allowing a GPIO interrupt to be configured
+// for wakeup.
+// This function gets Nuttx started. Once that happens Nuttx will call code in
+// this module that completes the wakeup sequence.
+int pwrmgmt_isr_shared_wakeup_code(bool gpioWakeup)
 {
+  // Stop additional interrupts until fully up
+#if (PWRMGMT_ADD_CRITICAL_SECTION_SUPPORT > 0)
+  _flags = enter_critical_section();
+#endif
+
   if(gpioWakeup)
   {
     _wakeupReason = wake_reason_gpio_caused_wakeup;
@@ -154,15 +186,20 @@ int pwrmgmt_exit_stop_mode(bool gpioWakeup)
     _wakeupReason = wake_reason_wakeup_time_reached;
   }
 
-  // This check is primarily for GPIO wakeup, in the case it is interrupted
-  // while not sleeping.
+  // This check is primarily for GPIO interrupt wakeup, in the case it is
+  // interrupted while not sleeping, or generates multiple interrupts via
+  // switch bounce.
   if(!_meadowIsSleeping)
   {
+#if (PWRMGMT_ADD_CRITICAL_SECTION_SUPPORT > 0)
+    leave_critical_section(_flags);
+#endif
     return OK;
   }
 
   // Reconfigure the internal clocks. Restarts the clocks as defined in
-  // board.h. These clocks are what run the entire MCU.
+  // board.h. Starting these clocks, will allow the  remaining wakeup code
+  // to be executed.
   stm32_clockenable();
 
   // Restart Nuttx Systick
@@ -193,14 +230,68 @@ int pwrmgmt_exit_stop_mode(bool gpioWakeup)
 int pwrmgmt_enter_stop_mode(void)
 {
   uint32_t regval;
+#if (PWRMGMT_BOOST_PRIORITY_OF_CALLER > 0)
+  struct sched_param schedParam;
+  pthread_attr_t attr;
+  int origThreadPri;
+#endif
+
+  // One time initialization
+  if(_firstTime)
+  {
+    _firstTime = false;
+
+    // Semaphore to only allow single thread here
+#if (PWRMGMT_ADD_SEMAPHORE_TO_CONTROL_ENTRY > 0)
+    sem_init(&_stopModeEntry, 0, 1);
+#endif
+
+#if (PWRMGMT_ADD_LEDS_FOR_DIAGNOSTIC_INFO > 0)
+    // DIAGNOSTIC-Init diagnostic GPIO
+    stm32_configgpio(TEST_PIN_V2_D03_STOP_TEST);
+    stm32_gpiowrite(TEST_PIN_V2_D03_STOP_TEST, false);
+#endif
+  }
+
+#if (PWRMGMT_ADD_SEMAPHORE_TO_CONTROL_ENTRY > 0)
+  // Get the semaphore to insure only one caller at a time
+  do
+  {
+    int ret;
+    ret = sem_trywait(&_stopModeEntry);
+    if(ret == OK)
+      break;
+
+    if(errno == -EINTR)
+      continue;
+
+    return -EALREADY;    // Error exit
+
+  } while(true);
+#endif
+
+  // Stop all interrupts
+#if (PWRMGMT_ADD_CRITICAL_SECTION_SUPPORT > 0)
+  _flags = enter_critical_section();
+#endif
+
+#if (PWRMGMT_BOOST_PRIORITY_OF_CALLER > 0)
+// TODO: CHECK IF THIS IS A pthread. IF NOT EXIT OR SKIP BOOSTING PRIORITY CODE
+  // Boost the priority of the calling pthread
+  pthread_attr_init(&attr);
+  (void)pthread_attr_getschedparam(&attr, &schedParam);
+  origThreadPri = schedParam.sched_priority;
+  schedParam.sched_priority = PWRMGMT_BOOST_PRIORITY_VALUE;
+  (void)pthread_attr_setschedparam(&attr, &schedParam);
+#endif
 
   // Reset the wakeup reason
   _wakeupReason = wake_reason_unknown;
 
   // ETHERNET POWERED DOWN
   // See Ref Man section 42.5.8, step-by-step in at the bottom.
-  // Might be clues in stmcube ETH_PhyEnterPowerDownMode. The main savings here
-  // will be the external Ethernet chip itself.
+  // Might be clues in stmcube ETH_PhyEnterPowerDownMode. The main savings
+  // would be the PHY chip, if Ethernet implemented.
   // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD) && defined(CONFIG_NETDEV_LATEINIT)
   //   if(meadow_hw_version_ethernet_supported())
   //   {
@@ -243,9 +334,10 @@ int pwrmgmt_enter_stop_mode(void)
   // Setting the following seems to be the highest power savings for the stop
   // mode. Without these the Meadow current drops to about 58 ma. With the
   // following settings added Meadow drops to about 52 ma.
+  // See Table 19 in Ref Man for information
   regval |= PWR_CR1_LPDS;           // Low-power regulator on in Stop
   regval |= PWR_CR1_LPUDS;          // Low-power regulator in under-drive
-  regval |= PWR_CR1_UDEN_ENABLE;    // Set both bits for underdrive
+  regval |= PWR_CR1_UDEN_ENABLE;    // Set both bits for under-drive
   putreg32(regval, STM32_PWR_CR1);
 
   // Set SLEEPDEEP bit of Cortex System Control Register. This is the same
@@ -291,7 +383,7 @@ int pwrmgmt_enter_stop_mode(void)
             tmNowOs.tm_hour, tmNowOs.tm_min, tmNowOs.tm_sec);
 #endif
 
-  // Disabled Systick (it's re-enabled in ISR)
+  //Disabled Systick (it's re-enabled in ISR)
   up_disable_irq(STM32_IRQ_SYSTICK);
 
   // Put SDRAM into self-refresh mode so data isn't lost (saves current).
@@ -305,15 +397,25 @@ int pwrmgmt_enter_stop_mode(void)
   // Wait again till busy flag is cleared and SDRAM is fully in self-refresh
   while ((getreg32(STM32_FMC_SDSR) & 0x00000020) != 0);
 
+  // DIAGNOSTIC-LED on only when sleeping the waking interrupt will turn this off
+#if (PWRMGMT_ADD_LEDS_FOR_DIAGNOSTIC_INFO > 0)
+  stm32_gpiowrite(TEST_PIN_V2_D03_STOP_TEST, true);
+#endif
+
   _meadowIsSleeping = true;
-  
+
+  // Need an interrupt to wake from stop mode
+#if (PWRMGMT_ADD_CRITICAL_SECTION_SUPPORT > 0)
+  leave_critical_section(_flags);
+#endif
+
   // Force memory sync before wfe, thus ensuring that all instructions done
-  // before entering STOP mode Data synchronous Barrier (DSB) just after the
-  // write operation. This will force the CPU to respect the sequence of
+  // before entering the STOP mode Data synchronous Barrier (DSB) just after
+  // the write operation. This will force the CPU to respect the sequence of
   // instructions (no optimization).
   asm volatile ("dsb");
   asm volatile ("isb");
-  
+
   // Put into stop-mode
   asm volatile ("sev");    // Set an event
   asm volatile ("wfe");    // Clear just set Event, we know our state now
@@ -323,9 +425,10 @@ int pwrmgmt_enter_stop_mode(void)
   // The calling thread is stopped here while in Stop Mode
   //----------------------------------------------------------------------
 
-  // Meadow is running again. ISR has handled starting the clocks and the Nuttx
-  // systick timer. These must be in the ISR handler or things don't start
+  // Meadow is running again. ISR has handled starting all the necessary
+  // clocks These must be in the ISR handler or things don't start
   // correctly.
+  // Restore all the needed register values.
   _meadowIsSleeping = false;
 
   // Clear sleep control bits in Power Controller registers
@@ -358,11 +461,23 @@ int pwrmgmt_enter_stop_mode(void)
 #error "Select Low-Power timing scheme"
 #endif
 
-  // Synch Nuttx clock with RTC hardware. The RTC keeps time while in stop
+  // Synch Nuttx clock with RTC hardware, that keeps time while in stop
   // mode. The RTC clock may drift because the Meadow doesn't have a crystal
   // or resonator for the LSE clock. Therefore, we're using the LSI clock
-  // which can drift over time.
+  // which will drift.
   clock_synchronize();
+
+#if (PWRMGMT_ADD_CRITICAL_SECTION_SUPPORT > 0)
+  // Okay to turn on interrupts again
+  leave_critical_section(_flags);
+#endif
+
+  // Restore to original thread priority
+#if (PWRMGMT_BOOST_PRIORITY_OF_CALLER > 0)
+  (void)pthread_attr_getschedparam(&attr, &schedParam);
+  schedParam.sched_priority = origThreadPri;
+  (void)pthread_attr_setschedparam(&attr, &schedParam);
+#endif
 
   // Turn on USB OTG's power to its transceiver to re-enable communications
   regval = getreg32(STM32_OTG_GCCFG);
@@ -390,6 +505,10 @@ int pwrmgmt_enter_stop_mode(void)
             tmNowRtc2.tm_hour, tmNowRtc2.tm_min, tmNowRtc2.tm_sec,
             tmNowOs2.tm_year + 1900, tmNowOs2.tm_mon + 1, tmNowOs2.tm_mday,
             tmNowOs2.tm_hour, tmNowOs2.tm_min, tmNowOs2.tm_sec);
+#endif
+
+#if (PWRMGMT_ADD_SEMAPHORE_TO_CONTROL_ENTRY > 0)
+  sem_post(&_stopModeEntry);
 #endif
 
   return OK;

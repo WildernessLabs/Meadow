@@ -203,7 +203,7 @@ int hcom_nx_fs_1st_erase_sector_of_partition(uint32_t partitionId);
   // Public functions to manage power management
   int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod);
   int pwrmgmt_most_recent_wakeup_reason(void);
-  int pwrmgmt_exit_stop_mode(bool gpioWakeup);
+  int pwrmgmt_isr_shared_wakeup_code(bool gpioWakeup);
 
   // Power Management Real-time clock hardware available to mono
   int pwrmgmt_mono_cmd_time_set_clock(const HcomProtoHdrMsg_t *hdrMsg, size_t packetSize);
