@@ -79,11 +79,6 @@
  * Pre-processor Definitions
  ************************************************************************************/
 
-// Which RTC Alarm to use Alarm A or Alarm B?
-// Define only 1
-#define PWRMGMT_LOW_PWR_USE_ALARM_A
-// #define PWRMGMT_LOW_PWR_USE_ALARM_B    Note: Alarm B never tested
-
 /************************************************************************************
  * Private Data
  ************************************************************************************/
@@ -202,10 +197,11 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
 
   // Disable RTC alarm
   regval = getreg32(STM32_RTC_CR);
-#if defined (PWRMGMT_LOW_PWR_USE_ALARM_A)
+
+#if (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 0)
   regval &= ~RTC_CR_ALRAE;    // Clear Alarm A Enable bit to disable
   regval &= ~RTC_CR_ALRAIE;   // Disable Alarm A enable
-#elif defined (PWRMGMT_COMPILE_ALARM_B)
+#elif (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 1)
   regval &= ~RTC_CR_ALRBE;   // Clear Alarm B Enable bit to disable
   regval &= ~RTC_CR_ALRBIE;   // Disable Alarm B enable 
 #else
@@ -214,9 +210,9 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
   putreg32(regval, STM32_RTC_CR);
 
   // Wait for ALRAE to be written
-#if defined (PWRMGMT_LOW_PWR_USE_ALARM_A)
+#if (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 0)
   while ((getreg32(STM32_RTC_ISR) & RTC_ISR_ALRAWF) == 0);
-#elif defined (PWRMGMT_COMPILE_ALARM_B)
+#elif (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 1)
   while ((getreg32(STM32_RTC_ISR) & RTC_ISR_ALRBWF) == 0);
 #else
   #error "Select a valid RTC Alarm"
@@ -230,10 +226,10 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
            (pwrmgmt_rtc_bin2bcd(tmAlarm.tm_mday) << RTC_ALRMR_DU_SHIFT);
 
   // Set the time and day information in compare register.
-#if defined (PWRMGMT_LOW_PWR_USE_ALARM_A)
+#if (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 0)
   putreg32(regval, STM32_RTC_ALRMAR);   // Using Alarm A
   putreg32(0, STM32_RTC_ALRMBR);        // Not using Alarm B
-#elif defined (PWRMGMT_COMPILE_ALARM_B)
+#elif (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 1)
   putreg32(0, STM32_RTC_ALRMAR);        // Not using Alarm A
   putreg32(regval, STM32_RTC_ALRMBR);   // Using Alarm B
 #else
@@ -274,10 +270,10 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
 
   // Enable Interrupt and enable Alarm
   regval = getreg32(STM32_RTC_CR);
-#if defined (PWRMGMT_LOW_PWR_USE_ALARM_A)
+#if (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 0)
   regval |= RTC_CR_ALRAIE;  // Set Alarm A Interrupt enable bit
   regval |= RTC_CR_ALRAE;   // Set Alarm A enable bit
-#elif defined (PWRMGMT_COMPILE_ALARM_B)
+#elif (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 1)
   regval |= RTC_CR_ALRBIE;
   regval |= RTC_CR_ALRBE;   // Clear Alarm B Enable bit to disable
 #else
@@ -287,9 +283,9 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
   putreg32(regval, STM32_RTC_CR);
   // Wait for status flag to indicate that ALRAE bit has been cleared
   // indicating updates are no longer allowed
-#if defined (PWRMGMT_LOW_PWR_USE_ALARM_A)
+#if (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 0)
   while ((getreg32(STM32_RTC_ISR) & RTC_ISR_ALRAWF) == 0);
-#elif defined (PWRMGMT_COMPILE_ALARM_B)
+#elif (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 1)
   while ((getreg32(STM32_RTC_ISR) & RTC_ISR_ALRBWF) == 0);
 #else
   #error "Select a valid RTC Alarm"
@@ -312,7 +308,7 @@ void pwrmgmt_disable_rtc_alarm_wakeup()
   pwrmgmt_rtc_wprunlock();
 
   regval = getreg32(STM32_RTC_CR);
-#if defined (PWRMGMT_LOW_PWR_USE_ALARM_A)
+#if (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 0)
   regval |= RTC_CR_ALRAIE;  // Set Alarm A Interrupt enable bit
   regval |= RTC_CR_ALRAE;   // Set Alarm A enable bit
   putreg32(regval, STM32_RTC_CR);
@@ -324,7 +320,7 @@ void pwrmgmt_disable_rtc_alarm_wakeup()
   regval = getreg32(STM32_RTC_ISR);
   regval &= ~RTC_ISR_ALRAF;
   putreg32(regval, STM32_RTC_ISR);
-#elif defined (PWRMGMT_COMPILE_ALARM_B)
+#elif (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 1)
   regval |= RTC_CR_ALRBIE;  // Set Alarm A Interrupt enable bit
   regval |= RTC_CR_ALRBE;   // Set Alarm A enable bit
   putreg32(regval, STM32_RTC_CR);
