@@ -270,22 +270,19 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
 
   // Enable Interrupt and enable Alarm
   regval = getreg32(STM32_RTC_CR);
+  regval |= RTC_CR_FMT;     // Insure 24 hour time used for compare
+  
 #if (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 0)
+  // Set enable bits and wait for status flag to indicate that ALRAE
+  // bit has been cleared.
   regval |= RTC_CR_ALRAIE;  // Set Alarm A Interrupt enable bit
   regval |= RTC_CR_ALRAE;   // Set Alarm A enable bit
+  putreg32(regval, STM32_RTC_CR);
+  while ((getreg32(STM32_RTC_ISR) & RTC_ISR_ALRAWF) == 0);
 #elif (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 1)
   regval |= RTC_CR_ALRBIE;
   regval |= RTC_CR_ALRBE;   // Clear Alarm B Enable bit to disable
-#else
-  #error "Select a valid RTC Alarm"
-#endif
-  regval |= RTC_CR_FMT;     // Insure 24 hour time used for compare
   putreg32(regval, STM32_RTC_CR);
-  // Wait for status flag to indicate that ALRAE bit has been cleared
-  // indicating updates are no longer allowed
-#if (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 0)
-  while ((getreg32(STM32_RTC_ISR) & RTC_ISR_ALRAWF) == 0);
-#elif (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 1)
   while ((getreg32(STM32_RTC_ISR) & RTC_ISR_ALRBWF) == 0);
 #else
   #error "Select a valid RTC Alarm"
