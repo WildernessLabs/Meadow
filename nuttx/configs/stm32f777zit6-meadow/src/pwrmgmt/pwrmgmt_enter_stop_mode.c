@@ -153,11 +153,66 @@ static enum MeadowWakeupReason_e _wakeupReason = wake_reason_unknown;
  ************************************************************************************/
 // ISR called when the RTC generates an alarm, or the wakeup timer expires,
 // thus, indicating time to exit low-power mode.
-static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context, FAR void *arg)
+static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context,
+          FAR void *arg)
 {
+  uint32_t regval;
+  uint32_t rtcIsr;
+
+#if (PWRMGMT_ADD_CRITICAL_SECTION_SUPPORT > 0)
+  // Stop additional interrupts until fully awake
+  _flags = enter_critical_section();
+#endif
+
 #if (PWRMGMT_ADD_LEDS_FOR_DIAGNOSTIC_INFO > 0)
   stm32_gpiowrite(TEST_PIN_V2_D03_STOP_TEST, false);
 #endif
+
+  // (--) IS THIS NEEDED?
+  // pwrmgmt_rtc_wprunlock();
+
+#if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
+  // Clear the EXTI Pending Register for the RTC Alarm
+  regval = getreg32(STM32_EXTI_PR);
+  regval |= (EXTI_RTC_ALARM); // Writing '1' clears
+  putreg32(regval, STM32_EXTI_PR);
+  
+  // ALTERNATE Clear the EXTI Pending Register for the RTC Alarm
+  // putreg32(EXTI_RTC_ALARM, STM32_EXTI_PR);
+
+  // Clear the Alarm A flag
+ #if (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 0)
+  rtcIsr = getreg32(STM32_RTC_ISR);
+  if((rtcIsr & RTC_ISR_ALRAF) != 0)
+  {
+    rtcIsr &= ~(RTC_ISR_ALRAF);
+    putreg32(rtcIsr, STM32_RTC_ISR);
+  }
+ #elif (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 1)
+    #error "Only Alarm A supported in module"
+ #endif
+
+#elif defined (PWRMGMT_LOW_PWR_MODE_USE_WAKEUP_TIMER)
+  // Clear the EXTI Pending Register for the Wakeup Timer
+  regval = getreg32(STM32_EXTI_PR);
+  regval &= ~(EXTI_RTC_WAKEUP);
+  putreg32(EXTI_RTC_WAKEUP, STM32_EXTI_PR);
+
+  // NOTE: The following few lines have never been tested. Added when
+  // solving Issue #667 which only addressed waking up for RTC Alarm.
+  // Clear the Wakeup timer flag
+  rtcIsr = getreg32(STM32_RTC_ISR);
+  if((rtcIsr & RTC_ISR_WUTF) != 0)
+  {
+    rtcIsr &= ~RTC_ISR_WUTF;
+    putreg32(rtcIsr, STM32_RTC_ISR);
+  }
+#else
+  #error "Select Power Management Low-Power scheme"
+#endif
+
+  // (--) IS THIS NEEDED?
+  // pwrmgmt_rtc_wprlock();
 
   return pwrmgmt_isr_shared_wakeup_code(false);
 }
@@ -172,11 +227,6 @@ static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context, FAR void *a
 // this module that completes the wakeup sequence.
 int pwrmgmt_isr_shared_wakeup_code(bool gpioWakeup)
 {
-  // Stop additional interrupts until fully up
-#if (PWRMGMT_ADD_CRITICAL_SECTION_SUPPORT > 0)
-  _flags = enter_critical_section();
-#endif
-
   if(gpioWakeup)
   {
     _wakeupReason = wake_reason_gpio_caused_wakeup;
@@ -192,32 +242,21 @@ int pwrmgmt_isr_shared_wakeup_code(bool gpioWakeup)
   if(!_meadowIsSleeping)
   {
 #if (PWRMGMT_ADD_CRITICAL_SECTION_SUPPORT > 0)
-    leave_critical_section(_flags);
+    if(!gpioWakeup)
+    {
+      leave_critical_section(_flags);
+    }
 #endif
     return OK;
   }
 
   // Reconfigure the internal clocks. Restarts the clocks as defined in
-  // board.h. Starting these clocks, will allow the  remaining wakeup code
+  // board.h. Starting these clocks, will allow the remaining wakeup code
   // to be executed.
   stm32_clockenable();
 
   // Restart Nuttx Systick
   up_enable_irq(STM32_IRQ_SYSTICK);
-
-  // If waking up from GPIO interrupt don't want to clear RTC register?
-  if(! gpioWakeup)
-  {
-#if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
-    // Clear the EXTI Pending Register for the RTC Alarm
-    putreg32(EXTI_RTC_ALARM, STM32_EXTI_PR);
-#elif defined (PWRMGMT_LOW_PWR_MODE_USE_WAKEUP_TIMER)
-    // Clear the EXTI Pending Register for the Wakeup Timer
-    putreg32(EXTI_RTC_WAKEUP, STM32_EXTI_PR);
-#else
-    #error "Select Power Management Low-Power scheme"
-#endif
-  }
 
   // Don't leave ISR until the above have fully finished
   asm volatile ("dsb");
@@ -247,7 +286,6 @@ int pwrmgmt_enter_stop_mode(void)
 #endif
 
 #if (PWRMGMT_ADD_LEDS_FOR_DIAGNOSTIC_INFO > 0)
-    // DIAGNOSTIC-Init diagnostic GPIO
     stm32_configgpio(TEST_PIN_V2_D03_STOP_TEST);
     stm32_gpiowrite(TEST_PIN_V2_D03_STOP_TEST, false);
 #endif
@@ -289,7 +327,7 @@ int pwrmgmt_enter_stop_mode(void)
   _wakeupReason = wake_reason_unknown;
 
   // ETHERNET POWERED DOWN
-  // See Ref Man section 42.5.8, step-by-step in at the bottom.
+  // See Ref Man section 42.5.8, step-by-step at page bottom.
   // Might be clues in stmcube ETH_PhyEnterPowerDownMode. The main savings
   // would be the PHY chip, if Ethernet implemented.
   // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD) && defined(CONFIG_NETDEV_LATEINIT)
