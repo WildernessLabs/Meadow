@@ -89,6 +89,13 @@ espcp_message_t *espcp_create_message_on_heap(uint8_t message_type, uint8_t inte
         new_message->semaphore = NULL;
         new_message->message_sent = NULL;
     }
+
+    syslog(LOG_INFO, "Msg Type: %d, Interface: %d, Function: %d, Status Code: %d\n", message_type, interface, function, status_code);
+    if (interface == 48 || interface == 96 || interface > 10) 
+    {
+        syslog(LOG_INFO, "Msg Type: %d, Interface: %d, Function: %d, Status Code: %d\n", message_type, interface, function, status_code);
+    }
+
     return(new_message);
 }
 
