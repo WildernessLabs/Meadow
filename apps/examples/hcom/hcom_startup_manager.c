@@ -459,21 +459,25 @@ syslog(2, "hcom_main() running\n"); usleep(10 * 1000);
     }
   }
 
-  // Start PPPD app needed by cell driver, when cell interface is enabled
-  ret = hcom_pppd_start();
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-start pppd %d\n", thisFile, __LINE__, ret);
-  }
-
   // Run system updaters, which apply any OS and filesystem updates that have been staged
   os_update();
   app_update();
   firmware_update();
 
   // Last stop, start mono
-  hcom_mono_ctrl_start_mono_main();
+  int monoStartResult = hcom_mono_ctrl_start_mono_main();
 
+  // Start PPPD app needed by cell driver, when cell interface is enabled
+  // and Mono is running
+  if (monoStartResult == OK)
+  {
+    ret = hcom_pppd_start();
+    if (ret < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-start pppd %d\n", thisFile, __LINE__, ret);
+    }
+  }
+  
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2, "Startup Manager 21\n"); usleep(20 * 1000);
 #endif
