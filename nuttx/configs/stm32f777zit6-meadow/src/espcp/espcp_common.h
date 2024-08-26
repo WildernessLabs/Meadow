@@ -79,5 +79,6 @@
  ****************************************************************************/
 uint32_t espcp_queue_message(espcp_message_t *, bool);
 void espcp_queue_ethernet_connection_changed_event(bool);
+void espcp_send_message_to_ntp_queue(const uint32_t message);
 
 #endif /* _ESPCP_COMMON_H */

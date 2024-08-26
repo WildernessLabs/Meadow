@@ -230,6 +230,9 @@ meadow_configuration_t *meadow_os_deep_copy_config(void)
                 }
             }
         }
+
+        result->ntp_refresh_period_seconds = config->ntp_refresh_period_seconds;
+
         hcom_nx_config_unlock();
     }
     //

@@ -527,6 +527,51 @@ void espcp_system_error_event_handler(espcp_message_t *message)
 }
 
 /****************************************************************************
+ * Name: espcp_send_message_to_ntp_queue
+ *
+ * Description:
+ *   Sends a uint32_t message to the NTP queue, which should have been opened 
+ *   in the hcom startup (hcom_startup_manager.c). It sends a provided message 
+ *   to it, and then closes the queue. The function logs information and errors 
+ *   at various stages of execution.
+ *
+ * Input Parameters:
+ *   message - The message to be sent to the NTP queue.
+ *
+ ****************************************************************************/
+void espcp_send_message_to_ntp_queue(const uint32_t message)
+{
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
+
+    mqd_t mq;
+
+    // Open the message queue with write access, create it if it doesn't exist
+    mq = mq_open(NTPC_QUEUE_INTERFACE, O_WRONLY | O_CREAT, 0644, NULL);
+    if (mq == (mqd_t)-1)
+    {
+        MEADOW_TRACE_ERROR("%s: Failed to open NTP queue\n", __func__);
+        return;
+    }
+
+    if (mq_send(mq, (const char*)&message, sizeof(message), 0) == -1)
+    {
+        MEADOW_TRACE_ERROR("%s: Failed to send message to NTP queue\n", __func__);
+    } 
+    else
+    {
+        MEADOW_TRACE_INFORMATION("%s: Message sent to NTP queue: %u\n", __func__, message);
+    }
+
+    // Close the message queue
+    if (mq_close(mq) == -1)
+    {
+        MEADOW_TRACE_ERROR("%s: Failed to close NTP queue\n", __func__);
+    }
+
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
+}
+
+/****************************************************************************
  * Name: espcp_network_connected_event_handler
  *
  * Description:
@@ -561,7 +606,7 @@ static void espcp_network_connected_event_handler(espcp_message_t *message)
 
         if (get_time)
         {
-            ntpc_start();
+            espcp_send_message_to_ntp_queue(NTPC_START);
         }
     }
     espcp_pass_to_managed_event_handler(message);
@@ -595,7 +640,7 @@ static void espcp_network_disconnected_event_handler(espcp_message_t *message)
         hcom_nx_config_unlock();
         if (get_time)
         {
-            ntpc_stop();
+            espcp_send_message_to_ntp_queue(NTPC_STOP);
         }
     }
     espcp_pass_to_managed_event_handler(message);
