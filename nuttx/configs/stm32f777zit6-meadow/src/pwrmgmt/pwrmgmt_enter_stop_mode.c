@@ -39,7 +39,7 @@
 // Note: Nuttx has it's own power management implementation but after studying
 // it, I decided to not use it because it made some assumptions about behavior
 // that I thought were not in line with how Meadow was to operate. That said
-// I did use the Nuttx implemention for "inspirition". Peter Moody 25Mar22
+// I did use the Nuttx implementation for "inspiration". Peter Moody 25Mar22
 
 // The STM32F777 has 3 low power modes. This is their order, smallest power
 // savings to largest. Meadow is currently using 'Stop' hence the name of
@@ -120,6 +120,8 @@
 #define TEST_PIN_V2_D03_STOP_TEST (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_100MHz|GPIO_PORTB | GPIO_PIN8)
 #endif
 
+#define PWRMGMT_ALL_UNUSED_RTC_INTERRUPT_SRCS (RTC_ISR_ALRBF | RTC_ISR_WUTF | RTC_ISR_TSF | RTC_ISR_TSOVF | RTC_ISR_TAMP1F | RTC_ISR_TAMP2F)
+
 /************************************************************************************
  * Private Data
  ************************************************************************************/
@@ -141,7 +143,7 @@ enum MeadowWakeupReason_e
 };
 
 static bool _firstTime = true;
-static bool _meadowIsSleeping = false;
+static bool _isMeadowInStopMode = false;
 static enum MeadowWakeupReason_e _wakeupReason = wake_reason_unknown;
 
 /************************************************************************************
@@ -151,6 +153,9 @@ static enum MeadowWakeupReason_e _wakeupReason = wake_reason_unknown;
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
+static int pwrmgmt_isr_shared_wakeup_code(void);
+
+//====================================================================
 // ISR called when the RTC generates an alarm, or the wakeup timer expires,
 // thus, indicating time to exit low-power mode.
 static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context,
@@ -168,23 +173,40 @@ static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context,
   stm32_gpiowrite(TEST_PIN_V2_D03_STOP_TEST, false);
 #endif
 
-  // (--) IS THIS NEEDED?
-  // pwrmgmt_rtc_wprunlock();
-
 #if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
   // Clear the EXTI Pending Register for the RTC Alarm
   regval = getreg32(STM32_EXTI_PR);
   regval |= (EXTI_RTC_ALARM); // Writing '1' clears
   putreg32(regval, STM32_EXTI_PR);
-  
-  // ALTERNATE Clear the EXTI Pending Register for the RTC Alarm
-  // putreg32(EXTI_RTC_ALARM, STM32_EXTI_PR);
 
   // Clear the Alarm A flag
+  // Per ES0334 - Rev 9 - 2.12.2 implemented the following pattern to check
+  // the significant interrupt twice.
+  bool AlarmA = false;
  #if (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 0)
   rtcIsr = getreg32(STM32_RTC_ISR);
   if((rtcIsr & RTC_ISR_ALRAF) != 0)
   {
+    AlarmA = true;
+    rtcIsr &= ~(RTC_ISR_ALRAF);
+    putreg32(rtcIsr, STM32_RTC_ISR);
+  }
+ #endif
+
+  // Clear any other interrupt source that shares the EXTI line
+  rtcIsr = getreg32(STM32_RTC_ISR);
+  if((rtcIsr & PWRMGMT_ALL_UNUSED_RTC_INTERRUPT_SRCS) != 0)
+  {
+    rtcIsr &= ~(PWRMGMT_ALL_UNUSED_RTC_INTERRUPT_SRCS);
+    putreg32(rtcIsr, STM32_RTC_ISR);
+  }
+
+  // Clear the Alarm A flag again (per Errata doc)
+ #if (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 0)
+  rtcIsr = getreg32(STM32_RTC_ISR);
+  if((rtcIsr & RTC_ISR_ALRAF) != 0)
+  {
+    AlarmA = true;
     rtcIsr &= ~(RTC_ISR_ALRAF);
     putreg32(rtcIsr, STM32_RTC_ISR);
   }
@@ -211,45 +233,45 @@ static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context,
   #error "Select Power Management Low-Power scheme"
 #endif
 
-  // (--) IS THIS NEEDED?
-  // pwrmgmt_rtc_wprlock();
+  // If Alarm A didn't caused interrupt exit
+  if(!AlarmA)
+    return OK;
 
-  return pwrmgmt_isr_shared_wakeup_code(false);
+  _wakeupReason = wake_reason_wakeup_time_reached;
+
+  return pwrmgmt_isr_shared_wakeup_code();
 }
 
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
-// This public function is executed from the local ISR and from the Meadow
-// interrupt handling code. Thus allowing a GPIO interrupt to be configured
-// for wakeup.
-// This function gets Nuttx started. Once that happens Nuttx will call code in
-// this module that completes the wakeup sequence.
-int pwrmgmt_isr_shared_wakeup_code(bool gpioWakeup)
+//======================================================================
+// This public function is called from Meadow GPIO interrupt handling code.
+// This allows a GPIO interrupt to be configured for stop mode wakeup.
+int pwrmgmt_isr_gpio_wakeup_code()
 {
-  if(gpioWakeup)
+  // This check is for the case when a GPIO interrupt is received while
+  // Meadow is not in stop mode and for when multiple interrupts may be
+  // generated via switch bounce.
+  if(!_isMeadowInStopMode)
   {
-    _wakeupReason = wake_reason_gpio_caused_wakeup;
-  }
-  else
-  {
-    _wakeupReason = wake_reason_wakeup_time_reached;
-  }
-
-  // This check is primarily for GPIO interrupt wakeup, in the case it is
-  // interrupted while not sleeping, or generates multiple interrupts via
-  // switch bounce.
-  if(!_meadowIsSleeping)
-  {
-#if (PWRMGMT_ADD_CRITICAL_SECTION_SUPPORT > 0)
-    if(!gpioWakeup)
-    {
-      leave_critical_section(_flags);
-    }
-#endif
+    // Meadow is not currently in stop mode. Either being put into stop mode
+    // or being waken or no stop mode request was ever initiated.
     return OK;
   }
 
+#if (PWRMGMT_ADD_CRITICAL_SECTION_SUPPORT > 0)
+  // Stop additional interrupts until fully awake
+  _flags = enter_critical_section();
+#endif
+
+  _wakeupReason = wake_reason_gpio_caused_wakeup;
+
+  return pwrmgmt_isr_shared_wakeup_code();
+}
+
+//==================================================================
+// This bit of code is shared by both RTC Alarm wakeup and GPIO interrupt
+// wakeup notifications.
+int pwrmgmt_isr_shared_wakeup_code()
+{
   // Reconfigure the internal clocks. Restarts the clocks as defined in
   // board.h. Starting these clocks, will allow the remaining wakeup code
   // to be executed.
@@ -264,8 +286,8 @@ int pwrmgmt_isr_shared_wakeup_code(bool gpioWakeup)
   return OK;
 }
 
-// =======================================================================
-// This call will put the F7 into stop mode
+//=======================================================================
+// This public function will put the F7 into stop mode
 int pwrmgmt_enter_stop_mode(void)
 {
   uint32_t regval;
@@ -440,7 +462,7 @@ int pwrmgmt_enter_stop_mode(void)
   stm32_gpiowrite(TEST_PIN_V2_D03_STOP_TEST, true);
 #endif
 
-  _meadowIsSleeping = true;
+  _isMeadowInStopMode = true;
 
   // Need an interrupt to wake from stop mode
 #if (PWRMGMT_ADD_CRITICAL_SECTION_SUPPORT > 0)
@@ -467,7 +489,7 @@ int pwrmgmt_enter_stop_mode(void)
   // clocks These must be in the ISR handler or things don't start
   // correctly.
   // Restore all the needed register values.
-  _meadowIsSleeping = false;
+  _isMeadowInStopMode = false;
 
   // Clear sleep control bits in Power Controller registers
   regval  = getreg32(STM32_PWR_CR1);

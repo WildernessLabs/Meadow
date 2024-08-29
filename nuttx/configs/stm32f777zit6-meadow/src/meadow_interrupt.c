@@ -282,7 +282,7 @@ int mint_gpio_no_delay_isr(int irq, void *context, void *arg)
     // Execute the generic code that restarts the F7's internal clocks etc.
     // and then return. The thread that put things into sleep mode will do the
     // rest of the things needed to fully restore normal operations.
-    int ret = pwrmgmt_isr_shared_wakeup_code(true);
+    int ret = pwrmgmt_isr_gpio_wakeup_code();
     DEBUG_SET_LOW(DEBUG_PIN_V2_A1);
     return ret;
   }

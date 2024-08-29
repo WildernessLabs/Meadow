@@ -295,12 +295,12 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   }
 
 #if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
-  // Configure Wakeup/Alarm hardware and stop period
+  // Configure Wakeup/Alarm hardware and stop period.
   // Using the RTC Alarm allows waking up at a future time. However, since
-  // there's no year or month comparison, only day of the month, this only
-  // allows, at most, a period of one month ahead. This has been limited
-  // to 28 days - 1 second so it is consistent and not different for each
-  // month.
+  // there's no year or month comparison available, only day of the month,
+  // this only allows, at most, a period of one month ahead. This has been
+  // limited to 28 days - 1 second so it is consistent and not different for
+  // each month.
   ret = pwrmgmt_config_rtc_alarm_wakeup_seconds(wakeupPeriod);
   if(ret < 0)
   {
@@ -312,7 +312,7 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 
 #elif defined (PWRMGMT_LOW_PWR_MODE_USE_WAKEUP_TIMER)
   // Using the RTC Wakeup Timer allows setting a future time up to 0xffff seconds
-  // into the future ( a bit over 18 hours).
+  // into the future (a little over 18 hours).
   ret = pwrmgmt_config_rtc_timer_wakeup_seconds(wakeupPeriod);
   if(ret < 0)
   {
