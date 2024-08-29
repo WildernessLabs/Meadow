@@ -97,6 +97,7 @@ MonoDlMapping meadow_mappings[] = {
        { "meadow_os_hardware_version", meadow_os_hardware_version},
        { "meadow_os_native_protocol_version", meadow_os_native_protocol_version},
        { "meadow_os_get_gateway_address", meadow_os_get_gateway_address},
+       { "meadow_os_coprocessor_deep_sleep", meadow_os_coprocessor_deep_sleep},
 //       { "poll", poll },
 
 /*

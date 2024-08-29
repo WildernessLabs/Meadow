@@ -599,7 +599,8 @@
 #  define SYS_meadow_os_bbd_strdup_from_sram            (SYS_meadow_client_cert_release_credentials + 16)
 #  define SYS_meadow_os_bbd_strdup_to_sram              (SYS_meadow_client_cert_release_credentials + 17)
 #  define SYS_meadow_os_reset_board                     (SYS_meadow_client_cert_release_credentials + 18)
-#  define SYS_meadow_os_get_gateway_address             (SYS_meadow_client_cert_release_credentials + 19)
+#  define SYS_meadow_os_coprocessor_deep_sleep          (SYS_meadow_client_cert_release_credentials + 19)
+#  define SYS_meadow_os_get_gateway_address             (SYS_meadow_client_cert_release_credentials + 20)
 #else
 #  define SYS_meadow_os_get_gateway_address             SYS_meadow_client_cert_release_credentials
 #endif
