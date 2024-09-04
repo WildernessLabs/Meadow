@@ -1,7 +1,7 @@
 /****************************************************************************
  * configs/stm32f777zit6-meadow/src/pwrmgmt/pwrmgmt_control.c
  * 
- *   Copyright (C) 2022-2023 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2022-2024 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -83,20 +83,29 @@
 #undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
-// #pragma message "(--)"
+#pragma GCC optimize "Og"
+
+#pragma message "(--) pwrmgmt_control.c"
 
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
 
+#define PWRMGMT_LOW_PWR_ADD_SEMAPHORE_ENTRY (1)
+
+#define PWR_MGMT_MAX_CALLBACKS_AVAILABLE (6)
+
 /************************************************************************************
  * Private Data
  ************************************************************************************/
-
 static char *thisFile = __FILE__;
+static bool _firstTime = true;
+
+#if (PWRMGMT_LOW_PWR_ADD_SEMAPHORE_ENTRY > 0)
+static sem_t _lowPwrCtrlEntry;
+#endif
 
 // Space for n callbacks for notification of entering low-power mode
-#define PWR_MGMT_MAX_CALLBACKS_AVAILABLE (6)
 static pwr_mgmt_notify_callback _regCallback[PWR_MGMT_MAX_CALLBACKS_AVAILABLE];
 
 /************************************************************************************
@@ -150,17 +159,13 @@ static int pwrmgmt_notify_registered_modules(bool lpStart)
 }
 
 //===============================================================
-// This function controls the idle threads behavior by prevent it from calling
-// the WFI or WFE op codes until the stop-mode has completed. If this isn't
-// done, when the configuration for stop mode is incomplete the MCU can lock
-// up.
+// This function controls the idle threads behavior by preventing it from
+// using the WFI or WFE op codes until the stop-mode has completed. If this
+// isn't done, when the configuration for stop mode is incomplete the MCU can
+// lock up.
 static void pwrmgmt_idle_behavior_control(bool allowWaitOp)
 {
-  irqstate_t flags;
-
-  flags = enter_critical_section();
   up_idle_pwrmgmt_set_idle_behavior(allowWaitOp);
-  leave_critical_section(flags);
 }
 
 /****************************************************************************
@@ -225,15 +230,29 @@ int meadow_power_mgmt_initialize()
 // It contains the steps to put F7 into Stop mode and recover
 int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 {
-  int ret = OK;
+  int ret;
+
+#if (PWRMGMT_LOW_PWR_BOOST_CALLER_PRIORITY > 0)
+  struct sched_param schedParam;
+  pthread_attr_t attr;
+  int origThreadPri;
+#endif
 
   MEADOW_TRACE_INFORMATION( "Received command to sleep for %d seconds\n",
           wakeupPeriod);
 
-  // It should not be possible to call this twice since in low-power mode the
-  // MCU isn't running.
+  // Only do this once
+  if(_firstTime)
+  {
+    _firstTime = false;
+    // Create semaphore to only allow single thread here
+#if (PWRMGMT_LOW_PWR_ADD_SEMAPHORE_ENTRY > 0)
+    sem_init(&_lowPwrCtrlEntry, 0, 1);
+#endif
+  }
 
-  if(wakeupPeriod == 0)
+  // Don't sleep for less than 2 seconds
+  if(wakeupPeriod < 2)
     return OK;
 
 #if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
@@ -257,6 +276,22 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 #error "Select Low-Power timing scheme"
 #endif
 
+#if (PWRMGMT_LOW_PWR_ADD_SEMAPHORE_ENTRY > 0)
+  // Get the semaphore to insure only one caller at a time
+  do
+  {
+    ret = sem_trywait(&_lowPwrCtrlEntry);
+    if(ret == OK)
+      break;
+
+    if(errno == -EINTR)
+      continue;
+
+    return -EALREADY;    // Error exit
+
+  } while(true);
+#endif
+
   // This will route the message to app side and on to CLI.
   char *lowPowerNext = "Entering low-power mode\n";
   hcom_nx_route_text_to_host(HCOM_HOST_REQUEST_TEXT_NEXT_LOW_PWR,
@@ -276,8 +311,21 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   if(ret != OK)
   {
     // Some code module is busy.
+#if (PWRMGMT_LOW_PWR_ADD_SEMAPHORE_ENTRY > 0)
+    sem_post(&_lowPwrCtrlEntry);
+#endif
+
     return -EBUSY;
   }
+#if (PWRMGMT_LOW_PWR_BOOST_CALLER_PRIORITY > 0)
+// TODO: CHECK IF THIS IS A pthread. IF NOT EXIT OR SKIP BOOSTING PRIORITY CODE
+  // Boost the priority of the calling pthread
+  pthread_attr_init(&attr);
+  (void)pthread_attr_getschedparam(&attr, &schedParam);
+  origThreadPri = schedParam.sched_priority;
+  schedParam.sched_priority = PWRMGMT_LOW_PWR_BOOSTED_THREAD_PRIORITY;
+  (void)pthread_attr_setschedparam(&attr, &schedParam);
+#endif
 
   // Prevent up_idle from using WFI or WFE commands till we wakeup
   pwrmgmt_idle_behavior_control(false);
@@ -291,6 +339,10 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
     (void) pwrmgmt_notify_registered_modules(false);
     pwrmgmt_idle_behavior_control(true);
+
+#if (PWRMGMT_LOW_PWR_ADD_SEMAPHORE_ENTRY > 0)
+    sem_post(&_lowPwrCtrlEntry);
+#endif
     return ret;
   }
 
@@ -305,6 +357,11 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
+
+#if (PWRMGMT_LOW_PWR_ADD_SEMAPHORE_ENTRY > 0)
+    sem_post(&_lowPwrCtrlEntry);
+#endif
+
     (void) pwrmgmt_notify_registered_modules(false);
     pwrmgmt_idle_behavior_control(true);
     return ret;
@@ -318,6 +375,10 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
 
+#if (PWRMGMT_LOW_PWR_ADD_SEMAPHORE_ENTRY > 0)
+    sem_post(&_lowPwrCtrlEntry);
+#endif
+
     (void) pwrmgmt_notify_registered_modules(false);
     pwrmgmt_idle_behavior_control(true);
     return ret;
@@ -329,13 +390,19 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 
   //---------------------------------------------------------------------
   // Enter stop mode and wait for specified time to expire. Actually, not
-  // "waiting" but being in stop mode. This, call returns when the F7 has
-  // returned to normal operation.
+  // "waiting" but in stop mode. This call returns when the F7 has returned
+  // to normal operation.
+  // Note in this function we will leave the critical section just before
+  // entering low-power and reenter via ISR when time to wakeup.
   ret = pwrmgmt_enter_stop_mode();
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
     pwrmgmt_idle_behavior_control(true);
+
+#if (PWRMGMT_LOW_PWR_ADD_SEMAPHORE_ENTRY > 0)
+    sem_post(&_lowPwrCtrlEntry);
+#endif
     return ret;
   }
   
@@ -351,7 +418,7 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 
   // Notify concerned modules that low-power mode has ended. If a module has
   // a problem restarting it will be returned as an error, which will be output
-  // and ignored.
+  // and things will continue.
   ret = pwrmgmt_notify_registered_modules(false);
   if(ret < 0)
   {
@@ -362,6 +429,17 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   // operation.
   pwrmgmt_idle_behavior_control(true);
 
+  // Restore to original thread priority
+#if (PWRMGMT_LOW_PWR_BOOST_CALLER_PRIORITY > 0)
+  (void)pthread_attr_getschedparam(&attr, &schedParam);
+  schedParam.sched_priority = origThreadPri;
+  (void)pthread_attr_setschedparam(&attr, &schedParam);
+#endif
+
+  // Can now be reentered 
+#if (PWRMGMT_LOW_PWR_ADD_SEMAPHORE_ENTRY > 0)
+    sem_post(&_lowPwrCtrlEntry);
+#endif
   return ret;
 }
 

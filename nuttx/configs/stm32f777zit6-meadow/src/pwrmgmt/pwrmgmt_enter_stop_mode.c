@@ -99,6 +99,8 @@
 #undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
+#pragma GCC optimize "Og"
+
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
@@ -108,32 +110,23 @@
 // Diagnostic
 #pragma message "(--) pwrmgmt_enter_stop_mode.c"
 
-#define PWRMGMT_BOOST_PRIORITY_OF_CALLER (1)
-#define PWRMGMT_BOOST_PRIORITY_VALUE (253)
-
-#define PWRMGMT_ADD_CRITICAL_SECTION_SUPPORT (1)
-#define PWRMGMT_ADD_SEMAPHORE_TO_CONTROL_ENTRY (1)
 #define PWRMGMT_ADD_LEDS_FOR_DIAGNOSTIC_INFO (1)
 
 #if (PWRMGMT_ADD_LEDS_FOR_DIAGNOSTIC_INFO > 0)
+
 // DIAGNOSTIC GPIO
-#define TEST_PIN_V2_D03_STOP_TEST (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_100MHz|GPIO_PORTB | GPIO_PIN8)
+#define TEST_PIN_V2_D03_STOP_TEST (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_100MHz \
+          | GPIO_PORTB | GPIO_PIN8)
 #endif
 
-#define PWRMGMT_ALL_UNUSED_RTC_INTERRUPT_SRCS (RTC_ISR_ALRBF | RTC_ISR_WUTF | RTC_ISR_TSF | RTC_ISR_TSOVF | RTC_ISR_TAMP1F | RTC_ISR_TAMP2F)
+// These are the other interrupt sources besides Alarm A
+#define PWRMGMT_ALL_UNUSED_RTC_INTERRUPT_SRCS (RTC_ISR_ALRBF | RTC_ISR_WUTF \
+          | RTC_ISR_TSF | RTC_ISR_TSOVF | RTC_ISR_TAMP1F | RTC_ISR_TAMP2F)
 
 /************************************************************************************
  * Private Data
  ************************************************************************************/
 // static char *thisFile = __FILE__;
-
-#if (PWRMGMT_ADD_SEMAPHORE_TO_CONTROL_ENTRY > 0)
-static sem_t _stopModeEntry;
-#endif
-
-#if (PWRMGMT_ADD_CRITICAL_SECTION_SUPPORT > 0)
-static irqstate_t _flags;
-#endif
 
 enum MeadowWakeupReason_e
 {
@@ -157,24 +150,19 @@ static int pwrmgmt_isr_shared_wakeup_code(void);
 
 //====================================================================
 // ISR called when the RTC generates an alarm, or the wakeup timer expires,
-// thus, indicating time to exit low-power mode.
+// indicating time to exit low-power mode.
 static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context,
           FAR void *arg)
 {
   uint32_t regval;
   uint32_t rtcIsr;
 
-#if (PWRMGMT_ADD_CRITICAL_SECTION_SUPPORT > 0)
-  // Stop additional interrupts until fully awake
-  _flags = enter_critical_section();
-#endif
-
 #if (PWRMGMT_ADD_LEDS_FOR_DIAGNOSTIC_INFO > 0)
   stm32_gpiowrite(TEST_PIN_V2_D03_STOP_TEST, false);
 #endif
 
 #if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
-  // Clear the EXTI Pending Register for the RTC Alarm
+  // Clear the EXTI Pending Register bit for the RTC Alarm
   regval = getreg32(STM32_EXTI_PR);
   regval |= (EXTI_RTC_ALARM); // Writing '1' clears
   putreg32(regval, STM32_EXTI_PR);
@@ -201,15 +189,19 @@ static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context,
     putreg32(rtcIsr, STM32_RTC_ISR);
   }
 
-  // Clear the Alarm A flag again (per Errata doc)
  #if (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 0)
-  rtcIsr = getreg32(STM32_RTC_ISR);
-  if((rtcIsr & RTC_ISR_ALRAF) != 0)
+  // Check the Alarm A flag again (per Errata)
+  if(!AlarmA)
   {
-    AlarmA = true;
-    rtcIsr &= ~(RTC_ISR_ALRAF);
-    putreg32(rtcIsr, STM32_RTC_ISR);
+    rtcIsr = getreg32(STM32_RTC_ISR);
+    if((rtcIsr & RTC_ISR_ALRAF) != 0)
+    {
+      AlarmA = true;
+      rtcIsr &= ~(RTC_ISR_ALRAF);
+      putreg32(rtcIsr, STM32_RTC_ISR);
+    }
   }
+
  #elif (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 1)
     #error "Only Alarm A supported in module"
  #endif
@@ -220,9 +212,10 @@ static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context,
   regval &= ~(EXTI_RTC_WAKEUP);
   putreg32(EXTI_RTC_WAKEUP, STM32_EXTI_PR);
 
-  // NOTE: The following few lines have never been tested. Added when
-  // solving Issue #667 which only addressed waking up for RTC Alarm.
-  // Clear the Wakeup timer flag
+  // NOTE: The following few lines of Alarm B code have never been tested.
+  // Added when solving Issue #667 which only addressed waking up for RTC
+  // Alarm.
+  // Clear the Wakeup timer flag.
   rtcIsr = getreg32(STM32_RTC_ISR);
   if((rtcIsr & RTC_ISR_WUTF) != 0)
   {
@@ -233,9 +226,11 @@ static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context,
   #error "Select Power Management Low-Power scheme"
 #endif
 
+#if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
   // If Alarm A didn't caused interrupt exit
   if(!AlarmA)
     return OK;
+#endif
 
   _wakeupReason = wake_reason_wakeup_time_reached;
 
@@ -257,11 +252,6 @@ int pwrmgmt_isr_gpio_wakeup_code()
     return OK;
   }
 
-#if (PWRMGMT_ADD_CRITICAL_SECTION_SUPPORT > 0)
-  // Stop additional interrupts until fully awake
-  _flags = enter_critical_section();
-#endif
-
   _wakeupReason = wake_reason_gpio_caused_wakeup;
 
   return pwrmgmt_isr_shared_wakeup_code();
@@ -277,6 +267,8 @@ int pwrmgmt_isr_shared_wakeup_code()
   // to be executed.
   stm32_clockenable();
 
+// (--) CAN THIS BE MOVED TO THE END OF THE STARTUP CODE? WILL THIS INSURE
+// NO OTHER THREADS RUN TILL ALL IS SETUP?
   // Restart Nuttx Systick
   up_enable_irq(STM32_IRQ_SYSTICK);
 
@@ -291,59 +283,17 @@ int pwrmgmt_isr_shared_wakeup_code()
 int pwrmgmt_enter_stop_mode(void)
 {
   uint32_t regval;
-#if (PWRMGMT_BOOST_PRIORITY_OF_CALLER > 0)
-  struct sched_param schedParam;
-  pthread_attr_t attr;
-  int origThreadPri;
-#endif
 
   // One time initialization
   if(_firstTime)
   {
     _firstTime = false;
 
-    // Semaphore to only allow single thread here
-#if (PWRMGMT_ADD_SEMAPHORE_TO_CONTROL_ENTRY > 0)
-    sem_init(&_stopModeEntry, 0, 1);
-#endif
-
 #if (PWRMGMT_ADD_LEDS_FOR_DIAGNOSTIC_INFO > 0)
     stm32_configgpio(TEST_PIN_V2_D03_STOP_TEST);
     stm32_gpiowrite(TEST_PIN_V2_D03_STOP_TEST, false);
 #endif
   }
-
-#if (PWRMGMT_ADD_SEMAPHORE_TO_CONTROL_ENTRY > 0)
-  // Get the semaphore to insure only one caller at a time
-  do
-  {
-    int ret;
-    ret = sem_trywait(&_stopModeEntry);
-    if(ret == OK)
-      break;
-
-    if(errno == -EINTR)
-      continue;
-
-    return -EALREADY;    // Error exit
-
-  } while(true);
-#endif
-
-  // Stop all interrupts
-#if (PWRMGMT_ADD_CRITICAL_SECTION_SUPPORT > 0)
-  _flags = enter_critical_section();
-#endif
-
-#if (PWRMGMT_BOOST_PRIORITY_OF_CALLER > 0)
-// TODO: CHECK IF THIS IS A pthread. IF NOT EXIT OR SKIP BOOSTING PRIORITY CODE
-  // Boost the priority of the calling pthread
-  pthread_attr_init(&attr);
-  (void)pthread_attr_getschedparam(&attr, &schedParam);
-  origThreadPri = schedParam.sched_priority;
-  schedParam.sched_priority = PWRMGMT_BOOST_PRIORITY_VALUE;
-  (void)pthread_attr_setschedparam(&attr, &schedParam);
-#endif
 
   // Reset the wakeup reason
   _wakeupReason = wake_reason_unknown;
@@ -402,7 +352,7 @@ int pwrmgmt_enter_stop_mode(void)
 
   // Set SLEEPDEEP bit of Cortex System Control Register. This is the same
   // setting for Stop or Standby. PWR_CR1_PDDS controls Stop or Standby. This
-  // setting determine to Sleep or Stop/Standby when WFI or WFE is executed.
+  // setting determines if Sleep or Stop/Standby when WFI or WFE is executed.
   // See PM0253 Programming manual for more details
   regval  = getreg32(NVIC_SYSCON);
   regval |= NVIC_SYSCON_SLEEPDEEP;
@@ -464,17 +414,12 @@ int pwrmgmt_enter_stop_mode(void)
 
   _isMeadowInStopMode = true;
 
-  // Need an interrupt to wake from stop mode
-#if (PWRMGMT_ADD_CRITICAL_SECTION_SUPPORT > 0)
-  leave_critical_section(_flags);
-#endif
-
   // Force memory sync before wfe, thus ensuring that all instructions done
-  // before entering the STOP mode Data synchronous Barrier (DSB) just after
+  // before entering the STOP mode Data Synchronous Barrier (DSB) just after
   // the write operation. This will force the CPU to respect the sequence of
   // instructions (no optimization).
-  asm volatile ("dsb");
-  asm volatile ("isb");
+  asm volatile ("dsb");   // All memory access needs to be completed
+  asm volatile ("isb");   // Throw away prefetched instructions, execute in order
 
   // Put into stop-mode
   asm volatile ("sev");    // Set an event
@@ -484,14 +429,14 @@ int pwrmgmt_enter_stop_mode(void)
   //----------------------------------------------------------------------
   // The calling thread is stopped here while in Stop Mode
   //----------------------------------------------------------------------
-
+  //
   // Meadow is running again. ISR has handled starting all the necessary
-  // clocks These must be in the ISR handler or things don't start
+  // clocks, that must be in the ISR handler or things don't start
   // correctly.
   // Restore all the needed register values.
   _isMeadowInStopMode = false;
 
-  // Clear sleep control bits in Power Controller registers
+  // Clear power control bits in Power Controller register
   regval  = getreg32(STM32_PWR_CR1);
   regval &= ~(PWR_CR1_LPDS | PWR_CR1_PDDS);
   regval &= ~(PWR_CR1_UDEN_ENABLE | PWR_CR1_MRUDS | PWR_CR1_LPUDS);
@@ -527,18 +472,6 @@ int pwrmgmt_enter_stop_mode(void)
   // which will drift.
   clock_synchronize();
 
-#if (PWRMGMT_ADD_CRITICAL_SECTION_SUPPORT > 0)
-  // Okay to turn on interrupts again
-  leave_critical_section(_flags);
-#endif
-
-  // Restore to original thread priority
-#if (PWRMGMT_BOOST_PRIORITY_OF_CALLER > 0)
-  (void)pthread_attr_getschedparam(&attr, &schedParam);
-  schedParam.sched_priority = origThreadPri;
-  (void)pthread_attr_setschedparam(&attr, &schedParam);
-#endif
-
   // Turn on USB OTG's power to its transceiver to re-enable communications
   regval = getreg32(STM32_OTG_GCCFG);
   regval |= (OTG_GCCFG_PWRDWN);
@@ -565,10 +498,6 @@ int pwrmgmt_enter_stop_mode(void)
             tmNowRtc2.tm_hour, tmNowRtc2.tm_min, tmNowRtc2.tm_sec,
             tmNowOs2.tm_year + 1900, tmNowOs2.tm_mon + 1, tmNowOs2.tm_mday,
             tmNowOs2.tm_hour, tmNowOs2.tm_min, tmNowOs2.tm_sec);
-#endif
-
-#if (PWRMGMT_ADD_SEMAPHORE_TO_CONTROL_ENTRY > 0)
-  sem_post(&_stopModeEntry);
 #endif
 
   return OK;

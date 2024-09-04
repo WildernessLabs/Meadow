@@ -77,6 +77,8 @@
 #undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
+#pragma GCC optimize "Og"
+
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
@@ -84,6 +86,8 @@
 /************************************************************************************
  * Private Data
  ************************************************************************************/
+
+static int _diagCount = 0;
 
 /************************************************************************************
  * Public Data
@@ -113,7 +117,8 @@ int pwrmgmt_config_rtc_alarm_wakeup_seconds(time_t secondsTillAlarm)
   // This Nuttx function reads the date, time and sub-seconds from the MCU's
   // hardware into a struct tm. However, the STM32F77X Errata warns about a
   // possible problem in ES0334-Rev 9 2.12.1 related to the RTC calendar
-  // register not locked properly. Therefore, we'll read nsec twice.
+  // register not locked properly. Therefore, we'll read nsec twice and
+  // compare.
 #ifdef CONFIG_STM32F7_HAVE_RTC_SUBSECONDS
   long nsec;
   long prevNsec;
@@ -151,7 +156,9 @@ do
   gmtime_r(&almSeconds, &tmAlarm);
 
 // #if MEADOW_POWER_MANAGEMENT_SHOW_TIME_CALC > 0
-  syslog(2, "Wakeup in seconds - %u\n", secondsTillAlarm);
+  // syslog(2, "Wakeup in seconds - %u\n", secondsTillAlarm);
+  _diagCount++;
+  syslog(2, "Low-pwr Request # - %06d\n", _diagCount);
   syslog(2, "Hardware Time     - %02dT%02d:%02d:%02d\n",
             tmHardware.tm_mday, tmHardware.tm_hour,
             tmHardware.tm_min, tmHardware.tm_sec);
@@ -168,7 +175,15 @@ do
 
   syslog(2, "Wake up Time      - %02dT%02d:%02d:%02d\n",
             tmAlarm.tm_mday, tmAlarm.tm_hour, tmAlarm.tm_min, tmAlarm.tm_sec);
-  usleep(10 * 1000);
+
+  // Note: If priority boosted and we don't want other threads to run,
+  // therefore, we cannot call sleep or usleep or those threads will have a
+  // chance to execute. So, the above syslog calls will probably be executed
+  // after the system has awaken from stop mode.
+#if (PWRMGMT_LOW_PWR_BOOST_CALLER_PRIORITY == 0)
+  usleep(20 * 1000);
+#endif
+
 // #endif  // #if MEADOW_POWER_MANAGEMENT_SHOW_TIME_CALC > 0
 
   // Set the alarm based on the calendar time
@@ -194,23 +209,23 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
   // Disable RTC alarm (will be set before exiting function)
 #if (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 0)
   regval = getreg32(STM32_RTC_CR);
-  regval &= ~RTC_CR_ALRAE;    // Clear Alarm A Enable bit to disable
-  regval &= ~RTC_CR_ALRAIE;   // Disable Alarm A enable
+  regval &= ~RTC_CR_ALRAE;    // Disable Alarm A
+  regval &= ~RTC_CR_ALRAIE;   // Disable Alarm A interrupt
   putreg32(regval, STM32_RTC_CR);
-  // Wait for ALRAE to be written
+  // Wait for ALRAE to be written in the RTC_CR register
   while ((getreg32(STM32_RTC_ISR) & RTC_ISR_ALRAWF) == 0);
 #elif (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 1)
   regval = getreg32(STM32_RTC_CR);
-  regval &= ~RTC_CR_ALRBE;   // Clear Alarm B Enable bit to disable
-  regval &= ~RTC_CR_ALRBIE;   // Disable Alarm B enable 
+  regval &= ~RTC_CR_ALRBE;    // Disable Alarm B
+  regval &= ~RTC_CR_ALRBIE;   // Disable Alarm B interrupt 
   putreg32(regval, STM32_RTC_CR);
-  // Wait for ALRAE to be written
+  // Wait for ALRBE to be written
   while ((getreg32(STM32_RTC_ISR) & RTC_ISR_ALRBWF) == 0);
 #else
   #error "Select a valid RTC Alarm"
 #endif
 
-  // Convert struct tm time to bcd values acceptable to the Alarm A or B
+  // Convert struct tm time to bcd values acceptable to the Alarm A and B
   // register. We don't care about sub-seconds only day of month and time.
   regval = (pwrmgmt_rtc_bin2bcd(tmAlarm.tm_sec)  << RTC_ALRMR_SU_SHIFT) |
            (pwrmgmt_rtc_bin2bcd(tmAlarm.tm_min)  << RTC_ALRMR_MNU_SHIFT) |
@@ -223,7 +238,7 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
 
   // Take care of hour control bits
   regval &= ~(RTC_ALRMR_MSK3);    // Bit 23 : 0=Hour must match
-  regval &= ~(RTC_ALRMR_PM);      // Bit 22 : 0=AM/24-hour, 1 = PM notation
+  regval &= ~(RTC_ALRMR_PM);      // Bit 22 : 0=AM/24-hour, 1 = PM
 
   // Take care of minute control bit
   regval &= ~(RTC_ALRMR_MSK2);    // Bit 15 : 0=Minute must match
@@ -231,8 +246,8 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
   // Take care of second control bit
   regval &= ~(RTC_ALRMR_MSK1);    // Bit 7 : 0=Second must match
 
-  syslog(2, "RTC Alm A register- 0x%08x\n", regval);
-  usleep(10 * 1000);
+  // syslog(2, "RTC Alm A register- 0x%08x\n", regval);
+  // usleep(10 * 1000);
 
   // Set the time and day information in compare register.
 #if (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 0)
@@ -254,6 +269,7 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
   // and the RTC_ISR_ALRAF bit.
   putreg32(EXTI_RTC_ALARM, STM32_EXTI_PR);
 
+  // Set the EXTI_RTC_ALARM bit in the following registers
   // Extended Interrupt and Event controller (EXTI). Note: the best
   // explanation is in the description of EXTI_SWIER 11.9.5 of ref man
   regval = getreg32(STM32_EXTI_RTSR); // Enable rising trigger selection register
@@ -277,7 +293,6 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
   regval = getreg32(STM32_RTC_ISR);
   regval &= ~RTC_ISR_ALRAF;
   putreg32(regval, STM32_RTC_ISR);
-
 
   // Enable Interrupt and enable Alarm
 #if (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 0)
@@ -329,6 +344,7 @@ void pwrmgmt_disable_rtc_alarm_wakeup()
   // indicating updates are no longer allowed
   while ((getreg32(STM32_RTC_ISR) & RTC_ISR_ALRAWF) == 0);
 
+  // Clear the Alarm A occurred flag
   regval = getreg32(STM32_RTC_ISR);
   regval &= ~RTC_ISR_ALRAF;
   putreg32(regval, STM32_RTC_ISR);
@@ -342,6 +358,7 @@ void pwrmgmt_disable_rtc_alarm_wakeup()
   // indicating updates are no longer allowed
   while ((getreg32(STM32_RTC_ISR) & RTC_ISR_ALRBWF) == 0);
 
+  // Clear the Alarm B occurred flag
   regval = getreg32(STM32_RTC_ISR);
   regval &= ~RTC_ISR_ALRBF;
   putreg32(regval, STM32_RTC_ISR);
