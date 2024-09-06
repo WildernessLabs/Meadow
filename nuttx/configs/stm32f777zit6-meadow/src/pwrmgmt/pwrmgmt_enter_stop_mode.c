@@ -267,10 +267,8 @@ int pwrmgmt_isr_shared_wakeup_code()
   // to be executed.
   stm32_clockenable();
 
-// (--) CAN THIS BE MOVED TO THE END OF THE STARTUP CODE? WILL THIS INSURE
-// NO OTHER THREADS RUN TILL ALL IS SETUP?
-  // Restart Nuttx Systick
-  up_enable_irq(STM32_IRQ_SYSTICK);
+  // // Restart Nuttx Systick
+  // up_enable_irq(STM32_IRQ_SYSTICK);
 
   // Don't leave ISR until the above have fully finished
   asm volatile ("dsb");
@@ -316,6 +314,9 @@ int pwrmgmt_enter_stop_mode(void)
 
   // ESP32 POWER DOWN
   // ToDo: espcp_low_power_sleep();
+
+  //Disabled System tick early so the scheduler won't do any context switching
+  up_disable_irq(STM32_IRQ_SYSTICK);
 
   // Turn-off USB OTG's power to its transceiver. This will cause the USB
   // serial port on the host PC (CLI) to cease to exist. This is the desired
@@ -393,8 +394,8 @@ int pwrmgmt_enter_stop_mode(void)
             tmNowOs.tm_hour, tmNowOs.tm_min, tmNowOs.tm_sec);
 #endif
 
-  //Disabled Systick (it's re-enabled in ISR)
-  up_disable_irq(STM32_IRQ_SYSTICK);
+  // //Disabled Systick (it's re-enabled in ISR)
+  // up_disable_irq(STM32_IRQ_SYSTICK);
 
   // Put SDRAM into self-refresh mode so data isn't lost (saves current).
   // This must follow all other activities because once in the self-refresh
@@ -483,6 +484,9 @@ int pwrmgmt_enter_stop_mode(void)
   // Restore Ethernet to operation
 
   // Restore SD Card to operation
+
+  // Restart Nuttx Systick so the scheduler can switch to other threads
+  up_enable_irq(STM32_IRQ_SYSTICK);
 
 #if MEADOW_PWRMGMT_SHOW_RTC_NUTTX_TIME > 0
   struct timespec abstime2;
