@@ -55,7 +55,7 @@
  *
  * Input Parameters:
  *   argc - Number of arguments.
- *   argv - Array of argument strings.
+ *   arg  - Argument passed to the watchdog reset handler (of type wdparm_t).
  *
  * Returned Value:
  *   None
@@ -90,11 +90,12 @@ void meadow_watchdog_reset_system(int argc, wdparm_t arg)
  * Name: meadow_watchdog_activate
  *
  * Description:
- *   Activate a watchdog timer with the specified timeout.
+ *   Activate a watchdog timer with the specified timeout and method.
  *
  * Input Parameters:
  *   watchdog - Pointer to the watchdog timer structure.
  *   timeout  - Timeout value in milliseconds.
+ *   watchdog_method - Enumeration indicating the method of watchdog activation.
  *
  * Returned Value:
  *   None
