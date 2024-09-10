@@ -344,7 +344,7 @@ int hcom_mono_ctrl_start_mono_main()
   if (!hcom_mono_ctrl_should_mono_run())
   {
     // Reason has been reported already, exit here
-    return OK;
+    return -1;
   }
 
   //------------------------------------------------------------
