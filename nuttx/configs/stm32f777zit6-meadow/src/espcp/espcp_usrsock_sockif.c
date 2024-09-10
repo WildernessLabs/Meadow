@@ -739,7 +739,7 @@ int espcp_usrsock_close(struct socket *psock)
     MEADOW_TRACE_INFORMATION("close(%d)\n", psock->s_esp32_sockfd);
 
     struct wdog_s g_watchdog_close;
-    meadow_watchdog_activate(&g_watchdog_close, WATCHDOG_CLOSE_TIMEOUT_MILLISECONDS);
+    meadow_watchdog_activate(&g_watchdog_close, WATCHDOG_CLOSE_TIMEOUT_MILLISECONDS, CLOSE_WATCHDOG);
 
     if (espcp_get_configuration()->esp_not_responding)
     {
@@ -1719,7 +1719,7 @@ int espcp_usrsock_poll(struct socket *psock, struct pollfd *fds, bool setup)
     MEADOW_TRACE_INFORMATION("poll(%d, 0x%08x, %d)\n", psock->s_esp32_sockfd, (uint32_t) fds, setup ? 1 : 0);
 
     struct wdog_s g_watchdog_poll;
-    meadow_watchdog_activate(&g_watchdog_poll, WATCHDOG_POLL_TIMEOUT_MILLISECONDS);
+    meadow_watchdog_activate(&g_watchdog_poll, WATCHDOG_POLL_TIMEOUT_MILLISECONDS, POLL_WATCHDOG);
 
     if (espcp_get_configuration()->esp_not_responding)
     {
@@ -1774,12 +1774,9 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
 {
     MEADOW_TRACE_INFORMATION("recvfrom(%d, 0x%08x, %d, %d, 0x%08x, 0x%08x)\n", psock->s_esp32_sockfd, (uint32_t) buffer, len, flags, (uint32_t) from, (uint32_t) fromlen);
 
-    struct wdog_s g_watchdog_recvfrom;
-    meadow_watchdog_activate(&g_watchdog_recvfrom, WATCHDOG_RECV_TIMEOUT_MILLISECONDS);
 
     if (espcp_get_configuration()->esp_not_responding)
     {
-        meadow_watchdog_deactivate(&g_watchdog_recvfrom);
         MEADOW_TRACE_DEBUG("recvfrom - result ENETDOWN\n");
         return(-ENETDOWN);
     }
@@ -1787,7 +1784,6 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
     espcp_recv_from_request_t *request = (espcp_recv_from_request_t *) zalloc(sizeof(espcp_recv_from_request_t));
     if (request == NULL)
     {
-        meadow_watchdog_deactivate(&g_watchdog_recvfrom);
         MEADOW_TRACE_DEBUG("recvfrom - result ENOMEM\n");
         return(-ENOMEM);
     }
@@ -1805,7 +1801,6 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
     if (payload == NULL)
     {
         free(request);
-        meadow_watchdog_deactivate(&g_watchdog_recvfrom);
         MEADOW_TRACE_DEBUG("recvfrom - result ENOMEM\n");
         return(-ENOMEM);
     }
@@ -1888,7 +1883,6 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
     }
 
     espcp_delete_message_and_payload(message);
-    meadow_watchdog_deactivate(&g_watchdog_recvfrom);
 
     MEADOW_TRACE_INFORMATION("recvfrom - socket %d, result %d\n", psock->s_esp32_sockfd, result);
 
@@ -1922,12 +1916,8 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
 {
     MEADOW_TRACE_INFORMATION("sendto(%d, 0x%08x, %d, %d, 0x%08x, %d)\n", psock->s_esp32_sockfd, (uint32_t) buffer, len, flags, (uint32_t) to, tolen);
 
-    struct wdog_s g_watchdog_sendto;
-    meadow_watchdog_activate(&g_watchdog_sendto, WATCHDOG_SENDTO_TIMEOUT_MILLISECONDS);
-
     if (espcp_get_configuration()->esp_not_responding)
     {
-        meadow_watchdog_deactivate(&g_watchdog_sendto);
         MEADOW_TRACE_DEBUG("sendto - result ENETDOWN\n");
         return(-ENETDOWN);
     }
@@ -1940,7 +1930,6 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
         sa = (espcp_sock_addr_t *) zalloc(sizeof(espcp_sock_addr_t));
         if (sa == NULL)
         {
-            meadow_watchdog_deactivate(&g_watchdog_sendto);
             MEADOW_TRACE_DEBUG("sendto - result ENOMEM\n");
             return(-ENOMEM);
         }
@@ -1952,7 +1941,6 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
         if (encodedSockAddr == NULL)
         {
             free(sa);
-            meadow_watchdog_deactivate(&g_watchdog_sendto);
             MEADOW_TRACE_DEBUG("sendto - result ENOMEM\n");
             return(-ENOMEM);
         }
@@ -1970,7 +1958,6 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
     if (request == NULL)
     {
         free(encodedSockAddr);
-        meadow_watchdog_deactivate(&g_watchdog_sendto);
         return(-ENOMEM);
     }
     request->socket_handle = psock->s_esp32_sockfd;
@@ -2044,7 +2031,6 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
     free(request);
 
     espcp_delete_message_and_payload(message);
-    meadow_watchdog_deactivate(&g_watchdog_sendto);
 
     MEADOW_TRACE_INFORMATION("sendto: socket %d, result: %d\n", psock->s_esp32_sockfd, result);
 
@@ -2748,7 +2734,7 @@ int espcp_usrsock_socket(int domain, int type, int protocol, struct socket *psoc
 {
     MEADOW_TRACE_INFORMATION("socket(%d, %d, %d, %d)\n", domain, type, protocol, psock->s_esp32_sockfd);
     struct wdog_s g_watchdog_socket;
-    meadow_watchdog_activate(&g_watchdog_socket, WATCHDOG_SOCKET_TIMEOUT_MILLISECONDS);
+    meadow_watchdog_activate(&g_watchdog_socket, WATCHDOG_SOCKET_TIMEOUT_MILLISECONDS, SOCKET_WATCHDOG);
 
     if (espcp_get_configuration()->esp_not_responding)
     {

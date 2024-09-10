@@ -64,12 +64,22 @@
 #define WATCHDOG_SEND_TIMEOUT_MILLISECONDS    (300 * 1000)
 #define WATCHDOG_SENDTO_TIMEOUT_MILLISECONDS  (300 * 1000)
 
+typedef enum
+{
+    POLL_WATCHDOG = 0,
+    CLOSE_WATCHDOG,
+    SOCKET_WATCHDOG,
+    RECV_WATCHDOG, 
+    SEND_WATCHDOG,
+    SENDTO_WATCHDOG
+} meadow_watchdog_methods_e;
+
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
 
-void meadow_watchdog_reset_system(int argc, char *argv[]);
-void meadow_watchdog_activate(struct wdog_s *watchdog, uint32_t timeout);
+void meadow_watchdog_reset_system(int argc, wdparm_t arg);
+void meadow_watchdog_activate(struct wdog_s *watchdog, uint32_t timeout, meadow_watchdog_methods_e watchdog_method);
 void meadow_watchdog_deactivate(struct wdog_s *watchdog);
 
 #endif /* __MEADOW_WATCHDOGS_H */
