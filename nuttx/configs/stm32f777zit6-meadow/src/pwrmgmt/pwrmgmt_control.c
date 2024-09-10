@@ -85,7 +85,7 @@
 
 #pragma GCC optimize "Og"
 
-#pragma message "(--) pwrmgmt_control.c"
+// #pragma message "(--) pwrmgmt_control.c"
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -232,12 +232,6 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 {
   int ret;
 
-#if (PWRMGMT_LOW_PWR_BOOST_CALLER_PRIORITY > 0)
-  struct sched_param schedParam;
-  pthread_attr_t attr;
-  int origThreadPri;
-#endif
-
   MEADOW_TRACE_INFORMATION( "Received command to sleep for %d seconds\n",
           wakeupPeriod);
 
@@ -317,15 +311,6 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 
     return -EBUSY;
   }
-#if (PWRMGMT_LOW_PWR_BOOST_CALLER_PRIORITY > 0)
-// TODO: CHECK IF THIS IS A pthread. IF NOT EXIT OR SKIP BOOSTING PRIORITY CODE
-  // Boost the priority of the calling pthread
-  pthread_attr_init(&attr);
-  (void)pthread_attr_getschedparam(&attr, &schedParam);
-  origThreadPri = schedParam.sched_priority;
-  schedParam.sched_priority = PWRMGMT_LOW_PWR_BOOSTED_THREAD_PRIORITY;
-  (void)pthread_attr_setschedparam(&attr, &schedParam);
-#endif
 
   // Prevent up_idle from using WFI or WFE commands till we wakeup
   pwrmgmt_idle_behavior_control(false);
@@ -428,13 +413,6 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   // Allow up_idle function to again use WFI and WFE to save power in normal
   // operation.
   pwrmgmt_idle_behavior_control(true);
-
-  // Restore to original thread priority
-#if (PWRMGMT_LOW_PWR_BOOST_CALLER_PRIORITY > 0)
-  (void)pthread_attr_getschedparam(&attr, &schedParam);
-  schedParam.sched_priority = origThreadPri;
-  (void)pthread_attr_setschedparam(&attr, &schedParam);
-#endif
 
   // Can now be reentered 
 #if (PWRMGMT_LOW_PWR_ADD_SEMAPHORE_ENTRY > 0)

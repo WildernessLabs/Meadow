@@ -92,6 +92,10 @@
 #pragma message "(--) pwrmgmt_enter_stop_mode.c"
 #endif
 
+// // Diagnostic
+// #pragma message "(--) pwrmgmt_enter_stop_mode.c"
+
+// This controls the entire modules code built
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
 
 // Diagnostic only
@@ -105,23 +109,17 @@
  * Pre-processor Definitions
  ************************************************************************************/
 
+// These are the other interrupt sources besides Alarm A
+#define PWRMGMT_ALL_UNUSED_RTC_INTERRUPT_SRCS (RTC_ISR_ALRBF | RTC_ISR_WUTF \
+          | RTC_ISR_TSF | RTC_ISR_TSOVF | RTC_ISR_TAMP1F | RTC_ISR_TAMP2F)
+
 #define MEADOW_PWRMGMT_SHOW_RTC_NUTTX_TIME (0)
-
-// Diagnostic
-#pragma message "(--) pwrmgmt_enter_stop_mode.c"
-
-#define PWRMGMT_ADD_LEDS_FOR_DIAGNOSTIC_INFO (1)
-
+#define PWRMGMT_ADD_LEDS_FOR_DIAGNOSTIC_INFO (0)
 #if (PWRMGMT_ADD_LEDS_FOR_DIAGNOSTIC_INFO > 0)
-
 // DIAGNOSTIC GPIO
 #define TEST_PIN_V2_D03_STOP_TEST (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_100MHz \
           | GPIO_PORTB | GPIO_PIN8)
 #endif
-
-// These are the other interrupt sources besides Alarm A
-#define PWRMGMT_ALL_UNUSED_RTC_INTERRUPT_SRCS (RTC_ISR_ALRBF | RTC_ISR_WUTF \
-          | RTC_ISR_TSF | RTC_ISR_TSOVF | RTC_ISR_TAMP1F | RTC_ISR_TAMP2F)
 
 /************************************************************************************
  * Private Data
@@ -135,7 +133,10 @@ enum MeadowWakeupReason_e
   wake_reason_gpio_caused_wakeup  = 2,    // GPIO interrupt caused wakeup
 };
 
+#if (PWRMGMT_ADD_LEDS_FOR_DIAGNOSTIC_INFO > 0)
 static bool _firstTime = true;
+#endif
+
 static bool _isMeadowInStopMode = false;
 static enum MeadowWakeupReason_e _wakeupReason = wake_reason_unknown;
 
@@ -167,7 +168,7 @@ static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context,
   regval |= (EXTI_RTC_ALARM); // Writing '1' clears
   putreg32(regval, STM32_EXTI_PR);
 
-  // Clear the Alarm A flag
+  // Clear the Alarm A flag and remember its state
   // Per ES0334 - Rev 9 - 2.12.2 implemented the following pattern to check
   // the significant interrupt twice.
   bool AlarmA = false;
@@ -179,7 +180,7 @@ static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context,
     rtcIsr &= ~(RTC_ISR_ALRAF);
     putreg32(rtcIsr, STM32_RTC_ISR);
   }
- #endif
+ #endif // #if (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 0) Alarm B not supported
 
   // Clear any other interrupt source that shares the EXTI line
   rtcIsr = getreg32(STM32_RTC_ISR);
@@ -201,7 +202,6 @@ static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context,
       putreg32(rtcIsr, STM32_RTC_ISR);
     }
   }
-
  #elif (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 1)
     #error "Only Alarm A supported in module"
  #endif
@@ -258,7 +258,7 @@ int pwrmgmt_isr_gpio_wakeup_code()
 }
 
 //==================================================================
-// This bit of code is shared by both RTC Alarm wakeup and GPIO interrupt
+// This function is shared by both RTC Alarm wakeup and GPIO interrupt
 // wakeup notifications.
 int pwrmgmt_isr_shared_wakeup_code()
 {
@@ -267,10 +267,7 @@ int pwrmgmt_isr_shared_wakeup_code()
   // to be executed.
   stm32_clockenable();
 
-  // // Restart Nuttx Systick
-  // up_enable_irq(STM32_IRQ_SYSTICK);
-
-  // Don't leave ISR until the above have fully finished
+  // Don't leave ISR until the clocks have fully enabled
   asm volatile ("dsb");
 
   return OK;
@@ -282,16 +279,16 @@ int pwrmgmt_enter_stop_mode(void)
 {
   uint32_t regval;
 
+#if (PWRMGMT_ADD_LEDS_FOR_DIAGNOSTIC_INFO > 0)
   // One time initialization
   if(_firstTime)
   {
     _firstTime = false;
 
-#if (PWRMGMT_ADD_LEDS_FOR_DIAGNOSTIC_INFO > 0)
     stm32_configgpio(TEST_PIN_V2_D03_STOP_TEST);
     stm32_gpiowrite(TEST_PIN_V2_D03_STOP_TEST, false);
-#endif
   }
+#endif
 
   // Reset the wakeup reason
   _wakeupReason = wake_reason_unknown;

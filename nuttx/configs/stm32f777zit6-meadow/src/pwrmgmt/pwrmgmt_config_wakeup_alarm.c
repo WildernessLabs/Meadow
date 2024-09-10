@@ -70,7 +70,7 @@
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT) && defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
 
-#pragma message "(--) pwrmgmt_config_wakeup_alarm.c"
+// #pragma message "(--) pwrmgmt_config_wakeup_alarm.c"
 
 // Diagnostic only
 // #define USE_MEADOW_DEBUG_HELPERS
@@ -175,14 +175,7 @@ do
 
   syslog(2, "Wake up Time      - %02dT%02d:%02d:%02d\n",
             tmAlarm.tm_mday, tmAlarm.tm_hour, tmAlarm.tm_min, tmAlarm.tm_sec);
-
-  // Note: If priority boosted and we don't want other threads to run,
-  // therefore, we cannot call sleep or usleep or those threads will have a
-  // chance to execute. So, the above syslog calls will probably be executed
-  // after the system has awaken from stop mode.
-#if (PWRMGMT_LOW_PWR_BOOST_CALLER_PRIORITY == 0)
   usleep(20 * 1000);
-#endif
 
 // #endif  // #if MEADOW_POWER_MANAGEMENT_SHOW_TIME_CALC > 0
 

@@ -63,8 +63,6 @@
 // Which RTC Alarm to use 0 = Alarm A or 1 = Alarm B?
 // Note: Alarm B not fully tested
 #define PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A (0)
-#define PWRMGMT_LOW_PWR_BOOST_CALLER_PRIORITY (0)
-#define PWRMGMT_LOW_PWR_BOOSTED_THREAD_PRIORITY (253)
 
 // Miscellaneous functions
 void pwrmgmt_rtc_dumpregs(FAR const char *msg);
