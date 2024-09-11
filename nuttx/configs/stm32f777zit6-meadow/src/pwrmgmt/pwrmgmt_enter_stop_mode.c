@@ -103,7 +103,7 @@
 #undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
-#pragma GCC optimize "Og"
+// #pragma GCC optimize "Og"
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -147,7 +147,6 @@ static enum MeadowWakeupReason_e _wakeupReason = wake_reason_unknown;
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
-static int pwrmgmt_isr_shared_wakeup_code(void);
 
 //====================================================================
 // ISR called when the RTC generates an alarm, or the wakeup timer expires,
@@ -234,7 +233,15 @@ static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context,
 
   _wakeupReason = wake_reason_wakeup_time_reached;
 
-  return pwrmgmt_isr_shared_wakeup_code();
+  // Reconfigure the internal clocks. Restarts the clocks as defined in
+  // board.h. Starting these clocks, will allow the remaining wakeup code
+  // to be executed.
+  stm32_clockenable();
+
+  // Don't leave ISR until the clocks have been fully enabled
+  asm volatile ("dsb");
+
+  return OK;
 }
 
 //======================================================================
@@ -254,20 +261,12 @@ int pwrmgmt_isr_gpio_wakeup_code()
 
   _wakeupReason = wake_reason_gpio_caused_wakeup;
 
-  return pwrmgmt_isr_shared_wakeup_code();
-}
-
-//==================================================================
-// This function is shared by both RTC Alarm wakeup and GPIO interrupt
-// wakeup notifications.
-int pwrmgmt_isr_shared_wakeup_code()
-{
   // Reconfigure the internal clocks. Restarts the clocks as defined in
   // board.h. Starting these clocks, will allow the remaining wakeup code
   // to be executed.
   stm32_clockenable();
 
-  // Don't leave ISR until the clocks have fully enabled
+  // Don't leave ISR until the clocks have been fully enabled
   asm volatile ("dsb");
 
   return OK;
