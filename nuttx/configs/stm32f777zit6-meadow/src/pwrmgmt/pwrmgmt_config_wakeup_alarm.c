@@ -153,15 +153,15 @@ do
   // Convert epoch time to calendar UTC time
   gmtime_r(&almSeconds, &tmAlarm);
 
-// #if MEADOW_POWER_MANAGEMENT_SHOW_TIME_CALC > 0
+#if MEADOW_POWER_MANAGEMENT_SHOW_TIME_CALC > 0
   // syslog(2, "Wakeup in seconds - %u\n", secondsTillAlarm);
   _diagCount++;
-  syslog(2, "Low-pwr Request # - %06d\n", _diagCount);
+  syslog(2, "Low-pwr Request#  - %06d\n", _diagCount);
   syslog(2, "Hardware Time     - %02dT%02d:%02d:%02d\n",
             tmHardware.tm_mday, tmHardware.tm_hour,
             tmHardware.tm_min, tmHardware.tm_sec);
 
-  // When show the Nuttx time if needed
+  // Show the Nuttx time if needed
   // struct timespec abstime;
   // struct tm tmNowNx;
 
@@ -175,7 +175,7 @@ do
             tmAlarm.tm_mday, tmAlarm.tm_hour, tmAlarm.tm_min, tmAlarm.tm_sec);
   usleep(20 * 1000);
 
-// #endif  // #if MEADOW_POWER_MANAGEMENT_SHOW_TIME_CALC > 0
+#endif  // #if MEADOW_POWER_MANAGEMENT_SHOW_TIME_CALC > 0
 
   // Set the alarm based on the calendar time
   ret = pwrmgmt_config_rtc_alarm_wakeup_tm(tmAlarm);

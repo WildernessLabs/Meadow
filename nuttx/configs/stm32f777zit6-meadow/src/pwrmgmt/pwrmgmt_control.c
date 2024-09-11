@@ -89,8 +89,6 @@
  * Pre-processor Definitions
  ************************************************************************************/
 
-#define PWRMGMT_LOW_PWR_ADD_SEMAPHORE_ENTRY (1)
-
 #define PWR_MGMT_MAX_CALLBACKS_AVAILABLE (6)
 
 /************************************************************************************
@@ -99,9 +97,7 @@
 static char *thisFile = __FILE__;
 static bool _firstTime = true;
 
-#if (PWRMGMT_LOW_PWR_ADD_SEMAPHORE_ENTRY > 0)
 static sem_t _lowPwrCtrlEntry;
-#endif
 
 // Space for n callbacks for notification of entering low-power mode
 static pwr_mgmt_notify_callback _regCallback[PWR_MGMT_MAX_CALLBACKS_AVAILABLE];
@@ -238,9 +234,7 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   {
     _firstTime = false;
     // Create semaphore to only allow single thread here
-#if (PWRMGMT_LOW_PWR_ADD_SEMAPHORE_ENTRY > 0)
     sem_init(&_lowPwrCtrlEntry, 0, 1);
-#endif
   }
 
   // Don't sleep for less than 2 seconds
@@ -268,7 +262,6 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
 #error "Select Low-Power timing scheme"
 #endif
 
-#if (PWRMGMT_LOW_PWR_ADD_SEMAPHORE_ENTRY > 0)
   // Get the semaphore to insure only one caller at a time
   do
   {
@@ -282,7 +275,6 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
     return -EALREADY;    // Error exit
 
   } while(true);
-#endif
 
   // This will route the message to app side and on to CLI.
   char *lowPowerNext = "Entering low-power mode\n";
@@ -303,10 +295,7 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   if(ret != OK)
   {
     // Some code module is busy.
-#if (PWRMGMT_LOW_PWR_ADD_SEMAPHORE_ENTRY > 0)
     sem_post(&_lowPwrCtrlEntry);
-#endif
-
     return -EBUSY;
   }
 
@@ -323,9 +312,7 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
     (void) pwrmgmt_notify_registered_modules(false);
     pwrmgmt_idle_behavior_control(true);
 
-#if (PWRMGMT_LOW_PWR_ADD_SEMAPHORE_ENTRY > 0)
     sem_post(&_lowPwrCtrlEntry);
-#endif
     return ret;
   }
 
@@ -341,9 +328,7 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
 
-#if (PWRMGMT_LOW_PWR_ADD_SEMAPHORE_ENTRY > 0)
     sem_post(&_lowPwrCtrlEntry);
-#endif
 
     (void) pwrmgmt_notify_registered_modules(false);
     pwrmgmt_idle_behavior_control(true);
@@ -358,9 +343,7 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   {
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
 
-#if (PWRMGMT_LOW_PWR_ADD_SEMAPHORE_ENTRY > 0)
     sem_post(&_lowPwrCtrlEntry);
-#endif
 
     (void) pwrmgmt_notify_registered_modules(false);
     pwrmgmt_idle_behavior_control(true);
@@ -383,9 +366,7 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
     syslog(LOG_ERR, "%s@%d-Error:\n", thisFile, __LINE__);
     pwrmgmt_idle_behavior_control(true);
 
-#if (PWRMGMT_LOW_PWR_ADD_SEMAPHORE_ENTRY > 0)
     sem_post(&_lowPwrCtrlEntry);
-#endif
     return ret;
   }
   
@@ -413,9 +394,7 @@ int pwrmgmt_enter_stm32f7_stop_mode(uint32_t wakeupPeriod)
   pwrmgmt_idle_behavior_control(true);
 
   // Can now be reentered 
-#if (PWRMGMT_LOW_PWR_ADD_SEMAPHORE_ENTRY > 0)
     sem_post(&_lowPwrCtrlEntry);
-#endif
   return ret;
 }
 

@@ -92,7 +92,6 @@
 #pragma message "(--) pwrmgmt_enter_stop_mode.c"
 #endif
 
-// // Diagnostic
 // #pragma message "(--) pwrmgmt_enter_stop_mode.c"
 
 // This controls the entire modules code built
@@ -113,8 +112,9 @@
 
 #define MEADOW_PWRMGMT_SHOW_RTC_NUTTX_TIME (0)
 #define PWRMGMT_ADD_LEDS_FOR_DIAGNOSTIC_INFO (0)
+
 #if (PWRMGMT_ADD_LEDS_FOR_DIAGNOSTIC_INFO > 0)
-// DIAGNOSTIC GPIO
+// DIAGNOSTIC GPIO D03 for F7FeatherV2
 #define TEST_PIN_V2_D03_STOP_TEST (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_SPEED_100MHz \
           | GPIO_PORTB | GPIO_PIN8)
 #endif
@@ -188,7 +188,7 @@ static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context,
   }
 
  #if (PWRMGMT_LOW_PWR_0_USE_RTC_ALARM_A == 0)
-  // Check the Alarm A flag again (per Errata)
+  // Check the Alarm A flag again (per Errata ES0334 - Rev 9 - 2.12.2)
   if(!AlarmA)
   {
     rtcIsr = getreg32(STM32_RTC_ISR);
@@ -224,7 +224,7 @@ static int meadow_rtc_wakeup_isr_handler(int irq, FAR void *context,
 #endif
 
 #if defined (PWRMGMT_LOW_PWR_EXIT_USE_RTC_ALARM)
-  // If Alarm A didn't caused interrupt exit
+  // If Alarm A didn't cause the interrupt exit
   if(!AlarmA)
     return OK;
 #endif
@@ -277,7 +277,7 @@ int pwrmgmt_enter_stop_mode(void)
   uint32_t regval;
 
 #if (PWRMGMT_ADD_LEDS_FOR_DIAGNOSTIC_INFO > 0)
-  // One time initialization
+  // One time GPIO initialization
   if(_firstTime)
   {
     _firstTime = false;
@@ -402,7 +402,7 @@ int pwrmgmt_enter_stop_mode(void)
   // Wait again till busy flag is cleared and SDRAM is fully in self-refresh
   while ((getreg32(STM32_FMC_SDSR) & 0x00000020) != 0);
 
-  // DIAGNOSTIC-LED on only when sleeping the waking interrupt will turn this off
+  // DIAGNOSTIC-LED on when sleeping. The ISR will turn this off ASAP
 #if (PWRMGMT_ADD_LEDS_FOR_DIAGNOSTIC_INFO > 0)
   stm32_gpiowrite(TEST_PIN_V2_D03_STOP_TEST, true);
 #endif
@@ -461,7 +461,7 @@ int pwrmgmt_enter_stop_mode(void)
 #error "Select Low-Power timing scheme"
 #endif
 
-  // Synch Nuttx clock with RTC hardware, that keeps time while in stop
+  // Synch Nuttx clock with RTC hardware, which keeps time while in stop
   // mode. The RTC clock may drift because the Meadow doesn't have a crystal
   // or resonator for the LSE clock. Therefore, we're using the LSI clock
   // which will drift.
