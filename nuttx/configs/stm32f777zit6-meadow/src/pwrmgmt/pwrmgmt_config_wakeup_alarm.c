@@ -77,8 +77,6 @@
 #undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
-// #pragma GCC optimize "Og"
-
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
