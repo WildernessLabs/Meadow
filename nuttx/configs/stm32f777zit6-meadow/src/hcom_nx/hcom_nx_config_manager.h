@@ -59,7 +59,7 @@
 #define MAXIMUM_INTERFACE_LENGTH 64
 #define MAXIMUM_TURN_ON_PIN_LENGTH 8
 #define MAXIMUM_USER_LENGTH 64
-#define MAXIMUM_MODE_LENTGH 8
+#define MAXIMUM_MODE_LENTGH 32
 
 /****************************************************************************
  * Enums.

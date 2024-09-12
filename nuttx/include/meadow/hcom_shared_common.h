@@ -156,18 +156,34 @@
 #define CELL_M95_MODULE_NAME         "M95"
 #define CELL_BG95M3_MODULE           0x00000002
 #define CELL_BG95M3_MODULE_NAME      "BG95M3"
+#define CELL_EG21GL_MODULE           0x00000003
+#define CELL_EG21GL_MODULE_NAME      "EG21GL"
 
 //  Cell network operation modes.
 //
 //  These values are flag values.
-#define CELL_UNKNOWN_MODE           0xffffffff
-#define CELL_UNKNOWN_MODE_NAME      "Unknown"
-#define CELL_CATM1_MODE             0x00000000
-#define CELL_CATM1_MODE_NAME        "CATM1"
-#define CELL_NBIOT_MODE             0x00000001
-#define CELL_NBIOT_MODE_NAME        "NBIOT"
-#define CELL_GSM_MODE               0x00000002
-#define CELL_GSM_MODE_NAME          "GSM"
+#define CELL_UNKNOWN_MODE                  0xffffffff
+#define CELL_UNKNOWN_MODE_NAME             "Unknown"
+#define CELL_CATM1_MODE                    0x00000000
+#define CELL_CATM1_MODE_NAME               "CATM1"
+#define CELL_NBIOT_MODE                    0x00000001
+#define CELL_NBIOT_MODE_NAME               "NBIOT"
+#define CELL_GSM_MODE                      0x00000002
+#define CELL_GSM_MODE_NAME                 "GSM"
+#define CELL_UTRAN_MODE                    0x00000003
+#define CELL_UTRAN_MODE_NAME               "UTRAN"
+#define CELL_GSM_W_EGPRS_MODE              0x00000004
+#define CELL_GSM_W_EGPRS_MODE_NAME         "GSM_W_EGPRS"
+#define CELL_UTRAN_W_HSDPA_MODE            0x00000005
+#define CELL_UTRAN_W_HSDPA_MODE_NAME       "UTRAN_W_HSDPA"
+#define CELL_UTRAN_W_HSUPA_MODE            0x00000006
+#define CELL_UTRAN_W_HSUPA_MODE_NAME       "UTRAN_W_HSUPA"
+#define CELL_UTRAN_W_HSDPA_HSUPA_MODE      0x00000007
+#define CELL_UTRAN_W_HSDPA_HSUPA_MODE_NAME "UTRAN_W_HSDPA_HSUPA"
+#define CELL_E_UTRAN_MODE                  0x00000008
+#define CELL_E_UTRAN_MODE_NAME             "E_UTRAN"
+#define CELL_CDMA_MODE                     0x00000064
+#define CELL_CDMA_MODE_NAME                "CDMA"
 
 //  Meadow F7FeatherV2 pin names
 #define F7_MICRO_V2_A4_PIN_NAME  "A4"
