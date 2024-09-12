@@ -309,7 +309,7 @@ int pwrmgmt_enter_stop_mode(void)
   // ESP32 POWER DOWN
   // ToDo: espcp_low_power_sleep();
 
-  //Disabled System tick early so the scheduler won't do any context switching
+  // Disable System tick early so the scheduler won't do any context switching
   up_disable_irq(STM32_IRQ_SYSTICK);
 
   // Turn-off USB OTG's power to its transceiver. This will cause the USB
@@ -387,9 +387,6 @@ int pwrmgmt_enter_stop_mode(void)
             tmNowOs.tm_year + 1900, tmNowOs.tm_mon + 1, tmNowOs.tm_mday,
             tmNowOs.tm_hour, tmNowOs.tm_min, tmNowOs.tm_sec);
 #endif
-
-  // //Disabled Systick (it's re-enabled in ISR)
-  // up_disable_irq(STM32_IRQ_SYSTICK);
 
   // Put SDRAM into self-refresh mode so data isn't lost (saves current).
   // This must follow all other activities because once in the self-refresh
