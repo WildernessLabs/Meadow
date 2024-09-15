@@ -45,6 +45,7 @@
 #include "ota/hcom_ota.h"
 #include "cell/hcom_pppd.h"
 #include "netutils/ntpclient.h"
+#include "misc/espcp_utils.h"
 
 #if defined (CONFIG_HCOM_ESP32_COMMS)
 #include "esp32/hcom_esp32_comms.h"
@@ -449,6 +450,8 @@ syslog(2, "hcom_main() running\n"); usleep(10 * 1000);
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2, "Startup Manager 20\n"); usleep(20 * 1000);
 #endif
+
+  espcp_open_esp32_events_message_queue();
 
   if (getNetworkTimeAtStartup)
   {

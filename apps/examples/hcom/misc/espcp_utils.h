@@ -98,5 +98,6 @@ typedef struct espcp_event_data_s espcp_event_data_t;
 int espcp_queue_event_messages(uint8_t *message);
 void espcp_encode_event_data(espcp_event_data_t *event_data, uint8_t *buffer);
 void espcp_send_message_to_ntp_queue(const uint32_t message);
+int espcp_open_esp32_events_message_queue();
 
 #endif //__CONFIGS_MEADOW_SRC_HCOM_MISC_ESPCP_UTILS__H
