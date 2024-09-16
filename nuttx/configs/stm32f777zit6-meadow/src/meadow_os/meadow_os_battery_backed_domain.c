@@ -110,7 +110,7 @@
  *  None
  *
  ****************************************************************************/
-static bool meadow_os_bbd_is_bbr_address_valid(uint32_t address)
+static bool __attribute__((unused)) meadow_os_bbd_is_bbr_address_valid(uint32_t address)
 {
     bool result = true;
 
@@ -225,7 +225,7 @@ void meadow_os_bbd_strdup_to_sram(const char *message)
  ****************************************************************************/
 void meadow_os_bbd_strdup_from_sram(char *destination, int length)
 {
-    return(strncpy(destination, (char *) BATTERY_BACKED_DOMAIN_SRAM_ADDRESS, length));
+    strncpy(destination, (char *) BATTERY_BACKED_DOMAIN_SRAM_ADDRESS, length);
 }
 
 /****************************************************************************
