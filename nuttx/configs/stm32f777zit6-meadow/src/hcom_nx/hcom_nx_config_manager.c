@@ -2930,7 +2930,7 @@ void hcom_nx_config_process_cell_config_file(void)
             syslog(LOG_INFO, "Default cell turn-on pin name loaded: %s\n", config->default_cell_settings->turn_on_pin_name);
 
             config->default_cell_settings->mode = ((settings->settings->mode != NULL) &&
-                                                    (strlen(settings->settings->mode) <= MAXIMUM_MODE_LENTGH) &&
+                                                    (strlen(settings->settings->mode) <= MAXIMUM_MODE_LENGTH) &&
                                                     (strlen(settings->settings->mode) > 0)) ?
                                                     kmm_strdup(settings->settings->mode) :
                                                     kmm_strdup(DEFAULT_CELL_MODE);
