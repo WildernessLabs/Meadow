@@ -61,8 +61,10 @@ enum espcp_status_codes
     espcp_status_codes_invalid_WiFi_configuration_file = 44,
     espcp_status_codes_invalid_cell_configuration_file = 45,
     espcp_status_codes_network_deadlock = 46,
+    espcp_status_codes_close_deadlock = 47,
+    espcp_status_codes_poll_deadlock = 48,
+    espcp_status_codes_socket_deadlock = 49,
 
-    /** 46, 47, 48 & 49 free */
     //
     //  Keep the ESP reset codes consecutive as they are subject to arithmetic operations
     //  to determine the exact reset reason.
