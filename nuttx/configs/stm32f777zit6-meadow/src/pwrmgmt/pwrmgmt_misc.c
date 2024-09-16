@@ -205,6 +205,19 @@ void pwrmgmt_rtc_exitinit(void)
   regval &= ~(RTC_ISR_INIT);
   putreg32(regval, STM32_RTC_ISR);
 
+  // The STM32F77X Errata warns in ES0334-Rev 9 section 2.12.3 of a potential
+  // problem if the above RTC_ISR_INIT bit is cleared and reset before the
+  // proper wait time has occurred. This is the workaround given in the Errata.
+  // "After existing the initialization mode, clear the BYPSHAD bit (if set)
+  // then wait for RSF to rise, before entering the initialization mode again."
+  //
+  // Do this on exit to be sure the workaround is honored.
+  regval = getreg32(STM32_RTC_CR);
+  regval &= ~RTC_CR_BYPSHAD;    // Clear BYPSHAD
+  putreg32(regval, STM32_RTC_CR);
+
+  // Wait for RFS bit to indicate that shadow registers are synchronized.
+  while ((getreg32(STM32_RTC_CR) & RTC_ISR_RSF) != 0);
   return;
 }
 
