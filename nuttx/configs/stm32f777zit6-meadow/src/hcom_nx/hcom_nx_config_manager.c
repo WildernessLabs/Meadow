@@ -1502,7 +1502,7 @@ void hcom_nx_config_update_network_interface(meadow_configuration_t *config, uin
 }
 
 /****************************************************************************
- * Name: hcom_nx_config_update_network_interface
+ * Name: hcom_nx_config_update_dns_address
  *
  * Description:
  *  Update the DNS address.
