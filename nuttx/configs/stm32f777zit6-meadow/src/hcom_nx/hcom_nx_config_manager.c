@@ -1501,7 +1501,23 @@ void hcom_nx_config_update_network_interface(meadow_configuration_t *config, uin
     }
 }
 
-
+/****************************************************************************
+ * Name: hcom_nx_config_update_network_interface
+ *
+ * Description:
+ *  Update the DNS address.
+ *
+ * Input Parameters:
+ *  - config : pointer to the configuration object.
+ *  - dns_address : DNS address.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  The configuration structure has been locked by the caller.
+ *
+ ****************************************************************************/
 void hcom_nx_config_update_dns_address(meadow_configuration_t *config, uint32_t dns_address)
 {
     if (config != NULL)

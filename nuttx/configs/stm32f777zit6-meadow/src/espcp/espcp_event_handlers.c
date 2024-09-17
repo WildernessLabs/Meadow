@@ -692,7 +692,7 @@ void espcp_pass_to_managed_event_handler(espcp_message_t *message)
 }
 
 /****************************************************************************
- * Name: espcp_pass_to_managed_event_handler
+ * Name: espcp_network_got_ip_event_handler
  *
  * Description:
  *   This event handler will be called when got IP address from an access point.
