@@ -94,6 +94,12 @@ struct espcp_connect_event_data_s
 };
 typedef struct espcp_connect_event_data_s espcp_connect_event_data_t;
 
+struct espcp_got_ip_event_data_s
+{
+    uint32_t dns_address;
+};
+typedef struct espcp_got_ip_event_data_s espcp_got_ip_event_data_t;
+
 struct espcp_node_connection_change_event_data_s
 {
     uint32_t ip_address;
@@ -653,5 +659,5 @@ int espcp_encoded_logging_configuration_buffer_size(espcp_logging_configuration_
 void espcp_encode_logging_configuration(espcp_logging_configuration_t *, uint8_t *);
 int espcp_encoded_log_message_buffer_size(espcp_log_message_t *);
 void espcp_encode_log_message(espcp_log_message_t *, uint8_t *);
-
+espcp_got_ip_event_data_t *espcp_extract_got_ip_event_data(uint8_t *);
 #endif /* _ESPCP_ENCODERS_H */

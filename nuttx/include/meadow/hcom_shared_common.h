@@ -436,6 +436,11 @@ struct meadow_network_interface_s
   uint32_t gateway;
 
   /**
+   *  @brief DNS address.
+   */
+  uint32_t dns_address;
+
+  /**
    *  @brief Changing default gateway?
    */
   bool gateway_changed;

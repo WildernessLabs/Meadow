@@ -65,6 +65,7 @@
 
 static void espcp_network_connected_event_handler(espcp_message_t *message);
 static void espcp_network_disconnected_event_handler(espcp_message_t *message);
+static void espcp_network_got_ip_event_handler(espcp_message_t *);
 
 static void espcp_system_get_configuration_event_handler(espcp_message_t *);
 static void espcp_system_error_event_handler(espcp_message_t *);
@@ -81,6 +82,7 @@ static espcp_event_handlers_t _wifi_handlers[] =
     { espcp_wi_fi_function_interrupt_poll_response, espcp_usrsock_poll_interrupt_handler },
     { espcp_wi_fi_function_network_connected_event, espcp_network_connected_event_handler },
     { espcp_wi_fi_function_network_disconnected_event, espcp_network_disconnected_event_handler },
+    { espcp_wi_fi_function_network_got_ip_event, espcp_network_got_ip_event_handler},
     { END_OF_HANDLERS_VALUE, NULL }
 };
 
@@ -686,5 +688,38 @@ void espcp_pass_to_managed_event_handler(espcp_message_t *message)
     {
         espcp_delete_message_and_payload(message);
     }
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
+}
+
+/****************************************************************************
+ * Name: espcp_network_got_ip_event_handler
+ *
+ * Description:
+ *   This event handler will be called when got IP address from an access point.
+ *
+ * Input Parameters:
+ *   message - Message from the ESP32 containing event data.
+ *
+ ****************************************************************************/
+static void espcp_network_got_ip_event_handler(espcp_message_t *message)
+{
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
+    if (message->status_code == espcp_status_codes_completed_ok)
+    {
+        hcom_nx_config_lock();
+        meadow_configuration_t *config = hcom_nx_config_get_pointer();
+
+        if (message->payload != NULL)
+        {
+            espcp_got_ip_event_data_t *espcp_got_ip_data = espcp_extract_got_ip_event_data(message->payload);
+            if (config->default_interface->dns_address != espcp_got_ip_data->dns_address)
+            {
+                hcom_nx_config_update_dns_address(config, espcp_got_ip_data->dns_address);
+                hcom_nx_config_add_dns_address_into_file(espcp_got_ip_data->dns_address);
+            }
+        }
+        hcom_nx_config_unlock();
+    }
+    espcp_pass_to_managed_event_handler(message);
     MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }

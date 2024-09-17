@@ -1493,6 +1493,52 @@ void hcom_nx_config_add_default_gateway_dns_file(meadow_configuration_t *config,
 }
 
 /****************************************************************************
+ * Name: hcom_nx_config_add_dns_address_into_file
+ *
+ * Description:
+ *  Add the DNS address into DNS resolver file.
+ *
+ * Input Parameters:
+ *  dns - dns address.
+ * 
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+void hcom_nx_config_add_dns_address_into_file(uint32_t dns)
+{
+    FILE *file = fopen(CONFIG_NETDB_RESOLVCONF_PATH, "a");
+    if (file != NULL)
+    {
+        if (dns != 0)
+        {
+            // 13 bytes reserve to "nameserver" + ' ' +'\n'
+            // 16 bytes reserve to DNS address
+            int new_server_size = 16 + 13;
+            char *new_nameserver = (char *)zalloc(new_server_size);
+            if (new_nameserver != NULL)
+            {
+                memset(new_nameserver, 0, new_server_size);
+                sprintf(new_nameserver,
+                        "nameserver %u.%u.%u.%u\n",
+                        (dns & 0xff),
+                        (dns >> 8) & 0xff,
+                        (dns >> 16) & 0xff,
+                        (dns >> 24) & 0xff);
+
+                fseek(file, 0L, SEEK_END);
+                fputs(new_nameserver, file);
+                free(new_nameserver);
+            }
+        }
+        fclose(file);
+    }
+}
+
+/****************************************************************************
  * Name: hcom_nx_config_update_network_interface
  *
  * Description:
@@ -1519,6 +1565,32 @@ void hcom_nx_config_update_network_interface(meadow_configuration_t *config, uin
         iface->ip_address = ip_address;
         iface->gateway = gateway;
         iface->netmask = netmask;
+    }
+}
+
+/****************************************************************************
+ * Name: hcom_nx_config_update_dns_address
+ *
+ * Description:
+ *  Update the DNS address.
+ *
+ * Input Parameters:
+ *  - config : pointer to the configuration object.
+ *  - dns_address : DNS address.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  The configuration structure has been locked by the caller.
+ *
+ ****************************************************************************/
+void hcom_nx_config_update_dns_address(meadow_configuration_t *config, uint32_t dns_address)
+{
+    if (config != NULL)
+    {
+        meadow_network_interface_t *iface = config->default_interface;
+        iface->dns_address = dns_address;
     }
 }
 
