@@ -183,6 +183,12 @@ static sem_t _espcp_poll_requests_mutex;
  ****************************************************************************/
 static inline void espcp_lock_poll_requests_queue(void)
 {
+    //
+    //  Ideally we would use the line below (commented out) but for now we will
+    //  use the block of code following this in order to see if we are getting an interrupt
+    //  signal when we are waiting for the semaphore.  This may be causing the poll
+    //  timeout issue.
+    //
     // while ((sem_wait(&_espcp_poll_requests_mutex) != 0) && (get_errno() == EINTR));
     while (sem_wait(&_espcp_poll_requests_mutex) != 0)
     {
