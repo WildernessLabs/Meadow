@@ -100,7 +100,7 @@ int espcp_open_esp32_events_message_queue()
 {
   if (espcp_events_queue_handler == (mqd_t) - 1)
   {
-    struct mq_attr queue_attributes;
+    struct mq_attr queue_attributes = { 0 };
 
     queue_attributes.mq_maxmsg = ESPCP_MAXIMUM_MESSAGE_QUEUE_LENGTH;
     queue_attributes.mq_msgsize = ESPCP_EVENT_DATA_SIZE;
