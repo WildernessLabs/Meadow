@@ -135,11 +135,16 @@ namespace System.Net.Sockets {
         //------------------------------------
 
         // Creates a Dual Mode socket for working with both IPv4 and IPv6
+#if !NUTTX
         public Socket(SocketType socketType, ProtocolType protocolType)
             : this(AddressFamily.InterNetworkV6, socketType, protocolType) {
             DualMode = true;
         }
-
+#else
+        public Socket(SocketType socketType, ProtocolType protocolType)
+            : this(AddressFamily.InterNetwork, socketType, protocolType) {
+        }
+#endif
         /// <devdoc>
         ///    <para>
         ///       Initializes a new instance of the <see cref='Sockets.Socket'/> class.
