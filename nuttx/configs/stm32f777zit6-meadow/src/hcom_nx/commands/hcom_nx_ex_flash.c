@@ -1,7 +1,7 @@
 /****************************************************************************
  * \configs\stm32f777zit6-meadow\src\hcom_nx\commands\hcom_nx_ex_flash.c
  * 
- *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2024 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1107,3 +1107,62 @@ int hcom_nx_exec_ex_flash_read_assertion_data(const char *data)
   return(result);
 }
 
+#if (HCOM_NX_EX_FLASH_SHOW_FLASH_STATS > 0)
+/****************************************************************************
+ * Name: hcom_nx_exec_ex_flash_syslog_external_flash_regions
+ *
+ * Description:
+ *   Mimicking the above code, to output, via syslog, the name, start and size
+ *   of each of the external flash's non-file system regions. Also, output
+ *   the available flash memory.
+ * 
+ * Input Parameters:
+ *  none.
+ *
+ * Returned Value:
+ *  none.
+ *
+ * Assumptions/Limitations:
+ *  none.
+ *
+ ****************************************************************************/
+void hcom_nx_exec_ex_flash_syslog_external_flash_regions()
+{
+  // Offset 0 from
+  // ret = flash_file(UPDATE_OS_DIR HCOM_NX_FS_MONO_RUNTIME_FILENAME, HCOM_NX_FS_MONO_RAW_PARTITION_SIZE, 0x0);
+  syslog(1, "Runtime      - Size:%8d (%5d Kb), Offset:0x%08x\n",
+            HCOM_NX_FS_MONO_RAW_PARTITION_SIZE,
+            HCOM_NX_FS_MONO_RAW_PARTITION_SIZE/1024,
+            0x0);
+
+  // Offset 1 from
+  // ret = flash_file(UPDATE_OS_DIR HCOM_NX_FS_NUTTX_UPDATE_FILENAME, HCOM_NX_FS_NUTTX_UPDATE_SIZE, HCOM_NX_FS_MONO_RAW_PARTITION_SIZE);
+  syslog(1, "Nuttx update - Size:%8d (%5d Kb), Offset:0x%08x\n",
+            HCOM_NX_FS_NUTTX_UPDATE_SIZE,
+            HCOM_NX_FS_NUTTX_UPDATE_SIZE/1024,
+            HCOM_NX_FS_MONO_RAW_PARTITION_SIZE);
+  
+  // Offset 2 from
+  // ret = hcom_nx_exec_ex_flash_write_buffer_to_flash((uint8_t*)&state, sizeof(OTAState), HCOM_NX_FS_MONO_RAW_PARTITION_SIZE + HCOM_NX_FS_NUTTX_UPDATE_SIZE);
+  syslog(1, "OTA State    - Size:%8d (%5d Kb), Offset:0x%08x\n",
+            sizeof(OTAState),
+            sizeof(OTAState)/1024,
+            (HCOM_NX_FS_MONO_RAW_PARTITION_SIZE + HCOM_NX_FS_NUTTX_UPDATE_SIZE));
+
+  // Offset 3 from above based implementation
+  syslog(1, "Assert Data  - Size:%8d (%5d Kb), Offset:0x%08x\n",
+          HCOM_NX_MAXIMUM_ASSERTION_DATA_SIZE,
+          HCOM_NX_MAXIMUM_ASSERTION_DATA_SIZE/1024,
+          sizeof(OTAState) + HCOM_NX_FS_MONO_RAW_PARTITION_SIZE + HCOM_NX_FS_NUTTX_UPDATE_SIZE);
+  
+  // File System is above plus full flash size
+  int fileSystemOffset = sizeof(OTAState) + HCOM_NX_FS_MONO_RAW_PARTITION_SIZE + HCOM_NX_FS_NUTTX_UPDATE_SIZE + 
+                          HCOM_NX_MAXIMUM_ASSERTION_DATA_SIZE;
+  // Get the correct flash chip size based on the hardware version
+  int fileSystemSize = meadow_hw_version_flash_size() - fileSystemOffset;
+  syslog(1, "File System  - Size:%8d (%5d Kb), Offset:0x%08x\n",
+          fileSystemSize,
+          fileSystemSize/1024,
+          fileSystemOffset);
+}
+#endif

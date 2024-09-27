@@ -130,6 +130,10 @@ extern "C"
 // This #define may not control all ISO-8601 code, as maybe it should
 #define HCOM_INCLUDE_ISO8601_SUPPORT 0
 
+// This define controls if the way the external flash chip is divided for
+// Meadow is shown at startup.
+#define HCOM_NX_EX_FLASH_SHOW_FLASH_STATS (0)
+
 /****************************************************************************************************
  * Public Functions
  ****************************************************************************************************/
@@ -168,6 +172,9 @@ extern "C"
   uint32_t hcom_nx_exec_ex_flash_assert_data_location(void);
   int hcom_nx_exec_ex_flash_write_assertion_data(const char *data, uint32_t length);
   int hcom_nx_exec_ex_flash_read_assertion_data(const char *data);
+  #if (HCOM_NX_EX_FLASH_SHOW_FLASH_STATS > 0)
+  void hcom_nx_exec_ex_flash_syslog_external_flash_regions(void);
+  #endif
 
   // Syslog tracing
   int hcom_nx_exec_trace_do_not_send_to_host(struct hcom_nx_cmd_data *cmdData);
