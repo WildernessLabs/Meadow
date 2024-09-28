@@ -132,7 +132,7 @@ extern "C"
 
 // This define controls if the way the external flash chip is divided for
 // Meadow is shown at startup.
-#define HCOM_NX_EX_FLASH_SHOW_FLASH_STATS (0)
+#define HCOM_NX_EX_FLASH_SHOW_FLASH_STATS (1)
 
 /****************************************************************************************************
  * Public Functions
