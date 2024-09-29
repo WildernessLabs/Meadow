@@ -1510,10 +1510,10 @@ void hcom_nx_config_add_default_gateway_dns_file(meadow_configuration_t *config,
  ****************************************************************************/
 void hcom_nx_config_add_dns_address_into_file(uint32_t dns)
 {
-    FILE *file = fopen(CONFIG_NETDB_RESOLVCONF_PATH, "a");
-    if (file != NULL)
+    if (dns != 0)
     {
-        if (dns != 0)
+        FILE *file = fopen(CONFIG_NETDB_RESOLVCONF_PATH, "a");
+        if (file != NULL)
         {
             // 13 bytes reserve to "nameserver" + ' ' +'\n'
             // 16 bytes reserve to DNS address
@@ -1533,8 +1533,8 @@ void hcom_nx_config_add_dns_address_into_file(uint32_t dns)
                 fputs(new_nameserver, file);
                 free(new_nameserver);
             }
+            fclose(file);
         }
-        fclose(file);
     }
 }
 
