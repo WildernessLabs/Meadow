@@ -87,6 +87,10 @@ int hcom_nx_create_fs_initialize(FAR struct mtd_dev_s *mtd)
 {
   int ret;
 
+#if (HCOM_NX_EX_FLASH_SHOW_FLASH_STATS > 0)
+  hcom_nx_exec_ex_flash_syslog_external_flash_regions();
+#endif
+
   //_mtd = mtd;
   for(int i = 0; i < HCOM_NX_FLASH_FILE_PARTITION_COUNT_MAX; i++)
   {
