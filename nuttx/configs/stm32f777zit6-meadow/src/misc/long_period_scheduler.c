@@ -315,6 +315,7 @@ int lps_add_handler(lps_handler_t handler, uint32_t period)
     }
     if (result == OK)
     {
+        lps_remove_handler(handler);
         lps_registered_handlers_t *rh = (lps_registered_handlers_t *) malloc(sizeof(lps_registered_handlers_t));
         if (rh == NULL)
         {
