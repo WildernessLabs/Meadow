@@ -53,6 +53,10 @@ static char *thisFile = __FILE__;
 #include <errno.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <stdbool.h>
 
 
 /* OS & App updaters */
@@ -119,66 +123,68 @@ static int deltree(const char *path)
   }
   closedir(dir);
   rmdir(path);
+}
 
-  return 0;
+static int copy_directory(const char *src_dir, const char *dest_dir, const char *rollback_dir) {
+    DIR *dir = opendir(src_dir);
+    struct dirent *entry;
+    if (!dir) return -1;
+
+    mkdir(dest_dir, 0777);
+
+    bool error = false;
+    while ((entry = readdir(dir)) != NULL && !error) {
+        char src_path[PATH_MAX];
+        char dest_path[PATH_MAX];
+        char rollback_path[PATH_MAX];
+
+        snprintf(src_path, sizeof(src_path), "%s/%s", src_dir, entry->d_name);
+        snprintf(dest_path, sizeof(dest_path), "%s/%s", dest_dir, entry->d_name);
+        snprintf(rollback_path, sizeof(rollback_path), "%s/%s", rollback_dir, entry->d_name);
+
+        if (entry->d_type == DTYPE_DIRECTORY) {
+            if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+                if (copy_directory(src_path, dest_path, rollback_path) != 0) {
+                    error = true;
+                }
+            }
+        } else if (entry->d_type == DTYPE_FILE) {
+            if (update_file(src_path, dest_path, rollback_path) != 0) {
+                error = true;
+            }
+        }
+    }
+    closedir(dir);
+    return error ? -1 : 0;
 }
 
 int app_update(void)
 {
-  DIR *update_dir = opendir(UPDATE_APP_DIR);
-  struct dirent *entry;
+    DIR *update_dir = opendir(UPDATE_APP_DIR);
+    if (!update_dir) return 0;
+    closedir(update_dir);
 
-  if (!update_dir)
-    return 0;
+    bool error = false;
+    int __attribute__((unused)) ret;
+    ret = mkdir(ROLLBACK_DIR, 0777);
+    update_info("App Update: Applying...");
 
-  bool error = false;
-  int  __attribute__((unused)) ret;
-  ret = mkdir(ROLLBACK_DIR, 0777);
-  update_info("App Update: Applying...");
-
-  // TODO: Recursive copying
-  while ((entry = readdir(update_dir)) != NULL && !error)
-  {
-    if (DIRENT_ISFILE(entry->d_type))
-    {
-      char source_path[PATH_MAX];
-      char target_path[PATH_MAX];
-      char rollback_path[PATH_MAX];
-      snprintf(source_path, sizeof(source_path), "%s%s", UPDATE_APP_DIR, entry->d_name);
-      snprintf(target_path, sizeof(target_path), "/meadow0/%s", entry->d_name);
-      snprintf(rollback_path, sizeof(target_path), "%s/%s", ROLLBACK_DIR, entry->d_name);
-      if (update_file(source_path, target_path, rollback_path) != 0)
+    if (copy_directory(UPDATE_APP_DIR, "/meadow0", ROLLBACK_DIR) != 0) {
         error = true;
     }
-  }
-  closedir(update_dir);
-  if (error) // Invalid update; roll back
-  {
-    deltree(UPDATE_APP_DIR);
-    DIR *rollback_dir = opendir(ROLLBACK_DIR);
 
-    if (!rollback_dir)
-      return 0;
+    if (error) { // Invalid update; roll back
+        deltree(UPDATE_APP_DIR);
+        DIR *rollback_dir = opendir(ROLLBACK_DIR);
+        if (!rollback_dir) return 0;
+        closedir(rollback_dir);
 
-    // TODO: Recursive copying
-    while ((entry = readdir(rollback_dir)) != NULL && !error)
-    {
-      if (DIRENT_ISFILE(entry->d_type))
-      {
-        char source_path[PATH_MAX];
-        char target_path[PATH_MAX];
-        snprintf(source_path, sizeof(source_path), "%s/%s", ROLLBACK_DIR, entry->d_name);
-        snprintf(target_path, sizeof(target_path), "/meadow0/%s", entry->d_name);
-        if (update_file(source_path, target_path, NULL) != 0)
-        { 
-          syslog(LOG_ERR, "Error rolling back update, failed to restore %s to %s\n", source_path, target_path);
+        update_info("App Update: Rolling back...");
+        if (copy_directory(ROLLBACK_DIR, "/meadow0", NULL) != 0) {
+            syslog(LOG_ERR, "Error rolling back update");
         }
-      }
     }
-    closedir(rollback_dir);
-  }
-  return 1;
-
+    return error ? -1 : 1;
 }
 
 #define OS_BINARY_SIGNATURE_EXT ".sig"
