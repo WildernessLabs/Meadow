@@ -424,6 +424,10 @@ static int espcp_gpio_init(void)
         MEADOW_TRACE_CRITICAL("%s@%d Config UART Rx as input result:%d\n", __FILE__, __LINE__, result);
         return(ERROR);
     }
+    //
+    //  F7V1 and the F7V2/CCM modules use a different pin to connect to the ESP32.  Reconfigure
+    //  the UART Tx pin to match the current active pins.
+    //
     result = stm32_change_uart_tx_pin(5, _active_pins->uart_tx);
     if (result < 0)
     {
