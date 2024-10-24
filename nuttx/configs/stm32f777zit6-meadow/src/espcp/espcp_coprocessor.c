@@ -92,6 +92,11 @@
  ****************************************************************************/
 
 /****************************************************************************
+ * External methods.
+ ****************************************************************************/
+int stm32_change_uart_tx_pin(uint32_t uart, uint32_t tx);
+
+/****************************************************************************
  * Private Types
  ****************************************************************************/
 
@@ -417,6 +422,12 @@ static int espcp_gpio_init(void)
     if (result < 0)
     {
         MEADOW_TRACE_CRITICAL("%s@%d Config UART Rx as input result:%d\n", __FILE__, __LINE__, result);
+        return(ERROR);
+    }
+    result = stm32_change_uart_tx_pin(5, _active_pins->uart_tx);
+    if (result < 0)
+    {
+        MEADOW_TRACE_CRITICAL("%s@%d Change UART5 Tx pin failed result:%d\n", __FILE__, __LINE__, result);
         return(ERROR);
     }
     //
