@@ -339,7 +339,12 @@ struct up_dev_s
   const uint8_t     irq;        /* IRQ associated with this USART */
   const uint32_t    apbclock;   /* PCLK 1 or 2 frequency */
   const uint32_t    usartbase;  /* Base address of USART registers */
-  const uint32_t    tx_gpio;    /* U[S]ART TX GPIO pin configuration */
+  /*
+   * The tx_gpio field should really be a const field however, in the case of the
+   * Meadow boards we need to change this field depending upon board being used.
+   * F7V1 and F7V2 both use different pins for comms with the ESP32.
+   */
+  uint32_t          tx_gpio;    /* U[S]ART TX GPIO pin configuration */
   const uint32_t    rx_gpio;    /* U[S]ART RX GPIO pin configuration */
 #ifdef CONFIG_SERIAL_IFLOWCONTROL
   const uint32_t    rts_gpio;   /* U[S]ART RTS GPIO pin configuration */
@@ -3260,6 +3265,45 @@ int up_putc(int ch)
   up_lowputc(ch);
 #endif
   return ch;
+}
+
+#endif /* USE_SERIALDRIVER */
+
+#ifdef USE_SERIALDRIVER
+
+/****************************************************************************
+ *  Name: stm32_change_uart_tx_pins
+ *
+ *  Description:
+ *    Change the tx pin for the specified UART.
+ * 
+ *    This method is provided for the Meadow boards as the default UART pins
+ *    are not always used, for instance with the T7V2 and CCM boards.
+ * 
+ *  Input Parameters:
+ *    uart - the uart to change the pins for.
+ *    tx - the new tx pin fro the uart
+ *
+ *  Returned Value:
+ *    OK if successful, -EINVAL otherwise.
+ *
+ *  Assumptions/Limitations:
+ *    None.
+ *
+ ****************************************************************************/
+int stm32_change_uart_tx_pin(uint32_t uart, uint32_t tx)
+{
+  int result = -EINVAL;
+  if ((uart > 0) && (uart <= STM32_NSERIAL))
+  {
+    struct up_dev_s *priv = g_uart_devs[uart - 1];
+    if (priv)
+    {
+      priv->tx_gpio = tx;
+      result = OK;
+    }
+  }
+  return result;
 }
 
 #endif /* USE_SERIALDRIVER */
