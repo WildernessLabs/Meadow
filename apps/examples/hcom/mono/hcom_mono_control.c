@@ -313,6 +313,33 @@ static char **hcom_mono_ctrl_extract_mono_options(char *options, int *count)
   return (result);
 }
 
+// Thread function to monitor the mono_pid task
+static void *monitor_mono_task(void *arg)
+{
+    int mono_pid = *((int *)arg);
+    int status;
+
+    // Wait for the mono_pid task to exit
+    waitpid(mono_pid, &status, 0);
+
+    // Induce a device reset
+    meadow_os_reset_board(0);
+}
+
+// Function to start the monitoring thread
+static void start_monitoring_thread(int mono_pid)
+{
+    pthread_t monitor_thread;
+    int *pid_arg = malloc(sizeof(int));
+    *pid_arg = mono_pid;
+
+    // Create the monitoring thread
+    if (pthread_create(&monitor_thread, NULL, monitor_mono_task, pid_arg) != 0) {
+        perror("Failed to create monitoring thread");
+        free(pid_arg);
+    }
+}
+
 //====================================================================
 // This function is called by the startup manager and is thus the bringup thread
 // It is responsible to start mono if it is desired and enabled
@@ -382,6 +409,8 @@ int hcom_mono_ctrl_start_mono_main()
     hcom_logging_syslog(LOG_INFO, "%s@%d-MONO launched [pid:%d, pri:%d, stack size:%d]\n",
                         thisFile, __LINE__, mono_pid, MONO_TASK_PRIORITY,
                         MONO_TASK_STACKSIZE);
+
+    start_monitoring_thread(mono_pid);
 
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
                                      "Meadow successfully started MONO", thisFile, __LINE__);
