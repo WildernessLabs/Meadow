@@ -55,6 +55,8 @@
 
 #include <sys/stat.h>
 
+#pragma message "(--) hcom_nx_ex_flash.c"
+
 /****************************************************************************
  * Uncomment the #define below to turn on debug help macros.
  ****************************************************************************/
@@ -1116,6 +1118,15 @@ int hcom_nx_exec_ex_flash_read_assertion_data(const char *data)
  *   of each of the external flash's non-file system regions. Also, output
  *   the available flash memory.
  * 
+ *   Based on the above code this is the current use of the top 5MB of flash
+ *   Runtime       - Size: 3145728 ( 3072 KB), Offset:0x00000000
+ *   Meadow update - Size: 1835008 ( 1792 KB), Offset:0x00300000
+ *   OTA State     - Size:    4096 (    4 KB), Offset:0x004c0000
+ *   OS Persisted  - Size:    4096 (    4 KB), Offset:0x004c1000
+ *   Assert Data   - Size:   32768 (   32 KB), Offset:0x004c2000
+ *   Reserved      - Size:  221184 (  216 KB), Offset:0x004ca000
+ *   File System   - Size:61865984 (60416 KB), Offset:0x00500000
+ *
  * Input Parameters:
  *  none.
  *
@@ -1123,46 +1134,93 @@ int hcom_nx_exec_ex_flash_read_assertion_data(const char *data)
  *  none.
  *
  * Assumptions/Limitations:
- *  none.
+ *  This function is executed before the flash chip is fully initialized.
+ *  Therefore, the flash erase size is hard coded as 4096 (0x1000).
  *
  ****************************************************************************/
-void hcom_nx_exec_ex_flash_syslog_external_flash_regions()
+void hcom_nx_exec_ex_flash_syslog_external_flash_regions(FAR struct mtd_dev_s *mtd)
 {
-  // Offset 0 from
-  // ret = flash_file(UPDATE_OS_DIR HCOM_NX_FS_MONO_RUNTIME_FILENAME, HCOM_NX_FS_MONO_RAW_PARTITION_SIZE, 0x0);
-  syslog(1, "Runtime      - Size:%8d (%5d Kb), Offset:0x%08x\n",
+  uint32_t thisOffset = 0;
+  uint32_t flashEraseSize;
+  uint32_t totalReserved = (HCOM_NX_FS_MONO_RAW_PARTITION_SIZE + \
+                       HCOM_NX_FS_OTA_RESERVED_SPACE);
+  // uint32_t meadowVersion = meadow_hw_version_get();
+  struct mtd_geometry_s geo;
+
+  mtd->ioctl(mtd, MTDIOC_GEOMETRY, (unsigned long)((uintptr_t)&geo));
+  
+  flashEraseSize = geo.erasesize;
+
+  // Segment 0 - Meadow.OS.Runtime.bin
+  syslog(1, "Runtime       - Size:%8lu (%5lu KB), Offset:0x%08x\n",
             HCOM_NX_FS_MONO_RAW_PARTITION_SIZE,
             HCOM_NX_FS_MONO_RAW_PARTITION_SIZE/1024,
-            0x0);
+            thisOffset);
 
-  // Offset 1 from
-  // ret = flash_file(UPDATE_OS_DIR HCOM_NX_FS_NUTTX_UPDATE_FILENAME, HCOM_NX_FS_NUTTX_UPDATE_SIZE, HCOM_NX_FS_MONO_RAW_PARTITION_SIZE);
-  syslog(1, "Nuttx update - Size:%8d (%5d Kb), Offset:0x%08x\n",
+  // Segment 1 - Meadow.OS.Update.bin
+  thisOffset += HCOM_NX_FS_MONO_RAW_PARTITION_SIZE;
+  syslog(1, "Meadow update - Size:%8lu (%5lu KB), Offset:0x%08x\n",
             HCOM_NX_FS_NUTTX_UPDATE_SIZE,
             HCOM_NX_FS_NUTTX_UPDATE_SIZE/1024,
-            HCOM_NX_FS_MONO_RAW_PARTITION_SIZE);
-  
-  // Offset 2 from
-  // ret = hcom_nx_exec_ex_flash_write_buffer_to_flash((uint8_t*)&state, sizeof(OTAState), HCOM_NX_FS_MONO_RAW_PARTITION_SIZE + HCOM_NX_FS_NUTTX_UPDATE_SIZE);
-  syslog(1, "OTA State    - Size:%8d (%5d Kb), Offset:0x%08x\n",
+            thisOffset);
+
+  // Segment 2 - OTAState
+  thisOffset += HCOM_NX_FS_NUTTX_UPDATE_SIZE;
+  syslog(1, "OTA State     - Size:%8lu (%5lu KB), Offset:0x%08x\n",
             sizeof(OTAState),
             sizeof(OTAState)/1024,
-            (HCOM_NX_FS_MONO_RAW_PARTITION_SIZE + HCOM_NX_FS_NUTTX_UPDATE_SIZE));
+            thisOffset);
 
-  // Offset 3 from above based implementation
-  syslog(1, "Assert Data  - Size:%8d (%5d Kb), Offset:0x%08x\n",
+  // // Need the erase size. But, can't access flash chip for geo, because this
+  // // function executes very early, before flash driver ready.
+  // if(meadowVersion == MEADOW_F7_HW_VERSION_NUMB_UNKNOWN)
+  //   return;
+  
+  // switch (meadowVersion)
+  // {
+  // case MEADOW_F7_HW_VERSION_NUMB_F7V1:
+  //   flashEraseSize = MEADOW_F7_HW_VERSION_F7V1_ERASE_SIZE;
+  //   break;
+  // case MEADOW_F7_HW_VERSION_NUMB_F7V2:
+  //   flashEraseSize = MEADOW_F7_HW_VERSION_F7V2_ERASE_SIZE;
+  //   break;
+  // case MEADOW_F7_HW_VERSION_NUMB_CCMV2:
+  //   flashEraseSize = MEADOW_F7_HW_VERSION_CCMV2_ERASE_SIZE;
+  //   break;
+  
+  // default:
+  //   break;
+  // }
+
+  // Segment 3 - OS Persisted Data
+  thisOffset += flashEraseSize;
+  syslog(1, "OS Persisted  - Size:%8lu (%5lu KB), Offset:0x%08x\n",
+          flashEraseSize,
+          flashEraseSize/1024,
+          thisOffset);
+
+  // Segment 4 - Assert Data
+  // See hcom_nx_exec_ex_flash_persistent_data_location();
+  thisOffset += flashEraseSize;
+  syslog(1, "Assert Data   - Size:%8lu (%5lu KB), Offset:0x%08x\n",
           HCOM_NX_MAXIMUM_ASSERTION_DATA_SIZE,
           HCOM_NX_MAXIMUM_ASSERTION_DATA_SIZE/1024,
-          sizeof(OTAState) + HCOM_NX_FS_MONO_RAW_PARTITION_SIZE + HCOM_NX_FS_NUTTX_UPDATE_SIZE);
+          thisOffset);
+
+  // Segment 5 - Unused flash space
+  thisOffset += HCOM_NX_MAXIMUM_ASSERTION_DATA_SIZE;
+  syslog(1, "Reserved      - Size:%8lu (%5lu KB), Offset:0x%08x\n",
+          totalReserved - thisOffset,
+          (totalReserved - thisOffset)/1024,
+          thisOffset);
   
-  // File System is above plus full flash size
-  int fileSystemOffset = sizeof(OTAState) + HCOM_NX_FS_MONO_RAW_PARTITION_SIZE + HCOM_NX_FS_NUTTX_UPDATE_SIZE + 
-                          HCOM_NX_MAXIMUM_ASSERTION_DATA_SIZE;
-  // Get the correct flash chip size based on the hardware version
-  int fileSystemSize = meadow_hw_version_flash_size() - fileSystemOffset;
-  syslog(1, "File System  - Size:%8d (%5d Kb), Offset:0x%08x\n",
+  // Segment 6 - available for file system
+  // Get the flash chip size based on the hardware version
+  int fileSystemSize = meadow_hw_version_flash_size() - totalReserved;
+  thisOffset += (totalReserved - thisOffset);
+  syslog(1, "File System   - Size:%8lu (%5lu KB), Offset:0x%08x\n",
           fileSystemSize,
           fileSystemSize/1024,
-          fileSystemOffset);
+          thisOffset);
 }
 #endif

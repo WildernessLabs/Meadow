@@ -173,7 +173,7 @@ extern "C"
   int hcom_nx_exec_ex_flash_write_assertion_data(const char *data, uint32_t length);
   int hcom_nx_exec_ex_flash_read_assertion_data(const char *data);
   #if (HCOM_NX_EX_FLASH_SHOW_FLASH_STATS > 0)
-  void hcom_nx_exec_ex_flash_syslog_external_flash_regions(void);
+  void hcom_nx_exec_ex_flash_syslog_external_flash_regions(FAR struct mtd_dev_s *mtd);
   #endif
 
   // Syslog tracing

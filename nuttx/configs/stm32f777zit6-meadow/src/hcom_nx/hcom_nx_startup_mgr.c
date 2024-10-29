@@ -95,6 +95,10 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     return ERROR;
   }
 
+#if (HCOM_NX_EX_FLASH_SHOW_FLASH_STATS > 0)
+  hcom_nx_exec_ex_flash_syslog_external_flash_regions(mtd);
+#endif
+
 // Initialize the file system first so config file can be read by others
 #if defined(CONFIG_HCOM_FILESYSTEM_INIT)    // defined in menuconfig
   ret = hcom_nx_create_fs_initialize(mtd);
@@ -104,6 +108,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     return ret;
   }
 #endif
+
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2,  "hcom_nx_setup_mgr 1b\n"); usleep(5 * 1000);
