@@ -58,7 +58,6 @@ static char *thisFile = __FILE__;
 #include <dirent.h>
 #include <stdbool.h>
 
-
 /* OS & App updaters */
 
 static void update_info(const char *msg, ...)
@@ -71,6 +70,45 @@ static void update_info(const char *msg, ...)
     va_end(ap);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg,
             thisFile, __LINE__);
+}
+
+static void process_removal_list(const char *update_dir, const char *rollback_dir)
+{
+    char removal_list_path[PATH_MAX];
+    snprintf(removal_list_path, sizeof(removal_list_path), "%s/remove.txt", update_dir);
+
+    FILE *file = fopen(removal_list_path, "r");
+    if (!file) {
+        return; // No removal list found, continue with the update
+    }
+
+    char line[PATH_MAX];
+    while (fgets(line, sizeof(line), file)) {
+        // Remove newline character
+        line[strcspn(line, "\n")] = 0;
+
+        // Build the full path
+        char removal_file_path[PATH_MAX];
+        snprintf(removal_file_path, sizeof(removal_file_path), "/meadow0/%s", line);
+
+        // Move the file away to the rollback directory
+        char rollback_path[PATH_MAX];
+        snprintf(rollback_path, sizeof(rollback_path), "%s/%s", rollback_dir, strrchr(line, '/') + 1);
+
+        if (rename(removal_file_path, rollback_path) != 0)
+        {
+            update_info("Failed to stage file for removal: %s\n", line);
+            // Still try to just delete the file
+            if (unlink(removal_file_path) != 0)
+            {
+              update_info("Failed to just delete file: %s\n", removal_file_path);
+              continue;
+            }
+        }
+        update_info("Staged file for removal: %s\n", removal_file_path);
+    }
+
+    fclose(file);
 }
 
 static int update_file(const char *srcpath, const char *destpath, const char *rollbackpath)
