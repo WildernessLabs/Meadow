@@ -178,16 +178,18 @@ static int copy_directory(const char *src_dir, const char *dest_dir, const char 
 
         snprintf(src_path, sizeof(src_path), "%s/%s", src_dir, entry->d_name);
         snprintf(dest_path, sizeof(dest_path), "%s/%s", dest_dir, entry->d_name);
-        snprintf(rollback_path, sizeof(rollback_path), "%s/%s", rollback_dir, entry->d_name);
+
+        if (rollback_dir)
+          snprintf(rollback_path, sizeof(rollback_path), "%s/%s", rollback_dir, entry->d_name);
 
         if (entry->d_type == DTYPE_DIRECTORY) {
             if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
-                if (copy_directory(src_path, dest_path, rollback_path) != 0) {
+                if (copy_directory(src_path, dest_path, rollback_dir == NULL ? NULL : rollback_path) != 0) {
                     error = true;
                 }
             }
         } else if (entry->d_type == DTYPE_FILE) {
-            if (update_file(src_path, dest_path, rollback_path) != 0) {
+            if (update_file(src_path, dest_path, rollback_dir == NULL ? NULL : rollback_path) != 0) {
                 error = true;
             }
         }
@@ -206,15 +208,17 @@ int app_update(void)
     int __attribute__((unused)) ret;
     ret = mkdir(ROLLBACK_DIR, 0777);
     update_info("App Update: Applying...");
+    process_removal_list(UPDATE_APP_DIR, ROLLBACK_DIR);
 
     if (copy_directory(UPDATE_APP_DIR, "/meadow0", ROLLBACK_DIR) != 0) {
         error = true;
     }
 
+    deltree(UPDATE_APP_DIR);
+
     if (error) { // Invalid update; roll back
-        deltree(UPDATE_APP_DIR);
         DIR *rollback_dir = opendir(ROLLBACK_DIR);
-        if (!rollback_dir) return 0;
+        if (!rollback_dir) return -1;
         closedir(rollback_dir);
 
         update_info("App Update: Rolling back...");
