@@ -1147,7 +1147,7 @@ int hcom_nx_exec_ex_flash_read_assertion_data(const char *data)
  *   OTA State     - Size:    4096 (    4 KB), Offset:0x004c0000
  *   OS Persisted  - Size:    4096 (    4 KB), Offset:0x004c1000
  *   Assert Data   - Size:   32768 (   32 KB), Offset:0x004c2000
- *   Reserved      - Size:  221184 (  216 KB), Offset:0x004ca000
+ *   Unused        - Size:  221184 (  216 KB), Offset:0x004ca000
  *   File System   - Size:61865984 (60416 KB), Offset:0x00500000
  *
  * Input Parameters:
@@ -1211,7 +1211,7 @@ void hcom_nx_exec_ex_flash_syslog_external_flash_regions(FAR struct mtd_dev_s *m
 
   // Segment 5 - Unused flash space
   thisOffset += HCOM_NX_MAXIMUM_ASSERTION_DATA_SIZE;
-  syslog(1, "Reserved      - Size:%8lu (%5lu KB), Offset:0x%08x\n",
+  syslog(1, "Unused        - Size:%8lu (%5lu KB), Offset:0x%08x\n",
           totalReserved - thisOffset,
           (totalReserved - thisOffset)/1024,
           thisOffset);
@@ -1579,7 +1579,7 @@ void hcom_nx_exec_ex_flash_fill_5mb_of_flash()
   prevUseSpace += writeBufLen;
 
   //----------------------------------------------------------------
-  // 6th is all remaining space in the 5MB or reserved flash
+  // 6th is all remaining space in the 5MB of flash
   // All the remaining flash space within the 5MB allocation
   titleMsg = "This is Segment 6 currently not used, fill with Q.";
   uint32_t reservedFlashLen = HCOM_NX_FS_MONO_RAW_PARTITION_SIZE + \
