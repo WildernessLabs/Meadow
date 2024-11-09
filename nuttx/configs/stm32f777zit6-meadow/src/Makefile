@@ -174,6 +174,10 @@ CSRCS += ntpclient/ntpclient.c misc/long_period_scheduler.c
 #
 CSRCS += misc/meadow_logging.c
 
+#
+#	Add Meadow caclulate frequency and duty cycle support.
+#
+CSRCS += misc/meadow_calc_freq_dutycycle.c
 
 #
 #	The libyaml library is required by cyaml.

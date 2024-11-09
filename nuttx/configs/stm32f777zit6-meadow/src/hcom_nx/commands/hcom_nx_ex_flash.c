@@ -45,6 +45,7 @@
 #include <meadow/hcom_upd_shared.h>
 #include <meadow/hcom_shared_common.h>
 #include <meadow/hcom_bbreg_defn.h>
+#include <meadow/meadow_hw_version.h>
 
 #include <nuttx/arch.h>
 #include <nuttx/mtd/mtd.h>
