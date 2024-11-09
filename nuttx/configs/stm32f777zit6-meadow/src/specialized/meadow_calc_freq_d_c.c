@@ -1,5 +1,5 @@
 /****************************************************************************
- * nuttx/configs/stm32f777zit6-meadow/src/misc/meadow_calc_freq_dutycycle.c
+ * nuttx/configs/stm32f777zit6-meadow/src/misc/meadow_calc_freq_d_c.c
  * 
  *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs

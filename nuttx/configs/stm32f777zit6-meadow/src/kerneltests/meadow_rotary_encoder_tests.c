@@ -42,7 +42,7 @@
 // Not yet active in Meadow.OS until needed by .Net
 #if MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER > 0
 #include "../hcom_nx/hcom_nx_common.h"
-#include "meadow_rotary_encoder.h" 
+#include "../specialized/meadow_rotary_encoder.h" 
 #include "stm32_gpio.h"   // stm32_configgpio
 
 // Only build if configured
