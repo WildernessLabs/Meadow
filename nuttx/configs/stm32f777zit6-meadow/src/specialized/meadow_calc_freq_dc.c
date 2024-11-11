@@ -68,8 +68,9 @@
 #include <nuttx/kthread.h>
 #include <meadow/meadow_hw_version.h>
 #include <meadow/hcom_shared_common.h>
-
 #include <stdlib.h>
+
+#include "specialized/meadow_calc_freq_dc.h"
 
 #pragma message "(--) meadow_calc_freq_dutycycle.c"
 
@@ -98,7 +99,6 @@ struct timerReturnData_s
 #define MEADOW_TIMER_WIDTH_16 (0)
 #define MEADOW_TIMER_WIDTH_32 (1)
 #define MEADOW_TIMER_16_BIT_OVERFLOW (65536)
-
 
 #define MEADOW_TIMER_FREQ_DC_SYNC_ERROR (100)
 #define MEADOW_TIMER_FREQ_DC_SYNC_LEADING (101)
@@ -203,7 +203,6 @@ struct freqDcData_s
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-//=============================================================
 uint32_t meadow_timer_get_apb_clock(struct timerInfo_s *timerInfo)
 {
   if(timerInfo->timerAPBClk)
@@ -242,13 +241,14 @@ void meadow_timer_enable(uint32_t timerBase)
 // On the following falling edge, the timer copies the CNT value into CCR2.
 // On the next rising edge, the timer copies the CNT value into CCR1 and CNT
 // is again cleared to zero and the process repeats.
-// This means that we must read CCR1 and CCR2 between the rising edge and the
-// falling edge.
-// This is made more complex because for 16-bit timers, we must maintain a
-// count of all CNT overflow interrupts. For CCR1 overflow for the entire
-// period but for CCR2 only between the rising edge and the falling edge.
+// This means that we must save the CCR1 and CCR2 timer values between the
+// rising edge and the falling edge.
+// For 16-bit timers, this is more complex because we must maintain a count
+// for each CNT overflow interrupt. This allows us to maintain a 32-bit value.
+// For CCR1 overflow for the entire period but for CCR2 only between the
+// rising edge and the falling edge.
 // Note: a 16-bit register at 96 MHz will overflow every 683 microseconds.
-static int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg)
+static int meadow_timer_freq_dutycycle_isr(int irq, void *context, void *arg)
 {
   struct timerInfo_s *timerInfo = (struct timerInfo_s *)arg;
   struct freqDcData_s *freqDcData = (struct freqDcData_s *)timerInfo->dataPtr;
@@ -256,12 +256,14 @@ static int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg)
   uint32_t timerBase = timerInfo->timerBase;
   uint16_t timStatusReg = getreg16(timerBase + STM32_GTIM_SR_OFFSET);
 
+  // The Problem with 16-bit timers.
   // At certain input frequencies the CNT being cleared and the CNT overflow
-  // are reported in the same interrupt. But, there is only 1 bit available
-  // to indicate these 2 things.
+  // are reported in the same interrupt. However, there is only 1 bit available
+  // to indicate both conditions.
   // The highest frequency this occurs at is TimerClock/65536, which is
-  // 1,464.844 Hz with a timer clock of 96 MHz. This reoccurs at at intervals
+  // 1,464.844 Hz with a timer clock of 96 MHz. This reoccurs at the intervals
   // (TimerClock/65536)/2, (TimerClock/65536)/3 etc.
+  // More details.
   // For most input frequencies, on a leading (e.g. rising) or trailing (e.g.
   // falling) edge an interrupt is generated containing the CC1IF (leading) or
   // CC2IF (trailing) flags set. The UIF flag is always set with the CC1IF
@@ -269,10 +271,9 @@ static int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg)
   // some frequencies, the overflow and the CNT reset occur at the same moment.
   // The UIF is set but it cannot be determined if it indicates CNT overflow or
   // CNT reset.
-
   switch(timStatusReg & 0x0007)
   {
-    case 0x00:    // Do nothing, just ignore
+    case 0x00:    // Nothing happened, just ignore
       break;
 
     //------------------------------------------------------------
@@ -298,7 +299,7 @@ static int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg)
         // At this point we expect to have seen a trailing edge and no errors
         if(freqDcData->timerDectSync == MEADOW_TIMER_FREQ_DC_SYNC_TRAILING)
         {
-          // Provide consumer with values
+          // Save values
           freqDcData->timerFullPeriod = getreg32(timerBase + STM32_GTIM_CCR1_OFFSET);
           freqDcData->timerPartPeriod = getreg32(timerBase + STM32_GTIM_CCR2_OFFSET);
         }
@@ -318,10 +319,11 @@ static int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg)
 
       if(freqDcData->timerDectSync == MEADOW_TIMER_FREQ_DC_SYNC_TRAILING)
       {
+        // Save values
         count1 = getreg16(timerBase + STM32_GTIM_CCR1_OFFSET);
         count2 = getreg16(timerBase + STM32_GTIM_CCR2_OFFSET);
 
-        // Add any 16-bit CNT overflow
+        // Add each 16-bit CNT overflow to counts
         count1 += (freqDcData->timerFullOvrFlo * MEADOW_TIMER_16_BIT_OVERFLOW);
         count2 += (freqDcData->timerPartOvrFlo * MEADOW_TIMER_16_BIT_OVERFLOW);
 
@@ -361,7 +363,9 @@ static int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg)
       // Provide consumer with values
       freqDcData->timerFullPeriod = count1;
       freqDcData->timerPartPeriod = count2;
-      freqDcData->timerFullOvrFlo = 0;   // Clear previous overflow
+      
+      // Clear previous overflow
+      freqDcData->timerFullOvrFlo = 0;
       freqDcData->timerDectSync = MEADOW_TIMER_FREQ_DC_SYNC_LEADING;
       break;
 
@@ -407,10 +411,14 @@ static int meadow_timer_isr_freq_dutycycle(int irq, void *context, void *arg)
       timStatusReg &= ~GTIM_SR_UIF;
       freqDcData->timerDectSync = MEADOW_TIMER_FREQ_DC_SYNC_ERROR;
       break;
+
+    // There are only 3 bits to check, so this is a not needed.
+    default:
+      break;
   }
 
+  // Clear status register as needed
   putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
-
   return OK;
 }
 
@@ -520,7 +528,7 @@ int meadow_timer_freq_duty_config(uint32_t timerNumber, uint32_t gpioPort,
     return -ENOMEM;
   }
 
-  // Start populating timer information structure
+  // Populate timer information structure
   timerInfo->dataPtr = (void *) freqDcData;
 
   freqDcData->gpioInputConfig = pinDesignation;
@@ -674,7 +682,8 @@ int meadow_timer_init_freq_and_dutycycle(int timerNumber)
 
   // The value put into the ARR is maximum allowed for the timer. Either
   // 32-bit or 16-bit ARR register.
-  uint32_t maxARRValue = timerInfo->timerWidth == MEADOW_TIMER_WIDTH_16 ? 0xffff : 0xffffffff;
+  uint32_t maxARRValue = timerInfo->timerWidth ==
+            MEADOW_TIMER_WIDTH_16 ? 0xffff : 0xffffffff;
   putreg32(maxARRValue, timerBase + STM32_GTIM_ARR_OFFSET);
 
   uint16_t regval = getreg16(timerBase + STM32_GTIM_CR1_OFFSET);
@@ -683,17 +692,16 @@ int meadow_timer_init_freq_and_dutycycle(int timerNumber)
 
   // Clear all interrupt sources and set the ones we need. CC1IE is the rising
   // edge, CC2IE is the falling edge and UIE is whenever the CNT register is
-  // cleared or overflows.
-  // DMA/Interrupt enable register (DIER)
+  // cleared or overflows, DMA/Interrupt enable register (DIER)
   // Advanced timers 1 & 8 add ATIM_DIER_COMIE | ATIM_DIER_BIE | ATIM_DIER_COMDE
   modifyreg16(timerBase + STM32_GTIM_DIER_OFFSET, 
-          GTIM_DIER_TDE   | GTIM_DIER_CC4DE | GTIM_DIER_CC3DE | GTIM_DIER_CC2DE |
-          GTIM_DIER_CC1DE | GTIM_DIER_UDE   | GTIM_DIER_TIE   | GTIM_DIER_CC4IE |
-          GTIM_DIER_CC3IE | GTIM_DIER_CC2IE | GTIM_DIER_CC1IE | GTIM_DIER_UIE,
-          GTIM_DIER_CC1IE | GTIM_DIER_CC2IE | GTIM_DIER_UIE);
+        GTIM_DIER_TDE   | GTIM_DIER_CC4DE | GTIM_DIER_CC3DE | GTIM_DIER_CC2DE |
+        GTIM_DIER_CC1DE | GTIM_DIER_UDE   | GTIM_DIER_TIE   | GTIM_DIER_CC4IE |
+        GTIM_DIER_CC3IE | GTIM_DIER_CC2IE | GTIM_DIER_CC1IE | GTIM_DIER_UIE,
+        GTIM_DIER_CC1IE | GTIM_DIER_CC2IE | GTIM_DIER_UIE);
 
   // All Frequency/Duty Cycle interrupts are handled by same isr
-  ret = irq_attach(timerInfo->timerIrqVec, meadow_timer_isr_freq_dutycycle, timerInfo);
+  ret = irq_attach(timerInfo->timerIrqVec, meadow_timer_freq_dutycycle_isr, timerInfo);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-irq_attach failed, ret:%d, errno:%d\n",
@@ -709,7 +717,7 @@ int meadow_timer_init_freq_and_dutycycle(int timerNumber)
   return OK;
 }
 
-#if MEADOW_INCLUDE_TIMER_HARDWARE_TESTS_IN_BUILD > 0
+#if MEADOW_INCLUDE_FREQ_DUTY_CYCLE_TESTS_IN_BUILD > 0
 //================================================================
 // Test code for gated frequency and pulse width
 int meadow_timer_test_freq_and_dutycycle(int timerNumber)

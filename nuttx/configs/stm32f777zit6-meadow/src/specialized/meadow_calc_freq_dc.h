@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777zit6-meadow/src/specialized/meadow_rotary_encoder.h
+ * configs/stm32f777zit6-meadow/src/specialized/meadow_calc_freq_dc.h
  * 
  *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -32,39 +32,27 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-#ifndef __CONFIGS_MEADOW_SRC_MEADOW_ROTENC__H
-#define __CONFIGS_MEADOW_SRC_MEADOW_ROTENC__H
+#ifndef __CONFIGS_MEADOW_SPEC_MEADOW_FREQ_DC__H
+#define __CONFIGS_MEADOW_SPEC_MEADOW_FREQ_DC__H
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 #include <meadow/hcom_shared_common.h>
 
-#if MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER > 0
+#if MEADOW_INCLUDE_FREQ_DUTY_CYCLE_TESTS_IN_BUILD > 0
 
 #include <nuttx/config.h>
 #include <string.h>
 #include <stdint.h>
 #include "stm32_gpio.h"   // stm32_configgpio
 
-// Caller must populate this struct
-struct rotenc_config_parms
-{
-  uint32_t encoderNumb;       // 0 - 7 to identify for collections
-  bool isAddEncoder;          // true=add, false=remove
-  uint32_t portA;             // 0 - 15 (A-K)
-  uint32_t pinA;              // 0 - 15
-  uint32_t portB;             // 0 - 15 (A-K)
-  uint32_t pinB;              // 0 - 15
-  uint32_t resistorMode;      // 0 = float, 1 = pull up, 2 = pull down
-};
+int meadow_timer_freq_duty_config(uint32_t timerNumber, uint32_t gpioPort,
+          uint32_t gpioPin, uint32_t gpioPolarity);
 
-int meadow_config_rotary_encoder(struct rotenc_config_parms* rotencCfg);
-int meadow_rotary_encoder_read_count(uint8_t encoderNumb, int *encoderCount);
+// Test functions
+void meadow_kt_frequency_dutycycle_tests(uint32_t userData);
 
-// Test function follow
-void rotary_encoder_test_exercise_test(uint32_t userData);
+#endif      // #if MEADOW_INCLUDE_FREQ_DUTY_CYCLE_TESTS_IN_BUILD > 0
 
-#endif      // #if MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER > 0
-
-#endif      // __CONFIGS_MEADOW_SRC_MEADOW_ROTENC__H
+#endif      // __CONFIGS_MEADOW_SPEC_MEADOW_FREQ_DC__H

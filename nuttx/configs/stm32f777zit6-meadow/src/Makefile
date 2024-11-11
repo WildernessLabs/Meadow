@@ -162,6 +162,7 @@ CSRCS += kerneltests/espcp_tests.c \
 		 kerneltests/meadow_rotary_encoder_tests.c \
 		 kerneltests/meadow_spi_dma_tests.c \
 		 kerneltests/meadow_os_tests.c \
+		 kerneltests/meadow_calc_freq_dc_tests.c \
 
 #
 #	Add the NTP client.
@@ -176,7 +177,7 @@ CSRCS += misc/meadow_logging.c
 #
 #	Add Meadow caclulate frequency and duty cycle support.
 #
-CSRCS += specialized/meadow_calc_freq_d_c.c
+CSRCS += specialized/meadow_calc_freq_dc.c
 
 #
 #	Add native rotary encoder support.
