@@ -39,8 +39,6 @@
 
 #if MEADOW_INCLUDE_FREQ_DUTY_CYCLE_TESTS_IN_BUILD > 0
 
-#define CONFIG_FREQUENCY_DUTYCYCLE_TESTS
-
 // Only build if configured
 #if defined(CONFIG_FREQUENCY_DUTYCYCLE_TESTS)
 #pragma message "(--) meadow_calc_freq_dc_tests.c"
@@ -74,11 +72,11 @@
  * Public Functions
  ************************************************************************************/
 // set developer -d ?? comes here
-void meadow_kt_frequency_dutycycle_tests(uint32_t userData)
+void meadow_kt_calc_freq_dc_tests(uint32_t userData)
 {
   // int ret;
   
-  syslog(2, "Frequency and Duty Cycle tests received 'set developer -d 18 -v %lu'\n", userData);
+  syslog(2, "Frequency and Duty Cycle tests received 'set developer -d 19 -v %lu'\n", userData);
 
   switch(userData)
   {

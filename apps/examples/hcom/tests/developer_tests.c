@@ -160,6 +160,10 @@ static meadow_test_t _tests[] =
     { 18, "Rotary Encoder tests", meadow_kt_rotary_encoder_tests },
 #endif
 
+#if defined(CONFIG_FREQUENCY_DUTYCYCLE_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { 19, "Frequency and Duty Cycle tests", meadow_kt_calc_freq_dc_tests },
+#endif
+
   //
   //  Meadow OS tests (900-999)
   //

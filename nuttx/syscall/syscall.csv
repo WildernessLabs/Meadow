@@ -57,6 +57,7 @@
 "meadow_idle_monitor_get_value","meadow/hcom_misc_diag.h","defined(CONFIG_ARCH_IDLE_CUSTOM)","int"
 "meadow_kt_adc_tests","meadow/meadow_kernel_tests.h","defined(CONFIG_ADC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)","void","uint32_t"
 "meadow_kt_assert_test","meadow/meadow_kernel_tests.h","defined(CONFIG_MEADOW_OS_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)","void","uint32_t"
+"meadow_kt_calc_freq_dc_tests","meadow/meadow_kernel_tests.h","defined(CONFIG_FREQUENCY_DUTYCYCLE_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)","void","uint32_t"
 "meadow_kt_dac_tests","meadow/meadow_kernel_tests.h","defined(CONFIG_DAC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)","void","uint32_t"
 "meadow_kt_bg77_tests","meadow/meadow_kernel_tests.h","defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)","void","uint32_t"
 "meadow_kt_espcp_load_test_large_file_download","meadow/meadow_kernel_tests.h","defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)","void","uint32_t"

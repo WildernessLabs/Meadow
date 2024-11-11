@@ -504,6 +504,10 @@ SYSCALL_LOOKUP(pwrmgmt_most_recent_wakeup_reason,               0, STUB_pwrmgmt_
   SYSCALL_LOOKUP(meadow_kt_rotary_encoder_tests,  1, STUB_meadow_kt_rotary_encoder_tests)
 #endif
 
+#if defined(CONFIG_FREQUENCY_DUTYCYCLE_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_calc_freq_dc_tests,  1, STUB_meadow_kt_calc_freq_dc_tests)
+#endif
+
 #if defined(CONFIG_ARCH_BOARD_MEADOW)
   SYSCALL_LOOKUP(stm32_gpiowrite,           2, STUB_stm32_gpiowrite)
   SYSCALL_LOOKUP(stm32_configgpio,          1, STUB_stm32_configgpio)

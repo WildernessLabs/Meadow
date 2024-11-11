@@ -519,6 +519,10 @@ void STUB_meadow_kt_spi_dma_tests(int nbr, uint32_t param);
 void STUB_meadow_kt_rotary_encoder_tests(int nbr, uint32_t param);
 #endif
 
+#if defined(CONFIG_FREQUENCY_DUTYCYCLE_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_calc_freq_dc_tests(int nbr, uint32_t param);
+#endif
+
 #if defined(CONFIG_ARCH_BOARD_MEADOW)
 void STUB_stm32_gpiowrite(int nbr, uint32_t parm1, int parm2);
 int STUB_stm32_configgpio(int nbr, uint32_t parm1);

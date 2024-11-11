@@ -85,7 +85,6 @@ static void rotary_encoder_config_test_remove_n(uint32_t userData);
 /************************************************************************************
  * Public Functions
  ************************************************************************************/
-// FUTURE-For when rotary encoder has it own unit test infrastructure
 // // set developer -d 18 come here
 void meadow_kt_rotary_encoder_tests(uint32_t userData)
 {
