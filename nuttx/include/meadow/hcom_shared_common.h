@@ -973,7 +973,7 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 // full of data, showing hex and ascii. Duplicate code is created
 // on both the apps and nuttx side of hcom. On Apps side 
 // hcom_diag_print_buffer on Nuttx hcom_nx_diag_print_buffer
-#define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE           1
+#define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE           0
  // To output non-null terminated string. This won't work if binary in buffer
  // syslog(2, "%.*s\n", textLen, buffer);
 
