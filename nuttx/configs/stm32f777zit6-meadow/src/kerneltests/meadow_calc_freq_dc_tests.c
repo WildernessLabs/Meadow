@@ -145,7 +145,7 @@ static int meadow_freq_dc_test_configure_32_Tim5_PH10(void)
 static int meadow_freq_dc_test_configure_16_Tim11_PB8(void)
 {
   int ret = meadow_calc_freq_dc_freq_duty_config(5,   // Timer 4 D08 (16-bit)
-            MEADOW_FREQ_DC_TEST_PH10,
+            MEADOW_FREQ_DC_TEST_PB8,
             0);                                   // Leading 0 = rising, 1 = falling
 
   if(ret < 0)
@@ -170,22 +170,29 @@ void meadow_kt_calc_freq_dc_tests(uint32_t userData)
   switch(userData)
   {
     case 1:
-      // See the converted measured frequency and duty cycle information
-      ret = meadow_calc_freq_dc_test_see_data(userData);
-      if(ret < 0)
-        syslog(2, "Error meadow_calc_freq_dc_test_see_data() ret:%ld\n", ret);
-      break;
-      
-    case 2:
       ret = meadow_freq_dc_test_configure_32_Tim5_PH10();
       if(ret < 0)
         syslog(2, "Error meadow_freq_dc_test_configure_32_Tim5_PH10() ret:%ld\n", ret);
+      break;
+      
+    case 2:
+      // See the converted measured frequency and duty cycle information
+      ret = meadow_calc_freq_dc_test_see_data(5);
+      if(ret < 0)
+        syslog(2, "Error meadow_calc_freq_dc_test_see_data() ret:%ld\n", ret);
       break;
 
     case 3:
       ret = meadow_freq_dc_test_configure_16_Tim11_PB8();
         syslog(2, "Error meadow_freq_dc_test_configure_16_Tim11_PB8() ret:%ld\n", ret);
       if(ret < 0)
+      break;
+
+    case 4:
+      // See the converted measured frequency and duty cycle information
+      ret = meadow_calc_freq_dc_test_see_data(8);
+      if(ret < 0)
+        syslog(2, "Error meadow_calc_freq_dc_test_see_data() ret:%ld\n", ret);
       break;
 
     default:
