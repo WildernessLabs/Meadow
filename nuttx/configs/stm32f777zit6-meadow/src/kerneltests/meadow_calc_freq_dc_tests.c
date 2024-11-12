@@ -35,14 +35,14 @@
 /****************************************************************************
  * Included Files
  ****************************************************************************/
-#include <meadow/hcom_shared_common.h>
-
-#include "specialized/meadow_calc_freq_dc.h"
+#include <nuttx/config.h>
 
 // Only build if configured
 #if defined(CONFIG_FREQUENCY_DUTYCYCLE_TESTS)
 #pragma message "(--) meadow_calc_freq_dc_tests.c"
 
+#include <meadow/hcom_shared_common.h>
+#include "specialized/meadow_calc_freq_dc.h"
 #include "../hcom_nx/hcom_nx_common.h"
 #include "stm32_gpio.h"   // stm32_configgpio
 
