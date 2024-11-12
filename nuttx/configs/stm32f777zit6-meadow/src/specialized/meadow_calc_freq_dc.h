@@ -40,19 +40,66 @@
  ****************************************************************************/
 #include <meadow/hcom_shared_common.h>
 
-#if MEADOW_INCLUDE_FREQ_DUTY_CYCLE_TESTS_IN_BUILD > 0
-
 #include <nuttx/config.h>
 #include <string.h>
 #include <stdint.h>
 #include "stm32_gpio.h"   // stm32_configgpio
 
-int meadow_timer_freq_duty_config(uint32_t timerNumber, uint32_t gpioPort,
-          uint32_t gpioPin, uint32_t gpioPolarity);
+// 96 MHz is top speed. Since the interrupts are based on leading and falling
+// edges the only reason for slowing the clock would be to slow down the
+// number of overflows for a 16-bit timer (see comments below in ISR).
+#define MEADOW_FREQ_DC_CLOCK_FREQ (96000000) // 96 MHz target frequency
 
-// Test functions
+//--------------------------------------------------------------------------
+// This internal structure contains the data that all timer applications
+// require to operate.
+
+// This structure contains runtime data
+struct freqDcData_s
+{
+  volatile uint8_t timerDectSync;     // Missing interrupt detection
+  volatile uint32_t timerFullPeriod;  // Full period count
+  volatile uint32_t timerPartPeriod;  // Part period count
+  volatile uint32_t timerFullOvrFlo;  // Full overflow count
+  volatile uint32_t timerPartOvrFlo;  // Part overflow count
+  uint32_t gpioInputConfig;           // Nuttx style GPIO configuration
+  uint8_t inputPolarity;              // 0 = leading is rising, 1 = leading is falling
+};
+
+// The freqDcTimerInfo_s contains information that is defined by the F7's internal
+// hardware structure. Each field is populated at build time from the
+// struct freqDcTimerInfo_s array.
+struct freqDcTimerInfo_s
+{
+  uint8_t timerNumb   : 4;      // 0 - 15 timer number
+  uint8_t timerWidth  : 1;      // 16-bit or 32-bit timer? 0 = 16-bits, 1 = 32-bits
+  uint8_t timerMaxClk : 1;      // 0 = 96MHz (STM32_APB1_TIM2_CLKIN), 1 = 192MHz (STM32_APB2_TIM1_CLKIN)
+  uint8_t timerAPBClk : 1;      // 0 = STM32_RCC_APB1ENR, 1 = STM32_RCC_APB2ENR
+  uint8_t timerFuture : 1;      // Future
+  uint32_t timerBase;           // Unique for each timer
+  uint32_t timerClkEn;          // Bit of timer enable bit for APB1 or APB2
+  uint32_t timerIrqVec;         // Interrupt vector
+  struct freqDcData_s *dataPtr; // Points to freqDcData_s for running timer
+};
+
+struct freqDcReturnData_s
+{
+  uint32_t timerNumber; // 1 - 14 timer number to use
+  uint32_t dataField1;  // Frequency
+  uint32_t dataField2;  // Duty Cycle
+};
+
+//--------------------------------------------------------------------------
+struct freqDcTimerInfo_s *meadow_calc_freq_dc_get_timer_info_pointer(int timerNumb);
+
+#if defined(CONFIG_FREQUENCY_DUTYCYCLE_TESTS)
+
+int meadow_calc_freq_dc_freq_duty_config(uint32_t timerNumber,
+          uint32_t pinDesignation, uint32_t gpioPolarity);
+int meadow_calc_freq_dc_freq_duty_unconfig(uint32_t timerNumber);
+
 void meadow_kt_frequency_dutycycle_tests(uint32_t userData);
 
-#endif      // #if MEADOW_INCLUDE_FREQ_DUTY_CYCLE_TESTS_IN_BUILD > 0
+#endif       // CONFIG_FREQUENCY_DUTYCYCLE_TESTS
 
 #endif      // __CONFIGS_MEADOW_SPEC_MEADOW_FREQ_DC__H

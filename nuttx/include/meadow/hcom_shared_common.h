@@ -1023,9 +1023,6 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 // implemented.
 #define MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER        0
 
-// Include tests related to measuring frequency
-#define MEADOW_INCLUDE_FREQ_DUTY_CYCLE_TESTS_IN_BUILD 1
-
 #endif  // __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H
 
 /****************************************************************************
