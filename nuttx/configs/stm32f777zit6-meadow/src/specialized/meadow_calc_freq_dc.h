@@ -52,7 +52,7 @@
 
 //--------------------------------------------------------------------------
 // This internal structure contains the data that all timer applications
-// require to operate.
+// require to operate. The data is primarily used by the ISR
 //
 // (--) THE FOLLOWING STRUCTURES ARE KIND OF MESSED UP. THE freqDcData_s
 // CONTAINS ACTIVE RUNTIME DATA AND CONFIGURATION DATA. THE freqDcTimerInfo_s
@@ -61,10 +61,11 @@
 // This structure contains runtime data
 struct freqDcData_s
 {
-  // In the following 'Leading' is the leading edge (rising or falling) that
-  // begins the measurement cycle and 'Trailing' is the opposite edge.
-  // The Leading to Leading count is the time for one full cycle, allowing
-  // us to calculate the frequency. The Leading to Trailing is the first half
+  // In the following 'Lead' is the leading edge, which can be rising
+  // or falling). It is the edge that begins the measurement cycle and
+  // 'Trail' is the opposite edge.
+  // The Lead to Lead count is the time for one full cycle, allowing
+  // us to calculate the frequency. The Lead to Trail is the first half
   // of the cycle allowing us to calculate the duty cycle.
   volatile uint8_t activeState;           // Interrupt error of some type
   volatile uint32_t countLeadToLead;      // Count leading edge to next one
@@ -93,7 +94,7 @@ struct freqDcTimerInfo_s
 
 struct freqDcReturnData_s
 {
-  uint32_t timerNumber;     // 1 - 14 timer number to use
+  uint32_t timerNumber;     // The timer number of the data
   uint32_t freqX1000;       // Frequency * 1000
   uint32_t dutyCycleX1000;  // Duty Cycle * 1000
 };

@@ -207,6 +207,10 @@ static void lps_unlock(void)
  ****************************************************************************/
 static int lps_daemon(int argc, char **argv)
 {
+#if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
+    syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), LSPDAEMON_THREAD_NAME);
+#endif
+
     lps_lock();
     uint32_t period = lps_configuration.period;
     lps_unlock();

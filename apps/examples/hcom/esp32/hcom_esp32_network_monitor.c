@@ -201,6 +201,10 @@ static void hcom_esp32_network_monitor_process_line(char *line)
  ****************************************************************************/
 static void *hcom_esp32_network_monitor_thread(void *parameters)
 {
+#if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
+    syslog(2, "New pthread [PID:%d],'%s'\n", getpid(), "esp32_network_monitor");
+#endif
+
     _uart_monitor_running = true;
 
     bool shutting_down = false;
