@@ -31,12 +31,16 @@ dl_mapping_open (const char *file, int flags, char **err, void *user_data)
 	MonoDlMapping *mappings;
 	
 	if (mono_dls == NULL){
-		*err = g_strdup ("Library not registered");
+		if (err != NULL){
+			*err = g_strdup ("Library not registered");
+		}
 		return NULL;
 	}
 		
 	mappings = (MonoDlMapping *) g_hash_table_lookup (mono_dls, file);
-	*err = g_strdup (mappings == NULL ? "File not registered" : "");
+	if (err != NULL){
+		*err = g_strdup (mappings == NULL ? "File not registered" : "");
+	}
 	return mappings;
 }
 
