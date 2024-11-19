@@ -285,6 +285,9 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   // When mono runtime aborts, crash the device
   monoeg_assertion_disable_global (induce_reset);
 
+  // .NET default current directory os root of flash
+  chdir("/meadow0/");
+
   // Note: This call may need to be somewhere within mono. However, it seems to work
   // well here. So far, one of the above calls hang up this thread before reaching
   // this point.
