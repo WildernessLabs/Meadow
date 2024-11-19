@@ -54,12 +54,12 @@
 // This internal structure contains the data that all timer applications
 // require to operate. The data is primarily used by the ISR
 //
-// (--) THE FOLLOWING STRUCTURES ARE KIND OF MESSED UP. THE freqDcData_s
+// (--) THE FOLLOWING STRUCTURES ARE KIND OF MESSED UP. THE freqDcRtData_s
 // CONTAINS ACTIVE RUNTIME DATA AND CONFIGURATION DATA. THE freqDcTimerInfo_s
-// CONTAINS STATIC DATA PLUS A POINTER TO freqDcData_s. SHOULD THIS BE 3
+// CONTAINS STATIC DATA PLUS A POINTER TO freqDcRtData_s. SHOULD THIS BE 3
 // STRUCTURES, RUNTIME, CONFIG AND STATIC?
 // This structure contains runtime data
-struct freqDcData_s
+struct freqDcRtData_s
 {
   // In the following 'Lead' is the leading edge, which can be rising
   // or falling). It is the edge that begins the measurement cycle and
@@ -67,7 +67,7 @@ struct freqDcData_s
   // The Lead to Lead count is the time for one full cycle, allowing
   // us to calculate the frequency. The Lead to Trail is the first half
   // of the cycle allowing us to calculate the duty cycle.
-  volatile uint8_t activeState;           // Interrupt error of some type
+  volatile uint8_t activeState;           // State or Error of some type
   volatile uint32_t countLeadToLead;      // Count leading edge to next one
   volatile uint32_t countLeadToTrail;     // Count leading edge to 1/2 cycle
   volatile uint32_t LeadToLeadOverFlow;   // Leading to Leading overflow count
@@ -77,7 +77,7 @@ struct freqDcData_s
 };
 
 // The 'freqDcTimerInfo_s' contains information that defines the selected
-// timer's F7's internal hardware capabilities. Except for the 'freqDcData'
+// timer's F7's internal hardware capabilities. Except for the 'freqDcRtData'
 // element, each field is pre-defined from the 'struct freqDcTimerInfo_s array'.
 struct freqDcTimerInfo_s
 {
@@ -89,7 +89,7 @@ struct freqDcTimerInfo_s
   uint32_t timerBase;       // Unique for each timer
   uint32_t timerClkEn;      // Bit of timer enable bit for APB1 or APB2
   uint32_t timerIrqVec;     // Interrupt vector
-  struct freqDcData_s *freqDcData;
+  struct freqDcRtData_s *freqDcRtData;
 };
 
 struct freqDcReturnData_s

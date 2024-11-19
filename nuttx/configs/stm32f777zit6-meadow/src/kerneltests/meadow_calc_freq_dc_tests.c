@@ -54,13 +54,12 @@
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
-
-// F7FeatherV2 PH10 is D02 connected to Timer5 32-bit
-#define MEADOW_FREQ_DC_TEST_PH10  (uint8_t) (GPIO_INPUT | GPIO_PULLDOWN | \
+// F7FeatherV2 PH10 is D02 connected to Timer5 32-bit, channel 1
+#define MEADOW_FREQ_DC_TEST_PH10_D02  (uint8_t) (GPIO_INPUT | GPIO_PULLDOWN | \
           GPIO_PORTH | GPIO_PIN10)
 
-// F7FeatherV2 PB9 is D04 connected to Timer4 16-bit
-#define MEADOW_FREQ_DC_TEST_PB9   (uint8_t)  (GPIO_INPUT | GPIO_PULLDOWN | \
+// F7FeatherV2 PB9 is D04 connected to Timer4 16-bit, channel 4
+#define MEADOW_FREQ_DC_TEST_P09_D04   (uint8_t)  (GPIO_INPUT | GPIO_PULLDOWN | \
           GPIO_PORTB | GPIO_PIN9)
 
 /************************************************************************************
@@ -82,8 +81,9 @@
 int meadow_calc_freq_dc_test_see_data(int timerNumb)
 {
   // Just feed pulse train into appropriate GPIO
-  struct freqDcTimerInfo_s *freqDcTimerInfo = meadow_calc_freq_dc_get_timer_info_pointer(timerNumb);
-  struct freqDcData_s *freqDcData = (struct freqDcData_s *)freqDcTimerInfo->freqDcData;
+  struct freqDcTimerInfo_s *freqDcTimerInfo =
+            meadow_calc_freq_dc_get_timer_info_pointer(timerNumb);
+  struct freqDcRtData_s *freqDcRtData = (struct freqDcRtData_s *)freqDcTimerInfo->freqDcRtData;
 
   uint32_t validCheckCount = 0;
 
@@ -96,8 +96,8 @@ int meadow_calc_freq_dc_test_see_data(int timerNumb)
   // available. This is only an issue at higher frequencies.
   for(validCheckCount = 0; validCheckCount < 5; validCheckCount++)
   {
-    fullCycle = freqDcData->countLeadToLead;
-    halfCycle = freqDcData->countLeadToTrail;
+    fullCycle = freqDcRtData->countLeadToLead;
+    halfCycle = freqDcRtData->countLeadToTrail;
     if(fullCycle > 0 && halfCycle > 0)
       break;
 
@@ -129,8 +129,8 @@ int meadow_calc_freq_dc_test_see_data(int timerNumb)
   }
 
   // Prevent this count from being used when there's no input.
-  freqDcData->countLeadToLead = 0;
-  freqDcData->countLeadToTrail = 0;
+  freqDcRtData->countLeadToLead = 0;
+  freqDcRtData->countLeadToTrail = 0;
 
   // struct freqDcReturnData_s
   // {
@@ -147,7 +147,7 @@ int meadow_calc_freq_dc_test_see_data(int timerNumb)
 static int meadow_freq_dc_test_configure_32_Tim5_PH10(void)
 {
   int ret = meadow_calc_freq_dc_freq_duty_config(5,   // Timer 5 D02 (32-bit)
-            MEADOW_FREQ_DC_TEST_PH10,
+            MEADOW_FREQ_DC_TEST_PH10_D02,
             0);                                   // Leading is 0=rising, 1=falling
 
   if(ret < 0)
@@ -164,7 +164,7 @@ static int meadow_freq_dc_test_configure_32_Tim5_PH10(void)
 static int meadow_freq_dc_test_configure_16_Tim11_PB8(void)
 {
   int ret = meadow_calc_freq_dc_freq_duty_config(5,   // Timer 4 D08 (16-bit)
-            MEADOW_FREQ_DC_TEST_PB9,
+            MEADOW_FREQ_DC_TEST_P09_D04,
             0);                                   // Leading is 0=rising, 1=falling
 
   if(ret < 0)
