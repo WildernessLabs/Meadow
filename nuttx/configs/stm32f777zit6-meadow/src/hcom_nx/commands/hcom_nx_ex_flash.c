@@ -66,14 +66,16 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-// Steps to use the following:
+// Steps to run the following tests:
 // 1. Use the python script Meadow.OS/alphaTooling/create_mock_sysfiles.py to
 //     create files that contain text that is used to verify partition
 //     boundaries.
-// MEADOW_INCLUDE_CODE_FOR_TESTING_5MB_OF_FLASH is defined in hcom_shared_common.h
-// Build using './build.sh --force --clean --unittests=misc'
-// Use 'meadow developer -p 10 -v 1' to populate 5MB with known data
-// Use 'meadow developer -p 10 -v 2' to populate 5MB with known data
+// 2. Edit hcom_shared_common.h's MEADOW_INCLUDE_CODE_FOR_TESTING_5MB_OF_FLASH
+//     entry to cause the test code to be built.
+// 3. Build using './build.sh --force --clean --unittests=misc'
+// 4. Use 'meadow developer -p 10 -v 1' to populate 5MB with known data
+// 5. Use 'meadow developer -p 10 -v 2' to run the test which outputs via syslog
+//     be ready to capture the output and verify the boundaries manually.
 #if (MEADOW_INCLUDE_CODE_FOR_TESTING_5MB_OF_FLASH)
 #pragma GCC optimize("O0")    // Prevent code optimization
 #pragma message "(--) hcom_nx_ex_flash.c"
@@ -1429,6 +1431,12 @@ static void hcom_nx_exec_ex_fill_layout_buffer(uint32_t writeBufLen, char *write
   int offset;
   uint32_t titleLen = strlen(titleMsg);
 
+  if(titleLen > writeBufLen)
+  {
+    syslog(2, "%s@%d-Error:titleLen > writeBufLen\n", thisFile, __LINE__);
+    return;
+  }
+
   for(offset = 0; offset < titleLen; offset++)
     writeBuf[offset] = titleMsg[offset];
   
@@ -1455,6 +1463,9 @@ static void hcom_nx_exec_ex_fill_layout_buffer(uint32_t writeBufLen, char *write
  * Assumptions/Limitations:
  *  Fake files for Meadow.OS.Runtime.bin and Meadow.OS.Update.bin. are ready
  *  to be read and used to populate the related spaces.
+ *  Assumes that we will be using this after a restart in test mode so we do
+ *  not need to check the zalloc calls for failure as there will be plenty of
+ *  memory in the system.
  *
  ****************************************************************************/
   // This function 
