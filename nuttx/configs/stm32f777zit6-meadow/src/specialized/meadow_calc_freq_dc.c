@@ -106,6 +106,18 @@
 // alternate function value plus the Nuttx GPIO_ALT value.
 #define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_PULLDOWN)
 
+// ToDo List
+// Many of this are optional or future
+// 1. Add a running average feature. It would be the average since the last
+//  reading.
+// 2. Add count of the input GPIO transitions since last reading.
+// 3. For 16-bit timers, allow with configuration to include SLOW, MED and
+//  FAST options to reduce the effects of the 65,536 count rollover.
+// 4. Add CCM support. This requires changes to the configuration and adding
+//  or modifying existing tables to support more or all Timers and their
+//  associated GPIOs.
+// 5. 
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -189,11 +201,9 @@ static int meadow_calc_freq_dc_isr(int irq, void *context, void *arg);
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-
-//=========================================================================
 // This ISR is called for all frequency with duty cycle interrupts.
-// Note: I've user rising and falling here, instead of leading and falling to
-// simplify the concept behind this code, instead of leading and trailing.
+// Note: I've used the terms rising and falling here, instead of leading and
+// falling to simplify the concept behind the operation.
 //
 // On the first rising edge of the input, the timer clears the CNT count and
 // CNT begins counting up.
@@ -299,8 +309,9 @@ int meadow_calc_freq_dc_isr(int irq, void *context, void *arg)
 
         // Check for various detectable errors. There are some that cannot
         // be detected.
-        // Since there's a limit to the highest frequency we can detect then
-        // count1 has a minimum value it can be.
+
+        // Since there's a limit to the highest frequency we can detect, we need
+        // to check if we've gone beyond that frequency.
         if(count1 < MEADOW_FREQ_DC_MINIMUM_USABLE_CNT)
         {
           count1 = 0;
@@ -308,9 +319,9 @@ int meadow_calc_freq_dc_isr(int irq, void *context, void *arg)
         }
         else if(count1 < count2)
         {
-          // This "fix" works in some cases, one is the initial frequency
-          // that causes trouble (i.e. TimerClock/65536). It may be that
-          // multiple overflow interrupts are being missed.
+          // This works in many cases, one is the initial frequency
+          // that causes trouble (i.e. TimerClock/65536). However, it may be
+          // that multiple overflow interrupts have been missed.
           count1 += MEADOW_FREQ_DC_16_BIT_OVERFLOW_COUNT;
         }
         else
@@ -330,7 +341,7 @@ int meadow_calc_freq_dc_isr(int irq, void *context, void *arg)
         count2 = 0;
       }
 
-      // Provide consumer with values
+      // Provide consumer with accessable values
       freqDcRtData->countLeadToLead = count1;
       freqDcRtData->countLeadToTrail = count2;
       
@@ -361,6 +372,9 @@ int meadow_calc_freq_dc_isr(int irq, void *context, void *arg)
       // Time to capture the first half overflow
       freqDcRtData->LeadToTrailOverFlow = freqDcRtData->LeadToLeadOverFlow;
     
+      // Good time to maintain the input count too.
+      freqDcRtData->gpioInputCount++;
+
       // This value will be tested when the leading edge arrives
       freqDcRtData->activeState = MEADOW_FREQ_DC_FREQ_DC_SYNC_TRAILING;
       break;
@@ -619,9 +633,10 @@ int meadow_calc_freq_dc_freq_duty_config(const int timerNumber,
   }
 
   // With a place to put the information, we can start filling the structure.
-  freqDcTimerInfo->freqDcRtData->activeState = MEADOW_FREQ_DC_FREQ_DC_SYNC_UNKNOWN;
-  freqDcTimerInfo->freqDcRtData->inputPolarity = gpioPolarity;
-  freqDcTimerInfo->freqDcRtData->inputConfig = inputGpioConfig;
+  freqDcTimerInfo->freqDcRtData->activeState    = MEADOW_FREQ_DC_FREQ_DC_SYNC_UNKNOWN;
+  freqDcTimerInfo->freqDcRtData->inputPolarity  = gpioPolarity;
+  freqDcTimerInfo->freqDcRtData->inputConfig    = inputGpioConfig;
+  freqDcTimerInfo->freqDcRtData->gpioInputCount = 0;
 
   return OK;
 }
@@ -868,17 +883,20 @@ int meadow_calc_freq_dc_return_freq_Info(struct freqDcReturnData_s *returnData)
 
     returnData->freqX1000       = (uint32_t)(freq * 1000.0);
     returnData->dutyCycleX1000  = (uint32_t)(dutyCycle * 1000.0);
+    returnData->gpioInputCount  = freqDcTimerInfo->freqDcRtData->gpioInputCount;
   }
   else
   {
     // Return 0s as no data available
-    returnData->freqX1000       = 0;
-    returnData->dutyCycleX1000  = 0;
+    returnData->freqX1000      = 0;
+    returnData->dutyCycleX1000 = 0;
+    returnData->gpioInputCount = 0;
   }
 
   // Prevent this count from being reused if there's no input.
   freqDcTimerInfo->freqDcRtData->countLeadToLead   = 0;
   freqDcTimerInfo->freqDcRtData->countLeadToTrail  = 0;
+  freqDcTimerInfo->freqDcRtData->gpioInputCount = 0;
 
   return OK;
 }

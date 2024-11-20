@@ -72,13 +72,14 @@ struct freqDcRtData_s
   volatile uint32_t countLeadToTrail;     // Count leading edge to 1/2 cycle
   volatile uint32_t LeadToLeadOverFlow;   // Leading to Leading overflow count
   volatile uint32_t LeadToTrailOverFlow;  // Leading to Trailing overflow count
-  uint32_t inputConfig;                   // Nuttx style GPIO configuration
+  uint32_t          gpioInputCount;       // Count of input transitions
+  uint32_t inputConfig;                   // Nuttx GPIO configuration+Alt Func
   uint8_t inputPolarity;       // 0=leading is rising, 1=leading is falling
 };
 
 // The 'freqDcTimerInfo_s' contains information that defines the selected
 // timer's F7's internal hardware capabilities. Except for the 'freqDcRtData'
-// element, each field is pre-defined from the 'struct freqDcTimerInfo_s array'.
+// element, each field is pre-defined from the 'struct freqDcTimerInfo_s array'
 struct freqDcTimerInfo_s
 {
   uint8_t timerNumb   : 4;  // 0 - 15 timer number
@@ -97,6 +98,7 @@ struct freqDcReturnData_s
   uint32_t timerNumber;     // The timer number of the data
   uint32_t freqX1000;       // Frequency * 1000
   uint32_t dutyCycleX1000;  // Duty Cycle * 1000
+  uint32_t gpioInputCount;  // Number of transitions since list read
 };
 
 //--------------------------------------------------------------------------

@@ -315,7 +315,7 @@ if [ ! -z "$UNIT_TESTS" ]; then
             ;;
             freqdc)
             echo "Frequency and duty cycle tests requested."
-            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable FREQUENCY_DUTYCYCLE_TESTS
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable FREQUENCY_DUTY_CYCLE_TESTS
             BUILD_TESTS=true
             ;;
             all)

@@ -119,8 +119,8 @@ int meadow_calc_freq_dc_test_see_data(int timerNumb)
     uint32_t iDutyCycle = (dutyCycle * 1000.0);
     uint32_t iFrequency = (freq * 1000.0);
 
-    syslog(2, "Freq:%06.2fHz, DC:%02.2f%%, retries:%lu\n",
-              freq, dutyCycle, validCheckCount);
+    syslog(2, "Freq:%06.2fHz, DC:%02.2f%%, Count:%lu, retries:%lu\n",
+              freq, dutyCycle, freqDcRtData->gpioInputCount, validCheckCount);
     // syslog(2, "Freq:%06.4fHz [%lu], DC:%02.2f%% [%lu], CCR1:%06lu, CCR2:%06lu, retries:%lu\n",
     //           freq, iFrequency, dutyCycle, iDutyCycle, fullCycle, halfCycle, validCheckCount);
   }
@@ -133,6 +133,7 @@ int meadow_calc_freq_dc_test_see_data(int timerNumb)
   // Prevent this count from being used when there's no input.
   freqDcRtData->countLeadToLead = 0;
   freqDcRtData->countLeadToTrail = 0;
+  freqDcRtData->gpioInputCount = 0;
 
   return OK;
 }
