@@ -76,7 +76,17 @@ void meadow_kt_quick_misc_tests(uint32_t userData)
 
   switch(userData)
   {
+#if(MEADOW_INCLUDE_CODE_FOR_TESTING_5MB_OF_FLASH > 0)
     case 1:
+      // Fill the 5MB reserved space with a pattern
+      hcom_nx_exec_ex_flash_fill_5mb_of_flash();
+      break;
+
+    case 2:
+      // Verify flash layout Test
+      hcom_nx_exec_ex_flash_verify_segments();
+      break;
+#endif
     default:
       syslog(2, "Undefined test for meadow_kt_quick_misc_tests, userData:%lu. NO TEST DEFINED\n", userData);
       break;

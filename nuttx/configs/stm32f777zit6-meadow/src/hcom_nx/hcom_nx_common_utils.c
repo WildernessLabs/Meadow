@@ -198,11 +198,12 @@ int hcom_nx_common_utils_calculate_serial_numb(uint8_t mcu6ByteSerialNumb[], cha
 
 void hcom_nx_diag_print_buffer(const uint8_t buffer[], const int bufLen, uint8_t msgPriority)
 {
-  if ((_syslogMask & LOG_MASK(msgPriority)) == 0)
-  {
-    syslog(2, "diag print buffer exited, priority too low.\n");
-    return;
-  }
+  // THIS IS BROKEN
+  // if ((_syslogMask & LOG_MASK(msgPriority)) == 0)
+  // {
+  //   syslog(2, "diag print buffer exited, priority too low.\n");
+  //   return;
+  // }
 
   // Use the Nuttx standard 'syslog' for output
   hcom_nx_diag_print_buffer_x(buffer, bufLen, msgPriority, syslog);
@@ -254,13 +255,14 @@ void hcom_nx_diag_print_buffer_x(const uint8_t buffer[], const int bufLen, uint8
     hexOffset = HCOM_UTIL_HEXADECIMAL_OFFSET;
     asciiOffset = HCOM_UTIL_ASCII_OFFSET;
 
+    // Loop for each character
     for (rowByteOffset = 0; rowByteOffset < HCOM_UTIL_BYTES_PER_LINE; rowByteOffset++)
     {
       off_t buffOffset = rowStartOffset + rowByteOffset;
       if (buffOffset >= bufLen)
         break;        // Reached the end of the buffer's data
 
-      // Grab the next byte to output
+      // Get the next byte to output
       uint8_t nextByte = buffer[buffOffset];
 
       // Save the hex value (add '.' half way)
@@ -285,13 +287,16 @@ void hcom_nx_diag_print_buffer_x(const uint8_t buffer[], const int bufLen, uint8
         break;    // Just in case
     }
 
-    // This row is ready
-    lineBuff[hexOffset] = 0x20;   // Replace last hex null with a space
+    // This row almost ready
+    lineBuff[hexOffset]     = 0x20; // Replace last hex null with space
     lineBuff[asciiOffset++] = 0x0a; // line feed
-    lineBuff[asciiOffset] = 0x00; // null terminator
+    lineBuff[asciiOffset]   = 0x00; // null terminator
 
     // Output one line
     logger(msgPriority, lineBuff);
+    // On long dumps without this delay, overrun some Nuttx buffer and crash
+    if(bufLen > 4096)
+      usleep(10 * 1000);    // Give time to write line
   }
 }
 #else
