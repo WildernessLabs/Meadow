@@ -91,6 +91,17 @@ struct freqDcTimerInfo_s
   uint32_t timerIrqVec;     // Interrupt vector
   struct freqDcRtData_s *freqDcRtData;
 };
+// struct freqDcTimerInfo_s
+// {
+//   uint8_t timerNumb;        // 0 - 15 timer number
+//   uint8_t timerWidth;       // 16-bit or 32-bit timer? 0 = 16-bits, 1 = 32-bits
+//   uint8_t timerMaxClk;      // 0 = 96MHz (STM32_APB1_TIM2_CLKIN), 1 = 192MHz (STM32_APB2_TIM1_CLKIN)
+//   uint8_t timerAPBClk;      // 0 = STM32_RCC_APB1ENR, 1 = STM32_RCC_APB2ENR
+//   uint32_t timerBase;       // Unique for each timer
+//   uint32_t timerClkEn;      // Bit of timer enable bit for APB1 or APB2
+//   uint32_t timerIrqVec;     // Interrupt vector
+//   struct freqDcRtData_s *freqDcRtData;
+// };
 
 struct freqDcReturnData_s
 {
