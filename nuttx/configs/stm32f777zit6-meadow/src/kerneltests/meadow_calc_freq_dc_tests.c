@@ -132,13 +132,6 @@ int meadow_calc_freq_dc_test_see_data(int timerNumb)
   freqDcRtData->countLeadToLead = 0;
   freqDcRtData->countLeadToTrail = 0;
 
-  // struct freqDcReturnData_s
-  // {
-  //   uint32_t timerNumber;     // 1 - 14 timer number to use
-  //   uint32_t freqX1000;       // Frequency * 1000
-  //   uint32_t dutyCycleX1000;  // Duty Cycle * 1000
-  // };
-
   return OK;
 }
 

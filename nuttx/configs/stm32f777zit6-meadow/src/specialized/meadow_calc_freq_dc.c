@@ -101,6 +101,14 @@
 // to short to measure.
 #define MEADOW_FREQ_DC_MINIMUM_USABLE_CNT (180)
 
+// To configure a GPIO as an input to a timer it  needs to contains the
+// following plus Pin and Port numbers. Note: These are Nuttx defines
+// and not those directly used by the F7 hardware. And especially the GPOI_ALT
+// member, which doesn't contain everything needed, because the timers require
+// different alternate features for the input point. Nuttx takes care of
+// finding the correct alternate function in the stm32_configgpio function.
+#define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_PULLDOWN)
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -584,7 +592,6 @@ int meadow_calc_freq_dc_freq_duty_config(const int timerNumber,
     return -ENOTSUP;
   }
 
-  // (--)
   // Several timer features require a GPIO input configuration. This provides
   // the basic information, only additional things needed are Alternate Function
   // and pin and port which come from one of the built in tables.
@@ -592,7 +599,7 @@ int meadow_calc_freq_dc_freq_duty_config(const int timerNumber,
   // the F7.
   // #define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_PULLDOWN)
   // This is enough to build the input configuration for the a GPIO
-  inputGpioConfig = GPIO_INPUT | GPIO_PULLDOWN | portAndPin | altFunction;
+  inputGpioConfig = MEADOW_TIMER_GPIO_CONST | portAndPin;
 
   // Valid GPIO so configure input point for timer.
   ret = stm32_configgpio(inputGpioConfig);
@@ -834,7 +841,7 @@ int meadow_calc_freq_dc_freq_duty_unconfig(const uint32_t timerNumber)
 }
 
 //================================================================
-// Return Frequency and Duty Cycle infomation to mono
+// Return Frequency and Duty Cycle infomation to caller
 int meadow_calc_freq_dc_mono_freq_duty_cycle(struct freqDcReturnData_s *returnData)
 {
   // These insure that once a valid value is found, a change in the timer's
