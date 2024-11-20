@@ -91,17 +91,6 @@ struct freqDcTimerInfo_s
   uint32_t timerIrqVec;     // Interrupt vector
   struct freqDcRtData_s *freqDcRtData;
 };
-// struct freqDcTimerInfo_s
-// {
-//   uint8_t timerNumb;        // 0 - 15 timer number
-//   uint8_t timerWidth;       // 16-bit or 32-bit timer? 0 = 16-bits, 1 = 32-bits
-//   uint8_t timerMaxClk;      // 0 = 96MHz (STM32_APB1_TIM2_CLKIN), 1 = 192MHz (STM32_APB2_TIM1_CLKIN)
-//   uint8_t timerAPBClk;      // 0 = STM32_RCC_APB1ENR, 1 = STM32_RCC_APB2ENR
-//   uint32_t timerBase;       // Unique for each timer
-//   uint32_t timerClkEn;      // Bit of timer enable bit for APB1 or APB2
-//   uint32_t timerIrqVec;     // Interrupt vector
-//   struct freqDcRtData_s *freqDcRtData;
-// };
 
 struct freqDcReturnData_s
 {
@@ -112,9 +101,9 @@ struct freqDcReturnData_s
 
 //--------------------------------------------------------------------------
 struct freqDcTimerInfo_s *meadow_calc_freq_dc_get_timer_info_pointer(int timerNumb);
-int meadow_calc_freq_dc_mono_freq_duty_cycle(struct freqDcReturnData_s *returnData);
+int meadow_calc_freq_dc_return_freq_Info(struct freqDcReturnData_s *returnData);
 
-#if defined(CONFIG_FREQUENCY_DUTYCYCLE_TESTS)
+#if defined(CONFIG_FREQUENCY_DUTY_CYCLE_TESTS)
 
 int meadow_calc_freq_dc_freq_duty_config(int timerNumber,
           uint8_t pinDesignation, uint8_t gpioPolarity);
@@ -122,6 +111,6 @@ int meadow_calc_freq_dc_freq_duty_unconfig(uint32_t timerNumber);
 
 void meadow_kt_frequency_dutycycle_tests(uint32_t userData);
 
-#endif       // CONFIG_FREQUENCY_DUTYCYCLE_TESTS
+#endif       // CONFIG_FREQUENCY_DUTY_CYCLE_TESTS
 
 #endif      // __CONFIGS_MEADOW_SPEC_MEADOW_FREQ_DC__H

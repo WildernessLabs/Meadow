@@ -38,7 +38,7 @@
 #include <nuttx/config.h>
 
 // Only build if configured
-#if defined(CONFIG_FREQUENCY_DUTYCYCLE_TESTS)
+#if defined(CONFIG_FREQUENCY_DUTY_CYCLE_TESTS)
 #pragma message "(--) meadow_calc_freq_dc_tests.c"
 
 #include <meadow/hcom_shared_common.h>
@@ -119,8 +119,10 @@ int meadow_calc_freq_dc_test_see_data(int timerNumb)
     uint32_t iDutyCycle = (dutyCycle * 1000.0);
     uint32_t iFrequency = (freq * 1000.0);
 
-    syslog(2, "Freq:%06.4fHz [%lu], DC:%02.2f%% [%lu], CCR1:%06lu, CCR2:%06lu, retries:%lu\n",
-              freq, iFrequency, dutyCycle, iDutyCycle, fullCycle, halfCycle, validCheckCount);
+    syslog(2, "Freq:%06.2fHz, DC:%02.2f%%, retries:%lu\n",
+              freq, dutyCycle, validCheckCount);
+    // syslog(2, "Freq:%06.4fHz [%lu], DC:%02.2f%% [%lu], CCR1:%06lu, CCR2:%06lu, retries:%lu\n",
+    //           freq, iFrequency, dutyCycle, iDutyCycle, fullCycle, halfCycle, validCheckCount);
   }
   else
   {
@@ -213,4 +215,4 @@ void meadow_kt_calc_freq_dc_tests(uint32_t userData)
   }
 }
 
-#endif      // #if defined(CONFIG_FREQUENCY_DUTYCYCLE_TESTS)
+#endif      // #if defined(CONFIG_FREQUENCY_DUTY_CYCLE_TESTS)

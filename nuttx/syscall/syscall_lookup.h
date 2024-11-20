@@ -504,7 +504,7 @@ SYSCALL_LOOKUP(pwrmgmt_most_recent_wakeup_reason,               0, STUB_pwrmgmt_
   SYSCALL_LOOKUP(meadow_kt_rotary_encoder_tests,  1, STUB_meadow_kt_rotary_encoder_tests)
 #endif
 
-#if defined(CONFIG_FREQUENCY_DUTYCYCLE_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#if defined(CONFIG_FREQUENCY_DUTY_CYCLE_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
   SYSCALL_LOOKUP(meadow_kt_calc_freq_dc_tests,  1, STUB_meadow_kt_calc_freq_dc_tests)
 #endif
 

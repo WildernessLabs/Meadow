@@ -701,7 +701,7 @@
 #  define SYS_meadow_kt_spi_dma_tests     (SYS_meadow_kt_meadow_interrupt_tests)
 #endif
 
-#if defined(CONFIG_FREQUENCY_DUTYCYCLE_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#if defined(CONFIG_FREQUENCY_DUTY_CYCLE_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 #  define SYS_meadow_kt_calc_freq_dc_tests  (SYS_meadow_kt_spi_dma_tests + 1)
 #else
 #  define SYS_meadow_kt_calc_freq_dc_tests  (SYS_meadow_kt_spi_dma_tests)
