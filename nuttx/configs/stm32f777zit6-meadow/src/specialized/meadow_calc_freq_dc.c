@@ -101,12 +101,9 @@
 // to short to measure.
 #define MEADOW_FREQ_DC_MINIMUM_USABLE_CNT (180)
 
-// To configure a GPIO as an input to a timer it  needs to contains the
-// following plus Pin and Port numbers. Note: These are Nuttx defines
-// and not those directly used by the F7 hardware. And especially the GPOI_ALT
-// member, which doesn't contain everything needed, because the timers require
-// different alternate features for the input point. Nuttx takes care of
-// finding the correct alternate function in the stm32_configgpio function.
+// To configure a GPIO as an input to a timer it, needs to contain the how it
+// will be used (input with pulldown), Pin and Port, the Timer defined
+// alternate function value plus the Nuttx GPIO_ALT value.
 #define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_PULLDOWN)
 
 /****************************************************************************
@@ -123,6 +120,7 @@
 //   possible CCM use.
 // TIM14 only has one GPIO exposed on F7FeatherV1. But, included for possible
 //   CCM use.
+
 // This array contains timer information that is fixed by the STM32F7. It
 // contains the timers that are currently available and useable. It also
 // defines which timers can be used and invariant characteristics. Several
@@ -579,7 +577,7 @@ int meadow_calc_freq_dc_freq_duty_config(const int timerNumber,
     return -ENOTSUP;   // Not supported
   }
 
-  // As a final check, insure it is correct for the timer chosen.
+  // Insure a correct timer / pin+port combination was chosen.
   // Timers have, at most, 1-4 channels each representing 1 GPIOs. For
   // the specified timer we need to verify a proper port and pin.
   // The channelFound value isn't used, it's only a test.
@@ -592,14 +590,8 @@ int meadow_calc_freq_dc_freq_duty_config(const int timerNumber,
     return -ENOTSUP;
   }
 
-  // Several timer features require a GPIO input configuration. This provides
-  // the basic information, only additional things needed are Alternate Function
-  // and pin and port which come from one of the built in tables.
-  // The GPIO_ALT here is related to Nuttx, the one from the tables is for
-  // the F7.
-  // #define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_PULLDOWN)
   // This is enough to build the input configuration for the a GPIO
-  inputGpioConfig = MEADOW_TIMER_GPIO_CONST | portAndPin;
+  inputGpioConfig = MEADOW_TIMER_GPIO_CONST | portAndPin | altFunction;
 
   // Valid GPIO so configure input point for timer.
   ret = stm32_configgpio(inputGpioConfig);
