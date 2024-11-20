@@ -1023,6 +1023,13 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 // implemented.
 #define MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER        1
 
+// Test partitioning of 5 MB of external flash
+#define MEADOW_INCLUDE_CODE_FOR_TESTING_5MB_OF_FLASH  1
+#if MEADOW_INCLUDE_CODE_FOR_TESTING_5MB_OF_FLASH > 0
+void hcom_nx_exec_ex_flash_fill_5mb_of_flash(void);
+void hcom_nx_exec_ex_flash_verify_segments(void);
+#endif
+
 #endif  // __INCLUDE_MEADOW_HCOM_SHARED_COMMON__H
 
 /****************************************************************************
