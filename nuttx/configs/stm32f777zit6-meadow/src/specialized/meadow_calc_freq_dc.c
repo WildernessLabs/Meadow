@@ -33,7 +33,19 @@
  *
  ****************************************************************************/
 
-// This module, with the help of a timer calculates the frequency and duty.
+// This module, uses timers to calculate frequency and duty.
+
+// ToDo List
+// Many of this are optional or future
+// %1. Add a running average feature. It would be the average since the last
+//  reading.
+// %2. Add count of the input GPIO trailing edges since last reading.
+// 3. For 16-bit timers, allow with configuration to include SLOW, MED and
+//  FAST options to reduce the effects of the 65,536 count rollover.
+// 4. Add CCM support! This requires changes to the configuration and adding,
+//  modifying or replacing existing tables to support more or all Timers
+//  and their associated GPIOs.
+// 5. 
 
 /****************************************************************************
  * Included Files
@@ -106,18 +118,6 @@
 // alternate function value plus the Nuttx GPIO_ALT value.
 #define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_PULLDOWN)
 
-// ToDo List
-// Many of this are optional or future
-// 1. Add a running average feature. It would be the average since the last
-//  reading.
-// 2. Add count of the input GPIO transitions since last reading.
-// 3. For 16-bit timers, allow with configuration to include SLOW, MED and
-//  FAST options to reduce the effects of the 65,536 count rollover.
-// 4. Add CCM support. This requires changes to the configuration and adding
-//  or modifying existing tables to support more or all Timers and their
-//  associated GPIOs.
-// 5. 
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -141,7 +141,7 @@ static struct freqDcTimerInfo_s freqTimerInfoArray[] =
 {
             //   |--- bit-field---|
             //   #  wid max apb fut    Base Addr       Clk Timer Enable      IRQ Vector     Ptr
-  /* TIM2   */  {2 , 0,  0,  0, 0, STM32_TIM2_BASE,  RCC_APB1ENR_TIM2EN,  STM32_IRQ_TIM2 , NULL},
+  /* TIM2   */  {2 , 1,  0,  0, 0, STM32_TIM2_BASE,  RCC_APB1ENR_TIM2EN,  STM32_IRQ_TIM2 , NULL},
   /* TIM3   */  {3 , 0,  0,  0, 0, STM32_TIM3_BASE,  RCC_APB1ENR_TIM3EN,  STM32_IRQ_TIM3 , NULL},
   /* TIM4   */  {4 , 0,  0,  0, 0, STM32_TIM4_BASE,  RCC_APB1ENR_TIM4EN,  STM32_IRQ_TIM4 , NULL},
   /* TIM5   */  {5 , 1,  0,  0, 0, STM32_TIM5_BASE,  RCC_APB1ENR_TIM5EN,  STM32_IRQ_TIM5 , NULL},
@@ -276,12 +276,18 @@ int meadow_calc_freq_dc_isr(int irq, void *context, void *arg)
 
       if(freqDcTimerInfo->timerWidth == MEADOW_FREQ_DC_TIMER_WIDTH_32)
       {
-        // At this point we expect to have seen a trailing edge and no errors
+        // At this point we expect to have seen a trailing edge and no errors.
+        // Verify that we are expecting this leading edge
         if(freqDcRtData->activeState == MEADOW_FREQ_DC_FREQ_DC_SYNC_TRAILING)
         {
-          // Save values
-          freqDcRtData->countLeadToLead = getreg32(timerBase + STM32_GTIM_CCR1_OFFSET);
+          // Save new values for user access
+          freqDcRtData->countLeadToLead  = getreg32(timerBase + STM32_GTIM_CCR1_OFFSET);
           freqDcRtData->countLeadToTrail = getreg32(timerBase + STM32_GTIM_CCR2_OFFSET);
+
+          // Add current to total timer count for freq average and
+          // increment the GPIO input count
+          freqDcRtData->totalTimerCount += freqDcRtData->countLeadToLead;
+          freqDcRtData->gpioInputCount++;
         }
         else
         {
@@ -299,7 +305,7 @@ int meadow_calc_freq_dc_isr(int irq, void *context, void *arg)
 
       if(freqDcRtData->activeState == MEADOW_FREQ_DC_FREQ_DC_SYNC_TRAILING)
       {
-        // Save values
+        // Read current 16-bit values
         count1 = getreg16(timerBase + STM32_GTIM_CCR1_OFFSET);
         count2 = getreg16(timerBase + STM32_GTIM_CCR2_OFFSET);
 
@@ -310,8 +316,8 @@ int meadow_calc_freq_dc_isr(int irq, void *context, void *arg)
         // Check for various detectable errors. There are some that cannot
         // be detected.
 
-        // Since there's a limit to the highest frequency we can detect, we need
-        // to check if we've gone beyond that frequency.
+        // Since there's a limit to the highest frequency we can detect, we
+        // need to check if we've gone beyond a reasonable frequency.
         if(count1 < MEADOW_FREQ_DC_MINIMUM_USABLE_CNT)
         {
           count1 = 0;
@@ -341,9 +347,14 @@ int meadow_calc_freq_dc_isr(int irq, void *context, void *arg)
         count2 = 0;
       }
 
-      // Provide consumer with accessable values
+      // Provide consumer with values
       freqDcRtData->countLeadToLead = count1;
       freqDcRtData->countLeadToTrail = count2;
+
+      // Add current to total timer count for freq average
+      // and maintain the input count.
+      freqDcRtData->totalTimerCount += count1;
+      freqDcRtData->gpioInputCount++;
       
       // Clear previous overflow
       freqDcRtData->LeadToLeadOverFlow = 0;
@@ -371,9 +382,6 @@ int meadow_calc_freq_dc_isr(int irq, void *context, void *arg)
 
       // Time to capture the first half overflow
       freqDcRtData->LeadToTrailOverFlow = freqDcRtData->LeadToLeadOverFlow;
-    
-      // Good time to maintain the input count too.
-      freqDcRtData->gpioInputCount++;
 
       // This value will be tested when the leading edge arrives
       freqDcRtData->activeState = MEADOW_FREQ_DC_FREQ_DC_SYNC_TRAILING;
@@ -555,7 +563,6 @@ int meadow_calc_freq_dc_freq_duty_config(const int timerNumber,
     firstTime = false;
 
     // (--) Diag config LED
-    syslog(1, "%s@%d-LED at D06 configured\n", __FILE__, __LINE__);
     stm32_configgpio(DEBUG_PIN_V2_D06);
     // (--) Diag LED
   }
@@ -601,9 +608,9 @@ int meadow_calc_freq_dc_freq_duty_config(const int timerNumber,
   inputGpioConfig = MEADOW_TIMER_GPIO_CONST | portAndPin | altFunction;
 
   // Diagnostic
-  syslog(1, "%s@%d-input Pin defn:0x%02x (P%c%d), Pin defn + AF:0x%08lx\n",
-            __FILE__, __LINE__, portAndPin,
-            ((portAndPin) >> 4) + 'A', portAndPin & 0x0f, inputGpioConfig);
+  // syslog(1, "%s@%d-input Pin defn:0x%02x (P%c%d), Pin defn + AF:0x%08lx\n",
+  //           __FILE__, __LINE__, portAndPin,
+  //           ((portAndPin) >> 4) + 'A', portAndPin & 0x0f, inputGpioConfig);
   // Diagnostic
 
   // Valid GPIO so configure input point for timer.
@@ -633,10 +640,11 @@ int meadow_calc_freq_dc_freq_duty_config(const int timerNumber,
   }
 
   // With a place to put the information, we can start filling the structure.
-  freqDcTimerInfo->freqDcRtData->activeState    = MEADOW_FREQ_DC_FREQ_DC_SYNC_UNKNOWN;
-  freqDcTimerInfo->freqDcRtData->inputPolarity  = gpioPolarity;
-  freqDcTimerInfo->freqDcRtData->inputConfig    = inputGpioConfig;
-  freqDcTimerInfo->freqDcRtData->gpioInputCount = 0;
+  freqDcTimerInfo->freqDcRtData->activeState     = MEADOW_FREQ_DC_FREQ_DC_SYNC_UNKNOWN;
+  freqDcTimerInfo->freqDcRtData->inputPolarity   = gpioPolarity;
+  freqDcTimerInfo->freqDcRtData->inputConfig     = inputGpioConfig;
+  freqDcTimerInfo->freqDcRtData->gpioInputCount  = 0;
+  freqDcTimerInfo->freqDcRtData->totalTimerCount = 0;
 
   return OK;
 }
@@ -835,69 +843,84 @@ int meadow_calc_freq_dc_freq_duty_unconfig(const uint32_t timerNumber)
 }
 
 //================================================================
-// Return Frequency and Duty Cycle information to caller
+// (--) some of THIS CODE SHOULD BE ON THE TEST MODULE AND A NEW
+// FUNCTION WRITTEN FOR THIS MODULE, ONE THAT THE MANAGED CODE CAN
+// CALL. THIS FUNCTION SHOULD ONLY POPULATE THE STRUCT.
+// Return Frequency and Duty Cycle information to caller.
 int meadow_calc_freq_dc_return_freq_Info(struct freqDcReturnData_s *returnData)
 {
-  // These insure that once a valid value is found, a change in the timer's
-  // data structure won't affect the output.
-  uint32_t completeCycle;
-  uint32_t firstHalfCycle;
+  // Just feed pulse train into appropriate GPIO
+  struct freqDcTimerInfo_s *freqDcTimerInfo =
+            meadow_calc_freq_dc_get_timer_info_pointer(returnData->timerNumber);
+  struct freqDcRtData_s *freqDcRtData =
+            (struct freqDcRtData_s *)freqDcTimerInfo->freqDcRtData;
+
   uint32_t validCheckCount = 0;
 
-  // Use timer number to find the information to return
-  struct freqDcTimerInfo_s *freqDcTimerInfo = 
-            meadow_calc_freq_dc_get_timer_info_pointer(returnData->timerNumber);
-  if(freqDcTimerInfo == NULL)
+  // These are so once a valid value is found, a change in the timers data
+  // structure won't affect the output.
+  uint32_t fullCycle;
+  uint32_t halfCycle;
+  uint32_t inputCnt;
+  uint32_t timerCnt;
+
+  // Find valid data where both full cycle and the half cycle values are
+  // available. This is only an issue at higher frequencies.
+  for(validCheckCount = 0; validCheckCount < 5; validCheckCount++)
   {
-    syslog(LOG_ERR, "%s@%d-Timer not configured\n", __FILE__, __LINE__);
-    return -ENXIO;      // Unconfigured timer for this feature
+    fullCycle = freqDcRtData->countLeadToLead;
+    halfCycle = freqDcRtData->countLeadToTrail;
+    inputCnt = freqDcRtData->gpioInputCount;
+    timerCnt = freqDcRtData->totalTimerCount;
+
+    if(fullCycle > 0 && halfCycle > 0)
+      break;
+
+    usleep(1 * 1000);   // delay 1 - 2 ms waiting for valid data
   }
 
-  // Is there an object here?
-  if(freqDcTimerInfo->freqDcRtData == NULL)
+  if(fullCycle > 0 && halfCycle > 0)
   {
-    syslog(LOG_ERR, "%s@%d-No timer assigned\n", __FILE__, __LINE__);
-    return -ENODATA;      // No timer initialized
-  }
+    // Do floating point math and convert to integer times 1000. Duty Cycle
+    // is the ratio of the full cycle count and the cycle count before the
+    // trailing edge was detected.
+    double dutyCycle = (double)(halfCycle * 100.0) / (double)fullCycle;
 
-  // Find valid data. This is only an issue at higher frequencies.
-  for(validCheckCount = 0;\
-      validCheckCount < MEADOW_FREQ_DC_VALID_DATA_ATTEMPTS;
-      validCheckCount++)
-  {
-    completeCycle  = freqDcTimerInfo->freqDcRtData->countLeadToLead;
-    firstHalfCycle = freqDcTimerInfo->freqDcRtData->countLeadToTrail;
-
-    if(completeCycle > 0 && firstHalfCycle > 0)
-      break;      // Found valid data, exit
-
-    usleep(1 * 1000);   // delay 1-2 ms waiting for valid data
-  }
-
-  if(completeCycle > 0 && firstHalfCycle > 0)
-  {
-    // Do floating point math for calculations to get better resolution.
-    double dutyCycle = (double)(firstHalfCycle * 100.0) / (double)completeCycle;
+    // The frequency is the timer's counting frequency divided by the
+    // cycle count.
     double freq = (double)(MEADOW_FREQ_DC_CLOCK_FREQ)/ \
-              (double)completeCycle;
+              (double)fullCycle;
 
-    returnData->freqX1000       = (uint32_t)(freq * 1000.0);
-    returnData->dutyCycleX1000  = (uint32_t)(dutyCycle * 1000.0);
-    returnData->gpioInputCount  = freqDcTimerInfo->freqDcRtData->gpioInputCount;
+    // Average frequency since last read
+    uint32_t avgCount =  timerCnt / inputCnt;
+    double averageFreq = (double)(MEADOW_FREQ_DC_CLOCK_FREQ) / \
+              (double)avgCount;
+
+    // These are values available to the manged code
+    uint32_t iDutyCycle = (dutyCycle * 1000.0);
+    uint32_t iFrequency = (freq * 1000.0);
+    uint32_t iAvgFreq   = (averageFreq * 1000);
+
+    syslog(2, "Freq:%06.2fHz, DC:%02.2f%%, Count:%lu, AvgFreq:%06.2f retries:%lu\n",
+              freq, dutyCycle, inputCnt,
+              averageFreq, validCheckCount);
+
+    syslog(2, "For Managed code - Freq:%lu, DC:%lu, AvgFreq:%lu, Total Count:%lu, retries:%lu\n",
+              iFrequency, iDutyCycle, iAvgFreq, inputCnt, validCheckCount);
   }
   else
   {
-    // Return 0s as no data available
-    returnData->freqX1000      = 0;
-    returnData->dutyCycleX1000 = 0;
-    returnData->gpioInputCount = 0;
+    syslog(2, "Invalid data                   CCR1:%06lu, CCR2:%06lu, retries:%lu\n",
+              fullCycle, halfCycle, validCheckCount);
   }
 
-  // Prevent this count from being reused if there's no input.
-  freqDcTimerInfo->freqDcRtData->countLeadToLead   = 0;
-  freqDcTimerInfo->freqDcRtData->countLeadToTrail  = 0;
-  freqDcTimerInfo->freqDcRtData->gpioInputCount = 0;
+  // Prevent counts from being used when there's no input.
+  freqDcRtData->countLeadToLead   = 0;
+  freqDcRtData->countLeadToTrail  = 0;
+  freqDcRtData->gpioInputCount    = 0;
+  freqDcRtData->totalTimerCount   = 0;
 
   return OK;
 }
+
 #endif    // #if defined(MEADOW_INCLUDE_CALC_FREQ_DC_IN_BUILD)

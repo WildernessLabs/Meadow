@@ -72,6 +72,7 @@ struct freqDcRtData_s
   volatile uint32_t countLeadToTrail;     // Count leading edge to 1/2 cycle
   volatile uint32_t LeadToLeadOverFlow;   // Leading to Leading overflow count
   volatile uint32_t LeadToTrailOverFlow;  // Leading to Trailing overflow count
+  uint32_t          totalTimerCount;      // For average frequency
   uint32_t          gpioInputCount;       // Count of input transitions
   uint32_t inputConfig;                   // Nuttx GPIO configuration+Alt Func
   uint8_t inputPolarity;       // 0=leading is rising, 1=leading is falling
@@ -98,20 +99,19 @@ struct freqDcReturnData_s
   uint32_t timerNumber;     // The timer number of the data
   uint32_t freqX1000;       // Frequency * 1000
   uint32_t dutyCycleX1000;  // Duty Cycle * 1000
+  uint32_t avgFreqX1000;
   uint32_t gpioInputCount;  // Number of transitions since list read
 };
 
 //--------------------------------------------------------------------------
 struct freqDcTimerInfo_s *meadow_calc_freq_dc_get_timer_info_pointer(int timerNumb);
-int meadow_calc_freq_dc_return_freq_Info(struct freqDcReturnData_s *returnData);
 
 #if defined(CONFIG_FREQUENCY_DUTY_CYCLE_TESTS)
 
 int meadow_calc_freq_dc_freq_duty_config(int timerNumber,
           uint8_t pinDesignation, uint8_t gpioPolarity);
 int meadow_calc_freq_dc_freq_duty_unconfig(uint32_t timerNumber);
-
-void meadow_kt_frequency_dutycycle_tests(uint32_t userData);
+int meadow_calc_freq_dc_return_freq_Info(struct freqDcReturnData_s *freqDcReturnData);
 
 #endif       // CONFIG_FREQUENCY_DUTY_CYCLE_TESTS
 
