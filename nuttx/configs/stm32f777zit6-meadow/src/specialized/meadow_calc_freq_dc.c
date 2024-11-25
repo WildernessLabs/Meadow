@@ -37,15 +37,17 @@
 
 // ToDo List
 // Many of this are optional or future
-// %1. Add a running average feature. It would be the average since the last
+// x1. Add a running average feature. It would be the average since the last
 //  reading.
-// %2. Add count of the input GPIO trailing edges since last reading.
-// 3. For 16-bit timers, allow with configuration to include SLOW, MED and
-//  FAST options to reduce the effects of the 65,536 count rollover.
-// 4. Add CCM support! This requires changes to the configuration and adding,
+// x2. Add count of the input GPIO trailing edges since last reading.
+// 3. Add CCM support! This requires changes to the configuration and adding,
 //  modifying or replacing existing tables to support more or all Timers
 //  and their associated GPIOs.
-// 5. 
+// 4. For 16-bit timers, allow with configuration to include SLOW, MED and
+//  FAST options to reduce the effects of the 65,536 count rollover glitch.
+// 5. Add syscalls as needed (probably 2 maybe 3)
+// 6. Test unconfigure (need syscall?)
+// 7. Clean up code, remove unneeded header includes
 
 /****************************************************************************
  * Included Files
@@ -843,12 +845,13 @@ int meadow_calc_freq_dc_freq_duty_unconfig(const uint32_t timerNumber)
 }
 
 //================================================================
-// (--) some of THIS CODE SHOULD BE ON THE TEST MODULE AND A NEW
-// FUNCTION WRITTEN FOR THIS MODULE, ONE THAT THE MANAGED CODE CAN
-// CALL. THIS FUNCTION SHOULD ONLY POPULATE THE STRUCT.
 // Return Frequency and Duty Cycle information to caller.
-int meadow_calc_freq_dc_return_freq_Info(struct freqDcReturnData_s *returnData)
+int meadow_calc_freq_dc_return_freq_info(struct freqDcReturnData_s *returnData)
 {
+  double freq;
+  double averageFreq;
+  double dutyCycle;
+
   // Just feed pulse train into appropriate GPIO
   struct freqDcTimerInfo_s *freqDcTimerInfo =
             meadow_calc_freq_dc_get_timer_info_pointer(returnData->timerNumber);
@@ -862,21 +865,23 @@ int meadow_calc_freq_dc_return_freq_Info(struct freqDcReturnData_s *returnData)
   uint32_t fullCycle;
   uint32_t halfCycle;
   uint32_t inputCnt;
-  uint32_t timerCnt;
+  uint32_t totalCnt;
 
   // Find valid data where both full cycle and the half cycle values are
   // available. This is only an issue at higher frequencies.
   for(validCheckCount = 0; validCheckCount < 5; validCheckCount++)
   {
+    // Get all the values at one time
+    // This would be nice if it was atomic but its not....
     fullCycle = freqDcRtData->countLeadToLead;
     halfCycle = freqDcRtData->countLeadToTrail;
     inputCnt = freqDcRtData->gpioInputCount;
-    timerCnt = freqDcRtData->totalTimerCount;
+    totalCnt = freqDcRtData->totalTimerCount;
 
     if(fullCycle > 0 && halfCycle > 0)
       break;
 
-    usleep(1 * 1000);   // delay 1 - 2 ms waiting for valid data
+    usleep(1 * 1000);   // delay - wait for valid data
   }
 
   if(fullCycle > 0 && halfCycle > 0)
@@ -884,37 +889,40 @@ int meadow_calc_freq_dc_return_freq_Info(struct freqDcReturnData_s *returnData)
     // Do floating point math and convert to integer times 1000. Duty Cycle
     // is the ratio of the full cycle count and the cycle count before the
     // trailing edge was detected.
-    double dutyCycle = (double)(halfCycle * 100.0) / (double)fullCycle;
+    dutyCycle = (double)(halfCycle * 100.0) / (double)fullCycle;
 
     // The frequency is the timer's counting frequency divided by the
     // cycle count.
-    double freq = (double)(MEADOW_FREQ_DC_CLOCK_FREQ)/ \
+    freq = (double)(MEADOW_FREQ_DC_CLOCK_FREQ)/ \
               (double)fullCycle;
 
     // Average frequency since last read
-    uint32_t avgCount =  timerCnt / inputCnt;
-    double averageFreq = (double)(MEADOW_FREQ_DC_CLOCK_FREQ) / \
-              (double)avgCount;
-
-    // These are values available to the manged code
-    uint32_t iDutyCycle = (dutyCycle * 1000.0);
-    uint32_t iFrequency = (freq * 1000.0);
-    uint32_t iAvgFreq   = (averageFreq * 1000);
+    averageFreq = (double)(MEADOW_FREQ_DC_CLOCK_FREQ) / \
+              (double)(totalCnt / inputCnt);
 
     syslog(2, "Freq:%06.2fHz, DC:%02.2f%%, Count:%lu, AvgFreq:%06.2f retries:%lu\n",
               freq, dutyCycle, inputCnt,
               averageFreq, validCheckCount);
 
-    syslog(2, "For Managed code - Freq:%lu, DC:%lu, AvgFreq:%lu, Total Count:%lu, retries:%lu\n",
-              iFrequency, iDutyCycle, iAvgFreq, inputCnt, validCheckCount);
+    // These are returned to managed code
+    returnData->frequencyX1000 = (freq * 1000.0);
+    returnData->dutyCycleX1000 = (dutyCycle * 1000.0);
+    returnData->avgFreqX1000   = (averageFreq * 1000);
+    returnData->gpioInputCount = inputCnt;
   }
   else
   {
-    syslog(2, "Invalid data                   CCR1:%06lu, CCR2:%06lu, retries:%lu\n",
+    // These are returned to managed code
+    returnData->frequencyX1000 = 0;
+    returnData->dutyCycleX1000 = 0;
+    returnData->avgFreqX1000   = 0;
+    returnData->gpioInputCount = 0;
+
+    syslog(2, "Invalid data CCR1:%06lu, CCR2:%06lu, retries:%lu\n",
               fullCycle, halfCycle, validCheckCount);
   }
 
-  // Prevent counts from being used when there's no input.
+  // Prevent counts from being used in the future.
   freqDcRtData->countLeadToLead   = 0;
   freqDcRtData->countLeadToTrail  = 0;
   freqDcRtData->gpioInputCount    = 0;

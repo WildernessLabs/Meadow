@@ -110,6 +110,18 @@ static int meadow_freq_dc_test_configure_16_Tim11_PB8(void)
   return OK;
 }
 
+
+//===============================================================
+// Display the frequency information
+static void display_frequency_and_friends(struct freqDcReturnData_s freqDcReturnData)
+{
+  syslog(2, "For Managed code-Freq:%06.2fHz, DC:%02.2fHz, AvgFreq:%06.2fHz, Input Count:%lu\n",
+            ((double)freqDcReturnData.avgFreqX1000)/1000.0,
+            ((double)freqDcReturnData.dutyCycleX1000)/1000.0,
+            ((double)freqDcReturnData.avgFreqX1000)/1000.0,
+            freqDcReturnData.gpioInputCount);
+}
+
 /************************************************************************************
  * Public Functions
  ************************************************************************************/
@@ -117,9 +129,7 @@ static int meadow_freq_dc_test_configure_16_Tim11_PB8(void)
 void meadow_kt_calc_freq_dc_tests(uint32_t userData)
 {
   int ret;
-  struct freqDcReturnData_s *freqDcReturnData;
-
-  freqDcReturnData = (struct freqDcReturnData_s *)zalloc(sizeof(struct freqDcReturnData_s));
+  struct freqDcReturnData_s freqDcReturnData;
 
   syslog(2, "Frequency and Duty Cycle tests received 'set developer -d 19 -v %lu'\n", userData);
 
@@ -134,10 +144,11 @@ void meadow_kt_calc_freq_dc_tests(uint32_t userData)
       
     case 2:
       // View data timer 5
-      freqDcReturnData->timerNumber = 5;
-      ret = meadow_calc_freq_dc_return_freq_Info(freqDcReturnData);
+      freqDcReturnData.timerNumber = 5;
+      ret = meadow_calc_freq_dc_return_freq_info(&freqDcReturnData);
       if(ret < 0)
-        syslog(2, "Error meadow_calc_freq_dc_return_freq_Info() ret:%ld\n", ret);
+        syslog(2, "Error meadow_calc_freq_dc_return_freq_info() ret:%ld\n", ret);
+      display_frequency_and_friends(freqDcReturnData);
       break;
 
     case 3:
@@ -149,16 +160,18 @@ void meadow_kt_calc_freq_dc_tests(uint32_t userData)
 
     case 4:
       // View data timer 8
-      freqDcReturnData->timerNumber = 8;
-      ret = meadow_calc_freq_dc_return_freq_Info(freqDcReturnData);
+      freqDcReturnData.timerNumber = 8;
+      ret = meadow_calc_freq_dc_return_freq_info(&freqDcReturnData);
       if(ret < 0)
-        syslog(2, "Error meadow_calc_freq_dc_return_freq_Info() ret:%ld\n", ret);
+        syslog(2, "Error meadow_calc_freq_dc_return_freq_info() ret:%ld\n", ret);
+      display_frequency_and_friends(freqDcReturnData);
       break;
 
     default:
       syslog(2, "Undefined test for meadow_kt_calc_freq_dc_tests, userData:%lu. NO TEST DEFINED\n", userData);
       break;
   }
+
 }
 
 #endif      // #if defined(CONFIG_FREQUENCY_DUTY_CYCLE_TESTS)

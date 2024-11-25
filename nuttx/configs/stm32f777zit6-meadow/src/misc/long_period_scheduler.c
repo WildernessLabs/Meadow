@@ -51,6 +51,7 @@
 #include <nuttx/kthread.h>
 
 #include <meadow/meadow_thread_config.h>
+#include <meadow/hcom_shared_common.h>
 
 #include "long_period_scheduler.h"
 
