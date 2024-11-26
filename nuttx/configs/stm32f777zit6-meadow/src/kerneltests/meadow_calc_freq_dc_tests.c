@@ -115,11 +115,11 @@ static int meadow_freq_dc_test_configure_16_Tim11_PB8(void)
 // Display the frequency information
 static void display_frequency_and_friends(struct freqDcReturnData_s freqDcReturnData)
 {
-  syslog(2, "For Managed code-Freq:%06.2fHz, DC:%02.2fHz, AvgFreq:%06.2fHz, Input Count:%lu\n",
-            ((double)freqDcReturnData.avgFreqX1000)/1000.0,
+  syslog(2, "For Managed code-Freq:%06.2fHz, DC:%02.2f%%, AvgFreq:%06.2fHz, Input Count:%lu\n",
+            ((double)freqDcReturnData.frequencyX1000)/1000.0,
             ((double)freqDcReturnData.dutyCycleX1000)/1000.0,
             ((double)freqDcReturnData.avgFreqX1000)/1000.0,
-            freqDcReturnData.gpioInputCount);
+            freqDcReturnData.countInputTotal);
 }
 
 /************************************************************************************

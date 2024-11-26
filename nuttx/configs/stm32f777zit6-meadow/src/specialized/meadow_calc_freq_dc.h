@@ -50,6 +50,9 @@
 // number of overflows for a 16-bit timer (see comments below in ISR).
 #define MEADOW_FREQ_DC_CLOCK_FREQ (96000000) // 96 MHz target frequency
 
+// For timers with no GPIO
+#define GPIO_AFX 0xff
+
 //--------------------------------------------------------------------------
 // This internal structure contains the data that all timer applications
 // require to operate. The data is primarily used by the ISR
@@ -65,17 +68,17 @@ struct freqDcRtData_s
   // or falling). It is the edge that begins the measurement cycle and
   // 'Trail' is the opposite edge.
   // The Lead to Lead count is the time for one full cycle, allowing
-  // us to calculate the frequency. The Lead to Trail is the first half
+  // us to calculate the frequency. The Lead to Trail is the first part
   // of the cycle allowing us to calculate the duty cycle.
-  volatile uint8_t activeState;           // State or Error of some type
-  volatile uint32_t countLeadToLead;      // Count leading edge to next one
-  volatile uint32_t countLeadToTrail;     // Count leading edge to 1/2 cycle
-  volatile uint32_t LeadToLeadOverFlow;   // Leading to Leading overflow count
-  volatile uint32_t LeadToTrailOverFlow;  // Leading to Trailing overflow count
-  uint32_t inputConfig;                   // Nuttx GPIO configuration+Alt Func
-  uint8_t inputPolarity;       // 0=leading is rising, 1=leading is falling
-  uint64_t          totalTimerCount;      // For average frequency
-  uint64_t          gpioInputCount;       // Count of input transitions
+  uint32_t activeState;         // State or Error of some type
+  uint32_t countLeadToLead;     // Tim CNT leading to next leading (full cycle)
+  uint32_t countLeadToTrail;    // Tim CNT leading to trailing (1/2 cycle)
+  uint32_t leadToLeadOverflow;  // Leading to Leading overflow count
+  uint32_t leadToTrailOverflow; // Leading to Trailing overflow count
+  uint64_t countTimerTotal;     // Total CNT, for average frequency
+  uint64_t countInputTotal;     // Count of GPIO input
+  uint32_t inputConfig;         // Nuttx GPIO config for unconfig
+  uint32_t inputPolarity;       // 0=leading is rising, 1=leading is falling
 };
 
 // The 'freqDcTimerInfo_s' contains information that defines the selected
@@ -83,28 +86,34 @@ struct freqDcRtData_s
 // element, each field is pre-defined from the 'struct freqDcTimerInfo_s array'
 struct freqDcTimerInfo_s
 {
-  uint8_t timerNumb   : 4;  // 0 - 15 timer number
-  uint8_t timerWidth  : 1;  // 16-bit or 32-bit timer? 0 = 16-bits, 1 = 32-bits
-  uint8_t timerMaxClk : 1;  // 0 = 96MHz (STM32_APB1_TIM2_CLKIN), 1 = 192MHz (STM32_APB2_TIM1_CLKIN)
-  uint8_t timerAPBClk : 1;  // 0 = STM32_RCC_APB1ENR, 1 = STM32_RCC_APB2ENR
-  uint8_t timerFuture : 1;  // Future
+  uint8_t timerNumb;        // 0 - 15 timer number
+  uint8_t timerWidth;       // 16-bit or 32-bit timer? 0 = 16-bits, 1 = 32-bits
+  uint8_t timerMaxClk;      // 0 = 96MHz (STM32_APB1_TIM2_CLKIN), 1 = 192MHz (STM32_APB2_TIM1_CLKIN)
+  uint8_t timerAPBClk;      // 0 = STM32_RCC_APB1ENR, 1 = STM32_RCC_APB2ENR
+  uint8_t timerOkay;        // Timer usable?
+  // uint8_t timerNumb   : 4;  // 0 - 15 timer number
+  // uint8_t timerWidth  : 1;  // 16-bit or 32-bit timer? 0 = 16-bits, 1 = 32-bits
+  // uint8_t timerMaxClk : 1;  // 0 = 96MHz (STM32_APB1_TIM2_CLKIN), 1 = 192MHz (STM32_APB2_TIM1_CLKIN)
+  // uint8_t timerAPBClk : 1;  // 0 = STM32_RCC_APB1ENR, 1 = STM32_RCC_APB2ENR
+  // uint8_t timerOkay   : 1;  // Future
   uint32_t timerBase;       // Unique for each timer
   uint32_t timerClkEn;      // Bit of timer enable bit for APB1 or APB2
   uint32_t timerIrqVec;     // Interrupt vector
+  uint16_t timerAltFunc;    // Timer's alternate function
   struct freqDcRtData_s *freqDcRtData;
 };
 
 struct freqDcReturnData_s
 {
-  uint32_t timerNumber;     // The timer number of the data
-  uint32_t frequencyX1000;  // Frequency * 1000
-  uint32_t avgFreqX1000;
-  uint32_t dutyCycleX1000;  // Duty Cycle * 1000
-  uint32_t gpioInputCount;  // Number of transitions since list read
+  uint32_t timerNumber;       // The timer number 1-14
+  uint32_t frequencyX1000;    // Frequency * 1000
+  uint32_t avgFreqX1000;      // Average frequency * 1000
+  uint32_t dutyCycleX1000;    // Duty Cycle * 1000
+  uint32_t countInputTotal;   // Number of transitions since list read
 };
 
 //--------------------------------------------------------------------------
-struct freqDcTimerInfo_s *meadow_calc_freq_dc_get_timer_info_pointer(int timerNumb);
+struct freqDcTimerInfo_s *meadow_calc_freq_dc_get_timer_info(int timerNumb);
 
 #if defined(CONFIG_FREQUENCY_DUTY_CYCLE_TESTS)
 
