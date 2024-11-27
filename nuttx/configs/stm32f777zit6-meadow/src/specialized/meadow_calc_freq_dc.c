@@ -165,40 +165,57 @@ static struct freqDcTimerInfo_s freqTimerInfoArray[] =
 #define MEADOW_FREQ_DC_TOTAL_TIMERS_AVAILABLE (sizeof(freqTimerInfoArray)/sizeof(struct freqDcTimerInfo_s))
 
 //----------------------------------------------------------------------------
-// This table contains all of the STM32F7's timers and their valid GPIOs
-uint8_t validGpioCcmArray[][11] = 
+// This table contains all of the STM32F7's timers and their valid GPIOs with
+// the currect channel. It is used for F7v1 and F7v2 and CCM. It should be
+// useable for any STM32F7.
+chanPortPin_t validGpioCcmArray[][11] = 
 {
 // Tim
-//  1 {PA8,  PE9,  PA9,  PE11, PA10, PE13, PA11, PE14};
-      {0x08, 0x49, 0x09, 0x4b, 0x0a, 0x4d, 0x0b, 0x4e, 0xff},
-//  2 {PA0,  PA15, PA1,  PB3,  PA2,  PB10, PA3,  PB11}
-      {0x00, 0x0f, 0x01, 0x13, 0x02, 0x1a, 0x03, 0x1b, 0xff},
-//  3 {PA6,  PC6,  PB4,  PA7,  PC7,  PB5,  PB0,  PC8,  PB1,  PC9},
-      {0x06, 0x26, 0x14, 0x07, 0x27, 0x15, 0x10, 0x28, 0x11, 0x29, 0xff},
-//  4 {PD12, PB6,  PD13, PB7,  PD14, PB8,  PD15, PB9},
-      {0x3c, 0x16, 0x3d, 0x17, 0x3e, 0x18, 0x3f, 0x19, 0xff},
-//  5 {PA0,  PH10, PA1,  PH11, PA2,  PH12, PA3,  PI0},
-      {0x00, 0x7a, 0x01, 0x7b, 0x02, 0x7c, 0x03, 0x80, 0xff},
-//  6 {},
-      {0xff},
-//  7 {},
-      {0xff},
-//  8 {PC6,  PI5,  PC7,  PI6,  PC9,  PI7,  PC9,  PI2},
-      {0x26, 0x85, 0x27, 0x86, 0x29, 0x87, 0x29, 0x82, 0xff},
-//  9 {PE5,  PA2,  PE6,  PA3},
-      {0x45, 0x02, 0x46, 0x03, 0xff},
-// 10 {PF6,  PB8},
-      {0x56, 0x18, 0xff},
-// 11 {PF7,  PB9}, 
-      {0x57, 0x19, 0xff},
-// 12 {PH6,  PB14, PH9,  PB15}
-      {0x76, 0x1e, 0x79, 0x1f, 0xff},
-// 13 {PF8,  PA6},
-      {0x58, 0x06, 0xff},
-// 14 {PF9,  PA7},
-      {0x59, 0x07, 0xff},
+//  1   PA8         PE9        PA9        PE11
+      {{0x08, 1}, {0x49, 1}, {0x09, 2}, {0x4b, 2},
+//      PA10,      PE13,      PA11,      PE14
+       {0x0a, 3}, {0x4d, 3}, {0x0b, 4}, {0x4e, 4}, {0xff, 0}},
+//  2    PA0,      PA15,       PA1,       PB3,
+      {{0x00, 1}, {0x0f, 1}, {0x01, 2}, {0x13, 2},
+//       PA2,      PB10,       PA3,      PB11
+       {0x02, 3}, {0x1a, 3}, {0x03, 4}, {0x1b, 4}, {0xff, 0}},
+//  3    PA6        PC6        PB4,       PA7
+      {{0x06, 1}, {0x26, 1}, {0x14, 1}, {0x07, 2},
+//       PC7,       PB5,       PB0        PC8,
+       {0x27, 2}, {0x15, 2}, {0x10, 3}, {0x28, 3},
+//       PB1        PC9
+       {0x11, 4}, {0x29, 4}, {0xff, 0}},
+//  4    PD12       PB6        PD13       PB7
+      {{0x3c, 1}, {0x16, 1}, {0x3d, 2}, {0x17, 2},
+//       PD14,      PB8        PD15       PB9
+       {0x3e, 3}, {0x18, 3}, {0x3f, 4}, {0x19, 4}, {0xff, 0}},
+//  5    PA0        PH10       PA1        PH11
+      {{0x00, 1}, {0x7a, 1}, {0x01, 2}, {0x7b, 2},
+//       PA2        PH12,      PA3,       PI0},
+       {0x02, 3}, {0x7c, 3}, {0x03, 4}, {0x80, 4}, {0xff, 0}},
+//  6  No GPIO
+      {{0xff, 0}},
+//  7  No GPIO
+      {{0xff, 0}},
+//  8    PC6        PI5        PC7        PI6
+      {{0x26, 1}, {0x85, 1}, {0x27, 2}, {0x86, 2},
+//       PC8        PI7        PC9        PI2
+       {0x28, 3}, {0x87, 3}, {0x29, 4}, {0x82, 4}, {0xff, 0}},
+//  9    PE5        PA2        PE6        PA3
+      {{0x45, 1}, {0x02, 1}, {0x46, 2}, {0x03, 2}, {0xff, 0}},
+// 10    PF6        PB8
+      {{0x56, 1}, {0x18, 1}, {0xff, 0}},
+// 11    PF7        PB9
+      {{0x57, 1}, {0x19, 1}, {0xff, 0}},
+// 12    PH6        PB14       PH9        PB15
+      {{0x76, 1}, {0x1e, 1}, {0x79, 2}, {0x1f, 2}, {0xff, 0}},
+// 13    PF8        PA6
+      {{0x58, 1}, {0x06, 1}, {0xff, 0}},
+// 14    PF9        PA7
+      {{0x59, 1}, {0x07, 1}, {0xff, 0}},
 };
 
+// Used to verify pin and port of F7v1
 static uint8_t validGpioF7v1Array[][5] =
 {
   // F7v1
@@ -218,6 +235,7 @@ static uint8_t validGpioF7v1Array[][5] =
   /* TIM14 A03,                 */ {0x07,0xff}
 };
 
+// Used to verify pin and port of F7v2
 static uint8_t validGpioF7v2Array[][5] =
 {
   // F7v2
@@ -525,49 +543,63 @@ struct freqDcTimerInfo_s *meadow_calc_freq_dc_get_timer_info(const int timerNumb
 //=============================================================
 // This function will evaluate the GPIO based on 3 tables that contain the
 // legal GPIOs for the CCM (all F7 GPIOs checked) and for F7v1 and F7v2.
-static bool meadow_calc_freq_dc_validate_pin_port_combo(const int timerNumb,
+// It returns the channel, 1-4 unless not found, then returns 0.
+static uint8_t meadow_calc_freq_dc_validate_pin_port_combo(const int timerNumb,
           uint8_t portAndPin)
 {
-  int io;
+  int entry;
   int timerOffset = timerNumb - 1;
 
   if(meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_F7V1)
   {
-    io = 0;
-    while(validGpioF7v1Array[timerOffset][io] != 0xff)
+    // Verify pin & port are valid
+    entry = 0;
+    while(validGpioF7v1Array[timerOffset][entry] != 0xff)
     {
-      if(portAndPin == validGpioF7v1Array[timerOffset][io])
+      if(portAndPin == validGpioF7v1Array[timerOffset][entry])
       {
-        return true;
+        syslog(1, "%s@%d- V1 so far good\n", __FILE__, __LINE__);
       }
-      io++;
+      entry++;
     }
+    if(validGpioF7v1Array[timerOffset][entry] == 0xff)
+     return 0;
   }
   else if (meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_F7V2)
   {
-    io = 0;
-    while(validGpioF7v2Array[timerOffset][io] != 0xff)
+    // Verify pin & port are valid
+    entry = 0;
+    while(validGpioF7v2Array[timerOffset][entry] != 0xff)
     {
-      if(portAndPin == validGpioF7v2Array[timerOffset][io])
+      if(portAndPin == validGpioF7v2Array[timerOffset][entry])
       {
-        return true;
+        break;    // So far good
       }
-      io++;
+      entry++;
     }
+    
+    if(validGpioF7v2Array[timerOffset][entry] == 0xff)
+      return 0;
   }
-  else if (meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_CCMV2)
+  else if (meadow_hw_version_get() != MEADOW_F7_HW_VERSION_NUMB_CCMV2)
   {
-    io = 0;
-    while(validGpioCcmArray[timerOffset][io] != 0xff)
-    {
-      if(portAndPin == validGpioCcmArray[timerOffset][io])
-      {
-        return true;
-      }
-      io++;
-    }
+    // Unsupported device type
+    syslog(1, "%s@%d- Unknown device type\n", __FILE__, __LINE__);
+    return 0;
   }
-  return false;
+
+  // All types are verified here too and pickup channel from this table
+  entry = 0;
+  while(validGpioCcmArray[timerOffset][entry].portPin != 0xff)
+  {
+    if(portAndPin == validGpioCcmArray[timerOffset][entry].portPin)
+    {
+      return validGpioCcmArray[timerOffset][entry].chan;
+    }
+    entry++;
+  }
+
+  return 0;
 }
 
 /****************************************************************************
@@ -592,25 +624,18 @@ int meadow_calc_freq_dc_freq_duty_config(const int timerNumber,
   }
 
   // Insure a correct timer / pin+port combination was supplied.
-  // Timers have, at most, 1-4 channels, each representing 1 GPIOs. For the
-  // specified timer we need to verify a proper port and pin. The channelFound
-  // value isn't used, it's only used as a test.
-  if(! meadow_calc_freq_dc_validate_pin_port_combo(timerNumber, portAndPin))
+  // Timers have, at most, 1-4 channels, each representing 1 GPIO. For the
+  // specified timer we need to verify a proper port and pin.
+  uint8_t chan = meadow_calc_freq_dc_validate_pin_port_combo(timerNumber, portAndPin);
+  if(chan == 0)
   {
     syslog(2, "%s@%d-The GPIO and Timer combination not supported\n", __FILE__, __LINE__);
     return -ENOTSUP;
   }
 
-  // uint32_t channelFound =
-  //           meadow_calc_freq_dc_get_ver_based_gpio_chan(timerNumber,
-  //           portAndPin);
-  // if(channelFound == MEADOW_FREQ_DC_BAD_GPIO_VALUE)
-  // {
-  //   syslog(2, "The requested GPIO and Timer combination are not supported\n");
-  //   return -ENOTSUP;
-  // }
+  // Need to add
 
-  // Check if there's already an object in this slot. The
+  // Check if there's already an object in this slot.
   struct freqDcTimerInfo_s *freqDcTimerInfo =
             meadow_calc_freq_dc_get_timer_info(timerNumber);
   if(freqDcTimerInfo == NULL)
@@ -873,33 +898,34 @@ int meadow_calc_freq_dc_return_freq_info(struct freqDcReturnData_s
   double freq;
   double averageFreq;
   double dutyCycle;
-
+  uint32_t retryCount = 0;
+  uint32_t fullCycle;
+  uint32_t halfCycle;
+  double totalTimerCount;
+  double inputTotalCount;
+  
   // Just feed pulse train into appropriate GPIO
   struct freqDcTimerInfo_s *freqDcTimerInfo =
             meadow_calc_freq_dc_get_timer_info(returnData->timerNumber);
   struct freqDcRtData_s *freqDcRtData =
             (struct freqDcRtData_s *)freqDcTimerInfo->freqDcRtData;
 
-  uint32_t retryCount = 0;
-
-  // These are so once a valid value is found, a change in the timers data
-  // structure won't affect the output.
-  uint32_t fullCycle;
-  uint32_t halfCycle;
-
-  // Find valid data where both full cycle and the half cycle values are
+  // Find valid data. That is, both full cycle and the half cycle values are
   // available. This is only an issue at higher frequencies.
   for(retryCount = 0; retryCount < 5; retryCount++)
   {
-    // Get all the values at one time
-    // This would be nice if it was atomic but its not....
+    // Get all the values at one time so once a valid value is found, a change
+    // in the timer's data won't affect the output.
+    // This would be nice if it was atomic
     fullCycle = freqDcRtData->countLeadToLead;
     halfCycle = freqDcRtData->countLeadToTrail;
+    totalTimerCount = (double)freqDcRtData->countTimerTotal;
+    inputTotalCount = (double)freqDcRtData->countInputTotal;
 
     if(fullCycle > 0 && halfCycle > 0)
       break;
 
-    usleep(1 * 1000);   // delay - wait for valid data
+    usleep(1 * 1000);   // delay for valid data
   }
 
   if(fullCycle > 0 && halfCycle > 0)
@@ -913,18 +939,17 @@ int meadow_calc_freq_dc_return_freq_info(struct freqDcReturnData_s
     freq = ((double)MEADOW_FREQ_DC_CLOCK_FREQ) / ((double)fullCycle);
 
     // Average frequency since last read
-    double averageCount = ((double)freqDcRtData->countTimerTotal) /
-              ((double)freqDcRtData->countInputTotal);
+    double averageCount = totalTimerCount / inputTotalCount;
     averageFreq = ((double)MEADOW_FREQ_DC_CLOCK_FREQ) / averageCount;
 
-    syslog(2, "In Code - Freq:%06.2fHz, DC:%02.2f%%, AvgFreq:%06.2f, Count:%lu, retries:%lu\n",
-              freq, dutyCycle, averageFreq, freqDcRtData->countInputTotal,
+    syslog(2, "In Code-Freq:%06.2fHz, DC:%02.2f%%, AvgFreq:%06.2f, Count:%lu, retries:%lu\n",
+              freq, dutyCycle, averageFreq, inputTotalCount,
               retryCount);
 
     returnData->frequencyX1000  = (freq * 1000.0);
     returnData->avgFreqX1000    = (averageFreq * 1000.0);
     returnData->dutyCycleX1000  = (dutyCycle * 1000.0);
-    returnData->countInputTotal = freqDcRtData->countInputTotal;
+    returnData->countInputTotal = (uint32_t)inputTotalCount;
   }
   else
   {
@@ -940,5 +965,4 @@ int meadow_calc_freq_dc_return_freq_info(struct freqDcReturnData_s
 
   return OK;
 }
-
 #endif    // #if defined(MEADOW_INCLUDE_CALC_FREQ_DC_IN_BUILD)

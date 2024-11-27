@@ -86,16 +86,11 @@ struct freqDcRtData_s
 // element, each field is pre-defined from the 'struct freqDcTimerInfo_s array'
 struct freqDcTimerInfo_s
 {
-  uint8_t timerNumb;        // 0 - 15 timer number
-  uint8_t timerWidth;       // 16-bit or 32-bit timer? 0 = 16-bits, 1 = 32-bits
-  uint8_t timerMaxClk;      // 0 = 96MHz (STM32_APB1_TIM2_CLKIN), 1 = 192MHz (STM32_APB2_TIM1_CLKIN)
-  uint8_t timerAPBClk;      // 0 = STM32_RCC_APB1ENR, 1 = STM32_RCC_APB2ENR
-  uint8_t timerOkay;        // Timer usable?
-  // uint8_t timerNumb   : 4;  // 0 - 15 timer number
-  // uint8_t timerWidth  : 1;  // 16-bit or 32-bit timer? 0 = 16-bits, 1 = 32-bits
-  // uint8_t timerMaxClk : 1;  // 0 = 96MHz (STM32_APB1_TIM2_CLKIN), 1 = 192MHz (STM32_APB2_TIM1_CLKIN)
-  // uint8_t timerAPBClk : 1;  // 0 = STM32_RCC_APB1ENR, 1 = STM32_RCC_APB2ENR
-  // uint8_t timerOkay   : 1;  // Future
+  uint8_t timerNumb   : 4;  // 0 - 15 timer number
+  uint8_t timerWidth  : 1;  // 16-bit or 32-bit timer? 0 = 16-bits, 1 = 32-bits
+  uint8_t timerMaxClk : 1;  // 0 = 96MHz (STM32_APB1_TIM2_CLKIN), 1 = 192MHz (STM32_APB2_TIM1_CLKIN)
+  uint8_t timerAPBClk : 1;  // 0 = STM32_RCC_APB1ENR, 1 = STM32_RCC_APB2ENR
+  uint8_t timerOkay   : 1;  // Is Timer useable?
   uint32_t timerBase;       // Unique for each timer
   uint32_t timerClkEn;      // Bit of timer enable bit for APB1 or APB2
   uint32_t timerIrqVec;     // Interrupt vector
@@ -111,6 +106,14 @@ struct freqDcReturnData_s
   uint32_t dutyCycleX1000;    // Duty Cycle * 1000
   uint32_t countInputTotal;   // Number of transitions since list read
 };
+
+struct chanPortPin_s
+{
+  uint8_t portPin;
+  uint8_t chan;
+};
+typedef struct chanPortPin_s chanPortPin_t;
+
 
 //--------------------------------------------------------------------------
 struct freqDcTimerInfo_s *meadow_calc_freq_dc_get_timer_info(int timerNumb);
