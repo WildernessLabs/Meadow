@@ -338,10 +338,9 @@ int meadow_eth_conn_process_link_status_change(bool linkStatusUp)
     // Determine if we should get the NTP time now or ever,.
     hcom_nx_config_lock();
     meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    uint32_t refreshPeriod = config->ntp_refresh_period_seconds;
     bool timeAtStart = config->get_network_time_at_startup;
     hcom_nx_config_unlock();
-    if(refreshPeriod > 0 || timeAtStart)
+    if(timeAtStart)
     {
       // This call will cause the ntpclient.c code to periodically refresh the
       // NTP time without additional intervention.
