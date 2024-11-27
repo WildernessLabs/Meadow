@@ -544,7 +544,7 @@ struct freqDcTimerInfo_s *meadow_calc_freq_dc_get_timer_info(const int timerNumb
 // This function will evaluate the GPIO based on 3 tables that contain the
 // legal GPIOs for the CCM (all F7 GPIOs checked) and for F7v1 and F7v2.
 // It returns the channel, 1-4 unless not found, then returns 0.
-static uint8_t meadow_calc_freq_dc_validate_pin_port_combo(const int timerNumb,
+static uint8_t meadow_calc_freq_dc_from_pin_port_get_chan(const int timerNumb,
           uint8_t portAndPin)
 {
   int entry;
@@ -626,14 +626,14 @@ int meadow_calc_freq_dc_freq_duty_config(const int timerNumber,
   // Insure a correct timer / pin+port combination was supplied.
   // Timers have, at most, 1-4 channels, each representing 1 GPIO. For the
   // specified timer we need to verify a proper port and pin.
-  uint8_t chan = meadow_calc_freq_dc_validate_pin_port_combo(timerNumber, portAndPin);
-  if(chan == 0)
+  uint8_t timerChan = meadow_calc_freq_dc_from_pin_port_get_chan(timerNumber,
+            portAndPin);
+  if(timerChan == 0)
   {
-    syslog(2, "%s@%d-The GPIO and Timer combination not supported\n", __FILE__, __LINE__);
+    syslog(2, "%s@%d-The GPIO/Timer combination not valid\n",
+              __FILE__, __LINE__);
     return -ENOTSUP;
   }
-
-  // Need to add
 
   // Check if there's already an object in this slot.
   struct freqDcTimerInfo_s *freqDcTimerInfo =
@@ -691,7 +691,8 @@ int meadow_calc_freq_dc_freq_duty_config(const int timerNumber,
   freqDcTimerInfo->freqDcRtData->activeState     = MEADOW_FREQ_DC_FREQ_DC_SYNC_UNKNOWN;
   freqDcTimerInfo->freqDcRtData->inputPolarity   = gpioPolarity;
   freqDcTimerInfo->freqDcRtData->inputConfig     = inputGpioConfig;
-  freqDcTimerInfo->freqDcRtData->countInputTotal  = 0;
+  freqDcTimerInfo->freqDcRtData->inputTimerChan  = timerChan;
+  freqDcTimerInfo->freqDcRtData->countInputTotal = 0;
   freqDcTimerInfo->freqDcRtData->countTimerTotal = 0;
 
   return OK;

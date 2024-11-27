@@ -79,6 +79,7 @@ struct freqDcRtData_s
   uint64_t countInputTotal;     // Count of GPIO input
   uint32_t inputConfig;         // Nuttx GPIO config for unconfig
   uint32_t inputPolarity;       // 0=leading is rising, 1=leading is falling
+  uint32_t inputTimerChan;      // 1-4 channel of timer input
 };
 
 // The 'freqDcTimerInfo_s' contains information that defines the selected
