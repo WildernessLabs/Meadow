@@ -75,11 +75,11 @@ struct freqDcRtData_s
   uint32_t countLeadToTrail;    // Tim CNT leading to trailing (1/2 cycle)
   uint32_t leadToLeadOverflow;  // Leading to Leading overflow count
   uint32_t leadToTrailOverflow; // Leading to Trailing overflow count
-  uint64_t countTimerTotal;     // Total CNT, for average frequency
-  uint64_t countInputTotal;     // Count of GPIO input
   uint32_t inputConfig;         // Nuttx GPIO config for unconfig
   uint32_t inputPolarity;       // 0=leading is rising, 1=leading is falling
   uint32_t inputTimerChan;      // 1-4 channel of timer input
+  uint64_t countTimerTotal;     // Total CNT, for average frequency
+  uint64_t countInputTotal;     // Count of GPIO input
 };
 
 // The 'freqDcTimerInfo_s' contains information that defines the selected
