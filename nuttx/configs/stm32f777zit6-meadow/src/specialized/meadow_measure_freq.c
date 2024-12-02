@@ -83,11 +83,11 @@
 #include <meadow/hcom_shared_common.h>
 #include <stdlib.h>
 
-#include "specialized/meadow_calc_freq_dc.h"
+#include "specialized/meadow_measure_freq.h"
 
 // Diagnostic
 #pragma GCC optimize("O0")    // Prevent compiler from changing the code
-#pragma message "(--) meadow_calc_freq_dc.c"
+#pragma message "(--) meadow_measure_freq.c"
 // Diagnostic
 
 //=====================================================
@@ -100,6 +100,8 @@
 // Diagnostic only
 
 //=====================================================
+#define MEADOW_INCLUDE_DUTY_CYCLE             (1)
+
 #define MEADOW_FREQ_DC_MAX_TIMER_CHANNELS     (4)
 #define MEADOW_FREQ_DC_VALID_DATA_ATTEMPTS    (5)
 #define MEADOW_FREQ_DC_BAD_GPIO_VALUE         (0xffffffff)
@@ -141,7 +143,7 @@
 // defines which timers can be used and invariant characteristics. Some
 // values have be reduced to a bit-field.
 // NOTE:For now TIM1 and TIM8 are not supported
-static struct freqDcTimerInfo_s freqTimerInfoArray[] = 
+static mdwFreqTimerInfo_t freqTimerInfoArray[] = 
 {
             //   |--- bit-field---|
             //   #  wid max apb ok    Base Addr       Clk Timer Enable      IRQ Vector    Alt Func  Ptr
@@ -159,13 +161,13 @@ static struct freqDcTimerInfo_s freqTimerInfoArray[] =
   /* TIM14  */  {14, 0,  0,  0, 1, STM32_TIM14_BASE, RCC_APB1ENR_TIM14EN, STM32_IRQ_TIM14, GPIO_AF9, NULL},
 };
 
-#define MEADOW_FREQ_DC_TOTAL_TIMERS_AVAILABLE (sizeof(freqTimerInfoArray)/sizeof(struct freqDcTimerInfo_s))
+#define MEADOW_FREQ_DC_TOTAL_TIMERS_AVAILABLE (sizeof(freqTimerInfoArray)/sizeof(mdwFreqTimerInfo_t))
 
 //----------------------------------------------------------------------------
 // This table contains all of the STM32F7's timers and their valid GPIOs with
 // the currect channel. It is used for F7v1 and F7v2 and CCM. It should be
 // useable for any STM32F7.
-chanPortPin_t validStm32F7GpioArray[][11] = 
+mdwFreqChanPortPin_t validStm32F7GpioArray[][11] = 
 {
 // Tim
 //  1   PA8         PE9        PA9        PE11
@@ -256,9 +258,9 @@ static uint8_t validGpioF7v2Array[][5] =
  * Private Function Prototypes
  ************************************************************************************/
 
-static int meadow_calc_freq_dc_cfg_timer(struct freqDcTimerInfo_s *freqDcTimerInfo,
-          bool configure);
-static int meadow_calc_freq_dc_isr(int irq, void *context, void *arg);
+static int meadow_measure_freq_cfg_timer(mdwFreqTimerInfo_t *mdwFreqTimerInfo,
+                bool configure);
+static int meadow_measure_freq_isr(int irq, void *context, void *arg);
 
 /****************************************************************************
  * Private Types
@@ -282,18 +284,17 @@ static int meadow_calc_freq_dc_isr(int irq, void *context, void *arg);
 // leading edge and the trailing edge.
 
 // Note: a 16-bit register at 96 MHz will overflow every 683 microseconds.
-int meadow_calc_freq_dc_isr(int irq, void *context, void *arg)
+int meadow_measure_freq_isr(int irq, void *context, void *arg)
 {
-  struct freqDcTimerInfo_s *freqDcTimerInfo = (struct freqDcTimerInfo_s *)arg;
-  struct freqDcRtData_s *freqDcRtData =
-            (struct freqDcRtData_s *)freqDcTimerInfo->freqDcRtData;
+  mdwFreqTimerInfo_t *mdwFreqTimerInfo = (mdwFreqTimerInfo_t *)arg;
+  mdwFreqRtData_t *mdwFreqRtData = mdwFreqTimerInfo->mdwFreqRtData;
 
-  uint32_t timerBase = freqDcTimerInfo->timerBase;
+  uint32_t timerBase = mdwFreqTimerInfo->timerBase;
   uint16_t timStatusReg = getreg16(timerBase + STM32_GTIM_SR_OFFSET);
 
-  if(freqDcRtData == NULL)
+  if(mdwFreqRtData == NULL)
   {
-    syslog(1, "%s@%d-freqDcRtData is NULL in ISR\n", __FILE__, __LINE__);
+    syslog(1, "%s@%d-mdwFreqRtData is NULL in ISR\n", __FILE__, __LINE__);
     return ERROR;  // -1
   }
 
@@ -325,42 +326,42 @@ int meadow_calc_freq_dc_isr(int irq, void *context, void *arg)
       timStatusReg &= ~GTIM_SR_UIF;
 
       // Add to Leading to leading overflow
-      freqDcRtData->leadToLeadOverflow++;
+      mdwFreqRtData->leadToLeadOverflow++;
       break;
 
     //------------------------------------------------------------
     // Leading Edge
     case 0x02:    // Lone leading edge, never expected
       timStatusReg &= ~GTIM_SR_CC1IF;
-      freqDcRtData->activeState = MEADOW_FREQ_DC_FREQ_DC_SYNC_ERROR;
+      mdwFreqRtData->activeState = MEADOW_FREQ_DC_FREQ_DC_SYNC_ERROR;
       break;
 
     case 0x03:     // Leading edge + UIF (Normal for End/Start of capture)
       timStatusReg &= ~GTIM_SR_UIF;   // Could be overflow or CNT reset
       timStatusReg &= ~GTIM_SR_CC1IF; // Leading edge should be CNT reset
 
-      if(freqDcTimerInfo->timerWidth == MEADOW_FREQ_DC_TIMER_WIDTH_32)
+      if(mdwFreqTimerInfo->timerWidth == MEADOW_FREQ_DC_TIMER_WIDTH_32)
       {
         // At this point we've seen a trailing edge and no errors.
         // Verify that we are expecting this leading edge
-        if(freqDcRtData->activeState == MEADOW_FREQ_DC_FREQ_DC_SYNC_TRAILING)
+        if(mdwFreqRtData->activeState == MEADOW_FREQ_DC_FREQ_DC_SYNC_TRAILING)
         {
           // A complete cycle has been seen. Save new values for user access
-          freqDcRtData->countLeadToLead  = getreg32(timerBase + STM32_GTIM_CCR1_OFFSET);
-          freqDcRtData->countLeadToTrail = getreg32(timerBase + STM32_GTIM_CCR2_OFFSET);
+          mdwFreqRtData->countLeadToLead  = getreg32(timerBase + STM32_GTIM_CCR1_OFFSET);
+          mdwFreqRtData->countLeadToTrail = getreg32(timerBase + STM32_GTIM_CCR2_OFFSET);
 
           // Add current to total timer count for frequency average and
           // increment the GPIO input count.
-          freqDcRtData->countTimerTotal += freqDcRtData->countLeadToLead;
-          freqDcRtData->countInputTotal++;
+          mdwFreqRtData->countTimerTotal += mdwFreqRtData->countLeadToLead;
+          mdwFreqRtData->countInputTotal++;
         }
         else
         {
-          freqDcRtData->countLeadToLead = 0;
-          freqDcRtData->countLeadToTrail = 0;
+          mdwFreqRtData->countLeadToLead = 0;
+          mdwFreqRtData->countLeadToTrail = 0;
         }
 
-        freqDcRtData->activeState = MEADOW_FREQ_DC_FREQ_DC_SYNC_LEADING;
+        mdwFreqRtData->activeState = MEADOW_FREQ_DC_FREQ_DC_SYNC_LEADING;
         break;
       }
 
@@ -368,15 +369,15 @@ int meadow_calc_freq_dc_isr(int irq, void *context, void *arg)
       uint32_t count1;
       uint32_t count2;
 
-      if(freqDcRtData->activeState == MEADOW_FREQ_DC_FREQ_DC_SYNC_TRAILING)
+      if(mdwFreqRtData->activeState == MEADOW_FREQ_DC_FREQ_DC_SYNC_TRAILING)
       {
         // Read current 16-bit values
         count1 = getreg16(timerBase + STM32_GTIM_CCR1_OFFSET);
         count2 = getreg16(timerBase + STM32_GTIM_CCR2_OFFSET);
 
         // Add each 16-bit CNT overflow to counts
-        count1 += (freqDcRtData->leadToLeadOverflow * MEADOW_FREQ_DC_16_BIT_OVERFLOW_COUNT);
-        count2 += (freqDcRtData->leadToTrailOverflow * MEADOW_FREQ_DC_16_BIT_OVERFLOW_COUNT);
+        count1 += (mdwFreqRtData->leadToLeadOverflow * MEADOW_FREQ_DC_16_BIT_OVERFLOW_COUNT);
+        count2 += (mdwFreqRtData->leadToTrailOverflow * MEADOW_FREQ_DC_16_BIT_OVERFLOW_COUNT);
 
         // Check for various detectable errors. There are some that cannot
         // be detected.
@@ -413,17 +414,17 @@ int meadow_calc_freq_dc_isr(int irq, void *context, void *arg)
       }
 
       // Provide consumer with values
-      freqDcRtData->countLeadToLead = count1;
-      freqDcRtData->countLeadToTrail = count2;
+      mdwFreqRtData->countLeadToLead = count1;
+      mdwFreqRtData->countLeadToTrail = count2;
 
       // Add current to total timer count for frequency average
       // and maintain the input count.
-      freqDcRtData->countTimerTotal += count1;
-      freqDcRtData->countInputTotal++;
+      mdwFreqRtData->countTimerTotal += count1;
+      mdwFreqRtData->countInputTotal++;
       
       // Clear previous overflow
-      freqDcRtData->leadToLeadOverflow = 0;
-      freqDcRtData->activeState = MEADOW_FREQ_DC_FREQ_DC_SYNC_LEADING;
+      mdwFreqRtData->leadToLeadOverflow = 0;
+      mdwFreqRtData->activeState = MEADOW_FREQ_DC_FREQ_DC_SYNC_LEADING;
       break;
 
     // Trailing Edge
@@ -434,29 +435,29 @@ int meadow_calc_freq_dc_isr(int irq, void *context, void *arg)
       timStatusReg &= ~GTIM_SR_CC2IF;
 
       // Trailing edge check if there has been a valid leading edge
-      if(freqDcRtData->activeState != MEADOW_FREQ_DC_FREQ_DC_SYNC_LEADING)
+      if(mdwFreqRtData->activeState != MEADOW_FREQ_DC_FREQ_DC_SYNC_LEADING)
       {
-        freqDcRtData->activeState = MEADOW_FREQ_DC_FREQ_DC_SYNC_ERROR;
+        mdwFreqRtData->activeState = MEADOW_FREQ_DC_FREQ_DC_SYNC_ERROR;
         break;  // And quit
       }
       
       // Trailing edge means we're done with CCR2's value. We don't need
       // to worry about CNT overflow with respect to CCR2 either.
       if(timStatusReg & GTIM_SR_UIF)
-        freqDcRtData->leadToLeadOverflow++;    // Adjust overflow count
+        mdwFreqRtData->leadToLeadOverflow++;    // Adjust overflow count
 
       // Time to capture the first half overflow
-      freqDcRtData->leadToTrailOverflow = freqDcRtData->leadToLeadOverflow;
+      mdwFreqRtData->leadToTrailOverflow = mdwFreqRtData->leadToLeadOverflow;
 
       // This value will be tested when the leading edge arrives
-      freqDcRtData->activeState = MEADOW_FREQ_DC_FREQ_DC_SYNC_TRAILING;
+      mdwFreqRtData->activeState = MEADOW_FREQ_DC_FREQ_DC_SYNC_TRAILING;
       break;
 
     //------------------------------------------------------------
     case 0x06:    // (illegal) Rising and Falling together, no way
       timStatusReg &= ~GTIM_SR_CC1IF;
       timStatusReg &= ~GTIM_SR_CC2IF;
-      freqDcRtData->activeState = MEADOW_FREQ_DC_FREQ_DC_SYNC_ERROR;
+      mdwFreqRtData->activeState = MEADOW_FREQ_DC_FREQ_DC_SYNC_ERROR;
       break;
 
     case 0x07:    // (illegal) Rising and Falling plus UIF
@@ -465,7 +466,7 @@ int meadow_calc_freq_dc_isr(int irq, void *context, void *arg)
       timStatusReg &= ~GTIM_SR_CC1IF;
       timStatusReg &= ~GTIM_SR_CC2IF;
       timStatusReg &= ~GTIM_SR_UIF;
-      freqDcRtData->activeState = MEADOW_FREQ_DC_FREQ_DC_SYNC_ERROR;
+      mdwFreqRtData->activeState = MEADOW_FREQ_DC_FREQ_DC_SYNC_ERROR;
       break;
 
     // There are only 3 bits to check, so this is a not needed. We've checked
@@ -483,10 +484,10 @@ int meadow_calc_freq_dc_isr(int irq, void *context, void *arg)
 }
 
 //=============================================================
-static uint32_t meadow_calc_freq_dc_get_apb_clock(
-          struct freqDcTimerInfo_s *freqDcTimerInfo)
+static uint32_t meadow_measure_freq_get_apb_clock(
+          mdwFreqTimerInfo_t *mdwFreqTimerInfo)
 {
-  if(freqDcTimerInfo->timerAPBClk)
+  if(mdwFreqTimerInfo->timerAPBClk)
     return STM32_RCC_APB2ENR;
   else
     return STM32_RCC_APB1ENR;
@@ -494,17 +495,17 @@ static uint32_t meadow_calc_freq_dc_get_apb_clock(
 
 //=============================================================
 // Uses the bit-field to determine the Timer clock
-static uint32_t meadow_calc_freq_dc_get_max_clock(
-          const struct freqDcTimerInfo_s *freqDcTimerInfo)
+static uint32_t meadow_measure_freq_get_max_clock(
+          const mdwFreqTimerInfo_t *mdwFreqTimerInfo)
 {
-  if(freqDcTimerInfo->timerMaxClk)
+  if(mdwFreqTimerInfo->timerMaxClk)
     return STM32_APB2_TIM1_CLKIN;
   else
     return STM32_APB1_TIM2_CLKIN;
 }
 
 //=============================================================
-static void meadow_calc_freq_dc_disable(const uint32_t timerBase)
+static void meadow_measure_freq_disable(const uint32_t timerBase)
 {
   uint16_t regval = getreg16(timerBase + STM32_BTIM_CR1_OFFSET);
   regval &= ~ATIM_CR1_CEN;
@@ -512,7 +513,7 @@ static void meadow_calc_freq_dc_disable(const uint32_t timerBase)
 }
 
 //=============================================================
-static void meadow_calc_freq_dc_enable(const uint32_t timerBase)
+static void meadow_measure_freq_enable(const uint32_t timerBase)
 {
   // Enable timer Counter
   uint16_t cr1Val = getreg16(timerBase + STM32_GTIM_CR1_OFFSET);
@@ -528,9 +529,9 @@ static void meadow_calc_freq_dc_enable(const uint32_t timerBase)
 
 //=====================================================================
 // The following finds the specified timer's built-in timer information.
-struct freqDcTimerInfo_s *meadow_calc_freq_dc_get_timer_info(const int timerNumb)
+mdwFreqTimerInfo_t *meadow_measure_freq_get_timer_info(const int timerNumb)
 {
-  struct freqDcTimerInfo_s *timerInfo = &(freqTimerInfoArray[timerNumb - 1]);
+  mdwFreqTimerInfo_t *timerInfo = &(freqTimerInfoArray[timerNumb - 1]);
 
   if(timerInfo->timerOkay)
     return timerInfo;
@@ -542,7 +543,7 @@ struct freqDcTimerInfo_s *meadow_calc_freq_dc_get_timer_info(const int timerNumb
 // This function will evaluate the GPIO based on 3 tables that contain the
 // legal GPIOs for the CCM (all F7 GPIOs checked) and for F7v1 and F7v2.
 // It returns the channel, 1-4 unless not found, then returns 0.
-static uint8_t meadow_calc_freq_dc_from_pin_port_get_chan(const int timerNumb,
+static uint8_t meadow_measure_freq_from_pin_port_get_chan(const int timerNumb,
           uint8_t portAndPin)
 {
   int entry;
@@ -605,7 +606,7 @@ static uint8_t meadow_calc_freq_dc_from_pin_port_get_chan(const int timerNumb,
  ****************************************************************************/
 // Called by Meadow.Core to configure
 // Timer numbers range from 1 - 14. However, some are not defined.
-int meadow_calc_freq_dc_freq_duty_config(const int timerNumber,
+int meadow_measure_freq_freq_duty_config(const int timerNumber,
           const uint8_t portAndPin, const uint8_t gpioPolarity)
 {
   int ret;
@@ -624,7 +625,7 @@ int meadow_calc_freq_dc_freq_duty_config(const int timerNumber,
   // Insure a correct timer / pin+port combination was supplied.
   // Timers have, at most, 1-4 channels, each representing 1 GPIO. For the
   // specified timer we need to verify a proper port and pin.
-  uint8_t timerChan = meadow_calc_freq_dc_from_pin_port_get_chan(timerNumber,
+  uint8_t timerChan = meadow_measure_freq_from_pin_port_get_chan(timerNumber,
             portAndPin);
   if(timerChan == 0)
   {
@@ -634,16 +635,16 @@ int meadow_calc_freq_dc_freq_duty_config(const int timerNumber,
   }
 
   // Check if there's already an object in this slot.
-  struct freqDcTimerInfo_s *freqDcTimerInfo =
-            meadow_calc_freq_dc_get_timer_info(timerNumber);
-  if(freqDcTimerInfo == NULL)
+  mdwFreqTimerInfo_t *mdwFreqTimerInfo =
+            meadow_measure_freq_get_timer_info(timerNumber);
+  if(mdwFreqTimerInfo == NULL)
   {
     syslog(LOG_ERR, "%s@%d-Timer %ld not defined\n",
               __FILE__, __LINE__, timerNumber);
     return -ERROR;
   }
 
-  if(freqDcTimerInfo->freqDcRtData != NULL)
+  if(mdwFreqTimerInfo->mdwFreqRtData != NULL)
   {
     syslog(LOG_ERR, "%s@%d-Already timer defined in slot.\n", __FILE__, __LINE__);
     return -ERROR;
@@ -651,7 +652,7 @@ int meadow_calc_freq_dc_freq_duty_config(const int timerNumber,
 
   // Enough to build the input configuration for the a GPIO
   inputGpioConfig = MEADOW_TIMER_GPIO_CONST | portAndPin | \
-            freqDcTimerInfo->timerAltFunc;
+            mdwFreqTimerInfo->timerAltFunc;
 
   // Diagnostic
   // syslog(1, "%s@%d-input Pin defn:0x%02x (P%c%d), Pin defn + AF:0x%08lx\n",
@@ -669,29 +670,29 @@ int meadow_calc_freq_dc_freq_duty_config(const int timerNumber,
   }
 
   // Allocate a new struct for each new timer to contain runtime data.
-  freqDcTimerInfo->freqDcRtData = zalloc(sizeof(struct freqDcRtData_s));
-  if(freqDcTimerInfo->freqDcRtData == NULL)
+  mdwFreqTimerInfo->mdwFreqRtData = zalloc(sizeof(mdwFreqRtData_t));
+  if(mdwFreqTimerInfo->mdwFreqRtData == NULL)
   {
-    syslog(LOG_ERR, "%s@%d-Allocation for freqDcRtData_s NULL\n", __FILE__, __LINE__);
+    syslog(LOG_ERR, "%s@%d-Allocation for mdwFreqRtData_s NULL\n", __FILE__, __LINE__);
     return -ENOMEM;
   }
 
   // Initialized the timer hardware
-  ret = meadow_calc_freq_dc_cfg_timer(freqDcTimerInfo, true);
+  ret = meadow_measure_freq_cfg_timer(mdwFreqTimerInfo, true);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Meadow frequency+dc init failed:%d\n", __FILE__, __LINE__, ret);
-    free(freqDcTimerInfo->freqDcRtData);
+    free(mdwFreqTimerInfo->mdwFreqRtData);
     return ret;
   }
 
   // With a place to put the information, we can start filling the structure.
-  freqDcTimerInfo->freqDcRtData->activeState     = MEADOW_FREQ_DC_FREQ_DC_SYNC_UNKNOWN;
-  freqDcTimerInfo->freqDcRtData->inputPolarity   = gpioPolarity;
-  freqDcTimerInfo->freqDcRtData->inputConfig     = inputGpioConfig;
-  freqDcTimerInfo->freqDcRtData->inputTimerChan  = timerChan;
-  freqDcTimerInfo->freqDcRtData->countInputTotal = 0;
-  freqDcTimerInfo->freqDcRtData->countTimerTotal = 0;
+  mdwFreqTimerInfo->mdwFreqRtData->activeState     = MEADOW_FREQ_DC_FREQ_DC_SYNC_UNKNOWN;
+  mdwFreqTimerInfo->mdwFreqRtData->inputPolarity   = gpioPolarity;
+  mdwFreqTimerInfo->mdwFreqRtData->inputConfig     = inputGpioConfig;
+  mdwFreqTimerInfo->mdwFreqRtData->inputTimerChan  = timerChan;
+  mdwFreqTimerInfo->mdwFreqRtData->countInputTotal = 0;
+  mdwFreqTimerInfo->mdwFreqRtData->countTimerTotal = 0;
 
   return OK;
 }
@@ -699,7 +700,7 @@ int meadow_calc_freq_dc_freq_duty_config(const int timerNumber,
 //=============================================================
 // Frequency and duty cycle configuration of timer registers.
 // It will configure and unconfigure 
-int meadow_calc_freq_dc_cfg_timer(struct freqDcTimerInfo_s *freqDcTimerInfo,
+int meadow_measure_freq_cfg_timer(mdwFreqTimerInfo_t *mdwFreqTimerInfo,
           bool configure)
 {
   // See RM0410 Reference manual for STM32F76xxx and STM32F77xxx section 26.3.6
@@ -717,7 +718,7 @@ int meadow_calc_freq_dc_cfg_timer(struct freqDcTimerInfo_s *freqDcTimerInfo,
   uint32_t regVal32;
   uint32_t timerBase;
 
-  timerBase = freqDcTimerInfo->timerBase;
+  timerBase = mdwFreqTimerInfo->timerBase;
 
   //(++) Only disables channels 1 & 2. Disabling all 4 is probably okay as
   // as at the end of configuration all needed channels are correct.
@@ -751,7 +752,7 @@ int meadow_calc_freq_dc_cfg_timer(struct freqDcTimerInfo_s *freqDcTimerInfo,
   regVal16 = getreg16(timerBase + STM32_GTIM_CCER_OFFSET);
   regVal16 &= 0xfff5;   // 5 = 0101, clear GTIM_CCER_CC1NP (bit 3) & GTIM_CCER_CC1P (bit 1)
 
-  if(freqDcTimerInfo->freqDcRtData->inputPolarity) // 0 = leading is rising, 1 = leading is falling
+  if(mdwFreqTimerInfo->mdwFreqRtData->inputPolarity) // 0 = leading is rising, 1 = leading is falling
     regVal16 |= 0x0002;         // Set bit 1 to change 00 to 01 (inverted/falling)
 
   putreg16(regVal16, timerBase + STM32_GTIM_CCER_OFFSET);
@@ -780,7 +781,7 @@ int meadow_calc_freq_dc_cfg_timer(struct freqDcTimerInfo_s *freqDcTimerInfo,
   // (--) SOMETHING SEEMS WRONG. ARE WE JUST CHECKING FOR '0'?
 
   // 0 = leading is rising, 1 = leading is falling
-  if(!freqDcTimerInfo->freqDcRtData->inputPolarity)
+  if(!mdwFreqTimerInfo->mdwFreqRtData->inputPolarity)
     regVal16 |= 0x0020;           // 2 = 0010 set bit 5 and leave bit 7 clear
 
   putreg16(regVal16, timerBase + STM32_GTIM_CCER_OFFSET);
@@ -813,11 +814,11 @@ int meadow_calc_freq_dc_cfg_timer(struct freqDcTimerInfo_s *freqDcTimerInfo,
   putreg16(regVal16, timerBase + STM32_GTIM_CCER_OFFSET);
   
   // To enable the timer we needed to know which clock enable register to use.
-  uint32_t apbClock = meadow_calc_freq_dc_get_apb_clock(freqDcTimerInfo);
+  uint32_t apbClock = meadow_measure_freq_get_apb_clock(mdwFreqTimerInfo);
 
   // And we need to know which bit to set in the register, which is in the
   // array. 
-  modifyreg32(apbClock, 0, freqDcTimerInfo->timerClkEn);
+  modifyreg32(apbClock, 0, mdwFreqTimerInfo->timerClkEn);
 
   // (--) Timer wide setting
   // Must be between 0 and 0xffff. Set the prescaler value of 0 to allow
@@ -826,13 +827,13 @@ int meadow_calc_freq_dc_cfg_timer(struct freqDcTimerInfo_s *freqDcTimerInfo,
   // SLOW, MEDIUM AND FAST SELECTION? BUT NOT PER CHANNEL.
   // Find proper pre-scaler value so all timers run at the same speed, no
   // matter which clock line they are connected to.
-  uint16_t prescaler = (meadow_calc_freq_dc_get_max_clock(freqDcTimerInfo)/ \
+  uint16_t prescaler = (meadow_measure_freq_get_max_clock(mdwFreqTimerInfo)/ \
             MEADOW_FREQ_DC_CLOCK_FREQ) - 1;
   putreg16(prescaler, timerBase + STM32_GTIM_PSC_OFFSET);
 
   // The value put into the ARR is maximum allowed for the timer. Either
   // 32-bit or 16-bit ARR register.
-  uint32_t maxARRValue = freqDcTimerInfo->timerWidth ==
+  uint32_t maxARRValue = mdwFreqTimerInfo->timerWidth ==
             MEADOW_FREQ_DC_TIMER_WIDTH_16 ? 0xffff : 0xffffffff;
   putreg32(maxARRValue, timerBase + STM32_GTIM_ARR_OFFSET);
 
@@ -853,9 +854,9 @@ int meadow_calc_freq_dc_cfg_timer(struct freqDcTimerInfo_s *freqDcTimerInfo,
         GTIM_DIER_CC1IE | GTIM_DIER_CC2IE | GTIM_DIER_UIE);  
 
   // All Frequency/Duty Cycle interrupts are handled by same isr
-  ret = irq_attach(freqDcTimerInfo->timerIrqVec,
-            meadow_calc_freq_dc_isr,  // ISR address
-            freqDcTimerInfo);         // Argument to ISR
+  ret = irq_attach(mdwFreqTimerInfo->timerIrqVec,
+            meadow_measure_freq_isr,  // ISR address
+            mdwFreqTimerInfo);         // Argument to ISR
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-irq_attach failed, ret:%d, errno:%d\n",
@@ -864,26 +865,26 @@ int meadow_calc_freq_dc_cfg_timer(struct freqDcTimerInfo_s *freqDcTimerInfo,
   }
 
   // Get things ready
-  freqDcTimerInfo->freqDcRtData->activeState =
+  mdwFreqTimerInfo->mdwFreqRtData->activeState =
             MEADOW_FREQ_DC_FREQ_DC_SYNC_ERROR;
 
   // Enable IRQ
-  up_enable_irq(freqDcTimerInfo->timerIrqVec);
+  up_enable_irq(mdwFreqTimerInfo->timerIrqVec);
 
   // Enable timer
-  meadow_calc_freq_dc_enable(timerBase);
+  meadow_measure_freq_enable(timerBase);
   return OK;
 }
 
 //=============================================================
 // Called to unconfigure a timer
-int meadow_calc_freq_dc_freq_duty_unconfig(const uint32_t timerNumber)
+int meadow_measure_freq_freq_duty_unconfig(const uint32_t timerNumber)
 {
-  struct freqDcTimerInfo_s *freqDcTimerInfo =
-            meadow_calc_freq_dc_get_timer_info(timerNumber);
+  mdwFreqTimerInfo_t *mdwFreqTimerInfo =
+            meadow_measure_freq_get_timer_info(timerNumber);
 
   // Is this slot being used?
-  if(freqDcTimerInfo->freqDcRtData == NULL)
+  if(mdwFreqTimerInfo->mdwFreqRtData == NULL)
   {
     syslog(LOG_ERR, "%s@%d-Can't unconfigure, this timer %lu not configured.\n",
               __FILE__, __LINE__, timerNumber);
@@ -891,23 +892,23 @@ int meadow_calc_freq_dc_freq_duty_unconfig(const uint32_t timerNumber)
   }
 
   // Stop interrupts
-  up_disable_irq(freqDcTimerInfo->timerIrqVec);
+  up_disable_irq(mdwFreqTimerInfo->timerIrqVec);
 
   // Stop timer
-  meadow_calc_freq_dc_disable(freqDcTimerInfo->timerBase);
+  meadow_measure_freq_disable(mdwFreqTimerInfo->timerBase);
 
   // Unconfigure GPIO
-  stm32_unconfiggpio(freqDcTimerInfo->freqDcRtData->inputConfig);
+  stm32_unconfiggpio(mdwFreqTimerInfo->mdwFreqRtData->inputConfig);
 
   // Free runtime memory
-  free(freqDcTimerInfo->freqDcRtData);
-  freqDcTimerInfo->freqDcRtData = NULL;
+  free(mdwFreqTimerInfo->mdwFreqRtData);
+  mdwFreqTimerInfo->mdwFreqRtData = NULL;
   return OK;
 }
 
 //================================================================
 // Return Frequency and Duty Cycle information to caller.
-int meadow_calc_freq_dc_return_freq_info(struct freqDcReturnData_s
+int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t
           *returnData)
 {
   double frequency;
@@ -920,10 +921,10 @@ int meadow_calc_freq_dc_return_freq_info(struct freqDcReturnData_s
   uint32_t halfCycle;
 
   // Just feed pulse train into appropriate GPIO
-  struct freqDcTimerInfo_s *freqDcTimerInfo =
-            meadow_calc_freq_dc_get_timer_info(returnData->timerNumber);
-  struct freqDcRtData_s *freqDcRtData =
-            (struct freqDcRtData_s *)freqDcTimerInfo->freqDcRtData;
+  mdwFreqTimerInfo_t *mdwFreqTimerInfo =
+            meadow_measure_freq_get_timer_info(returnData->timerNumber);
+  mdwFreqRtData_t *mdwFreqRtData =
+            (mdwFreqRtData_t *)mdwFreqTimerInfo->mdwFreqRtData;
 
   // Find valid data. That is, both full cycle and the half cycle values are
   // available. This is only an issue at higher frequencies.
@@ -932,10 +933,10 @@ int meadow_calc_freq_dc_return_freq_info(struct freqDcReturnData_s
     // Get all the values at one time so once a valid value is found, a change
     // in the timer's data won't affect the output.
     // This would be nice if it was atomic
-    fullCycle = freqDcRtData->countLeadToLead;
-    halfCycle = freqDcRtData->countLeadToTrail;
-    totalTimerCount = (double)freqDcRtData->countTimerTotal;
-    inputTotalCount = (double)freqDcRtData->countInputTotal;
+    fullCycle = mdwFreqRtData->countLeadToLead;
+    halfCycle = mdwFreqRtData->countLeadToTrail;
+    totalTimerCount = (double)mdwFreqRtData->countTimerTotal;
+    inputTotalCount = (double)mdwFreqRtData->countInputTotal;
 
     if(fullCycle > 0 && halfCycle > 0)
       break;
@@ -973,10 +974,10 @@ int meadow_calc_freq_dc_return_freq_info(struct freqDcReturnData_s
   }
 
   // Prevent counts from being reused
-  freqDcRtData->countLeadToLead   = 0;
-  freqDcRtData->countLeadToTrail  = 0;
-  freqDcRtData->countInputTotal   = 0;
-  freqDcRtData->countTimerTotal   = 0;
+  mdwFreqRtData->countLeadToLead   = 0;
+  mdwFreqRtData->countLeadToTrail  = 0;
+  mdwFreqRtData->countInputTotal   = 0;
+  mdwFreqRtData->countTimerTotal   = 0;
 
   return OK;
 }
