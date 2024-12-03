@@ -54,14 +54,9 @@
 #define GPIO_AFX 0xff
 
 //--------------------------------------------------------------------------
-// This internal structure contains the data that all timer applications
-// require to operate. The data is primarily used by the ISR
-//
-// (--) THE FOLLOWING STRUCTURES ARE KIND OF MESSED UP. THE freqDcRtData_s
-// CONTAINS ACTIVE RUNTIME DATA AND CONFIGURATION DATA. THE freqDcTimerInfo_s
-// CONTAINS STATIC DATA PLUS A POINTER TO freqDcRtData_s. SHOULD THIS BE 3
-// STRUCTURES, RUNTIME, CONFIG AND STATIC?
 // This structure contains runtime data
+
+// mdwFreqRtData_s DOESN"T NEED TO BE IN THIS HEADER FILE
 struct mdwFreqRtData_s
 {
   // In the following 'Lead' is the leading edge, which can be rising
@@ -77,33 +72,41 @@ struct mdwFreqRtData_s
   uint32_t leadToTrailOverflow; // Leading to Trailing overflow count
   uint32_t inputConfig;         // Nuttx GPIO config for unconfig
   uint32_t inputPolarity;       // 0=leading is rising, 1=leading is falling
-  uint32_t inputTimerChan;      // 1-4 channel of timer input
+  uint32_t inputTimerChan;      // 0=not used, 1-4 channel of timer input (--) IS THIS NEEDED?
   uint64_t countTimerTotal;     // Total CNT, for average frequency
   uint64_t countInputTotal;     // Count of GPIO input
 };
 typedef struct mdwFreqRtData_s mdwFreqRtData_t;
+
+#define CHAN_BITFIELD_CHAN_1 (0b00000001)
+#define CHAN_BITFIELD_CHAN_2 (0b00000010)
+#define CHAN_BITFIELD_CHAN_3 (0b00000100)
+#define CHAN_BITFIELD_CHAN_4 (0b00001000)
 
 // The 'freqTimerInfo_s' contains information that defines the selected
 // timer's F7's internal hardware capabilities. Except for the 'freqDcRtData'
 // element, each field is pre-defined from the 'struct freqTimerInfo_s array'
 struct mdwFreqTimerInfo_s
 {
+  // (--) Could add a bit field that contains the in-use channels
   uint8_t timerNumb   : 4;  // 0 - 15 timer number
   uint8_t timerWidth  : 1;  // 16-bit or 32-bit timer? 0 = 16-bits, 1 = 32-bits
   uint8_t timerMaxClk : 1;  // 0 = 96MHz (STM32_APB1_TIM2_CLKIN), 1 = 192MHz (STM32_APB2_TIM1_CLKIN)
   uint8_t timerAPBClk : 1;  // 0 = STM32_RCC_APB1ENR, 1 = STM32_RCC_APB2ENR
-  uint8_t timerOkay   : 1;  // Is Timer useable?
+  uint8_t timerUsable : 1;  // Is Timer useable?
   uint32_t timerBase;       // Unique for each timer
   uint32_t timerClkEn;      // Bit of timer enable bit for APB1 or APB2
   uint32_t timerIrqVec;     // Interrupt vector
   uint16_t timerAltFunc;    // Timer's alternate function
-  mdwFreqRtData_t *mdwFreqRtData;
+  uint8_t chanBitField;     // bit 0 - chan1, bit 1 = chan2 etc.
+  mdwFreqRtData_t *mdwFreqRtData[4]; // One for each input channel
 };
 typedef struct mdwFreqTimerInfo_s mdwFreqTimerInfo_t;
 
 struct mdwFreqReturnData_s
 {
   uint32_t timerNumber;       // The timer number 1-14
+  uint32_t timerChannel;      // The channel number 1-4
   uint32_t frequencyX1000;    // Frequency * 1000
   uint32_t avgFreqX1000;      // Average frequency * 1000
   uint32_t dutyCycleX1000;    // Duty Cycle * 1000
@@ -123,9 +126,9 @@ mdwFreqTimerInfo_t *meadow_measure_freq_get_timer_info(int timerNumb);
 
 #if defined(CONFIG_FREQUENCY_DUTY_CYCLE_TESTS)
 
-int meadow_measure_freq_freq_duty_config(int timerNumber,
+int meadow_measure_freq_configure(int timerNumber, int timerChannel,
           uint8_t pinDesignation, uint8_t gpioPolarity);
-int meadow_measure_freq_freq_duty_unconfig(uint32_t timerNumber);
+int meadow_measure_freq_unconfigure(uint32_t timerNumber);
 int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *mdwFreqReturnData);
 
 #endif       // CONFIG_FREQUENCY_DUTY_CYCLE_TESTS

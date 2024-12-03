@@ -80,13 +80,14 @@
 // Configure 32-bit timer
 static int meadow_freq_dc_test_configure_32_Tim5_PH10(void)
 {
-  int ret = meadow_measure_freq_freq_duty_config(5,   // Timer 5 D02 (32-bit)
-            MEADOW_FREQ_DC_TEST_PH10_D02,
-            0);                                   // Leading is 0=rising, 1=falling
+  int ret = meadow_measure_freq_configure(5, // Timer 5 D02 (32-bit)
+            1,                                      // Channel
+            MEADOW_FREQ_DC_TEST_PH10_D02,           // GPIO
+            0);                                     // Leading is 0=rising, 1=falling
 
   if(ret < 0)
   {
-    syslog(2, "Error:meadow_measure_freq_freq_duty_config() ret:%ld\n",  ret);
+    syslog(2, "Error:meadow_measure_freq_configure() ret:%ld\n",  ret);
     return ret;
   }
 
@@ -97,19 +98,19 @@ static int meadow_freq_dc_test_configure_32_Tim5_PH10(void)
 // Configure 16-bit timer 4, D08 via channel 1
 static int meadow_freq_dc_test_configure_16_Tim11_PB8(void)
 {
-  int ret = meadow_measure_freq_freq_duty_config(5,   // Timer 4 D08 (16-bit)
+  int ret = meadow_measure_freq_configure(5, // Timer 4 D08 (16-bit)
+            1,                                      // Channel
             MEADOW_FREQ_DC_TEST_P09_D04,
-            0);                                   // Leading is 0=rising, 1=falling
+            0);                                     // Leading is 0=rising, 1=falling
 
   if(ret < 0)
   {
-    syslog(2, "Error:meadow_measure_freq_freq_duty_config() ret:%ld\n",  ret);
+    syslog(2, "Error:meadow_measure_freq_configure() ret:%ld\n",  ret);
     return ret;
   }
 
   return OK;
 }
-
 
 //===============================================================
 // Display the frequency information
@@ -145,6 +146,7 @@ void meadow_kt_calc_freq_dc_tests(uint32_t userData)
     case 2:
       // View data timer 5
       mdwFreqReturnData.timerNumber = 5;
+      mdwFreqReturnData.timerChannel = 1;
       ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
       if(ret < 0)
         syslog(2, "Error meadow_measure_freq_return_freq_info() ret:%ld\n", ret);
@@ -161,6 +163,7 @@ void meadow_kt_calc_freq_dc_tests(uint32_t userData)
     case 4:
       // View data timer 8
       mdwFreqReturnData.timerNumber = 8;
+      mdwFreqReturnData.timerChannel = 1;
       ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
       if(ret < 0)
         syslog(2, "Error meadow_measure_freq_return_freq_info() ret:%ld\n", ret);
