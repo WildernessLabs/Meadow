@@ -56,7 +56,7 @@
 //--------------------------------------------------------------------------
 // This structure contains runtime data
 
-// mdwFreqRtData_s DOESN"T NEED TO BE IN THIS HEADER FILE
+// (--) mdwFreqRtData_s DOESN"T NEED TO BE IN THIS HEADER FILE
 struct mdwFreqRtData_s
 {
   // In the following 'Lead' is the leading edge, which can be rising
@@ -66,13 +66,13 @@ struct mdwFreqRtData_s
   // us to calculate the frequency. The Lead to Trail is the first part
   // of the cycle allowing us to calculate the duty cycle.
   uint32_t activeState;         // State or Error of some type
-  uint32_t countLeadToLead;     // Timer CNT leading to leading
-  uint32_t countPrevious;       // Timer CNT previous time
+  uint32_t leadToLeadCount;     // Timer CNT leading to leading
+  uint32_t previousCount;       // Timer CNT previous time
   uint32_t leadToLeadOverflow;  // Leading to Leading overflow count
   uint32_t inputConfig;         // Nuttx GPIO config for unconfig
   uint32_t inputTimerChan;      // 0=none used, 1-4 channel of timer input (--) IS THIS NEEDED?
-  uint64_t countTimerTotal;     // Total CNT, for average frequency
-  uint64_t countInputTotal;     // Count of GPIO input
+  uint64_t timerTotalCount;     // Total CNT, for average frequency
+  uint64_t inputTotalCount;     // Count of GPIO input
 };
 typedef struct mdwFreqRtData_s mdwFreqRtData_t;
 
@@ -113,7 +113,7 @@ struct mdwFreqReturnData_s
   uint32_t timerChannel;      // The channel number 1-4
   uint32_t frequencyX1000;    // Frequency * 1000
   uint32_t avgFreqX1000;      // Average frequency * 1000
-  uint32_t countInputTotal;   // Number of transitions since list read
+  uint32_t inputTotalCount;   // Number of transitions since list read
 };
 typedef struct mdwFreqReturnData_s mdwFreqReturnData_t;
 

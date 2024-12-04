@@ -117,7 +117,7 @@ static void display_frequency_and_friends(mdwFreqReturnData_t mdwFreqReturnData)
   syslog(2, "For Managed code-Freq:%6.2fHz, AvgFreq:%6.2fHz, Input Count:%lu\n",
             ((double)mdwFreqReturnData.frequencyX1000)/1000.0,
             ((double)mdwFreqReturnData.avgFreqX1000)/1000.0,
-            mdwFreqReturnData.countInputTotal);
+            mdwFreqReturnData.inputTotalCount);
 }
 
 /************************************************************************************
