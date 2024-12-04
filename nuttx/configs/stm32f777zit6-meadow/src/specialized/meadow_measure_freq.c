@@ -49,12 +49,12 @@
 // x3. Add CCM support. This requires changes to the configuration and adding,
 //  modifying or replacing existing tables to support more or all Timers
 //  and their associated GPIOs.
-// 4. Add multi-channel support. Allow all timer channels to be used for input.
-// 5. Support Tim1 and Tim8? These have more complex IRQ requirements.
+// 4. Add multi-channel support. Support all timer channels for input.
+// 5. Add syscalls as needed (probably 2 maybe 3)
 // 6. For 16-bit timers, allow with configuration to include SLOW, MED and
 //  FAST options to reduce the effects of the 65,536 count rollover.
-// 7. Add syscalls as needed (probably 2 maybe 3)
-// 8. Test unconfigure code (need unique syscall?)
+// 7. Write and test unconfigure code (need unique syscall?)
+// 8. Support Tim1 and Tim8? These have more complex IRQ requirements.
 // 9. Clean up code, remove unneeded header includes and retest
 
 /****************************************************************************
