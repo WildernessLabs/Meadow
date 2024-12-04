@@ -67,11 +67,12 @@ struct mdwFreqRtData_s
   // of the cycle allowing us to calculate the duty cycle.
   uint32_t activeState;         // State or Error of some type
   uint32_t countLeadToLead;     // Tim CNT leading to next leading (full cycle)
-  uint32_t countLeadToTrail;    // Tim CNT leading to trailing (1/2 cycle)
+  uint32_t countPrevious;       // Tim CNT previous time
+  // uint32_t countLeadToTrail;    // Tim CNT leading to trailing (1/2 cycle)
   uint32_t leadToLeadOverflow;  // Leading to Leading overflow count
-  uint32_t leadToTrailOverflow; // Leading to Trailing overflow count
+  // uint32_t leadToTrailOverflow; // Leading to Trailing overflow count
   uint32_t inputConfig;         // Nuttx GPIO config for unconfig
-  uint32_t inputPolarity;       // 0=leading is rising, 1=leading is falling
+  // uint32_t inputPolarity;       // 0=leading is rising, 1=leading is falling
   uint32_t inputTimerChan;      // 0=not used, 1-4 channel of timer input (--) IS THIS NEEDED?
   uint64_t countTimerTotal;     // Total CNT, for average frequency
   uint64_t countInputTotal;     // Count of GPIO input
@@ -103,13 +104,17 @@ struct mdwFreqTimerInfo_s
 };
 typedef struct mdwFreqTimerInfo_s mdwFreqTimerInfo_t;
 
+#define FREQ_RT_DATA_OFFSET_CHAN_1 (0)
+#define FREQ_RT_DATA_OFFSET_CHAN_2 (1)
+#define FREQ_RT_DATA_OFFSET_CHAN_3 (2)
+#define FREQ_RT_DATA_OFFSET_CHAN_4 (3)
+
 struct mdwFreqReturnData_s
 {
   uint32_t timerNumber;       // The timer number 1-14
   uint32_t timerChannel;      // The channel number 1-4
   uint32_t frequencyX1000;    // Frequency * 1000
   uint32_t avgFreqX1000;      // Average frequency * 1000
-  uint32_t dutyCycleX1000;    // Duty Cycle * 1000
   uint32_t countInputTotal;   // Number of transitions since list read
 };
 typedef struct mdwFreqReturnData_s mdwFreqReturnData_t;
@@ -127,7 +132,7 @@ mdwFreqTimerInfo_t *meadow_measure_freq_get_timer_info(int timerNumb);
 #if defined(CONFIG_FREQUENCY_DUTY_CYCLE_TESTS)
 
 int meadow_measure_freq_configure(int timerNumber, int timerChannel,
-          uint8_t pinDesignation, uint8_t gpioPolarity);
+          uint8_t pinDesignation);
 int meadow_measure_freq_unconfigure(uint32_t timerNumber);
 int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *mdwFreqReturnData);
 

@@ -80,10 +80,9 @@
 // Configure 32-bit timer
 static int meadow_freq_dc_test_configure_32_Tim5_PH10(void)
 {
-  int ret = meadow_measure_freq_configure(5, // Timer 5 D02 (32-bit)
-            1,                                      // Channel
-            MEADOW_FREQ_DC_TEST_PH10_D02,           // GPIO
-            0);                                     // Leading is 0=rising, 1=falling
+  int ret = meadow_measure_freq_configure(5,  // Timer 5 D02 (32-bit)
+            1,                                // Channel
+            MEADOW_FREQ_DC_TEST_PH10_D02);
 
   if(ret < 0)
   {
@@ -98,10 +97,9 @@ static int meadow_freq_dc_test_configure_32_Tim5_PH10(void)
 // Configure 16-bit timer 4, D08 via channel 1
 static int meadow_freq_dc_test_configure_16_Tim11_PB8(void)
 {
-  int ret = meadow_measure_freq_configure(5, // Timer 4 D08 (16-bit)
-            1,                                      // Channel
-            MEADOW_FREQ_DC_TEST_P09_D04,
-            0);                                     // Leading is 0=rising, 1=falling
+  int ret = meadow_measure_freq_configure(5,  // Timer 4 D08 (16-bit)
+            1,                                // Channel
+            MEADOW_FREQ_DC_TEST_P09_D04);
 
   if(ret < 0)
   {
@@ -116,9 +114,8 @@ static int meadow_freq_dc_test_configure_16_Tim11_PB8(void)
 // Display the frequency information
 static void display_frequency_and_friends(mdwFreqReturnData_t mdwFreqReturnData)
 {
-  syslog(2, "For Managed code-Freq:%06.2fHz, DC:%02.2f%%, AvgFreq:%06.2fHz, Input Count:%lu\n",
+  syslog(2, "For Managed code-Freq:%6.2fHz, AvgFreq:%6.2fHz, Input Count:%lu\n",
             ((double)mdwFreqReturnData.frequencyX1000)/1000.0,
-            ((double)mdwFreqReturnData.dutyCycleX1000)/1000.0,
             ((double)mdwFreqReturnData.avgFreqX1000)/1000.0,
             mdwFreqReturnData.countInputTotal);
 }

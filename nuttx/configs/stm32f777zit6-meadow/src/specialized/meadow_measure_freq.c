@@ -32,8 +32,23 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
+// This module, uses timers to calculate frequency
 
-// This module, uses timers to calculate frequency and duty.
+// The Problem with 16-bit timers.
+// At certain input frequencies the CNT being cleared and the CNT overflow
+// are reported in the same interrupt. However, there is only 1 bit available
+// to indicate both conditions.
+// The highest frequency this occurs at is TimerClock/65536, which is
+// 1,464.844 Hz with a timer clock of 96 MHz. This reoccurs at the intervals
+// (TimerClock/65536)/2, (TimerClock/65536)/3 etc.
+// More details.
+// For most input frequencies, on a leading (e.g. rising) or trailing (e.g.
+// falling) edge an interrupt is generated containing the CC1IF (leading) or
+// CC2IF (trailing) flags set. The UIF flag is always set with the CC1IF
+// flag, to indicate that the CNT register has been cleared. However, at
+// some frequencies, the overflow and the CNT reset occur at the same moment.
+// The UIF is set but it cannot be determined if it indicates CNT overflow or
+// CNT reset.
 
 // ToDo List
 // x1. Add a running average feature. It would be the average since the last
@@ -260,6 +275,7 @@ static int meadow_measure_freq_isr(int irq, void *context, void *arg);
 // There is a unique ISR vector for each timer. But, each timer must process
 // 1 - 4 inputs. On entry we don't know which input(s) is/are involved.
 //
+
 // On the first leading edge of the input, the timer clears the CNT count and
 // CNT begins counting up.
 // On the following trailing edge, the timer copies the CNT value into CCR2.
@@ -278,37 +294,60 @@ int meadow_measure_freq_isr(int irq, void *context, void *arg)
   // (--) Diag
   stm32_gpiowrite(DEBUG_PIN_V2_D06, true);
 
-  // syslog(1, "%s@%d-ENTERED-ISR\n", __FILE__, __LINE__);
-  // usleep(20 * 1000);
-
   mdwFreqTimerInfo_t *mdwFreqTimerInfo = (mdwFreqTimerInfo_t *)arg;
-
-// (--) HARDCODED FOR CHANNEL 1
-  mdwFreqRtData_t *mdwFreqRtData = mdwFreqTimerInfo->mdwFreqRtData[0];
-  if(mdwFreqRtData == NULL)
-  {
-    syslog(1, "%s@%d-mdwFreqRtData is NULL in ISR\n", __FILE__, __LINE__);
-    return -ERROR;  // -1
-  }
-
   uint32_t timerBase = mdwFreqTimerInfo->timerBase;
   uint16_t timStatusReg = getreg16(timerBase + STM32_GTIM_SR_OFFSET);
 
-  // The Problem with 16-bit timers.
-  // At certain input frequencies the CNT being cleared and the CNT overflow
-  // are reported in the same interrupt. However, there is only 1 bit available
-  // to indicate both conditions.
-  // The highest frequency this occurs at is TimerClock/65536, which is
-  // 1,464.844 Hz with a timer clock of 96 MHz. This reoccurs at the intervals
-  // (TimerClock/65536)/2, (TimerClock/65536)/3 etc.
-  // More details.
-  // For most input frequencies, on a leading (e.g. rising) or trailing (e.g.
-  // falling) edge an interrupt is generated containing the CC1IF (leading) or
-  // CC2IF (trailing) flags set. The UIF flag is always set with the CC1IF
-  // flag, to indicate that the CNT register has been cleared. However, at
-  // some frequencies, the overflow and the CNT reset occur at the same moment.
-  // The UIF is set but it cannot be determined if it indicates CNT overflow or
-  // CNT reset.
+  // Only monitoring rising edges for now
+  if(timStatusReg & GTIM_SR_UIF)
+  {
+    
+    // (--) Don't clear yet. Need to determine if count is reset when
+    // edge is encountered.
+    // timStatusReg &= ~GTIM_SR_UIF;
+
+    // Assume CNT register overflowed. This means we must add 1 to all active
+    // overflow values.
+    uint8_t chanBits = mdwFreqTimerInfo->chanBitField;
+    for(int i = 0; i < 4; i++)
+    {
+      if(chanBits & 0b00000001)
+      {
+        // Channel is active
+        mdwFreqRtData_t *mdwFreqRtData = mdwFreqTimerInfo->mdwFreqRtData[i];
+        mdwFreqRtData->leadToLeadOverflow++;
+      }
+      chanBits = chanBits >> 1;
+    }
+  }
+
+  //----------------------------------------------------------
+  // Channel 1
+  if(timStatusReg & GTIM_SR_CC1IF)
+  {
+    timStatusReg &= ~GTIM_SR_CC1IF;
+
+    mdwFreqRtData_t *mdwFreqRtData = 
+              mdwFreqTimerInfo->mdwFreqRtData[FREQ_RT_DATA_OFFSET_CHAN_1];
+    if(mdwFreqRtData == NULL)
+    {
+      syslog(1, "%s@%d-Channel 1-mdwFreqRtData is NULL in ISR\n", __FILE__, __LINE__);
+      return -ERROR;  // -1
+    }
+
+    // Save the capture/compare register snap shot for this channel
+    // THIS IS A 32-BIT REGISTER FOR TIM5 (AND THAT'S WHAT I'M TESTING)
+    uint32_t currentCount = getreg32(timerBase + STM32_GTIM_CCR1_OFFSET);
+    // THIS NEEDS TO ACCOUNT FOR ROLLOVER ESPECIALLY FOR 16-BIT TIMERS
+    mdwFreqRtData->countLeadToLead = currentCount - mdwFreqRtData->countPrevious;
+    mdwFreqRtData->countPrevious = currentCount;
+
+    // Add current to total timer count for frequency average and
+    // increment the GPIO input change count.
+    mdwFreqRtData->countTimerTotal += mdwFreqRtData->countLeadToLead;
+    mdwFreqRtData->countInputTotal++;
+  }
+
 //   switch(timStatusReg & 0x0007)
 //   {
 //     case 0x00:    // Nothing happened, just ignore
@@ -635,15 +674,14 @@ static uint8_t meadow_measure_freq_get_chan_from_tim_port_pin(const int timerNum
 // Called by Meadow.Core to configure
 // Timer numbers range from 1 - 14. However, some are not defined.
 int meadow_measure_freq_configure(const int timerNumber, int timerChannel,
-          const uint8_t portAndPin, const uint8_t gpioPolarity)
+          const uint8_t portAndPin)
+// int meadow_measure_freq_configure(const int timerNumber, int timerChannel,
+//           const uint8_t portAndPin, const uint8_t gpioPolarity)
 {
   int ret;
   int channelOffset = timerChannel - 1;
   uint32_t inputGpioConfig;
   static bool firstTime = true;
-
-  syslog(1, "%s@%d-Entered meadow_measure_freq_configure()\n", __FILE__, __LINE__);
-  usleep(50 * 1000);
 
   if(firstTime)
   {
@@ -747,16 +785,11 @@ int meadow_measure_freq_configure(const int timerNumber, int timerChannel,
 
   // Start filling the channel structure
   mdwFreqTimerInfo->mdwFreqRtData[channelOffset]->activeState     = MEADOW_FREQ_DC_FREQ_DC_SYNC_UNKNOWN;
-  mdwFreqTimerInfo->mdwFreqRtData[channelOffset]->inputPolarity   = gpioPolarity;
   mdwFreqTimerInfo->mdwFreqRtData[channelOffset]->inputConfig     = inputGpioConfig;
   mdwFreqTimerInfo->mdwFreqRtData[channelOffset]->inputTimerChan  = validatedTimerChan;
   mdwFreqTimerInfo->mdwFreqRtData[channelOffset]->countInputTotal = 0;
   mdwFreqTimerInfo->mdwFreqRtData[channelOffset]->countTimerTotal = 0;
   mdwFreqTimerInfo->chanBitField |= chanBits;
-
-  syslog(1, "%s@%d-EXIT meadow_measure_freq_configure()\n", __FILE__, __LINE__);
-  usleep(50 * 1000);
-
   return OK;
 }
 
@@ -1172,72 +1205,134 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t
 {
   double frequency;
   double averageFreq;
-  double dutyCycle;
   double totalTimerCount;
   double inputTotalCount;
   uint32_t retryCount;
-  uint32_t fullCycle;
-  uint32_t halfCycle;
+  uint32_t singleFullCycle;
 
   // Just feed pulse train into appropriate GPIO
   mdwFreqTimerInfo_t *mdwFreqTimerInfo =
             meadow_measure_freq_get_timer_info(returnData->timerNumber);
-
-  mdwFreqRtData_t *mdwFreqRtData = mdwFreqTimerInfo->mdwFreqRtData[returnData->timerChannel];
-
-  // Find valid data. That is, both full cycle and the half cycle values are
-  // available. This is only an issue at higher frequencies.
-  for(retryCount = 0; retryCount < 5; retryCount++)
+  if(mdwFreqTimerInfo == NULL)
   {
-    // Get all the values at one time so once a valid value is found, a change
-    // in the timer's data won't affect the output.
-    // This would be nice if it was atomic
-    fullCycle = mdwFreqRtData->countLeadToLead;
-    halfCycle = mdwFreqRtData->countLeadToTrail;
-    totalTimerCount = (double)mdwFreqRtData->countTimerTotal;
-    inputTotalCount = (double)mdwFreqRtData->countInputTotal;
-
-    if(fullCycle > 0 && halfCycle > 0)
-      break;
-
-    usleep(1 * 1000);   // delay for valid data
+    syslog(LOG_ERR, "%s@%d-Couldn't get TimerInfo from timer number:%lu\n",
+          __FILE__, __LINE__, returnData->timerNumber);
+    return -1;
   }
 
-  if(fullCycle > 0 && halfCycle > 0)
+  mdwFreqRtData_t *mdwFreqRtData =
+            mdwFreqTimerInfo->mdwFreqRtData[returnData->timerChannel - 1];
+  if(mdwFreqRtData == NULL)
   {
-    // Do floating point math and convert to integer times 1000.
-    // Duty Cycle is the ratio of the full cycle count and the cycle count
-    // before the trailing edge was detected.
-    dutyCycle = (((double)halfCycle) * 100.0) / ((double)fullCycle);
-
-    // The frequency is the timer's clock divided by the cycle count.
-    frequency = ((double)MEADOW_FREQ_DC_CLOCK_FREQ) / ((double)fullCycle);
-
-    // Average frequency since last read
-    double averageCount = totalTimerCount / inputTotalCount;
-    averageFreq = ((double)MEADOW_FREQ_DC_CLOCK_FREQ) / averageCount;
-
-    syslog(2, "In Code-Freq:%06.2fHz, DC:%02.2f%%, AvgFreq:%06.2f, Count:%lu, retries:%lu\n",
-              frequency, dutyCycle, averageFreq, inputTotalCount,
-              retryCount);
-
-    returnData->frequencyX1000  = (frequency * 1000.0);
-    returnData->avgFreqX1000    = (averageFreq * 1000.0);
-    returnData->dutyCycleX1000  = (dutyCycle * 1000.0);
-    returnData->countInputTotal = (uint32_t)inputTotalCount;
+    syslog(1, "%s@%d-mdwFreqRtData is NULL in ISR\n", __FILE__, __LINE__);
+    return -ERROR;  // -1
   }
-  else
-  {
-    syslog(2, "Invalid data CCR1:%06lu, CCR2:%06lu, retries:%lu\n",
-              fullCycle, halfCycle, retryCount);
-  }
+
+  // This would be nice if it was atomic, it kind of is. The values only change
+  // in the ISR and at that time all processes halt till ISR completed.
+  singleFullCycle = mdwFreqRtData->countLeadToLead;
+  totalTimerCount = (double)mdwFreqRtData->countTimerTotal;
+  inputTotalCount = (double)mdwFreqRtData->countInputTotal;
+
+  syslog(1, "%s@%d-Getting runtime data, Full Cycle:%lu\n", __FILE__, __LINE__, singleFullCycle);
+
+  // Do floating point math and convert to integer times 1000.
+  // The frequency is the timer's clock divided by the cycle count.
+  frequency = ((double)MEADOW_FREQ_DC_CLOCK_FREQ) / ((double)singleFullCycle);
+
+  // Average frequency since last read
+  double averageCount = totalTimerCount / inputTotalCount;
+  averageFreq = ((double)MEADOW_FREQ_DC_CLOCK_FREQ) / averageCount;
+
+  syslog(2, "In Code-Freq:%6.2fHz, AvgFreq:%6.2f, Count:%lu\n",
+            frequency, averageFreq, (uint32_t)inputTotalCount);
+
+  returnData->frequencyX1000  = (frequency * 1000.0);
+  returnData->avgFreqX1000    = (averageFreq * 1000.0);
+  returnData->countInputTotal = (uint32_t)inputTotalCount;
 
   // Prevent counts from being reused
-  mdwFreqRtData->countLeadToLead   = 0;
-  mdwFreqRtData->countLeadToTrail  = 0;
-  mdwFreqRtData->countInputTotal   = 0;
-  mdwFreqRtData->countTimerTotal   = 0;
+  mdwFreqRtData->countLeadToLead    = 0;
+  mdwFreqRtData->countInputTotal    = 0;
+  mdwFreqRtData->countTimerTotal    = 0;
+  mdwFreqRtData->leadToLeadOverflow = 0;
 
   return OK;
 }
+
+// //================================================================
+// // Return Frequency and Duty Cycle information to caller.
+// int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t
+//           *returnData)
+// {
+//   double frequency;
+//   double averageFreq;
+//   double dutyCycle;
+//   double totalTimerCount;
+//   double inputTotalCount;
+//   uint32_t retryCount;
+//   uint32_t fullCycle;
+//   uint32_t halfCycle;
+
+//   // Just feed pulse train into appropriate GPIO
+//   mdwFreqTimerInfo_t *mdwFreqTimerInfo =
+//             meadow_measure_freq_get_timer_info(returnData->timerNumber);
+
+//   mdwFreqRtData_t *mdwFreqRtData = mdwFreqTimerInfo->mdwFreqRtData[returnData->timerChannel];
+
+//   // Find valid data. That is, both full cycle and the half cycle values are
+//   // available. This is only an issue at higher frequencies.
+//   for(retryCount = 0; retryCount < 5; retryCount++)
+//   {
+//     // Get all the values at one time so once a valid value is found, a change
+//     // in the timer's data won't affect the output.
+//     // This would be nice if it was atomic
+//     fullCycle = mdwFreqRtData->countLeadToLead;
+//     halfCycle = mdwFreqRtData->countLeadToTrail;
+//     totalTimerCount = (double)mdwFreqRtData->countTimerTotal;
+//     inputTotalCount = (double)mdwFreqRtData->countInputTotal;
+
+//     if(fullCycle > 0 && halfCycle > 0)
+//       break;
+
+//     usleep(1 * 1000);   // delay for valid data
+//   }
+
+//   if(fullCycle > 0 && halfCycle > 0)
+//   {
+//     // Do floating point math and convert to integer times 1000.
+//     // Duty Cycle is the ratio of the full cycle count and the cycle count
+//     // before the trailing edge was detected.
+//     dutyCycle = (((double)halfCycle) * 100.0) / ((double)fullCycle);
+
+//     // The frequency is the timer's clock divided by the cycle count.
+//     frequency = ((double)MEADOW_FREQ_DC_CLOCK_FREQ) / ((double)fullCycle);
+
+//     // Average frequency since last read
+//     double averageCount = totalTimerCount / inputTotalCount;
+//     averageFreq = ((double)MEADOW_FREQ_DC_CLOCK_FREQ) / averageCount;
+
+//     syslog(2, "In Code-Freq:%06.2fHz, DC:%02.2f%%, AvgFreq:%06.2f, Count:%lu, retries:%lu\n",
+//               frequency, dutyCycle, averageFreq, inputTotalCount,
+//               retryCount);
+
+//     returnData->frequencyX1000  = (frequency * 1000.0);
+//     returnData->avgFreqX1000    = (averageFreq * 1000.0);
+//     returnData->dutyCycleX1000  = (dutyCycle * 1000.0);
+//     returnData->countInputTotal = (uint32_t)inputTotalCount;
+//   }
+//   else
+//   {
+//     syslog(2, "Invalid data CCR1:%06lu, CCR2:%06lu, retries:%lu\n",
+//               fullCycle, halfCycle, retryCount);
+//   }
+
+//   // Prevent counts from being reused
+//   mdwFreqRtData->countLeadToLead   = 0;
+//   mdwFreqRtData->countLeadToTrail  = 0;
+//   mdwFreqRtData->countInputTotal   = 0;
+//   mdwFreqRtData->countTimerTotal   = 0;
+
+//   return OK;
+// }
 #endif    // #if defined(MEADOW_INCLUDE_CALC_FREQ_DC_IN_BUILD)
