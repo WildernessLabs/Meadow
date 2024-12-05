@@ -48,10 +48,10 @@
 // 96 MHz is top speed. Since the interrupts are based on leading
 // edges the only reason for slowing the clock would be to slow down the
 // number of overflows for a 16-bit timer (see comments below in ISR).
-// The clock speed can only be even multiples of the system clock. See
-// board.h for details.
-// For current application reduce clock to 960,000 Hz
+// The clock speed can only be even multiples of the system clock.
+// See board.h for details.
 // #define MEADOW_FREQ_CLOCK_FREQ (96000000) // 96 MHz target frequency
+// For current application reduce clock speed
 #define MEADOW_FREQ_CLOCK_FREQ (960000)       // 960kHz
 
 //--------------------------------------------------------------------------
@@ -82,6 +82,12 @@ typedef struct mdwFreqRtData_s mdwFreqRtData_t;
 #define ACTIVE_CHAN_BITFIELD_3 (0b00000100)
 #define ACTIVE_CHAN_BITFIELD_4 (0b00001000)
 
+// Offsets for channels in the mdwFreqRtData field
+#define FREQ_RT_DATA_OFFSET_CHAN_1 (0)
+#define FREQ_RT_DATA_OFFSET_CHAN_2 (1)
+#define FREQ_RT_DATA_OFFSET_CHAN_3 (2)
+#define FREQ_RT_DATA_OFFSET_CHAN_4 (3)
+
 // The 'freqTimerInfo_s' contains information that defines the selected
 // timer's F7's internal hardware capabilities. Except for the 'freqDcRtData'
 // element, each field is pre-defined from the 'struct freqTimerInfo_s array'
@@ -102,12 +108,6 @@ struct mdwFreqTimerInfo_s
 };
 typedef struct mdwFreqTimerInfo_s mdwFreqTimerInfo_t;
 
-// Offsets for channels in the mdwFreqRtData field
-#define FREQ_RT_DATA_OFFSET_CHAN_1 (0)
-#define FREQ_RT_DATA_OFFSET_CHAN_2 (1)
-#define FREQ_RT_DATA_OFFSET_CHAN_3 (2)
-#define FREQ_RT_DATA_OFFSET_CHAN_4 (3)
-
 struct mdwFreqReturnData_s
 {
   uint32_t timerNumber;       // The timer number 1-14
@@ -126,7 +126,6 @@ struct mdwFreqChanPortPin_s
 typedef struct mdwFreqChanPortPin_s mdwFreqChanPortPin_t;
 
 //--------------------------------------------------------------------------
-mdwFreqTimerInfo_t *meadow_measure_freq_get_timer_info(int timerNumb);
 int meadow_measure_freq_configure(int timerNumber, int timerChannel,
           uint8_t pinDesignation);
 int meadow_measure_freq_unconfigure(uint32_t timerNumber);

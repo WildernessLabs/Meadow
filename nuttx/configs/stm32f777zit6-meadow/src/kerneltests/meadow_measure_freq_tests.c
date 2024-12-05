@@ -58,8 +58,17 @@
 #define MEADOW_FREQ_TEST_PH10_D02  (uint8_t) (GPIO_INPUT | GPIO_PULLDOWN | \
           GPIO_PORTH | GPIO_PIN10)
 
+// F7FeatherV2 PB6 is D04 connected to Timer4 16-bit, channel 1
+#define MEADOW_FREQ_TEST_PB6_D08   (uint8_t)  (GPIO_INPUT | GPIO_PULLDOWN | \
+          GPIO_PORTB | GPIO_PIN6)
+// F7FeatherV2 PB7 is D07 connected to Timer4 16-bit, channel 2
+#define MEADOW_FREQ_TEST_PB7_D07   (uint8_t)  (GPIO_INPUT | GPIO_PULLDOWN | \
+          GPIO_PORTB | GPIO_PIN7)
+// F7FeatherV2 PB8 is D03 connected to Timer4 16-bit, channel 3
+#define MEADOW_FREQ_TEST_PB8_D03   (uint8_t)  (GPIO_INPUT | GPIO_PULLDOWN | \
+          GPIO_PORTB | GPIO_PIN8)
 // F7FeatherV2 PB9 is D04 connected to Timer4 16-bit, channel 4
-#define MEADOW_FREQ_TEST_P09_D04   (uint8_t)  (GPIO_INPUT | GPIO_PULLDOWN | \
+#define MEADOW_FREQ_TEST_PB9_D04   (uint8_t)  (GPIO_INPUT | GPIO_PULLDOWN | \
           GPIO_PORTB | GPIO_PIN9)
 
 /************************************************************************************
@@ -78,34 +87,62 @@
  * Private Functions
  ************************************************************************************/
 // Configure 32-bit timer
-static int meadow_freq_dc_test_configure_32_Tim5_PH10(void)
-{
-  int ret = meadow_measure_freq_configure(5,  // Timer 5 D02 (32-bit)
-            1,                                // Channel
-            MEADOW_FREQ_TEST_PH10_D02);
+// static int meadow_freq_dc_test_configure_32_Tim5_PH10(void)
+// {
+//   int ret = meadow_measure_freq_configure(5,  // Timer 5 D02 (32-bit)
+//             1,                                // Channel
+//             MEADOW_FREQ_TEST_PH10_D02);
 
-  if(ret < 0)
-  {
-    syslog(2, "Error:meadow_measure_freq_configure() ret:%ld\n",  ret);
-    return ret;
-  }
+//   if(ret < 0)
+//   {
+//     syslog(2, "Error:meadow_measure_freq_configure() ret:%ld\n",  ret);
+//     return ret;
+//   }
 
-  return OK;
-}
+//   return OK;
+// }
 
 //===============================================================
-// Configure 16-bit timer 4, D08 via channel 1
-static int meadow_freq_dc_test_configure_16_Tim11_PB8(void)
+// Configure 16-bit timer 4
+// Timer 4 all 4 channels
+static int meadow_frec_test_config_tim4_x4inputs(void)
 {
-  int ret = meadow_measure_freq_configure(5,  // Timer 4 D08 (16-bit)
-            1,                                // Channel
-            MEADOW_FREQ_TEST_P09_D04);
-
+  int ret;
+  // Timer 4 channel 1
+  ret = meadow_measure_freq_configure(4, 1, MEADOW_FREQ_TEST_PB6_D08);
   if(ret < 0)
   {
-    syslog(2, "Error:meadow_measure_freq_configure() ret:%ld\n",  ret);
+    syslog(2, "%s@%d-Error:meadow_measure_freq_configure() ret:%ld\n",
+              __FILE__, __LINE__, ret);
     return ret;
   }
+
+  // // Timer 4 channel 2
+  // ret = meadow_measure_freq_configure(4, 2, MEADOW_FREQ_TEST_PB7_D07);
+  // if(ret < 0)
+  // {
+  //   syslog(2, "%s@%d-Error:meadow_measure_freq_configure() ret:%ld\n",
+  //             __FILE__, __LINE__, ret);
+  //   return ret;
+  // }
+
+  // // Timer 4 channel 3
+  // ret = meadow_measure_freq_configure(4, 3, MEADOW_FREQ_TEST_PB8_D03);
+  // if(ret < 0)
+  // {
+  //   syslog(2, "%s@%d-Error:meadow_measure_freq_configure() ret:%ld\n",
+  //             __FILE__, __LINE__, ret);
+  //   return ret;
+  // }
+
+  // // Timer 4 channel 4
+  // ret = meadow_measure_freq_configure(4, 4, MEADOW_FREQ_TEST_PB9_D04);
+  // if(ret < 0)
+  // {
+  //   syslog(2, "%s@%d-Error:meadow_measure_freq_configure() ret:%ld\n",
+  //             __FILE__, __LINE__, ret);
+  //   return ret;
+  // }
 
   return OK;
 }
@@ -114,10 +151,12 @@ static int meadow_freq_dc_test_configure_16_Tim11_PB8(void)
 // Display the frequency information
 static void display_frequency_and_friends(mdwFreqReturnData_t mdwFreqReturnData)
 {
-  syslog(2, "For Managed code-Freq:%6.2fHz, AvgFreq:%6.2fHz, Input Count:%lu\n",
-            ((double)mdwFreqReturnData.frequencyX1000)/1000.0,
-            ((double)mdwFreqReturnData.avgFreqX1000)/1000.0,
-            mdwFreqReturnData.inputTotalCount);
+  syslog(2, "Timer %lu, Channel:%lu - Freq:%6.2fHz, AvgFreq:%6.2fHz, Input Count:%lu\n",
+          mdwFreqReturnData.timerNumber, 
+          mdwFreqReturnData.timerChannel, 
+          ((double)mdwFreqReturnData.frequencyX1000)/1000.0,
+          ((double)mdwFreqReturnData.avgFreqX1000)/1000.0,
+          mdwFreqReturnData.inputTotalCount);
 }
 
 /************************************************************************************
@@ -129,43 +168,66 @@ void meadow_kt_calc_freq_dc_tests(uint32_t userData)
   int ret;
   mdwFreqReturnData_t mdwFreqReturnData;
 
-  syslog(2, "Frequency and Duty Cycle tests received 'set developer -d 19 -v %lu'\n", userData);
+  syslog(2, "Frequency tests received 'set developer -d 19 -v %lu'\n", userData);
 
   switch(userData)
   {
     case 1:
-      // Configure timer 5
-      ret = meadow_freq_dc_test_configure_32_Tim5_PH10();
+      // Configure timer 4 with 4 inputs
+      ret = meadow_frec_test_config_tim4_x4inputs();
       if(ret < 0)
-        syslog(2, "Error meadow_freq_dc_test_configure_32_Tim5_PH10() ret:%ld\n", ret);
+        syslog(2, "%s@%d-Error meadow_freq_dc_test_tim4, ch1 ret:%ld\n",
+                  __FILE__, __LINE__, ret);
       break;
       
     case 2:
-      // View data timer 5
-      mdwFreqReturnData.timerNumber = 5;
+      // View data timer 4 all channels
+      mdwFreqReturnData.timerNumber = 4;
       mdwFreqReturnData.timerChannel = 1;
       ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
       if(ret < 0)
-        syslog(2, "Error meadow_measure_freq_return_freq_info() ret:%ld\n", ret);
+        syslog(2, "%s@%d-Error meadow_measure_freq_return_freq_info() ret:%ld\n",
+                  __FILE__, __LINE__, ret);
       display_frequency_and_friends(mdwFreqReturnData);
-      break;
 
-    case 3:
-      // Configure timer 8
-      ret = meadow_freq_dc_test_configure_16_Tim11_PB8();
-        syslog(2, "Error meadow_freq_dc_test_configure_16_Tim11_PB8() ret:%ld\n", ret);
-      if(ret < 0)
-      break;
-
-    case 4:
-      // View data timer 8
-      mdwFreqReturnData.timerNumber = 8;
-      mdwFreqReturnData.timerChannel = 1;
+      mdwFreqReturnData.timerChannel = 2;
       ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
       if(ret < 0)
-        syslog(2, "Error meadow_measure_freq_return_freq_info() ret:%ld\n", ret);
+        syslog(2, "%s@%d-Error meadow_measure_freq_return_freq_info() ret:%ld\n",
+                  __FILE__, __LINE__, ret);
+      display_frequency_and_friends(mdwFreqReturnData);
+
+      mdwFreqReturnData.timerChannel = 3;
+      ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
+      if(ret < 0)
+        syslog(2, "%s@%d-Error meadow_measure_freq_return_freq_info() ret:%ld\n",
+                  __FILE__, __LINE__, ret);
+      display_frequency_and_friends(mdwFreqReturnData);
+
+      mdwFreqReturnData.timerChannel = 4;
+      ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
+      if(ret < 0)
+        syslog(2, "%s@%d-Error meadow_measure_freq_return_freq_info() ret:%ld\n",
+                  __FILE__, __LINE__, ret);
       display_frequency_and_friends(mdwFreqReturnData);
       break;
+
+    // case 3:
+    //   // Configure timer 8
+    //   ret = meadow_freq_dc_test_configure_16_Tim11_PB8();
+    //     syslog(2, "Error meadow_freq_dc_test_configure_16_Tim11_PB8() ret:%ld\n", ret);
+    //   if(ret < 0)
+    //   break;
+
+    // case 4:
+    //   // View data timer 8
+    //   mdwFreqReturnData.timerNumber = 8;
+    //   mdwFreqReturnData.timerChannel = 1;
+    //   ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
+    //   if(ret < 0)
+    //     syslog(2, "Error meadow_measure_freq_return_freq_info() ret:%ld\n", ret);
+    //   display_frequency_and_friends(mdwFreqReturnData);
+    //   break;
 
     default:
       syslog(2, "Undefined test for meadow_kt_calc_freq_dc_tests, userData:%lu. NO TEST DEFINED\n", userData);
