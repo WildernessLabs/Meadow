@@ -45,8 +45,8 @@
 #include <stdint.h>
 #include "stm32_gpio.h"   // stm32_configgpio
 
-// 96 MHz is top speed. Since the interrupts are based on leading
-// edges the only reason for slowing the clock would be to slow down the
+// 96 MHz is top speed. Since the interrupts are based on edges,
+// the only reason for slowing the clock would be to slow down the
 // number of overflows for a 16-bit timer (see comments below in ISR).
 // The clock speed can only be even multiples of the system clock.
 // See board.h for details.
@@ -60,20 +60,20 @@
 // (--) mdwFreqRtData_s DOESN"T NEED TO BE IN THIS HEADER FILE
 struct mdwFreqRtData_s
 {
-  // In the following 'Lead' is the leading edge, which can be rising
-  // or falling). It is the edge that begins the measurement cycle and
-  // 'Trail' is the opposite edge.
-  // The Lead to Lead count is the time for one full cycle, allowing
-  // us to calculate the frequency. The Lead to Trail is the first part
-  // of the cycle allowing us to calculate the duty cycle.
-  uint32_t activeState;         // State or Error of some type
-  uint32_t leadToLeadCount;     // Timer CNT leading to leading
-  uint32_t previousCount;       // Timer CNT previous time
-  uint32_t leadToLeadOverflow;  // Leading to Leading overflow count
+  uint32_t midCaptrCnt;
+  uint32_t midCaptrOFlo;
+
+  // Used to calculate frequency etc.
+  uint32_t bgnResltCnt;
+  uint32_t bgnResltOFlo;
+  uint32_t midResltCnt;
+  uint32_t midResltOFlo;
+  uint32_t endResltCnt;
+  uint32_t endResltOFlo;
+
+  uint64_t totalGpioPulses;     // Count of GPIO inputs (average)
   uint32_t inputConfig;         // Nuttx GPIO config for unconfig
-  uint32_t inputTimerChan;      // 0=none used, 1-4 channel of timer input (--) IS THIS NEEDED?
-  uint64_t timerTotalCount;     // Total CNT, for average frequency
-  uint64_t inputTotalCount;     // Count of GPIO input
+  uint32_t inputTimerChan;      // 0=none used, 1-4 channel of timer input (--)NEEDED?
 };
 typedef struct mdwFreqRtData_s mdwFreqRtData_t;
 
@@ -103,6 +103,7 @@ struct mdwFreqTimerInfo_s
   uint32_t timerClkEn;      // Offset for timer enable bit for APB1 or APB2
   uint32_t timerIrqVec;     // Timer's Interrupt vector
   uint16_t timerAltFunc;    // Timer's GPIO alternate function
+  uint64_t timerOverflow;   // Each CNT overflow, increment
   uint8_t  chanActiveBits;  // Channel active? (bit 0=chan1, bit 1=chan2....)
   mdwFreqRtData_t *mdwFreqRtData[4]; // One for each input channel
 };
@@ -113,8 +114,9 @@ struct mdwFreqReturnData_s
   uint32_t timerNumber;       // The timer number 1-14
   uint32_t timerChannel;      // The channel number 1-4
   uint32_t frequencyX1000;    // Frequency * 1000
+  uint32_t dutyCycleX1000;    // Duty Cycle * 1000
   uint32_t avgFreqX1000;      // Average frequency * 1000
-  uint32_t inputTotalCount;   // Number of transitions since list read
+  uint32_t totalGpioPulses;   // Number of transitions since list read
 };
 typedef struct mdwFreqReturnData_s mdwFreqReturnData_t;
 

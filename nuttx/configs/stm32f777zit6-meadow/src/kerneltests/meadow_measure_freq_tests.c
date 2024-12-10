@@ -151,12 +151,13 @@ static int meadow_frec_test_config_tim4_x4inputs(void)
 // Display the frequency information
 static void display_frequency_and_friends(mdwFreqReturnData_t mdwFreqReturnData)
 {
-  syslog(2, "Timer %lu, Channel:%lu - Freq:%6.2fHz, AvgFreq:%6.2fHz, Input Count:%lu\n",
+  syslog(2, "Timer %lu, Channel:%lu - Freq:%6.2fHz, DC:%02.2f%%, AvgFreq:%6.2fHz, Input Count:%lu\n",
           mdwFreqReturnData.timerNumber, 
           mdwFreqReturnData.timerChannel, 
           ((double)mdwFreqReturnData.frequencyX1000)/1000.0,
+          ((double)mdwFreqReturnData.dutyCycleX1000)/1000.0,
           ((double)mdwFreqReturnData.avgFreqX1000)/1000.0,
-          mdwFreqReturnData.inputTotalCount);
+          mdwFreqReturnData.totalGpioPulses);
 }
 
 /************************************************************************************
@@ -190,26 +191,26 @@ void meadow_kt_calc_freq_dc_tests(uint32_t userData)
                   __FILE__, __LINE__, ret);
       display_frequency_and_friends(mdwFreqReturnData);
 
-      mdwFreqReturnData.timerChannel = 2;
-      ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
-      if(ret < 0)
-        syslog(2, "%s@%d-Error meadow_measure_freq_return_freq_info() ret:%ld\n",
-                  __FILE__, __LINE__, ret);
-      display_frequency_and_friends(mdwFreqReturnData);
+      // mdwFreqReturnData.timerChannel = 2;
+      // ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
+      // if(ret < 0)
+      //   syslog(2, "%s@%d-Error meadow_measure_freq_return_freq_info() ret:%ld\n",
+      //             __FILE__, __LINE__, ret);
+      // display_frequency_and_friends(mdwFreqReturnData);
 
-      mdwFreqReturnData.timerChannel = 3;
-      ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
-      if(ret < 0)
-        syslog(2, "%s@%d-Error meadow_measure_freq_return_freq_info() ret:%ld\n",
-                  __FILE__, __LINE__, ret);
-      display_frequency_and_friends(mdwFreqReturnData);
+      // mdwFreqReturnData.timerChannel = 3;
+      // ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
+      // if(ret < 0)
+      //   syslog(2, "%s@%d-Error meadow_measure_freq_return_freq_info() ret:%ld\n",
+      //             __FILE__, __LINE__, ret);
+      // display_frequency_and_friends(mdwFreqReturnData);
 
-      mdwFreqReturnData.timerChannel = 4;
-      ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
-      if(ret < 0)
-        syslog(2, "%s@%d-Error meadow_measure_freq_return_freq_info() ret:%ld\n",
-                  __FILE__, __LINE__, ret);
-      display_frequency_and_friends(mdwFreqReturnData);
+      // mdwFreqReturnData.timerChannel = 4;
+      // ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
+      // if(ret < 0)
+      //   syslog(2, "%s@%d-Error meadow_measure_freq_return_freq_info() ret:%ld\n",
+      //             __FILE__, __LINE__, ret);
+      // display_frequency_and_friends(mdwFreqReturnData);
       break;
 
     // case 3:
