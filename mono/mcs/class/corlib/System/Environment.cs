@@ -960,7 +960,7 @@ namespace System {
 		}
 
 		// private methods
-#if (MONOTOUCH || MONODROID || XAMMAC || WASM) && !MOBILE_DESKTOP_HOST
+#if (MONOTOUCH || MONODROID || XAMMAC || WASM || NUTTX) && !MOBILE_DESKTOP_HOST
 		internal const bool IsRunningOnWindows = false;
 #else
 		internal static bool IsRunningOnWindows {
