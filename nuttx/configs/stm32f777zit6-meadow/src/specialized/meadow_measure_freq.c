@@ -1027,7 +1027,22 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t
   uint64_t endCaptrUi64;
   uint64_t endCaptureTime = meadow_measure_freq_get_current_time();
 
-  // Just feed pulse train into appropriate GPIO
+  syslog(1, "-->Returning data-for timer:%lu, channel:%lu\n",
+            returnData->timerNumber, returnData->channelNumber);
+
+  // Verify that provided timer and channel are valid
+  if(returnData->timerNumber > 14 || returnData->timerNumber < 1)
+  {
+    syslog(2, "%s@%d-Timer must be 1 - 14\n", __FILE__, __LINE__);
+    return -ENOTSUP;
+  }
+  
+  if(returnData->channelNumber > 4 || returnData->channelNumber < 1)
+  {
+    syslog(2, "%s@%d-Channel must be 1 - 4\n", __FILE__, __LINE__);
+    return -ENOTSUP;
+  }
+
   mdwFreqTimerInfo_t *mdwFreqTimerInfo =
             meadow_measure_freq_chk_get_timer_info(returnData->timerNumber);
   if(mdwFreqTimerInfo == NULL)
@@ -1037,32 +1052,44 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t
     return -1;
   }
 
-  mdwFreqChanData_t *mdwFreqChanData =
-            mdwFreqTimerInfo->mdwFreqChanData[returnData->channelNumber - 1];
-  if(mdwFreqChanData == NULL)
+  // Is the channel configured?
+  uint8_t channelBit = meadow_measure_freq_get_chan_bit_set(returnData->channelNumber);
+  if((mdwFreqTimerInfo->chanActiveBits & channelBit) == 0)
   {
     syslog(1, "%s@%d-Unconfigured channel accessed\n", __FILE__, __LINE__);
     return -ERROR;  // -1
   }
 
+  mdwFreqChanData_t *mdwFreqChanData =
+            mdwFreqTimerInfo->mdwFreqChanData[returnData->channelNumber - 1];
+  if(mdwFreqChanData == NULL)
+  {
+    syslog(1, "%s@%d-Channel data NULL\n", __FILE__, __LINE__);
+    return -ERROR;  // -1
+  }
+
+  syslog(1, "-->Returning data-Channel data is at: %p\n", mdwFreqChanData);
+
+  // We need the timer's width to do the overflow math
   if(mdwFreqTimerInfo->timerWidth)
     regOvrFloTimSize = MEADOW_FREQ_32_BIT_OVERFLOW_COUNT;
   else
     regOvrFloTimSize = MEADOW_FREQ_16_BIT_OVERFLOW_COUNT;
 
-  uint64_t ovrFloAtStart = mdwFreqChanData->bgnResltOFlo;
+  uint64_t ovrFloStartCnt = mdwFreqChanData->bgnResltOFlo;
 
-  // Add in the overflow counts
-  beginCaptrUi64 = mdwFreqChanData->bgnResltCnt + ((mdwFreqChanData->bgnResltOFlo - ovrFloAtStart) * regOvrFloTimSize);
-  midCaptrUi64   = mdwFreqChanData->midResltCnt + ((mdwFreqChanData->midResltOFlo - ovrFloAtStart) * regOvrFloTimSize);
-  endCaptrUi64   = mdwFreqChanData->endResltCnt + ((mdwFreqChanData->endResltOFlo - ovrFloAtStart) * regOvrFloTimSize);
+  // (--) THE FIRST VALUE IS ALWAYS O
+  // Add in the overflow counts and normalize mid and end capture counts
+  beginCaptrUi64 = mdwFreqChanData->bgnResltCnt + ((mdwFreqChanData->bgnResltOFlo - ovrFloStartCnt) * regOvrFloTimSize);
+  midCaptrUi64   = mdwFreqChanData->midResltCnt + ((mdwFreqChanData->midResltOFlo - ovrFloStartCnt) * regOvrFloTimSize);
+  endCaptrUi64   = mdwFreqChanData->endResltCnt + ((mdwFreqChanData->endResltOFlo - ovrFloStartCnt) * regOvrFloTimSize);
 
-  // Use normalize the values, set begin at 0
+  // Begin is 0, normalize the others too
   fullCycle = endCaptrUi64 - beginCaptrUi64;
   halfCycle = midCaptrUi64 - beginCaptrUi64;
 
   // To help preserve resolution, use floating point math.
-  syslog(1, "%s@%d-Snapshot-full Count:%llu, half Count:%llu, inputTotal:%llu\n",
+  syslog(1, "==>%s@%d-Snapshot-full Count:%llu, half Count:%llu, inputTotal:%llu\n",
             __FILE__, __LINE__,
             fullCycle, halfCycle,
             mdwFreqChanData->totalGpioPulses);
@@ -1081,7 +1108,7 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t
   dblTotalInputCount = (double)mdwFreqChanData->totalGpioPulses;
   dblAverageFreq = ((double)dblTotalInputCount) / dblTotalCaptureTime;
 
-  syslog(2, "AvgFreq:%6.2f, Since last read, GpioCnt:%llu\n",
+  syslog(2, "==>AvgFreq:%6.2f, Since last read, GpioCnt:%llu\n",
             dblAverageFreq,
             mdwFreqChanData->totalGpioPulses);
 
