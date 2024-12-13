@@ -75,14 +75,14 @@ struct mdwFreqRtData_s
   uint32_t inputConfig;         // Nuttx GPIO config for unconfig
   uint32_t inputTimerChan;      // 0=none used, 1-4 channel of timer input (--)NEEDED?
 };
-typedef struct mdwFreqRtData_s mdwFreqRtData_t;
+typedef struct mdwFreqRtData_s mdwFreqChanData_t;
 
 #define ACTIVE_CHAN_BITFIELD_1 (0b00000001)
 #define ACTIVE_CHAN_BITFIELD_2 (0b00000010)
 #define ACTIVE_CHAN_BITFIELD_3 (0b00000100)
 #define ACTIVE_CHAN_BITFIELD_4 (0b00001000)
 
-// Offsets for channels in the mdwFreqRtData field
+// Offsets for channels in the mdwFreqChanData field
 #define FREQ_RT_DATA_OFFSET_CHAN_1 (0)
 #define FREQ_RT_DATA_OFFSET_CHAN_2 (1)
 #define FREQ_RT_DATA_OFFSET_CHAN_3 (2)
@@ -93,7 +93,6 @@ typedef struct mdwFreqRtData_s mdwFreqRtData_t;
 // element, each field is pre-defined from the 'struct freqTimerInfo_s array'
 struct mdwFreqTimerInfo_s
 {
-  // (--) Could add a bit field that contains the in-use channels
   uint8_t  timerNumb   : 4; // 0 - 15 timer number
   uint8_t  timerWidth  : 1; // 16-bit or 32-bit timer? 0=16-bits, 1=32-bits
   uint8_t  timerMaxClk : 1; // 0=STM32_APB1_TIM2_CLKIN, 1=STM32_APB2_TIM1_CLKIN
@@ -105,14 +104,14 @@ struct mdwFreqTimerInfo_s
   uint16_t timerAltFunc;    // Timer's GPIO alternate function
   uint64_t timerOverflow;   // Each CNT overflow, increment
   uint8_t  chanActiveBits;  // Channel active? (bit 0=chan1, bit 1=chan2....)
-  mdwFreqRtData_t *mdwFreqRtData[4]; // One for each input channel
+  mdwFreqChanData_t *mdwFreqChanData[4]; // One for each input channel
 };
 typedef struct mdwFreqTimerInfo_s mdwFreqTimerInfo_t;
 
 struct mdwFreqReturnData_s
 {
   uint32_t timerNumber;       // The timer number 1-14
-  uint32_t timerChannel;      // The channel number 1-4
+  uint32_t channelNumber;     // The channel number 1-4
   uint32_t frequencyX1000;    // Frequency * 1000
   uint32_t dutyCycleX1000;    // Duty Cycle * 1000
   uint32_t avgFreqX1000;      // Average frequency * 1000
@@ -128,7 +127,7 @@ struct mdwFreqChanPortPin_s
 typedef struct mdwFreqChanPortPin_s mdwFreqChanPortPin_t;
 
 //--------------------------------------------------------------------------
-int meadow_measure_freq_configure(int timerNumber, int timerChannel,
+int meadow_measure_freq_configure(int timerNumber, int channelNumber,
           uint8_t pinDesignation);
 int meadow_measure_freq_unconfigure(uint32_t timerNumber);
 int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *mdwFreqReturnData);
