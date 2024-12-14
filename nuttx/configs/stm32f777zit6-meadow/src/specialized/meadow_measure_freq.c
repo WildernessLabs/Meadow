@@ -1151,6 +1151,8 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t
 
   // Reset capture counts for new average calc
   mdwFreqChanData->totalGpioPulses = 0;
+
+  // There's a bug here. Need to save time for every channel configured
   startCaptureTime = meadow_measure_freq_get_current_time();
 
   return OK;
