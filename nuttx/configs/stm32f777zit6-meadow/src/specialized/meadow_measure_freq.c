@@ -51,14 +51,12 @@
 //  and their associated GPIOs.
 // x4. Add Duty Cycle and Frequency average support
 // 5. Add multi-channel support. Support all timer channels for input.
-// 6. 
-// 5. Add syscalls as needed (probably 2 maybe 3)
-// 6. For 16-bit timers, allow with configuration to include SLOW, MED and
+// 6. Add syscalls as needed (probably 2 maybe 3)
+// 7. For 16-bit timers, allow with configuration to include SLOW, MED and
 //  FAST options to reduce the effects of the 65,536 count rollover?
-// 7. Write and test unconfigure code (need unique syscall?)
-// 7a 
-// 8. Support Tim1 and Tim8? These have more complex IRQ requirements.
-// 9. Clean up code, remove unneeded header includes and retest
+// 8. Write and test unconfigure code (need unique syscall?)
+// 9. Support Tim1 and Tim8? These have more complex IRQ requirements. NO
+// 10. Clean up code, remove unneeded header includes and retest
 
 /****************************************************************************
  * Included Files
@@ -692,9 +690,7 @@ int meadow_measure_freq_configure(const int timerNumber, int channelNumber,
   static bool isFirstTime = true;
   int channelOffset = channelNumber - 1;
   uint32_t inputGpioConfig;
-
-  // WIP - Used for not reconfiguring timer for additional GPIO inputs
-  bool isTimerConfigured;
+  bool timerNeedsConfig;
 
   if(isFirstTime)
   {
@@ -717,12 +713,12 @@ int meadow_measure_freq_configure(const int timerNumber, int channelNumber,
     return -ENOTSUP;
   }
 
-  // Insure a correct timer / pin+port combination was supplied.
+  // Insure a valid timer, channel, pin+port combination was supplied.
   // Timers have, at most, 1-4 channels, each representing 1 GPIO. For the
   // specified timer we need to verify a proper port and pin.
-  uint8_t validatedTimerChan = meadow_measure_freq_get_chan_tim_port_pin(
+  uint8_t chanValid4TimerPortPin = meadow_measure_freq_get_chan_tim_port_pin(
             timerNumber, portAndPin);
-  if(validatedTimerChan == 0)
+  if(chanValid4TimerPortPin == 0)
   {
     syslog(2, "%s@%d-The Port and Pin, not valid for timer %d\n",
               __FILE__, __LINE__, timerNumber);
@@ -730,7 +726,7 @@ int meadow_measure_freq_configure(const int timerNumber, int channelNumber,
   }
 
   // Is this the channel the user wanted?
-  if(channelNumber != validatedTimerChan)
+  if(channelNumber != chanValid4TimerPortPin)
   {
     syslog(2, "%s@%d-The Port/Pin/Timer/Channel combination, not valid\n",
               __FILE__, __LINE__);
@@ -747,17 +743,17 @@ int meadow_measure_freq_configure(const int timerNumber, int channelNumber,
     return -ENOTSUP;
   }
 
-  // Has this timer been initialized for a channel?
-  if(mdwFreqTimerInfo->chanActiveBits != 0)
-    isTimerConfigured = true;
+  // Are any channels active? If not, timer needs to be initialized
+  if(mdwFreqTimerInfo->chanActiveBits == 0)
+    timerNeedsConfig = true;
   else
-    isTimerConfigured = false;
+    timerNeedsConfig = false;
 
   // This timer is usable, but is this channel already being used?
   uint8_t chanBit = meadow_measure_freq_get_chan_bit_set(channelNumber);
   if(mdwFreqTimerInfo->chanActiveBits & chanBit)
   {
-    syslog(LOG_ERR, "%s@%d-Timer %d, channel %d in use\n",
+    syslog(LOG_ERR, "%s@%d-Timer %d, channel %d already in use\n",
               __FILE__, __LINE__, timerNumber, channelNumber);
     return -EADDRINUSE;
   }
@@ -773,15 +769,25 @@ int meadow_measure_freq_configure(const int timerNumber, int channelNumber,
   // Diagnostic
 
   // Allocate a struct for each new channel on a timer
-  mdwFreqTimerInfo->mdwFreqChanData[channelOffset] = (mdwFreqChanData_t*)zalloc(sizeof(mdwFreqChanData_t));
+  mdwFreqTimerInfo->mdwFreqChanData[channelOffset] =
+            (mdwFreqChanData_t*)zalloc(sizeof(mdwFreqChanData_t));
   if(mdwFreqTimerInfo->mdwFreqChanData[channelOffset] == NULL)
   {
     syslog(LOG_ERR, "%s@%d-Allocation for mdwFreqChanData_s NULL\n", __FILE__, __LINE__);
     return -ENOMEM;
   }
+  syslog(1, "-->%s@%d-Channel %ld allocted %p for chan data\n", __FILE__, __LINE__,
+          channelNumber, mdwFreqTimerInfo->mdwFreqChanData[channelOffset]);
 
   // Valid GPIO so configure input point for timer.
-  ret = stm32_configgpio(inputGpioConfig);
+    // Diagnostic
+  syslog(1, "-->%s@%d-TIM%lu, Chn:%lu, input Pin defn:0x%02x (P%c%d), Pin defn+AF:0x%08lx\n",
+            __FILE__, __LINE__, timerNumber, channelNumber, portAndPin,
+            ((portAndPin) >> 4) + 'A', portAndPin & 0x0f, inputGpioConfig);
+  // Diagnostic
+
+  // Valid GPIO so configure input for channel.
+ret = stm32_configgpio(inputGpioConfig);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Error:stm32_configgpio() returned:%ld\n",
@@ -790,9 +796,47 @@ int meadow_measure_freq_configure(const int timerNumber, int channelNumber,
     return -ENOTSUP;   // Not supported
   }
 
+  if(timerNeedsConfig)
+  {
+    // Initialized the F7's timer hardware
+    ret = meadow_measure_freq_cfg_timer_hardware(mdwFreqTimerInfo,
+              chanValid4TimerPortPin, true);
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-Meadow frequency init failed:%d\n",
+                __FILE__, __LINE__, ret);
+      free(mdwFreqTimerInfo->mdwFreqChanData[channelOffset]);
+      return ret;
+    }
+  }
+
   // Initialized the F7's timer hardware
-  ret = meadow_measure_freq_cfg_timer_hardware(mdwFreqTimerInfo, validatedTimerChan,
+  ret = meadow_measure_freq_cfg_timer_hardware(mdwFreqTimerInfo, chanValid4TimerPortPin,
             true);
+  // if(timerNeedsConfig)
+  // {
+  //   // Initialized the F7's timer hardware
+  //   ret = meadow_measure_freq_cfg_timer_hardware(mdwFreqTimerInfo);
+  //   if(ret < 0)
+  //   {
+  //     syslog(LOG_ERR, "%s@%d-Meadow frequency init failed:%d\n",
+  //               __FILE__, __LINE__, ret);
+  //     free(mdwFreqTimerInfo->mdwFreqChanData[channelOffset]);
+  //     return ret;
+  //   }
+  // }
+
+  // // Initialized the F7's channel hardware for this GPIO input 
+  // ret = meadow_measure_freq_cfg_channel_hardware(mdwFreqTimerInfo,
+  //         channelNumber);
+  // if(ret < 0)
+  // {
+  //   syslog(LOG_ERR, "%s@%d-Meadow frequency init failed:%d\n",
+  //             __FILE__, __LINE__, ret);
+  //   free(mdwFreqTimerInfo->mdwFreqChanData[channelOffset]);
+  //   return ret;
+  // }
+
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Meadow frequency init failed:%d\n",
@@ -803,11 +847,12 @@ int meadow_measure_freq_configure(const int timerNumber, int channelNumber,
 
   // Start filling the channel structure
   mdwFreqTimerInfo->mdwFreqChanData[channelOffset]->inputConfig     = inputGpioConfig;
-  mdwFreqTimerInfo->mdwFreqChanData[channelOffset]->inputTimerChan  = validatedTimerChan;
+  mdwFreqTimerInfo->mdwFreqChanData[channelOffset]->inputTimerChan  = chanValid4TimerPortPin;
   mdwFreqTimerInfo->mdwFreqChanData[channelOffset]->totalGpioPulses = 0;
-  mdwFreqTimerInfo->chanActiveBits |= chanBit;
+  // And indicate in timer structure that this channel is being used
+  mdwFreqTimerInfo->chanActiveBits |= chanBit;    // Set channel bit
 
-  // This time is used to calculate average frequency over time
+  // The time found here, is used to calculate average frequency
   startCaptureTime = meadow_measure_freq_get_current_time();
   return OK;
 }
@@ -817,7 +862,7 @@ int meadow_measure_freq_configure(const int timerNumber, int channelNumber,
 int meadow_measure_freq_cfg_timer_hardware(
           mdwFreqTimerInfo_t *mdwFreqTimerInfo,
           int inputTimerChan,
-          bool isTimerConfigured)
+          bool timerNeedsConfig)
 {
   int ret;
   uint16_t regVal16;
@@ -912,6 +957,7 @@ int meadow_measure_freq_cfg_timer_hardware(
   // SLOW, MEDIUM AND FAST SELECTION? BUT NOT PER CHANNEL, PER TIMER
   // ?? Find proper pre-scaler value so all timers run at the same speed, no
   // ?? matter which clock line they are connected to.
+  //
   // Must be between 0 and 0xffff. Set the prescaler value of 0 to allow
   // highest speed, allowed by MEADOW_FREQ_CLOCK_FREQ.
   // A prescaler value of 1 will divide the clock by 2.
