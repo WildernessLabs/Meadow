@@ -50,13 +50,17 @@
 //  modifying or replacing existing tables to support more or all Timers
 //  and their associated GPIOs.
 // x4. Add Duty Cycle and Frequency average support
-// 5. Add multi-channel support. Support all timer channels for input.
-// 6. Add syscalls as needed (probably 2 maybe 3)
-// 7. For 16-bit timers, allow with configuration to include SLOW, MED and
+// x5. Add multi-channel support. Support all timer channels for input.
+// 6. Average frequency needs support for all channels.
+// 7. Add syscalls as needed (probably 2 maybe 3)
+// 8. Could make Duty Cycle monitoring configurable. This would cut the number
+//    of ISR calls by 50%.
+// 9. For 16-bit timers, allow with configuration to include SLOW, MED and
 //  FAST options to reduce the effects of the 65,536 count rollover?
-// 8. Write and test unconfigure code (need unique syscall?)
-// 9. Support Tim1 and Tim8? These have more complex IRQ requirements. NO
-// 10. Clean up code, remove unneeded header includes and retest
+// 10. Write and test unconfigure code (need unique syscall?)
+// 11. Support Tim1 and Tim8? These have more complex IRQ requirements.
+//     Don't add support for these until needed.
+// 12. Clean up code, remove unneeded header includes and retest
 
 /****************************************************************************
  * Included Files
@@ -125,8 +129,6 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-static uint64_t startCaptureTime;
-
 // This array contains timer information most of which is fixed by the STM32F7
 // hardware. It contains each F7 timer and a flag for useability (TIM1 and
 // TIM8 are not usable). The 'Acv' (i.e. Active channels) byte contains 4 bits
@@ -318,7 +320,7 @@ int meadow_measure_freq_isr(int irq, void *context, void *arg)
         mdwFreqChanData->endResltOFlo = mdwFreqTimerInfo->timerOverflow;
 
         // The following is for finding average frequency
-        mdwFreqChanData->totalGpioPulses++;
+        mdwFreqChanData->gpioCountForAvg++;
       }
       else
       {
@@ -369,7 +371,7 @@ int meadow_measure_freq_isr(int irq, void *context, void *arg)
         mdwFreqChanData->endResltOFlo = mdwFreqTimerInfo->timerOverflow;
 
         // The following is for finding average frequency
-        mdwFreqChanData->totalGpioPulses++;
+        mdwFreqChanData->gpioCountForAvg++;
       }
       else
       {
@@ -416,7 +418,7 @@ int meadow_measure_freq_isr(int irq, void *context, void *arg)
         mdwFreqChanData->endResltOFlo = mdwFreqTimerInfo->timerOverflow;
 
         // The following is for finding average frequency
-        mdwFreqChanData->totalGpioPulses++;
+        mdwFreqChanData->gpioCountForAvg++;
       }
       else
       {
@@ -464,7 +466,7 @@ int meadow_measure_freq_isr(int irq, void *context, void *arg)
         mdwFreqChanData->endResltOFlo = mdwFreqTimerInfo->timerOverflow;
 
         // The following is for finding average frequency
-        mdwFreqChanData->totalGpioPulses++;
+        mdwFreqChanData->gpioCountForAvg++;
       }
       else
       {
@@ -799,13 +801,14 @@ ret = stm32_configgpio(inputGpioConfig);
     free(mdwFreqTimerInfo->mdwFreqChanData[channelOffset]);
     return -ENOTSUP;   // Not supported
   }
-  
-  //(--) Make sure this is always done
 
   // Start filling the channel structure
   mdwFreqTimerInfo->mdwFreqChanData[channelOffset]->inputConfig     = inputGpioConfig;
   mdwFreqTimerInfo->mdwFreqChanData[channelOffset]->inputTimerChan  = chanValid4TimerPortPin;
-  mdwFreqTimerInfo->mdwFreqChanData[channelOffset]->totalGpioPulses = 0;
+  // Init time and count used to calculate average frequency
+  mdwFreqTimerInfo->mdwFreqChanData[channelOffset]->gpioCountForAvg = 0;
+  mdwFreqTimerInfo->mdwFreqChanData[channelOffset]->startTimeForAvg
+            = meadow_measure_freq_get_current_time();
   // And indicate in timer structure that this channel is being used
   mdwFreqTimerInfo->chanActiveBits |= chanBit;    // Set channel bit
 
@@ -834,8 +837,6 @@ ret = stm32_configgpio(inputGpioConfig);
     }
   }
 
-  // The time found here, is used to calculate average frequency
-  startCaptureTime = meadow_measure_freq_get_current_time();
   return OK;
 }
 
@@ -1044,15 +1045,16 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t
           *returnData)
 {
   double dblFrequency;
-  double dblAverageFreq;
   double dblDutyCycle;
   double dblTotalInputCount;
+  double dblAvgFreq;
   uint64_t halfCycle;
   uint64_t fullCycle;
   uint64_t regOvrFloTimSize;
-  uint64_t beginCaptrUi64;
-  uint64_t midCaptrUi64;
-  uint64_t endCaptrUi64;
+  uint64_t bgnCapture;
+  uint64_t midCapture;
+  uint64_t endCapture;
+  uint64_t totalCaptureTime;
   uint64_t endCaptureTime = meadow_measure_freq_get_current_time();
 
   syslog(1, "-->Returning data-for timer:%lu, channel:%lu\n",
@@ -1108,19 +1110,22 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t
 
   // (--) THE FIRST VALUE IS ALWAYS O
   // Add in the overflow counts and normalize mid and end capture counts
-  beginCaptrUi64 = mdwFreqChanData->bgnResltCnt + ((mdwFreqChanData->bgnResltOFlo - ovrFloStartCnt) * regOvrFloTimSize);
-  midCaptrUi64   = mdwFreqChanData->midResltCnt + ((mdwFreqChanData->midResltOFlo - ovrFloStartCnt) * regOvrFloTimSize);
-  endCaptrUi64   = mdwFreqChanData->endResltCnt + ((mdwFreqChanData->endResltOFlo - ovrFloStartCnt) * regOvrFloTimSize);
+  bgnCapture = mdwFreqChanData->bgnResltCnt + \
+        ((mdwFreqChanData->bgnResltOFlo - ovrFloStartCnt) * regOvrFloTimSize);
+  midCapture = mdwFreqChanData->midResltCnt + \
+        ((mdwFreqChanData->midResltOFlo - ovrFloStartCnt) * regOvrFloTimSize);
+  endCapture = mdwFreqChanData->endResltCnt + \
+        ((mdwFreqChanData->endResltOFlo - ovrFloStartCnt) * regOvrFloTimSize);
 
   // Begin is 0, normalize the others too
-  fullCycle = endCaptrUi64 - beginCaptrUi64;
-  halfCycle = midCaptrUi64 - beginCaptrUi64;
+  fullCycle = endCapture - bgnCapture;
+  halfCycle = midCapture - bgnCapture;
 
   // To help preserve resolution, use floating point math.
-  syslog(1, "==>%s@%d-Snapshot-full Count:%llu, half Count:%llu, inputTotal:%llu\n",
+  syslog(1, "==>%s@%d-Snapshot-bgnCapture:%llu, full Count:%llu, half Count:%llu, inputTotal:%llu\n",
             __FILE__, __LINE__,
             fullCycle, halfCycle,
-            mdwFreqChanData->totalGpioPulses);
+            mdwFreqChanData->gpioCountForAvg);
 
   // Duty Cycle is the ratio of the full cycle count and the cycle count
   // before the trailing edge was detected.
@@ -1130,30 +1135,25 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t
   dblFrequency = ((double)MEADOW_FREQ_CLOCK_FREQ) / ((double)fullCycle);
 
   // Average frequency since last read calculations
-  uint64_t totalCaptureTime = endCaptureTime - startCaptureTime;
-  // Convert nanoseconds to fractional seconds
+  totalCaptureTime = endCaptureTime - mdwFreqChanData->startTimeForAvg;
+
+  // Convert time in nanoseconds to fractional seconds
   double dblTotalCaptureTime = ((double) totalCaptureTime) / (1000.0 * 1000.0 * 1000.0);
-  dblTotalInputCount = (double)mdwFreqChanData->totalGpioPulses;
-  dblAverageFreq = ((double)dblTotalInputCount) / dblTotalCaptureTime;
+  dblTotalInputCount = (double)mdwFreqChanData->gpioCountForAvg;
+  dblAvgFreq = ((double)dblTotalInputCount) / dblTotalCaptureTime;
 
-  syslog(2, "==>AvgFreq:%6.2f, Since last read, GpioCnt:%llu\n",
-            dblAverageFreq,
-            mdwFreqChanData->totalGpioPulses);
-
-  syslog(2, "In Code-Freq:%06.2fHz, DC:%02.2f%%, AvgFreq:%06.8f, Count:%lu\n",
-            dblFrequency, dblDutyCycle, dblAverageFreq,
+  syslog(1, "==>In Code-Freq:%06.2fHz, DC:%02.2f%%, AvgFreq:%06.4f, Count:%lu\n",
+            dblFrequency, dblDutyCycle, dblAvgFreq,
             (uint32_t)dblTotalInputCount);
 
   returnData->frequencyX1000  = (dblFrequency * 1000.0);
   returnData->dutyCycleX1000  = (dblDutyCycle * 1000.0);
-  returnData->avgFreqX1000    = (dblAverageFreq * 1000.0);
-  returnData->totalGpioPulses = (uint32_t)dblTotalInputCount;
+  returnData->avgFreqX1000    = (dblAvgFreq   * 1000.0);
+  returnData->gpioCountForAvg = (uint32_t)dblTotalInputCount;
 
-  // Reset capture counts for new average calc
-  mdwFreqChanData->totalGpioPulses = 0;
-
-  // There's a bug here. Need to save time for every channel configured
-  startCaptureTime = meadow_measure_freq_get_current_time();
+  // Reset capture counts and Meadow time for next average
+  mdwFreqChanData->gpioCountForAvg = 0;
+  mdwFreqChanData->startTimeForAvg = meadow_measure_freq_get_current_time();
 
   return OK;
 }

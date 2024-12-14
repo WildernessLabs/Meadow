@@ -71,9 +71,10 @@ struct mdwFreqRtData_s
   uint32_t endResltCnt;
   uint32_t endResltOFlo;
 
-  uint64_t totalGpioPulses;     // Count of GPIO inputs (average)
   uint32_t inputConfig;         // Nuttx GPIO config for unconfig
   uint32_t inputTimerChan;      // 0=none used, 1-4 channel of timer input (--)NEEDED?
+  uint64_t gpioCountForAvg;     // Count of GPIO inputs (average)
+  uint64_t startTimeForAvg;     // Meadow start time for average
 };
 typedef struct mdwFreqRtData_s mdwFreqChanData_t;
 
@@ -115,7 +116,7 @@ struct mdwFreqReturnData_s
   uint32_t frequencyX1000;    // Frequency * 1000
   uint32_t dutyCycleX1000;    // Duty Cycle * 1000
   uint32_t avgFreqX1000;      // Average frequency * 1000
-  uint32_t totalGpioPulses;   // Number of transitions since list read
+  uint32_t gpioCountForAvg;   // Number of transitions since list read
 };
 typedef struct mdwFreqReturnData_s mdwFreqReturnData_t;
 

@@ -149,7 +149,7 @@ static void display_frequency_and_friends(mdwFreqReturnData_t mdwFreqReturnData)
           ((double)mdwFreqReturnData.frequencyX1000)/1000.0,
           ((double)mdwFreqReturnData.dutyCycleX1000)/1000.0,
           ((double)mdwFreqReturnData.avgFreqX1000)/1000.0,
-          mdwFreqReturnData.totalGpioPulses);
+          mdwFreqReturnData.gpioCountForAvg);
 }
 
 /************************************************************************************
