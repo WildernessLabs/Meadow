@@ -83,10 +83,10 @@ typedef struct mdwFreqRtData_s mdwFreqChanData_t;
 #define ACTIVE_CHAN_BITFIELD_4 (0b00001000)
 
 // Offsets for channels in the mdwFreqChanData field
-#define FREQ_RT_DATA_OFFSET_CHAN_1 (0)
-#define FREQ_RT_DATA_OFFSET_CHAN_2 (1)
-#define FREQ_RT_DATA_OFFSET_CHAN_3 (2)
-#define FREQ_RT_DATA_OFFSET_CHAN_4 (3)
+#define FREQ_CHAN_DATA_OFFSET_CHAN_1 (0)
+#define FREQ_CHAN_DATA_OFFSET_CHAN_2 (1)
+#define FREQ_CHAN_DATA_OFFSET_CHAN_3 (2)
+#define FREQ_CHAN_DATA_OFFSET_CHAN_4 (3)
 
 // The 'freqTimerInfo_s' contains information that defines the selected
 // timer's F7's internal hardware capabilities. Except for the 'freqDcRtData'
