@@ -60,19 +60,18 @@
 // (--) mdwFreqRtData_s DOESN"T NEED TO BE IN THIS HEADER FILE
 struct mdwFreqRtData_s
 {
-  uint32_t midCaptrCnt;
-  uint32_t midCaptrOFlo;
+  uint32_t midCaptureCnt;
+  uint32_t midCaptureOvr;
 
   // Used to calculate frequency etc.
-  uint32_t bgnResltCnt;
-  uint32_t bgnResltOFlo;
-  uint32_t midResltCnt;
-  uint32_t midResltOFlo;
-  uint32_t endResltCnt;
-  uint32_t endResltOFlo;
+  uint32_t bgnResultCnt;
+  uint32_t bgnResultOvr;
+  uint32_t midResultCnt;
+  uint32_t midResultOvr;
+  uint32_t endResultCnt;
+  uint32_t endResultOvr;
 
   uint32_t inputConfig;         // Nuttx GPIO config for unconfig
-  uint32_t inputTimerChan;      // 0=none used, 1-4 channel of timer input (--)NEEDED?
   uint64_t gpioCountForAvg;     // Count of GPIO inputs (average)
   uint64_t startTimeForAvg;     // Meadow start time for average
 };
@@ -109,6 +108,15 @@ struct mdwFreqTimerInfo_s
 };
 typedef struct mdwFreqTimerInfo_s mdwFreqTimerInfo_t;
 
+struct mdwCfgTimerChan_s
+{
+  uint32_t timerNumber;   // 1-14 (1 & 8 not supported)
+  uint32_t channelNumber; // 1-4
+  uint32_t portAndPin;    // Top 4-bits port 0=A, 1=B, ls 4-bits pin 0-15
+  uint32_t isConfigure;   // 1=configure, 0=unconfig
+};
+typedef struct mdwCfgTimerChan_s mdwCfgTimerChan_t;
+
 struct mdwFreqReturnData_s
 {
   uint32_t timerNumber;       // The timer number 1-14
@@ -128,8 +136,7 @@ struct mdwFreqChanPortPin_s
 typedef struct mdwFreqChanPortPin_s mdwFreqChanPortPin_t;
 
 //--------------------------------------------------------------------------
-int meadow_measure_freq_configure(int timerNumber, int channelNumber,
-          uint8_t pinDesignation);
+int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan);
 int meadow_measure_freq_unconfigure(uint32_t timerNumber);
 int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *mdwFreqReturnData);
 

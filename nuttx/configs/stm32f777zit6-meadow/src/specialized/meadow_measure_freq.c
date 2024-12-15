@@ -34,33 +34,28 @@
  ****************************************************************************/
 // This module, uses timers to calculate frequency
 
-// The Problem with 16-bit timers.
-// At certain input frequencies the CNT being cleared and the CNT overflow
-// are reported in the same interrupt. However, there is only 1 bit available
-// to indicate both conditions. This makes it impossible to tell which it is.
-// The highest frequency this occurs at is TimerClock/65536, which is
-// 1,464.844 Hz with a timer clock of 96 MHz. This reoccurs at the intervals
-// (TimerClock/65536)/2, (TimerClock/65536)/3 etc.
-//
 // ToDo List
-// x1. Add a running average feature. It would be the average since the last
+// *1. Add a running average feature. It would be the average since the last
 //  reading.
-// x2. Add count of the input GPIO trailing edges since last reading.
-// x3. Add CCM support. This requires changes to the configuration and adding,
+// *2. Add count of the input GPIO raising edges since last reading.
+// *3. Add CCM support. This requires changes to the configuration and adding,
 //  modifying or replacing existing tables to support more or all Timers
 //  and their associated GPIOs.
-// x4. Add Duty Cycle and Frequency average support
-// x5. Add multi-channel support. Support all timer channels for input.
-// 6. Average frequency needs support for all channels.
-// 7. Add syscalls as needed (probably 2 maybe 3)
-// 8. Could make Duty Cycle monitoring configurable. This would cut the number
-//    of ISR calls by 50%.
-// 9. For 16-bit timers, allow with configuration to include SLOW, MED and
-//  FAST options to reduce the effects of the 65,536 count rollover?
-// 10. Write and test unconfigure code (need unique syscall?)
-// 11. Support Tim1 and Tim8? These have more complex IRQ requirements.
-//     Don't add support for these until needed.
-// 12. Clean up code, remove unneeded header includes and retest
+// *4. Add Duty Cycle support
+// *5. Add multi-channel support. Support all timer channels for input.
+// *6. Average frequency needs support for all channels.
+// *7. Cleanup code and implement structs for caller (Meadow.Core)
+// 8. Add syscalls as needed (probably 2 maybe 3)
+// 9. Improve returned data when there is no GPIO input.
+// 10. Implement and test unconfigure code.
+// 11. Clean up code, remove unneeded header includes and retest
+// OPTIONAL BELOW
+// 12. Make Duty Cycle monitoring configurable? This would cut the number
+//  of ISR calls by 50% if not needed
+// 13. For 16-bit timers, allow configuration to include SLOW, MED and
+//  FAST options?
+// 14. Support Tim1 and Tim8? These have more complex IRQ requirements.
+//  Don't support until needed.
 
 /****************************************************************************
  * Included Files
@@ -190,7 +185,7 @@ mdwFreqChanPortPin_t validStm32F7GpioArray[][11] =
       {{0x59, 1}, {0x07, 1}, {0xff, 0}},
 };
 
-// Used to verify pin and port availability on F7v1
+// Used to verify port and pin availability on F7v1
 static uint8_t validF7v1GpioArray[][5] =
 {
   // F7v1
@@ -210,7 +205,7 @@ static uint8_t validF7v1GpioArray[][5] =
   /* TIM14 A03,                 */ {0x07,0xff}
 };
 
-// Used to verify pin and port availability on F7v2
+// Used to verify port and pin availability on F7v2
 static uint8_t validF7v2GpioArray[][5] =
 {
   // F7v2
@@ -310,23 +305,23 @@ int meadow_measure_freq_isr(int irq, void *context, void *arg)
       {
         // Raising edge is end of previous capture and the beginning of a
         // new capture
-        mdwFreqChanData->bgnResltCnt  = mdwFreqChanData->endResltCnt;
-        mdwFreqChanData->bgnResltOFlo = mdwFreqChanData->endResltOFlo;
-        mdwFreqChanData->midResltCnt  = mdwFreqChanData->midCaptrCnt;
-        mdwFreqChanData->midResltOFlo = mdwFreqChanData->midCaptrOFlo;
+        mdwFreqChanData->bgnResultCnt = mdwFreqChanData->endResultCnt;
+        mdwFreqChanData->bgnResultOvr = mdwFreqChanData->endResultOvr;
+        mdwFreqChanData->midResultCnt = mdwFreqChanData->midCaptureCnt;
+        mdwFreqChanData->midResultOvr = mdwFreqChanData->midCaptureOvr;
 
         // End is now
-        mdwFreqChanData->endResltCnt  = capturedCount;
-        mdwFreqChanData->endResltOFlo = mdwFreqTimerInfo->timerOverflow;
+        mdwFreqChanData->endResultCnt = capturedCount;
+        mdwFreqChanData->endResultOvr = mdwFreqTimerInfo->timerOverflow;
 
-        // The following is for finding average frequency
+        // The following is for calculating average frequency
         mdwFreqChanData->gpioCountForAvg++;
       }
       else
       {
         // Falling edge
-        mdwFreqChanData->midCaptrCnt  = capturedCount;
-        mdwFreqChanData->midCaptrOFlo = mdwFreqTimerInfo->timerOverflow;
+        mdwFreqChanData->midCaptureCnt = capturedCount;
+        mdwFreqChanData->midCaptureOvr = mdwFreqTimerInfo->timerOverflow;
       }
     }
 
@@ -361,23 +356,23 @@ int meadow_measure_freq_isr(int irq, void *context, void *arg)
       {
         // Raising edge is end of previous capture and the beginning of a
         // new capture
-        mdwFreqChanData->bgnResltCnt  = mdwFreqChanData->endResltCnt;
-        mdwFreqChanData->bgnResltOFlo = mdwFreqChanData->endResltOFlo;
-        mdwFreqChanData->midResltCnt  = mdwFreqChanData->midCaptrCnt;
-        mdwFreqChanData->midResltOFlo = mdwFreqChanData->midCaptrOFlo;
+        mdwFreqChanData->bgnResultCnt = mdwFreqChanData->endResultCnt;
+        mdwFreqChanData->bgnResultOvr = mdwFreqChanData->endResultOvr;
+        mdwFreqChanData->midResultCnt = mdwFreqChanData->midCaptureCnt;
+        mdwFreqChanData->midResultOvr = mdwFreqChanData->midCaptureOvr;
 
         // End is now
-        mdwFreqChanData->endResltCnt  = capturedCount;
-        mdwFreqChanData->endResltOFlo = mdwFreqTimerInfo->timerOverflow;
+        mdwFreqChanData->endResultCnt = capturedCount;
+        mdwFreqChanData->endResultOvr = mdwFreqTimerInfo->timerOverflow;
 
-        // The following is for finding average frequency
+        // The following is for calculating average frequency
         mdwFreqChanData->gpioCountForAvg++;
       }
       else
       {
         // Falling edge
-        mdwFreqChanData->midCaptrCnt  = capturedCount;
-        mdwFreqChanData->midCaptrOFlo = mdwFreqTimerInfo->timerOverflow;
+        mdwFreqChanData->midCaptureCnt = capturedCount;
+        mdwFreqChanData->midCaptureOvr = mdwFreqTimerInfo->timerOverflow;
       }
     }
   }
@@ -408,23 +403,23 @@ int meadow_measure_freq_isr(int irq, void *context, void *arg)
       {
         // Raising edge is end of previous capture and the beginning of a
         // new capture
-        mdwFreqChanData->bgnResltCnt  = mdwFreqChanData->endResltCnt;
-        mdwFreqChanData->bgnResltOFlo = mdwFreqChanData->endResltOFlo;
-        mdwFreqChanData->midResltCnt  = mdwFreqChanData->midCaptrCnt;
-        mdwFreqChanData->midResltOFlo = mdwFreqChanData->midCaptrOFlo;
+        mdwFreqChanData->bgnResultCnt = mdwFreqChanData->endResultCnt;
+        mdwFreqChanData->bgnResultOvr = mdwFreqChanData->endResultOvr;
+        mdwFreqChanData->midResultCnt = mdwFreqChanData->midCaptureCnt;
+        mdwFreqChanData->midResultOvr = mdwFreqChanData->midCaptureOvr;
 
         // End is now
-        mdwFreqChanData->endResltCnt  = capturedCount;
-        mdwFreqChanData->endResltOFlo = mdwFreqTimerInfo->timerOverflow;
+        mdwFreqChanData->endResultCnt = capturedCount;
+        mdwFreqChanData->endResultOvr = mdwFreqTimerInfo->timerOverflow;
 
-        // The following is for finding average frequency
+        // The following is for calculating average frequency
         mdwFreqChanData->gpioCountForAvg++;
       }
       else
       {
         // Falling edge
-        mdwFreqChanData->midCaptrCnt  = capturedCount;
-        mdwFreqChanData->midCaptrOFlo = mdwFreqTimerInfo->timerOverflow;
+        mdwFreqChanData->midCaptureCnt = capturedCount;
+        mdwFreqChanData->midCaptureOvr = mdwFreqTimerInfo->timerOverflow;
       }
     }
   }
@@ -456,38 +451,34 @@ int meadow_measure_freq_isr(int irq, void *context, void *arg)
       {
         // Raising edge is end of previous capture and the beginning of a
         // new capture
-        mdwFreqChanData->bgnResltCnt  = mdwFreqChanData->endResltCnt;
-        mdwFreqChanData->bgnResltOFlo = mdwFreqChanData->endResltOFlo;
-        mdwFreqChanData->midResltCnt  = mdwFreqChanData->midCaptrCnt;
-        mdwFreqChanData->midResltOFlo = mdwFreqChanData->midCaptrOFlo;
+        mdwFreqChanData->bgnResultCnt = mdwFreqChanData->endResultCnt;
+        mdwFreqChanData->bgnResultOvr = mdwFreqChanData->endResultOvr;
+        mdwFreqChanData->midResultCnt = mdwFreqChanData->midCaptureCnt;
+        mdwFreqChanData->midResultOvr = mdwFreqChanData->midCaptureOvr;
 
         // End is now
-        mdwFreqChanData->endResltCnt  = capturedCount;
-        mdwFreqChanData->endResltOFlo = mdwFreqTimerInfo->timerOverflow;
+        mdwFreqChanData->endResultCnt = capturedCount;
+        mdwFreqChanData->endResultOvr = mdwFreqTimerInfo->timerOverflow;
 
-        // The following is for finding average frequency
+        // The following is for calculating average frequency
         mdwFreqChanData->gpioCountForAvg++;
       }
       else
       {
         // Falling edge
-        mdwFreqChanData->midCaptrCnt  = capturedCount;
-        mdwFreqChanData->midCaptrOFlo = mdwFreqTimerInfo->timerOverflow;
+        mdwFreqChanData->midCaptureCnt = capturedCount;
+        mdwFreqChanData->midCaptureOvr = mdwFreqTimerInfo->timerOverflow;
       }
     }
   }
 
-
-
-  // (--) Diag
-  stm32_gpiowrite(DEBUG_PIN_V2_D06, false);
   // Clear the timer's status register
   putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
   return OK;
 }
 
 //=============================================================
-// Find the RCC clock to enable for the selected timer
+// Find the RCC clock for enable for the selected timer
 static uint32_t meadow_measure_freq_get_apb_clock(
           mdwFreqTimerInfo_t *mdwFreqTimerInfo)
 {
@@ -498,6 +489,7 @@ static uint32_t meadow_measure_freq_get_apb_clock(
 }
 
 //=============================================================
+// Timers use 2 different clock sources
 static uint32_t meadow_measure_freq_get_max_clock(
           const mdwFreqTimerInfo_t *mdwFreqTimerInfo)
 {
@@ -535,7 +527,7 @@ static void meadow_measure_freq_enable(const uint32_t timerBase)
 //=====================================================================
 // The following finds the specified timer's information defined here
 static mdwFreqTimerInfo_t *meadow_measure_freq_chk_get_timer_info(
-          const int timerNumb)
+          const uint32_t timerNumb)
 {
   mdwFreqTimerInfo_t *timerInfo = &(mdwFreqTimerInfoArray[timerNumb - 1]);
   if(timerInfo->timerUsable)
@@ -546,7 +538,7 @@ static mdwFreqTimerInfo_t *meadow_measure_freq_chk_get_timer_info(
 
 //=====================================================================
 // Returns the correct bit field definition based on the timer's channel
-static uint8_t meadow_measure_freq_get_chan_bit_set(const int timerChan)
+static uint8_t meadow_measure_freq_get_chan_bit_set(const uint32_t timerChan)
 {
   switch(timerChan)
   {
@@ -581,8 +573,8 @@ static uint64_t meadow_measure_freq_get_current_time(void)
   // This Nuttx function reads the date, time and sub-seconds from the MCU's
   // hardware into a struct tm. However, the STM32F77X Errata warns about a
   // possible problem in ES0334-Rev 9 2.12.1 related to the RTC calendar
-  // register not locked properly. Therefore, we'll read nsec twice and
-  // compare.
+  // register not locked properly. Therefore, we'll implement the workaround
+  // by reading the nsec twice and compare, if different repeat till equal.
 #ifdef CONFIG_STM32F7_HAVE_RTC_SUBSECONDS
 do
   {
@@ -624,14 +616,14 @@ do
 //
 // Returns the channel, 1-4 unless not found, then returns 0.
 static uint8_t meadow_measure_freq_get_chan_tim_port_pin(
-          const int timerNumb, uint8_t portAndPin)
+          const uint32_t timerNumb, uint8_t portAndPin)
 {
   int entry;
   int timerOffset = timerNumb - 1;
 
   if(meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_F7V1)
   {
-    // Verify pin & port are valid for FeatherV1 hardware
+    // Verify port & pin are valid for FeatherV1 hardware
     entry = 0;
     while(validF7v1GpioArray[timerOffset][entry] != 0xff)
     {
@@ -647,7 +639,7 @@ static uint8_t meadow_measure_freq_get_chan_tim_port_pin(
   }
   else if (meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_F7V2)
   {
-    // Verify pin & port are valid for FeatherV2 hardware
+    // Verify port & pin are valid for FeatherV2 hardware
     entry = 0;
     while(validF7v2GpioArray[timerOffset][entry] != 0xff)
     {
@@ -669,7 +661,7 @@ static uint8_t meadow_measure_freq_get_chan_tim_port_pin(
   }
 
   // All hardware types reach here to find the timer channel and verify the
-  // pin and port are legal.
+  // port and pin are legal.
   entry = 0;
   while(validStm32F7GpioArray[timerOffset][entry].portPin != 0xff)
   {
@@ -689,15 +681,26 @@ static uint8_t meadow_measure_freq_get_chan_tim_port_pin(
  ****************************************************************************/
 // Called by Meadow.Core to configure a timer channel
 // Timer numbers range from 1 - 14. However, some are not defined.
-int meadow_measure_freq_configure(const int timerNumber, int channelNumber,
-          const uint8_t portAndPin)
+int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
+  
 {
   int ret;
+  uint32_t timerNumber = mdwCfgTimerChan->timerNumber;
+  uint32_t channelNumber = mdwCfgTimerChan->channelNumber;
+  uint8_t portAndPin = (uint8_t)(mdwCfgTimerChan->portAndPin & 0xff);
+  bool isConfigure = mdwCfgTimerChan->isConfigure == 1 ? true : false;
+
+  uint32_t channelOffset = channelNumber - 1;
   static bool isFirstTime = true;
-  int channelOffset = channelNumber - 1;
   uint32_t inputGpioConfig;
   bool timerNeedsConfig;
 
+  if(isConfigure == false)
+  {
+    syslog(2, "%s@%d-Unconfigure not implemented\n", __FILE__, __LINE__);
+    return -ENOSYS;   // Function not implemented
+  }
+  
   if(isFirstTime)
   {
     isFirstTime = false;
@@ -719,7 +722,7 @@ int meadow_measure_freq_configure(const int timerNumber, int channelNumber,
     return -ENOTSUP;
   }
 
-  // Insure a valid timer, channel, pin+port combination was supplied.
+  // Insure a valid timer, channel, port+pin combination was supplied.
   // Timers have, at most, 1-4 channels, each representing 1 GPIO. For the
   // specified timer we need to verify a proper port and pin.
   uint8_t chanValid4TimerPortPin = meadow_measure_freq_get_chan_tim_port_pin(
@@ -782,11 +785,9 @@ int meadow_measure_freq_configure(const int timerNumber, int channelNumber,
     syslog(LOG_ERR, "%s@%d-Allocation for mdwFreqChanData_s NULL\n", __FILE__, __LINE__);
     return -ENOMEM;
   }
-  syslog(1, "-->%s@%d-Channel %ld allocted %p for chan data\n", __FILE__, __LINE__,
-          channelNumber, mdwFreqTimerInfo->mdwFreqChanData[channelOffset]);
 
   // Valid GPIO so configure input point for timer.
-    // Diagnostic
+  // Diagnostic
   syslog(1, "-->%s@%d-TIM%lu, Chn:%lu, input Pin defn:0x%02x (P%c%d), Pin defn+AF:0x%08lx\n",
             __FILE__, __LINE__, timerNumber, channelNumber, portAndPin,
             ((portAndPin) >> 4) + 'A', portAndPin & 0x0f, inputGpioConfig);
@@ -803,13 +804,12 @@ ret = stm32_configgpio(inputGpioConfig);
   }
 
   // Start filling the channel structure
-  mdwFreqTimerInfo->mdwFreqChanData[channelOffset]->inputConfig     = inputGpioConfig;
-  mdwFreqTimerInfo->mdwFreqChanData[channelOffset]->inputTimerChan  = chanValid4TimerPortPin;
   // Init time and count used to calculate average frequency
   mdwFreqTimerInfo->mdwFreqChanData[channelOffset]->gpioCountForAvg = 0;
   mdwFreqTimerInfo->mdwFreqChanData[channelOffset]->startTimeForAvg
             = meadow_measure_freq_get_current_time();
-  // And indicate in timer structure that this channel is being used
+  mdwFreqTimerInfo->mdwFreqChanData[channelOffset]->inputConfig     = inputGpioConfig;
+  // And indicate this channel is being used
   mdwFreqTimerInfo->chanActiveBits |= chanBit;    // Set channel bit
 
   // Initialized the F7's channel hardware for this GPIO input 
@@ -865,8 +865,6 @@ int meadow_measure_freq_cfg_channel_hardware(
   // earlier)
   if(mdwFreqTimerInfo->chanActiveBits & ACTIVE_CHAN_BITFIELD_1)
   {
-    syslog(1, "==> Configuring Channel 1\n");
-
     // Capture/compare mode reg 1, chan 1
     regVal32 = getreg32(timerBase + STM32_GTIM_CCMR1_OFFSET);
     regVal32 &= ~(GTIM_CCMR1_CC1S_MASK);
@@ -882,7 +880,6 @@ int meadow_measure_freq_cfg_channel_hardware(
 
   if(mdwFreqTimerInfo->chanActiveBits & ACTIVE_CHAN_BITFIELD_2)
   {
-    syslog(1, "==> Configuring Channel 2\n");
     // Capture/compare mode reg 1, chan 2
     regVal32 = getreg32(timerBase + STM32_GTIM_CCMR1_OFFSET);
     regVal32 &= ~(GTIM_CCMR1_CC2S_MASK);
@@ -897,7 +894,6 @@ int meadow_measure_freq_cfg_channel_hardware(
 
   if(mdwFreqTimerInfo->chanActiveBits & ACTIVE_CHAN_BITFIELD_3)
   {
-    syslog(1, "==> Configuring Channel 3\n");
     // Capture/compare mode reg 2, chan 3
     regVal32 = getreg32(timerBase + STM32_GTIM_CCMR2_OFFSET);
     regVal32 &= ~(GTIM_CCMR2_CC3S_MASK);
@@ -912,7 +908,6 @@ int meadow_measure_freq_cfg_channel_hardware(
 
   if(mdwFreqTimerInfo->chanActiveBits & ACTIVE_CHAN_BITFIELD_4)
   {
-    syslog(1, "==> Configuring Channel 4\n");
     // Capture/compare mode reg 2, chan 4
     regVal32 = getreg32(timerBase + STM32_GTIM_CCMR2_OFFSET);
     regVal32 &= ~(GTIM_CCMR2_CC4S_MASK);
@@ -1044,6 +1039,7 @@ int meadow_measure_freq_unconfigure(const uint32_t timerNumber)
 int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t
           *returnData)
 {
+  // 64 bytes of stack space
   double dblFrequency;
   double dblDutyCycle;
   double dblTotalInputCount;
@@ -1083,7 +1079,8 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t
   }
 
   // Is the channel configured?
-  uint8_t channelBit = meadow_measure_freq_get_chan_bit_set(returnData->channelNumber);
+  uint8_t channelBit = meadow_measure_freq_get_chan_bit_set(
+          returnData->channelNumber);
   if((mdwFreqTimerInfo->chanActiveBits & channelBit) == 0)
   {
     syslog(1, "%s@%d-Unconfigured channel accessed\n", __FILE__, __LINE__);
@@ -1098,32 +1095,29 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t
     return -ERROR;  // -1
   }
 
-  syslog(1, "-->Returning data-Channel data is at: %p\n", mdwFreqChanData);
-
   // We need the timer's width to do the overflow math
   if(mdwFreqTimerInfo->timerWidth)
     regOvrFloTimSize = MEADOW_FREQ_32_BIT_OVERFLOW_COUNT;
   else
     regOvrFloTimSize = MEADOW_FREQ_16_BIT_OVERFLOW_COUNT;
 
-  uint64_t ovrFloStartCnt = mdwFreqChanData->bgnResltOFlo;
+  uint64_t ovrFloStartCnt = mdwFreqChanData->bgnResultOvr;
 
-  // (--) THE FIRST VALUE IS ALWAYS O
-  // Add in the overflow counts and normalize mid and end capture counts
-  bgnCapture = mdwFreqChanData->bgnResltCnt + \
-        ((mdwFreqChanData->bgnResltOFlo - ovrFloStartCnt) * regOvrFloTimSize);
-  midCapture = mdwFreqChanData->midResltCnt + \
-        ((mdwFreqChanData->midResltOFlo - ovrFloStartCnt) * regOvrFloTimSize);
-  endCapture = mdwFreqChanData->endResltCnt + \
-        ((mdwFreqChanData->endResltOFlo - ovrFloStartCnt) * regOvrFloTimSize);
-
-  // Begin is 0, normalize the others too
+  // Add in the overflow counts
+  bgnCapture = mdwFreqChanData->bgnResultCnt + \
+        ((mdwFreqChanData->bgnResultOvr - ovrFloStartCnt) * regOvrFloTimSize);
+  midCapture = mdwFreqChanData->midResultCnt + \
+        ((mdwFreqChanData->midResultOvr - ovrFloStartCnt) * regOvrFloTimSize);
+  endCapture = mdwFreqChanData->endResultCnt + \
+        ((mdwFreqChanData->endResultOvr - ovrFloStartCnt) * regOvrFloTimSize);
+  
+  // Normalize around the beginning
   fullCycle = endCapture - bgnCapture;
   halfCycle = midCapture - bgnCapture;
 
   // To help preserve resolution, use floating point math.
   syslog(1, "==>%s@%d-Snapshot-bgnCapture:%llu, full Count:%llu, half Count:%llu, inputTotal:%llu\n",
-            __FILE__, __LINE__,
+            __FILE__, __LINE__, bgnCapture,
             fullCycle, halfCycle,
             mdwFreqChanData->gpioCountForAvg);
 
