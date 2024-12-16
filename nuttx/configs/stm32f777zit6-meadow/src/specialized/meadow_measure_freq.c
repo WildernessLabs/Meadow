@@ -119,8 +119,6 @@
 // alternate function value plus the Nuttx GPIO_ALT value.
 #define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_PULLDOWN)
 
-#define MEADOW_MEASURE_FREQ_USE_NEW_CODE 0
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -147,7 +145,6 @@ static mdwFreqTimerInfo_t mdwFreqTimerInfoArray[] =
   /* TIM13  */  {13, 0,  0,  0, 1, STM32_TIM13_BASE, RCC_APB1ENR_TIM13EN, STM32_IRQ_TIM13, GPIO_AF3, 0,  0, {NULL, NULL, NULL, NULL}},
   /* TIM14  */  {14, 0,  0,  0, 1, STM32_TIM14_BASE, RCC_APB1ENR_TIM14EN, STM32_IRQ_TIM14, GPIO_AF9, 0,  0, {NULL, NULL, NULL, NULL}}
 };
-
 #define MEADOW_FREQ_TOTAL_TIMERS_AVAILABLE (sizeof(mdwFreqTimerInfoArray)/sizeof(mdwFreqTimerInfo_t))
 
 //----------------------------------------------------------------------------
@@ -689,8 +686,8 @@ int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
   int ret;
   uint32_t timerNumber = mdwCfgTimerChan->timerNumber;
   uint32_t channelNumber = mdwCfgTimerChan->channelNumber;
-  uint8_t portAndPin = (uint8_t)(mdwCfgTimerChan->portAndPin & 0xff);
   uint32_t channelOffset = channelNumber - 1;
+  uint8_t portAndPin = (uint8_t)(mdwCfgTimerChan->portAndPin & 0x000000ff);
   uint32_t inputGpioConfig;
   bool timerNeedsConfig;
   static bool isFirstTime = true;
@@ -702,17 +699,17 @@ int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
   // 3 = Unconfigure
   switch(mdwCfgTimerChan->configFreq)
   {
-    case 1:
+    case 1:     // Configure with DC
       isDutyCycleSupported = true;
       break;
 
-    case 2:
+    case 2:     // Configure without DC
       isDutyCycleSupported = false;
       syslog(2, "%s@%d-Configure without duty cycle isn't implemented\n",
                 __FILE__, __LINE__);
       return -ENOSYS;   // Function not implemented
 
-    case 3:
+    case 3:     // Unconfigure - Removes Timer if no channels left
       // ret = meadow_measure_freq_unconfigure(mdwCfgTimerChan);
       syslog(2, "%s@%d-Unconfigure not yet implemented\n", __FILE__, __LINE__);
       return -ENOSYS;   // Function not implemented
@@ -789,16 +786,6 @@ int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
     return -EADDRINUSE;
   }
 
-  // Build the GPIO input configuration for Nuttx GPIO processing
-  inputGpioConfig = MEADOW_TIMER_GPIO_CONST | portAndPin | \
-            mdwFreqTimerInfo->timerAltFunc;
-
-  // Diagnostic
-  // syslog(1, "%s@%d-input Pin defn:0x%02x (P%c%d), Pin defn + AF:0x%08lx\n",
-  //           __FILE__, __LINE__, portAndPin,
-  //           ((portAndPin) >> 4) + 'A', portAndPin & 0x0f, inputGpioConfig);
-  // Diagnostic
-
   // Allocate a struct for each new channel on a timer
   mdwFreqTimerInfo->mdwFreqChanData[channelOffset] =
             (mdwFreqChanData_t*)zalloc(sizeof(mdwFreqChanData_t));
@@ -808,7 +795,19 @@ int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
     return -ENOMEM;
   }
 
-  // Valid GPIO so configure input point for timer.
+  // Start populating the channel structure
+  // Init time and count used to calculate average frequency
+  mdwFreqTimerInfo->mdwFreqChanData[channelOffset]->gpioCountForAvg = 0;
+  mdwFreqTimerInfo->mdwFreqChanData[channelOffset]->startTimeForAvg
+            = meadow_measure_freq_get_current_time();
+
+  // Indicate this channel is being used
+  mdwFreqTimerInfo->chanActiveBits |= chanBit;    // Set channel bit
+
+  // Build the GPIO input configuration for Nuttx GPIO processing
+  inputGpioConfig = MEADOW_TIMER_GPIO_CONST | portAndPin | \
+            mdwFreqTimerInfo->timerAltFunc;
+
   // Diagnostic
   syslog(1, "-->%s@%d-TIM%lu, Chn:%lu, input Pin defn:0x%02x (P%c%d), Pin defn+AF:0x%08lx\n",
             __FILE__, __LINE__, timerNumber, channelNumber, portAndPin,
@@ -816,7 +815,7 @@ int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
   // Diagnostic
 
   // Valid GPIO so configure input for channel.
-ret = stm32_configgpio(inputGpioConfig);
+  ret = stm32_configgpio(inputGpioConfig);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d-Error:stm32_configgpio() returned:%ld\n",
@@ -825,14 +824,9 @@ ret = stm32_configgpio(inputGpioConfig);
     return -ENOTSUP;   // Not supported
   }
 
-  // Start filling the channel structure
-  // Init time and count used to calculate average frequency
-  mdwFreqTimerInfo->mdwFreqChanData[channelOffset]->gpioCountForAvg = 0;
-  mdwFreqTimerInfo->mdwFreqChanData[channelOffset]->startTimeForAvg
-            = meadow_measure_freq_get_current_time();
-  mdwFreqTimerInfo->mdwFreqChanData[channelOffset]->inputConfig     = inputGpioConfig;
-  // And indicate this channel is being used
-  mdwFreqTimerInfo->chanActiveBits |= chanBit;    // Set channel bit
+  // Save GPIO configuration
+  mdwFreqTimerInfo->mdwFreqChanData[channelOffset]->inputConfig
+            = inputGpioConfig;
 
   // Initialized the F7's channel hardware for this GPIO input 
   ret = meadow_measure_freq_cfg_channel_hardware(mdwFreqTimerInfo,

@@ -38,30 +38,6 @@
 #include <nuttx/config.h>
 #include <stdint.h>
 
-// This structure defines the API for interacting with the Meadow Measure
-// Frequency code.
-// // The fields 'rqstAction', 'timerNumber' and 'channelNumber' are always
-// //   required.
-// // The 'rqstAction' field can have the following values
-// //  1 = Configure with Duty Cycle (reduces interrupts by 50%)
-// //  2 = Configure without Duty Cycle
-// //  3 = Unconfigure
-// //  4 = Return measurement information (i.e. last 4 fields)
-// // 'portAndPin' are only required for configuration (#1 & #2)
-// // Last 4 fields are readonly
-// struct mdwMeasureFreqApi_s
-// {
-//   uint32_t rqstAction;        // What it the requested action
-//   uint32_t timerNumber;       // 1-14 (1 & 8 not supported)
-//   uint32_t channelNumber;     // 1-4
-//   uint32_t portAndPin;        // bits 7:4 port 0=A, 1=B,... bits 3-0 pin 0-15
-//   uint32_t frequencyX1000;    // Frequency * 1000
-//   uint32_t dutyCycleX1000;    // Duty Cycle * 1000
-//   uint32_t avgFreqX1000;      // Average frequency * 1000
-//   uint32_t gpioCountForAvg;   // Number of transitions since list read
-// };
-// typedef struct mdwMeasureFreqApi_s mdwMeasureFreqApi_t;
-
 struct mdwCfgTimerChan_s
 {
   uint32_t timerNumber;   // 1-14 (1 & 8 not supported)
