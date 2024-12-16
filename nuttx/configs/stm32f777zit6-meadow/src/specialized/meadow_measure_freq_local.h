@@ -1,5 +1,5 @@
 /****************************************************************************
- * nuttx/configs/stm32f777zit6-meadow/src/specialized/meadow_measure_freq.h
+ * nuttx/configs/stm32f777zit6-meadow/src/specialized/meadow_measure_freq_local.h
  * 
  *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
@@ -32,8 +32,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-#ifndef __CONFIGS_MEADOW_SPEC_MEADOW_FREQ__H
-#define __CONFIGS_MEADOW_SPEC_MEADOW_FREQ__H
+#ifndef __CONFIGS_MEADOW_SPEC_MEADOW_FREQ_LOCAL__H
+#define __CONFIGS_MEADOW_SPEC_MEADOW_FREQ_LOCAL__H
 
 /****************************************************************************
  * Included Files
@@ -108,26 +108,6 @@ struct mdwFreqTimerInfo_s
 };
 typedef struct mdwFreqTimerInfo_s mdwFreqTimerInfo_t;
 
-struct mdwCfgTimerChan_s
-{
-  uint32_t timerNumber;   // 1-14 (1 & 8 not supported)
-  uint32_t channelNumber; // 1-4
-  uint32_t portAndPin;    // Top 4-bits port 0=A, 1=B, ls 4-bits pin 0-15
-  uint32_t isConfigure;   // 1=configure, 0=unconfig
-};
-typedef struct mdwCfgTimerChan_s mdwCfgTimerChan_t;
-
-struct mdwFreqReturnData_s
-{
-  uint32_t timerNumber;       // The timer number 1-14
-  uint32_t channelNumber;     // The channel number 1-4
-  uint32_t frequencyX1000;    // Frequency * 1000
-  uint32_t dutyCycleX1000;    // Duty Cycle * 1000
-  uint32_t avgFreqX1000;      // Average frequency * 1000
-  uint32_t gpioCountForAvg;   // Number of transitions since list read
-};
-typedef struct mdwFreqReturnData_s mdwFreqReturnData_t;
-
 struct mdwFreqChanPortPin_s
 {
   uint8_t portPin;
@@ -137,7 +117,7 @@ typedef struct mdwFreqChanPortPin_s mdwFreqChanPortPin_t;
 
 //--------------------------------------------------------------------------
 int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan);
-int meadow_measure_freq_unconfigure(uint32_t timerNumber);
+int meadow_measure_freq_unconfigure(mdwCfgTimerChan_t *mdwCfgTimerChan);
 int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *mdwFreqReturnData);
 
-#endif      // __CONFIGS_MEADOW_SPEC_MEADOW_FREQ__H
+#endif      // __CONFIGS_MEADOW_SPEC_MEADOW_FREQ_LOCAL__H

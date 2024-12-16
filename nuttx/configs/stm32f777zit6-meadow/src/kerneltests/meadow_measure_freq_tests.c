@@ -43,7 +43,8 @@
 
 #include <meadow/hcom_shared_common.h>
 #include <meadow/meadow_kernel_tests.h>
-#include "specialized/meadow_measure_freq.h"
+#include "specialized/meadow_measure_freq_shared.h"
+#include "specialized/meadow_measure_freq_local.h"
 #include "../hcom_nx/hcom_nx_common.h"
 #include "stm32_gpio.h"   // stm32_configgpio
 
@@ -158,7 +159,7 @@ void meadow_kt_calc_freq_dc_tests(uint32_t userData)
       mdwCfgTimerChan.timerNumber   = 4;
       mdwCfgTimerChan.channelNumber = 1;
       mdwCfgTimerChan.portAndPin    = MEADOW_FREQ_TEST_PB6_D08;
-      mdwCfgTimerChan.configure     = 1;
+      mdwCfgTimerChan.configFreq    = 1;
       ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
       break;
     case 421:
@@ -166,7 +167,7 @@ void meadow_kt_calc_freq_dc_tests(uint32_t userData)
       mdwCfgTimerChan.timerNumber   = 4;
       mdwCfgTimerChan.channelNumber = 2;
       mdwCfgTimerChan.portAndPin    = MEADOW_FREQ_TEST_PB7_D07;
-      mdwCfgTimerChan.configure     = 1;
+      mdwCfgTimerChan.configFreq    = 1;
       ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
       break;
     case 431:
@@ -174,14 +175,14 @@ void meadow_kt_calc_freq_dc_tests(uint32_t userData)
       mdwCfgTimerChan.timerNumber   = 4;
       mdwCfgTimerChan.channelNumber = 3;
       mdwCfgTimerChan.portAndPin    = MEADOW_FREQ_TEST_PB8_D03;
-      mdwCfgTimerChan.configure     = 1;
+      mdwCfgTimerChan.configFreq    = 1;
       ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
       break;
     case 441:
       mdwCfgTimerChan.timerNumber   = 4;
       mdwCfgTimerChan.channelNumber = 4;
       mdwCfgTimerChan.portAndPin    = MEADOW_FREQ_TEST_PB9_D04;
-      mdwCfgTimerChan.configure     = 1;
+      mdwCfgTimerChan.configFreq    = 1;
       ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
       break;
 

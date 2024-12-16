@@ -90,7 +90,8 @@
 #include <meadow/hcom_shared_common.h>
 #include <stdlib.h>
 
-#include "specialized/meadow_measure_freq.h"
+#include "specialized/meadow_measure_freq_shared.h"
+#include "specialized/meadow_measure_freq_local.h"
 
 // Diagnostic
 #pragma GCC optimize("O0")    // Prevent compiler from changing the code
@@ -118,12 +119,13 @@
 // alternate function value plus the Nuttx GPIO_ALT value.
 #define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_PULLDOWN)
 
-
 #define MEADOW_MEASURE_FREQ_USE_NEW_CODE 0
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+bool isDutyCycleSupported;
+
 // This array contains timer information most of which is fixed by the STM32F7
 // hardware. It contains each F7 timer and a flag for useability (TIM1 and
 // TIM8 are not usable). The 'Acv' (i.e. Active channels) byte contains 4 bits
@@ -688,19 +690,39 @@ int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
   uint32_t timerNumber = mdwCfgTimerChan->timerNumber;
   uint32_t channelNumber = mdwCfgTimerChan->channelNumber;
   uint8_t portAndPin = (uint8_t)(mdwCfgTimerChan->portAndPin & 0xff);
-  bool isConfigure = mdwCfgTimerChan->isConfigure == 1 ? true : false;
-
   uint32_t channelOffset = channelNumber - 1;
-  static bool isFirstTime = true;
   uint32_t inputGpioConfig;
   bool timerNeedsConfig;
+  static bool isFirstTime = true;
 
-  if(isConfigure == false)
+  // Future to support:
+  // 0 = illegal
+  // 1 = Configure with Duty Cycle,
+  // 2 = Configure without Duty Cycle (reduces interrupts by 50%),
+  // 3 = Unconfigure
+  switch(mdwCfgTimerChan->configFreq)
   {
-    syslog(2, "%s@%d-Unconfigure not implemented\n", __FILE__, __LINE__);
-    return -ENOSYS;   // Function not implemented
+    case 1:
+      isDutyCycleSupported = true;
+      break;
+
+    case 2:
+      isDutyCycleSupported = false;
+      syslog(2, "%s@%d-Configure without duty cycle isn't implemented\n",
+                __FILE__, __LINE__);
+      return -ENOSYS;   // Function not implemented
+
+    case 3:
+      // ret = meadow_measure_freq_unconfigure(mdwCfgTimerChan);
+      syslog(2, "%s@%d-Unconfigure not yet implemented\n", __FILE__, __LINE__);
+      return -ENOSYS;   // Function not implemented
+
+    default:
+      syslog(2, "%s@%d-Unknown configure option:%llu\n",
+                __FILE__, __LINE__, mdwCfgTimerChan->configFreq);
+      return -ENOSYS;   // Function not implemented
   }
-  
+
   if(isFirstTime)
   {
     isFirstTime = false;
@@ -1005,7 +1027,7 @@ int meadow_measure_freq_cfg_timer_hardware(mdwFreqTimerInfo_t *mdwFreqTimerInfo)
 
 //=============================================================
 // Called to unconfigure a timer
-int meadow_measure_freq_unconfigure(const uint32_t timerNumber)
+int meadow_measure_freq_unconfigure(mdwCfgTimerChan_t *mdwCfgTimerChan)
 {
   // mdwFreqTimerInfo_t *mdwFreqTimerInfo =
   //           meadow_measure_freq_chk_get_timer_info(timerNumber);
