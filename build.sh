@@ -313,9 +313,9 @@ if [ ! -z "$UNIT_TESTS" ]; then
             kconfig-tweak --file $NUTTX_CONFIG_FILE --enable MEADOW_OS_TESTS
             BUILD_TESTS=true
             ;;
-            freqdc)
-            echo "Frequency and duty cycle tests requested."
-            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable FREQUENCY_DUTY_CYCLE_TESTS
+            measfreq)
+            echo "Measure Frequency tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable MEASURE_FREQUENCY_TESTS
             BUILD_TESTS=true
             ;;
             all)
