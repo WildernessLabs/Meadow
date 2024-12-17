@@ -161,7 +161,11 @@ static meadow_test_t _tests[] =
 #endif
 
 #if defined(CONFIG_MEASURE_FREQUENCY_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 19, "Frequency and Duty Cycle tests", meadow_kt_measure_freq_tests },
+    { 19, "Measure Frequency tests", meadow_kt_measure_freq_tests },
+#endif
+
+#if defined(CONFIG_APPS_MEASURE_FREQUENCY_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { 20, "Apps-side Measure Frequency tests", meadow_apps_measure_freq_tests },
 #endif
 
   //
