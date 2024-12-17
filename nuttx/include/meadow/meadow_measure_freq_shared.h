@@ -62,4 +62,8 @@ struct mdwFreqReturnData_s
 };
 typedef struct mdwFreqReturnData_s mdwFreqReturnData_t;
 
+//--------------------------------------------------------------------------
+int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan);
+int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *mdwFreqReturnData);
+
 #endif  // #ifndef __CONFIGS_MEADOW_SPEC_MEADOW_FREQ_SHARE__H

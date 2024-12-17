@@ -43,8 +43,7 @@
 
 #include <meadow/hcom_shared_common.h>
 #include <meadow/meadow_kernel_tests.h>
-#include "specialized/meadow_measure_freq_shared.h"
-#include "specialized/meadow_measure_freq_local.h"
+#include <meadow/meadow_measure_freq_shared.h>
 #include "../hcom_nx/hcom_nx_common.h"
 #include "stm32_gpio.h"   // stm32_configgpio
 
@@ -102,7 +101,7 @@
 //===============================================================
 // Configure 16-bit timer 4
 // Timer 4 all 4 channels
-static void meadow_frec_test_config_tim4_x4inputs(void)
+static void meadow_freq_test_config_tim4_x4inputs(void)
 {
   // Timer 4 channel 1
   meadow_kt_calc_freq_dc_tests(411);
@@ -152,7 +151,7 @@ void meadow_kt_calc_freq_dc_tests(uint32_t userData)
 
     // Timer TC1 - Configure
     case 401:   // Configure timer 4 with 4 inputs
-      meadow_frec_test_config_tim4_x4inputs();
+      meadow_freq_test_config_tim4_x4inputs();
       break;
     case 411:
       // Timer 4 channel 1
@@ -238,7 +237,7 @@ void meadow_kt_calc_freq_dc_tests(uint32_t userData)
       break;
 
     default:
-      syslog(2, "meadow_kt_calc_freq_dc_tests, no test:%lu\n", userData);
+      syslog(2, "meadow_measure_freq_tests, no test:%lu\n", userData);
       break;
   }
 

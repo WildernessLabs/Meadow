@@ -61,16 +61,13 @@
  * Included Files
  ****************************************************************************/
 // Consider removing this and always build
-#define MEADOW_INCLUDE_CALC_FREQ_DC_IN_BUILD (1)
-
-#if MEADOW_INCLUDE_CALC_FREQ_DC_IN_BUILD > 0
-
 // WHAT HEADER FILES ARE REALLY NEEDED?
 #include <nuttx/config.h>
 #include <arch/board/board.h>
 
 #include <string.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <debug.h>
 #include <errno.h>
@@ -88,9 +85,7 @@
 #include "stm32_gpio.h"
 #include <meadow/meadow_hw_version.h>
 #include <meadow/hcom_shared_common.h>
-#include <stdlib.h>
-
-#include "specialized/meadow_measure_freq_shared.h"
+#include <meadow/meadow_measure_freq_shared.h>
 #include "specialized/meadow_measure_freq_local.h"
 
 // Diagnostic
@@ -106,18 +101,6 @@
 #define DEBUG_PIN_V2_D05  (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTB | GPIO_PIN4)
 #define DEBUG_PIN_V2_D06  (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTB | GPIO_PIN13)
 // Diagnostic only
-
-//=====================================================
-#define MEADOW_FREQ_MAX_TIMER_CHANNELS     (4)
-#define MEADOW_FREQ_TIMER_WIDTH_16         (0)
-#define MEADOW_FREQ_TIMER_WIDTH_32         (1)
-#define MEADOW_FREQ_16_BIT_OVERFLOW_COUNT  (65536)
-#define MEADOW_FREQ_32_BIT_OVERFLOW_COUNT  (4294967296)
-
-// To configure a GPIO as an input to a timer it, needs to contain the how it
-// will be used (input with pulldown), Pin and Port, the Timer defined
-// alternate function value plus the Nuttx GPIO_ALT value.
-#define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_PULLDOWN)
 
 /****************************************************************************
  * Private Data
@@ -229,6 +212,7 @@ static uint8_t validF7v2GpioArray[][5] =
  ************************************************************************************/
 
 static int meadow_measure_freq_isr(int irq, void *context, void *arg);
+static int meadow_measure_freq_unconfigure(mdwCfgTimerChan_t *mdwCfgTimerChan);
 static int meadow_measure_freq_cfg_timer_hardware(mdwFreqTimerInfo_t *mdwFreqTimerInfo);
 static int meadow_measure_freq_cfg_channel_hardware(mdwFreqTimerInfo_t *mdwFreqTimerInfo,
           int channelNumber);
@@ -681,7 +665,6 @@ static uint8_t meadow_measure_freq_get_chan_tim_port_pin(
 // Called by Meadow.Core to configure a timer channel
 // Timer numbers range from 1 - 14. However, some are not defined.
 int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
-  
 {
   int ret;
   uint32_t timerNumber = mdwCfgTimerChan->timerNumber;
@@ -691,6 +674,15 @@ int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
   uint32_t inputGpioConfig;
   bool timerNeedsConfig;
   static bool isFirstTime = true;
+
+  if(isFirstTime)
+  {
+    isFirstTime = false;
+
+    // (--) Diag config LED
+    stm32_configgpio(DEBUG_PIN_V2_D06);
+    // (--) Diag LED
+  }
 
   // Future to support:
   // 0 = illegal
@@ -710,7 +702,7 @@ int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
       return -ENOSYS;   // Function not implemented
 
     case 3:     // Unconfigure - Removes Timer if no channels left
-      // ret = meadow_measure_freq_unconfigure(mdwCfgTimerChan);
+      ret = meadow_measure_freq_unconfigure(mdwCfgTimerChan);
       syslog(2, "%s@%d-Unconfigure not yet implemented\n", __FILE__, __LINE__);
       return -ENOSYS;   // Function not implemented
 
@@ -718,15 +710,6 @@ int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
       syslog(2, "%s@%d-Unknown configure option:%llu\n",
                 __FILE__, __LINE__, mdwCfgTimerChan->configFreq);
       return -ENOSYS;   // Function not implemented
-  }
-
-  if(isFirstTime)
-  {
-    isFirstTime = false;
-
-    // (--) Diag config LED
-    stm32_configgpio(DEBUG_PIN_V2_D06);
-    // (--) Diag LED
   }
 
   if(timerNumber > 14 || timerNumber < 1)
@@ -1021,24 +1004,26 @@ int meadow_measure_freq_cfg_timer_hardware(mdwFreqTimerInfo_t *mdwFreqTimerInfo)
 
 //=============================================================
 // Called to unconfigure a timer
+// THIS CODE IS NOT COMPLETE!!!!!
+// It needs channelNumber etc.
 int meadow_measure_freq_unconfigure(mdwCfgTimerChan_t *mdwCfgTimerChan)
 {
-  // mdwFreqTimerInfo_t *mdwFreqTimerInfo =
-  //           meadow_measure_freq_chk_get_timer_info(timerNumber);
+  mdwFreqTimerInfo_t *mdwFreqTimerInfo =
+            meadow_measure_freq_chk_get_timer_info(mdwCfgTimerChan->timerNumber);
 
-  // // Is this slot being used?
-  // if(mdwFreqTimerInfo->mdwFreqChanData == NULL)
-  // {
-  //   syslog(LOG_ERR, "%s@%d-Can't unconfigure, this timer %lu not configured.\n",
-  //             __FILE__, __LINE__, timerNumber);
-  //   return -EBADSLT;    // Invalid slot
-  // }
+  // Is this slot being used?
+  if(mdwFreqTimerInfo->mdwFreqChanData == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-Can't unconfigure, this timer %lu not configured.\n",
+              __FILE__, __LINE__, mdwCfgTimerChan->timerNumber);
+    return -EBADSLT;    // Invalid slot
+  }
 
-  // // Stop interrupts
-  // up_disable_irq(mdwFreqTimerInfo->timerIrqVec);
+  // Stop interrupts
+  up_disable_irq(mdwFreqTimerInfo->timerIrqVec);
 
-  // // Stop timer
-  // meadow_measure_freq_disable(mdwFreqTimerInfo->timerBase);
+  // Stop timer
+  meadow_measure_freq_disable(mdwFreqTimerInfo->timerBase);
 
   // // Unconfigure GPIO
   // stm32_unconfiggpio(mdwFreqTimerInfo->mdwFreqChanData->inputConfig);
@@ -1052,8 +1037,7 @@ int meadow_measure_freq_unconfigure(mdwCfgTimerChan_t *mdwCfgTimerChan)
 //================================================================
 // Return Frequency and Duty Cycle information to caller.
 // Moved as much processing here as apposed to the ISR.
-int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t
-          *returnData)
+int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *returnData)
 {
   // 64 bytes of stack space
   double dblFrequency;
@@ -1167,4 +1151,3 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t
 
   return OK;
 }
-#endif    // #if defined(MEADOW_INCLUDE_CALC_FREQ_DC_IN_BUILD)

@@ -54,6 +54,18 @@
 // For current application reduce clock speed
 #define MEADOW_FREQ_CLOCK_FREQ (960000)       // 960kHz
 
+//=====================================================
+#define MEADOW_FREQ_MAX_TIMER_CHANNELS     (4)
+#define MEADOW_FREQ_TIMER_WIDTH_16         (0)
+#define MEADOW_FREQ_TIMER_WIDTH_32         (1)
+#define MEADOW_FREQ_16_BIT_OVERFLOW_COUNT  (65536)
+#define MEADOW_FREQ_32_BIT_OVERFLOW_COUNT  (4294967296)
+
+// To configure a GPIO as an input to a timer it, needs to contain the how it
+// will be used (input with pulldown), Pin and Port, the Timer defined
+// alternate function value plus the Nuttx GPIO_ALT value.
+#define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_PULLDOWN)
+
 //--------------------------------------------------------------------------
 // This structure contains runtime data
 
@@ -114,10 +126,5 @@ struct mdwFreqChanPortPin_s
   uint8_t chan;
 };
 typedef struct mdwFreqChanPortPin_s mdwFreqChanPortPin_t;
-
-//--------------------------------------------------------------------------
-int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan);
-int meadow_measure_freq_unconfigure(mdwCfgTimerChan_t *mdwCfgTimerChan);
-int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *mdwFreqReturnData);
 
 #endif      // __CONFIGS_MEADOW_SPEC_MEADOW_FREQ_LOCAL__H

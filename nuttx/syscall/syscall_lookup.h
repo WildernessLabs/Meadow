@@ -445,7 +445,12 @@ SYSCALL_LOOKUP(meadow_adc_read_temp_vbat,            2, STUB_meadow_adc_read_tem
 #endif
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
-SYSCALL_LOOKUP(pwrmgmt_most_recent_wakeup_reason,               0, STUB_pwrmgmt_most_recent_wakeup_reason)
+  SYSCALL_LOOKUP(pwrmgmt_most_recent_wakeup_reason,      0, STUB_pwrmgmt_most_recent_wakeup_reason)
+#endif
+
+#if defined(CONFIG_ARCH_BOARD_MEADOW)
+  SYSCALL_LOOKUP(meadow_measure_freq_configure,          1, STUB_meadow_measure_freq_configure)
+  SYSCALL_LOOKUP(meadow_measure_freq_return_freq_info,   1, STUB_meadow_measure_freq_return_freq_info)
 #endif
 
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
