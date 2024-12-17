@@ -295,6 +295,8 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   if (ret < 0)
     return ret;
 
+  chdir("/meadow0/");
+
   // ret = mono_main_driver(mono_argc, mono_argv);
   ret = mono_main_driver(finalArgc, finalArgv);
 
