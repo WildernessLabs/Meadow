@@ -44,10 +44,10 @@ struct mdwCfgTimerChan_s
   uint32_t channelNumber; // 1-4
   uint32_t portAndPin;    // bits 7:4 port 0=A, 1=B & bits 3:0 pin 0-15
   // 0 = illegal
-  // 1 = Configure with Duty Cycle,
-  // 2 = Configure without Duty Cycle (reduces interrupts by 50%),
+  // 1 = Configure without Duty Cycle,
+  // 2 = Configure with Duty Cycle (twice the interrupts),
   // 3 = Unconfigure
-  uint32_t configFreq;    // See above
+  uint32_t configOption;    // See above
 };
 typedef struct mdwCfgTimerChan_s mdwCfgTimerChan_t;
 

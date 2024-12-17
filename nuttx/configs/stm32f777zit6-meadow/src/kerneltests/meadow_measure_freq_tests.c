@@ -100,20 +100,20 @@
 
 //===============================================================
 // Configure 16-bit timer 4
-// Timer 4 all 4 channels
+// Timer 4 all 4 channels, no duty cycle
 static void meadow_freq_test_config_tim4_x4inputs(void)
 {
   // Timer 4 channel 1
-  meadow_kt_measure_freq_tests(411);
+  meadow_kt_measure_freq_tests(10411);
 
   // Timer 4 channel 2
-  meadow_kt_measure_freq_tests(421);
+  meadow_kt_measure_freq_tests(10421);
 
   // Timer 4 channel 3
-  meadow_kt_measure_freq_tests(431);
+  meadow_kt_measure_freq_tests(10431);
   
   // Timer 4 channel 4
-  meadow_kt_measure_freq_tests(441);
+  meadow_kt_measure_freq_tests(10441);
 }
 
 //===============================================================
@@ -132,7 +132,7 @@ static void display_frequency_and_friends(mdwFreqReturnData_t mdwFreqReturnData)
 /************************************************************************************
  * Public Functions
  ************************************************************************************/
-// set developer -p 19 comes here
+// set developer -p 19 comes here (developer -p 20 goes to the app-side)
 void meadow_kt_measure_freq_tests(uint32_t userData)
 {
   int ret = OK;
@@ -148,45 +148,87 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
     case 1:
       syslog(2, "%s@%d-Invalid test:%lu\n", __FILE__, __LINE__, userData);
       break;
-
-    // Timer TC1 - Configure
-    case 401:   // Configure timer 4 with 4 inputs
+    
+    // The 5 digits
+    // 1st = action (1=config, 2=read)
+    // 2nd = timer number (01-14)
+    // 3rd = channel (1-4)
+    // 4th = configOption (0=not used, 1=no DC, 2=with DC, 3 = unconfig)
+    case 10401:   // Configure timer 4 with 4 inputs
       meadow_freq_test_config_tim4_x4inputs();
       break;
-    case 411:
+
+    //--------------------------------------------------------------
+    // No Duty Cycle
+    case 10411:
       // Timer 4 channel 1
       mdwCfgTimerChan.timerNumber   = 4;
       mdwCfgTimerChan.channelNumber = 1;
+      mdwCfgTimerChan.configOption  = 1;
       mdwCfgTimerChan.portAndPin    = MEADOW_FREQ_TEST_PB6_D08;
-      mdwCfgTimerChan.configFreq    = 1;
       ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
       break;
-    case 421:
+    case 10421:
       // Timer 4 channel 2
       mdwCfgTimerChan.timerNumber   = 4;
       mdwCfgTimerChan.channelNumber = 2;
+      mdwCfgTimerChan.configOption  = 1;
       mdwCfgTimerChan.portAndPin    = MEADOW_FREQ_TEST_PB7_D07;
-      mdwCfgTimerChan.configFreq    = 1;
       ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
       break;
-    case 431:
+    case 10431:
       // Timer 4 channel 3
       mdwCfgTimerChan.timerNumber   = 4;
       mdwCfgTimerChan.channelNumber = 3;
+      mdwCfgTimerChan.configOption  = 1;
       mdwCfgTimerChan.portAndPin    = MEADOW_FREQ_TEST_PB8_D03;
-      mdwCfgTimerChan.configFreq    = 1;
       ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
       break;
-    case 441:
+    case 10441:
       mdwCfgTimerChan.timerNumber   = 4;
       mdwCfgTimerChan.channelNumber = 4;
+      mdwCfgTimerChan.configOption  = 1;
       mdwCfgTimerChan.portAndPin    = MEADOW_FREQ_TEST_PB9_D04;
-      mdwCfgTimerChan.configFreq    = 1;
       ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
       break;
 
-    // Timer TC2 display results
-    case 402: // View data timer 4 all channels
+    //--------------------------------------------------------------
+    // Use duty cycle
+    case 10412:
+      // Timer 4 channel 1
+      mdwCfgTimerChan.timerNumber   = 4;
+      mdwCfgTimerChan.channelNumber = 1;
+      mdwCfgTimerChan.configOption  = 2;
+      mdwCfgTimerChan.portAndPin    = MEADOW_FREQ_TEST_PB6_D08;
+      ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
+      break;
+    case 10422:
+      // Timer 4 channel 2
+      mdwCfgTimerChan.timerNumber   = 4;
+      mdwCfgTimerChan.channelNumber = 2;
+      mdwCfgTimerChan.configOption  = 2;
+      mdwCfgTimerChan.portAndPin    = MEADOW_FREQ_TEST_PB7_D07;
+      ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
+      break;
+    case 10432:
+      // Timer 4 channel 3
+      mdwCfgTimerChan.timerNumber   = 4;
+      mdwCfgTimerChan.channelNumber = 3;
+      mdwCfgTimerChan.configOption  = 2;
+      mdwCfgTimerChan.portAndPin    = MEADOW_FREQ_TEST_PB8_D03;
+      ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
+      break;
+    case 10442:
+      mdwCfgTimerChan.timerNumber   = 4;
+      mdwCfgTimerChan.channelNumber = 4;
+      mdwCfgTimerChan.configOption  = 2;
+      mdwCfgTimerChan.portAndPin    = MEADOW_FREQ_TEST_PB9_D04;
+      ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
+      break;
+
+    //--------------------------------------------------------------
+    // Timer display results '2'
+    case 20400: // View data timer 4 all channels
       mdwFreqReturnData.timerNumber   = 4;
       mdwFreqReturnData.channelNumber = 1;
       ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
@@ -208,32 +250,29 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
       display_frequency_and_friends(mdwFreqReturnData);
       break;
 
-    case 412:
+    case 20410:
       mdwFreqReturnData.timerNumber   = 4;
       mdwFreqReturnData.channelNumber = 1;
       ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
       display_frequency_and_friends(mdwFreqReturnData);
       break;
-    case 422:
+    case 20420:
       mdwFreqReturnData.timerNumber   = 4;
       mdwFreqReturnData.channelNumber = 2;
       ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
       display_frequency_and_friends(mdwFreqReturnData);
       break;
-    case 432:
+    case 20430:
       mdwFreqReturnData.timerNumber   = 4;
       mdwFreqReturnData.channelNumber = 3;
       ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
       display_frequency_and_friends(mdwFreqReturnData);
       break;
-    case 442:
+    case 20440:
       mdwFreqReturnData.timerNumber   = 4;
       mdwFreqReturnData.channelNumber = 4;
       ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
       display_frequency_and_friends(mdwFreqReturnData);
-      break;
-
-    case 1000:
       break;
 
     default:

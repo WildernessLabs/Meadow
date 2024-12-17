@@ -68,10 +68,9 @@
 
 //--------------------------------------------------------------------------
 // This structure contains runtime data
-
-// (--) mdwFreqRtData_s DOESN"T NEED TO BE IN THIS HEADER FILE
-struct mdwFreqRtData_s
+struct mdwFreqChanData_s
 {
+  // Needed for duty cycle
   uint32_t midCaptureCnt;
   uint32_t midCaptureOvr;
 
@@ -83,11 +82,12 @@ struct mdwFreqRtData_s
   uint32_t endResultCnt;
   uint32_t endResultOvr;
 
+  bool useDutyCycle;            // Does channel we need duty cycle?
   uint32_t inputConfig;         // Nuttx GPIO config for unconfig
-  uint64_t gpioCountForAvg;     // Count of GPIO inputs (average)
+  uint64_t gpioCountForAvg;     // GPIO input count for average
   uint64_t startTimeForAvg;     // Meadow start time for average
 };
-typedef struct mdwFreqRtData_s mdwFreqChanData_t;
+typedef struct mdwFreqChanData_s mdwFreqChanData_t;
 
 #define ACTIVE_CHAN_BITFIELD_1 (0b00000001)
 #define ACTIVE_CHAN_BITFIELD_2 (0b00000010)
