@@ -38,7 +38,7 @@
 #include <nuttx/config.h>
 
 // Only build if configured
-#if defined(CONFIG_FREQUENCY_DUTY_CYCLE_TESTS)
+#if defined(CONFIG_MEASURE_FREQUENCY_TESTS)
 #pragma message "(--) meadow_measure_freq_tests.c"
 
 #include <meadow/hcom_shared_common.h>
@@ -104,16 +104,16 @@
 static void meadow_freq_test_config_tim4_x4inputs(void)
 {
   // Timer 4 channel 1
-  meadow_kt_calc_freq_dc_tests(411);
+  meadow_kt_measure_freq_tests(411);
 
   // Timer 4 channel 2
-  meadow_kt_calc_freq_dc_tests(421);
+  meadow_kt_measure_freq_tests(421);
 
   // Timer 4 channel 3
-  meadow_kt_calc_freq_dc_tests(431);
+  meadow_kt_measure_freq_tests(431);
   
   // Timer 4 channel 4
-  meadow_kt_calc_freq_dc_tests(441);
+  meadow_kt_measure_freq_tests(441);
 }
 
 //===============================================================
@@ -133,14 +133,14 @@ static void display_frequency_and_friends(mdwFreqReturnData_t mdwFreqReturnData)
  * Public Functions
  ************************************************************************************/
 // set developer -p 19 comes here
-void meadow_kt_calc_freq_dc_tests(uint32_t userData)
+void meadow_kt_measure_freq_tests(uint32_t userData)
 {
   int ret = OK;
 
   mdwFreqReturnData_t mdwFreqReturnData;
   mdwCfgTimerChan_t mdwCfgTimerChan;
 
-  syslog(2, "meadow_kt_calc_freq_dc_tests 'set developer -d 19 -v %lu'\n",
+  syslog(2, "meadow_kt_measure_freq_tests 'set developer -d 19 -v %lu'\n",
             userData);
 
   switch(userData)
@@ -249,4 +249,4 @@ void meadow_kt_calc_freq_dc_tests(uint32_t userData)
   }
 }
 
-#endif      // #if defined(CONFIG_FREQUENCY_DUTY_CYCLE_TESTS)
+#endif      // #if defined(CONFIG_MEASURE_FREQUENCY_TESTS)

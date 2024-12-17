@@ -509,8 +509,8 @@ SYSCALL_LOOKUP(meadow_adc_read_temp_vbat,            2, STUB_meadow_adc_read_tem
   SYSCALL_LOOKUP(meadow_kt_rotary_encoder_tests,  1, STUB_meadow_kt_rotary_encoder_tests)
 #endif
 
-#if defined(CONFIG_FREQUENCY_DUTY_CYCLE_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-  SYSCALL_LOOKUP(meadow_kt_calc_freq_dc_tests,  1, STUB_meadow_kt_calc_freq_dc_tests)
+#if defined(CONFIG_MEASURE_FREQUENCY_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+  SYSCALL_LOOKUP(meadow_kt_measure_freq_tests,  1, STUB_meadow_kt_measure_freq_tests)
 #endif
 
 #if defined(CONFIG_ARCH_BOARD_MEADOW)

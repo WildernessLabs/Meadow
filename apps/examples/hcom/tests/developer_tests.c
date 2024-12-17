@@ -160,8 +160,8 @@ static meadow_test_t _tests[] =
     { 18, "Rotary Encoder tests", meadow_kt_rotary_encoder_tests },
 #endif
 
-#if defined(CONFIG_FREQUENCY_DUTY_CYCLE_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 19, "Frequency and Duty Cycle tests", meadow_kt_calc_freq_dc_tests },
+#if defined(CONFIG_MEASURE_FREQUENCY_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { 19, "Frequency and Duty Cycle tests", meadow_kt_measure_freq_tests },
 #endif
 
   //
