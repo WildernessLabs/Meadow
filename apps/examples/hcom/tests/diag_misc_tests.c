@@ -350,6 +350,9 @@ static void display_frequency_and_friends(mdwFreqReturnData_t mdwFreqReturnData)
  * Public Functions
  ************************************************************************************/
 // set developer -p 20 comes here
+// NOTE: This code has probably fallen behind the code in
+// Meadow/nuttx/configs/stm32f777zit6-meadow/src/kerneltests/meadow_measure_freq_tests.c.
+// Decided not to keep the 2 in synch until it's needed.
 void meadow_apps_measure_freq_tests(uint32_t userData)
 {
   int ret = OK;
@@ -375,7 +378,7 @@ void meadow_apps_measure_freq_tests(uint32_t userData)
       mdwCfgTimerChan.timerNumber   = 4;
       mdwCfgTimerChan.channelNumber = 1;
       mdwCfgTimerChan.portAndPin    = MEADOW_FREQ_TEST_PB6_D08;
-      mdwCfgTimerChan.configFreq    = 1;
+      mdwCfgTimerChan.configOption  = 1;
       ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
       break;
     case 421:
@@ -383,7 +386,7 @@ void meadow_apps_measure_freq_tests(uint32_t userData)
       mdwCfgTimerChan.timerNumber   = 4;
       mdwCfgTimerChan.channelNumber = 2;
       mdwCfgTimerChan.portAndPin    = MEADOW_FREQ_TEST_PB7_D07;
-      mdwCfgTimerChan.configFreq    = 1;
+      mdwCfgTimerChan.configOption  = 1;
       ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
       break;
     case 431:
@@ -391,14 +394,14 @@ void meadow_apps_measure_freq_tests(uint32_t userData)
       mdwCfgTimerChan.timerNumber   = 4;
       mdwCfgTimerChan.channelNumber = 3;
       mdwCfgTimerChan.portAndPin    = MEADOW_FREQ_TEST_PB8_D03;
-      mdwCfgTimerChan.configFreq    = 1;
+      mdwCfgTimerChan.configOption  = 1;
       ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
       break;
     case 441:
       mdwCfgTimerChan.timerNumber   = 4;
       mdwCfgTimerChan.channelNumber = 4;
       mdwCfgTimerChan.portAndPin    = MEADOW_FREQ_TEST_PB9_D04;
-      mdwCfgTimerChan.configFreq    = 1;
+      mdwCfgTimerChan.configOption  = 1;
       ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
       break;
 

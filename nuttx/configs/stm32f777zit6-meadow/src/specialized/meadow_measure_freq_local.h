@@ -82,7 +82,7 @@ struct mdwFreqChanData_s
   uint32_t endResultCnt;
   uint32_t endResultOvr;
 
-  bool useDutyCycle;            // Does channel we need duty cycle?
+  bool useDutyCycle;            // Does channel need duty cycle?
   uint32_t inputConfig;         // Nuttx GPIO config for unconfig
   uint64_t gpioCountForAvg;     // GPIO input count for average
   uint64_t startTimeForAvg;     // Meadow start time for average
@@ -105,7 +105,7 @@ typedef struct mdwFreqChanData_s mdwFreqChanData_t;
 // element, each field is pre-defined from the 'struct freqTimerInfo_s array'
 struct mdwFreqTimerInfo_s
 {
-  uint8_t  timerNumb   : 4; // 0 - 15 timer number
+  uint8_t  timerNumb   : 4; // 1 - 14 timer number
   uint8_t  timerWidth  : 1; // 16-bit or 32-bit timer? 0=16-bits, 1=32-bits
   uint8_t  timerMaxClk : 1; // 0=STM32_APB1_TIM2_CLKIN, 1=STM32_APB2_TIM1_CLKIN
   uint8_t  timerAPBClk : 1; // 0=STM32_RCC_APB1ENR, 1=STM32_RCC_APB2ENR

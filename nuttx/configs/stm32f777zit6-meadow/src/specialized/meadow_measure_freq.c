@@ -48,8 +48,8 @@
 // *8. Add syscalls as needed and test on apps-side
 // *9. Make Duty Cycle monitoring configurable? This would cut the number
 //  of ISR calls by 50%.
-// 10. Improve returned data when there is no GPIO input.
-// 11. Implement and test unconfigure code.
+// *10. Improve returned data when there is no input or not configured.
+// 11. Implement unconfigure code and test.
 // 12. Clean up code, remove unneeded header includes and retest
 // OPTIONAL BELOW
 // 13. For 16-bit timers, allow configuration to include SLOW, MED and
@@ -788,19 +788,19 @@ int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
     default:
       syslog(2, "%s@%d-Unknown configure option:%llu\n",
                 __FILE__, __LINE__, mdwCfgTimerChan->configOption);
-      return -ENOSYS;   // Function not implemented
+      return MEADOW_MEAS_FREQ_CONF_UNDEFINED_OPTION;   // Function not implemented
   }
 
   if(timerNumber > 14 || timerNumber < 1)
   {
     syslog(2, "%s@%d-Timer must be 1 - 14\n", __FILE__, __LINE__);
-    return -ENOTSUP;
+    return MEADOW_MEAS_FREQ_CONF_TIM_NUMB_ILLEGAL;
   }
   
   if(channelNumber > 4 || channelNumber < 1)
   {
     syslog(2, "%s@%d-Channel must be 1 - 4\n", __FILE__, __LINE__);
-    return -ENOTSUP;
+    return MEADOW_MEAS_FREQ_CONF_CHAN_NUMB_ILLEGAL;
   }
 
   // Insure a valid timer, channel, port+pin combination was supplied.
@@ -812,7 +812,7 @@ int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
   {
     syslog(2, "%s@%d-The Port and Pin, not valid for timer %d\n",
               __FILE__, __LINE__, timerNumber);
-    return -ENOTSUP;
+    return MEADOW_MEAS_FREQ_CONF_PORT_PIN_NOT_FOR_TIM;
   }
 
   // Is this the channel the user wanted?
@@ -820,7 +820,7 @@ int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
   {
     syslog(2, "%s@%d-The Port/Pin/Timer/Channel combination, not valid\n",
               __FILE__, __LINE__);
-    return -ENOTSUP;
+    return MEADOW_MEAS_FREQ_CONF_PORT_PIN_TIM_CHAN_NOT_VALID;
   }
 
   // Check if this timer is useable and get a pointer if it is
@@ -830,7 +830,7 @@ int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
   {
     syslog(LOG_ERR, "%s@%d-Timer %ld cannot be used\n",
               __FILE__, __LINE__, timerNumber);
-    return -ENOTSUP;
+    return MEADOW_MEAS_FREQ_CONF_TIM_NOT_USABLE;
   }
 
   // Are any channels active? If not, timer needs to be initialized
@@ -845,7 +845,7 @@ int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
   {
     syslog(LOG_ERR, "%s@%d-Timer %d, channel %d already in use\n",
               __FILE__, __LINE__, timerNumber, channelNumber);
-    return -EADDRINUSE;
+    return MEADOW_MEAS_FREQ_CONF_TIM_CHAN_IN_USE;
   }
 
   // Allocate a struct for each new channel on a timer
@@ -854,7 +854,7 @@ int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
   if(mdwFreqTimerInfo->mdwFreqChanData[channelOffset] == NULL)
   {
     syslog(LOG_ERR, "%s@%d-Allocation for mdwFreqChanData_s NULL\n", __FILE__, __LINE__);
-    return -ENOMEM;
+    return MEADOW_MEAS_FREQ_CONF_CHAN_MEM_ALLOC_FAILED;
   }
 
   // Start populating the channel structure
@@ -872,11 +872,11 @@ int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
   inputGpioConfig = MEADOW_TIMER_GPIO_CONST | portAndPin | \
             mdwFreqTimerInfo->timerAltFunc;
 
-  // Diagnostic
-  syslog(1, "-->%s@%d-TIM%lu, Chn:%lu, input Pin defn:0x%02x (P%c%d), Pin defn+AF:0x%08lx\n",
-            __FILE__, __LINE__, timerNumber, channelNumber, portAndPin,
-            ((portAndPin) >> 4) + 'A', portAndPin & 0x0f, inputGpioConfig);
-  // Diagnostic
+  // // Diagnostic
+  // syslog(1, "-->%s@%d-TIM%lu, Chn:%lu, input Pin defn:0x%02x (P%c%d), Pin defn+AF:0x%08lx\n",
+  //           __FILE__, __LINE__, timerNumber, channelNumber, portAndPin,
+  //           ((portAndPin) >> 4) + 'A', portAndPin & 0x0f, inputGpioConfig);
+  // // Diagnostic
 
   // Valid GPIO so configure input for channel.
   ret = stm32_configgpio(inputGpioConfig);
@@ -885,7 +885,7 @@ int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
     syslog(LOG_ERR, "%s@%d-Error:stm32_configgpio() returned:%ld\n",
               __FILE__, __LINE__, ret);
     free(mdwFreqTimerInfo->mdwFreqChanData[channelOffset]);
-    return -ENOTSUP;   // Not supported
+    return MEADOW_MEAS_FREQ_CONF_CONFIGGPIO_ERR;   // Not supported
   }
 
   // Save GPIO configuration
@@ -897,10 +897,10 @@ int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
           mdwFreqTimerInfo->mdwFreqChanData[channelOffset]);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-Meadow frequency init failed:%d\n",
+    syslog(LOG_ERR, "%s@%d-Meadow channel hardware init failed:%d\n",
               __FILE__, __LINE__, ret);
     free(mdwFreqTimerInfo->mdwFreqChanData[channelOffset]);
-    return ret;
+    return MEADOW_MEAS_FREQ_CONF_INIT_CHAN_HW_FAIL;
   }
 
   // Initialized the F7's timer hardware
@@ -910,14 +910,14 @@ int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
     ret = meadow_measure_freq_cfg_timer_hardware(mdwFreqTimerInfo);
     if(ret < 0)
     {
-      syslog(LOG_ERR, "%s@%d-Meadow frequency init failed:%d\n",
+      syslog(LOG_ERR, "%s@%d-Meadow timer hardware init failed:%d\n",
                 __FILE__, __LINE__, ret);
       free(mdwFreqTimerInfo->mdwFreqChanData[channelOffset]);
-      return ret;
+      return MEADOW_MEAS_FREQ_CONF_INIT_TIM_HW_FAIL;
     }
   }
 
-  return OK;
+  return MEADOW_MEAS_FREQ_CONF_SUCCESSFUL;
 }
 
 //============================================================
@@ -1142,20 +1142,20 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *returnData)
   uint64_t totalCaptureTime;
   uint64_t endCaptureTime = meadow_measure_freq_get_current_time();
 
-  syslog(1, "-->Returning data-for timer:%lu, channel:%lu\n",
-            returnData->timerNumber, returnData->channelNumber);
+  // syslog(1, "-->Returning data-for timer:%lu, channel:%lu\n",
+  //           returnData->timerNumber, returnData->channelNumber);
 
   // Verify that provided timer and channel are valid
   if(returnData->timerNumber > 14 || returnData->timerNumber < 1)
   {
     syslog(2, "%s@%d-Timer must be 1 - 14\n", __FILE__, __LINE__);
-    return -ENOTSUP;
+    return MEADOW_MEAS_FREQ_READ_INVALID_TIMER_NUMB;
   }
-  
+
   if(returnData->channelNumber > 4 || returnData->channelNumber < 1)
   {
     syslog(2, "%s@%d-Channel must be 1 - 4\n", __FILE__, __LINE__);
-    return -ENOTSUP;
+    return MEADOW_MEAS_FREQ_READ_INVALID_CHANNEL_NUMB;
   }
 
   mdwFreqTimerInfo_t *mdwFreqTimerInfo =
@@ -1164,7 +1164,7 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *returnData)
   {
     syslog(LOG_ERR, "%s@%d-Couldn't get TimerInfo from timer number:%lu\n",
           __FILE__, __LINE__, returnData->timerNumber);
-    return -1;
+    return MEADOW_MEAS_FREQ_READ_TIMER_ACCESS_ERROR;
   }
 
   // Is the channel configured?
@@ -1173,7 +1173,7 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *returnData)
   if((mdwFreqTimerInfo->chanActiveBits & channelBit) == 0)
   {
     syslog(1, "%s@%d-Unconfigured channel accessed\n", __FILE__, __LINE__);
-    return -ERROR;  // -1
+    return MEADOW_MEAS_FREQ_READ_CHAN_NOT_CONFIG;
   }
 
   mdwFreqChanData_t *mdwFreqChanData =
@@ -1181,9 +1181,29 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *returnData)
   if(mdwFreqChanData == NULL)
   {
     syslog(1, "%s@%d-Channel data NULL\n", __FILE__, __LINE__);
-    return -ERROR;  // -1
+    return MEADOW_MEAS_FREQ_READ_NO_CHANNEL_DATA;
   }
 
+  // Is this timer been initialized?
+  if(mdwFreqTimerInfo->chanActiveBits == 0)
+  {
+    syslog(1, "No channel on timer initialized\n");
+    return MEADOW_MEAS_FREQ_READ_NO_CHAN_INITIALIZED;
+  }
+
+  // Any activity since last this code was last executed?
+  if(mdwFreqChanData->gpioCountForAvg == 0)
+  {
+    syslog(1, "No activity since last check\n");
+    returnData->dutyCycleX1000  = 0;
+    returnData->frequencyX1000  = 0;
+    returnData->avgFreqX1000    = 0;
+    // Reset capture time for next average
+    mdwFreqChanData->startTimeForAvg = meadow_measure_freq_get_current_time();
+    return MEADOW_MEAS_FREQ_READ_NO_CHAN_ACTIVITY;
+  }
+
+  //-------------------------------------------------------
   // We need the timer's width to do the overflow math
   if(mdwFreqTimerInfo->timerWidth)
     regOvrFloTimSize = MEADOW_FREQ_32_BIT_OVERFLOW_COUNT;
@@ -1205,10 +1225,10 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *returnData)
   halfCycle = midCapture - bgnCapture;
 
   // To help preserve resolution, use floating point math.
-  syslog(1, "==>%s@%d-Snapshot-bgnCapture:%llu, full Count:%llu, half Count:%llu, inputTotal:%llu\n",
-            __FILE__, __LINE__, bgnCapture,
-            fullCycle, halfCycle,
-            mdwFreqChanData->gpioCountForAvg);
+  // syslog(1, "==>%s@%d-Snapshot-bgnCapture:%llu, full Count:%llu, half Count:%llu, inputTotal:%llu\n",
+  //           __FILE__, __LINE__, bgnCapture,
+  //           fullCycle, halfCycle,
+  //           mdwFreqChanData->gpioCountForAvg);
 
   // Duty Cycle is the ratio of the full cycle count and the cycle count
   // before the trailing edge was detected.
@@ -1228,9 +1248,9 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *returnData)
   dblTotalInputCount = (double)mdwFreqChanData->gpioCountForAvg;
   dblAvgFreq = ((double)dblTotalInputCount) / dblTotalCaptureTime;
 
-  syslog(1, "==>In Code-Freq:%06.2fHz, DC:%02.2f%%, AvgFreq:%06.4f, Count:%lu\n",
-            dblFrequency, dblDutyCycle, dblAvgFreq,
-            (uint32_t)dblTotalInputCount);
+  // syslog(1, "==>In Code-Freq:%06.2fHz, DC:%02.2f%%, AvgFreq:%06.4f, Count:%lu\n",
+  //           dblFrequency, dblDutyCycle, dblAvgFreq,
+  //           (uint32_t)dblTotalInputCount);
 
   if(mdwFreqChanData->useDutyCycle)
     returnData->dutyCycleX1000  = (dblDutyCycle * 1000.0);
@@ -1245,5 +1265,5 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *returnData)
   mdwFreqChanData->gpioCountForAvg = 0;
   mdwFreqChanData->startTimeForAvg = meadow_measure_freq_get_current_time();
 
-  return OK;
+  return MEADOW_MEAS_FREQ_READ_SUCCESSFUL;
 }

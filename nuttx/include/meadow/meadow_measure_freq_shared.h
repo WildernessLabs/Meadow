@@ -38,6 +38,29 @@
 #include <nuttx/config.h>
 #include <stdint.h>
 
+// Define error values returned by this implementation
+#define MEADOW_MEAS_FREQ_CONF_SUCCESSFUL                  (0)
+#define MEADOW_MEAS_FREQ_CONF_UNDEFINED_OPTION            (-1)
+#define MEADOW_MEAS_FREQ_CONF_TIM_NUMB_ILLEGAL            (-2)
+#define MEADOW_MEAS_FREQ_CONF_CHAN_NUMB_ILLEGAL           (-3)
+#define MEADOW_MEAS_FREQ_CONF_PORT_PIN_NOT_FOR_TIM        (-4)
+#define MEADOW_MEAS_FREQ_CONF_PORT_PIN_TIM_CHAN_NOT_VALID (-5)
+#define MEADOW_MEAS_FREQ_CONF_TIM_NOT_USABLE              (-6)
+#define MEADOW_MEAS_FREQ_CONF_TIM_CHAN_IN_USE             (-7)
+#define MEADOW_MEAS_FREQ_CONF_CHAN_MEM_ALLOC_FAILED       (-8)
+#define MEADOW_MEAS_FREQ_CONF_CONFIGGPIO_ERR              (-9)
+#define MEADOW_MEAS_FREQ_CONF_INIT_CHAN_HW_FAIL           (-10)
+#define MEADOW_MEAS_FREQ_CONF_INIT_TIM_HW_FAIL            (-11)
+
+#define MEADOW_MEAS_FREQ_READ_SUCCESSFUL                  (0)
+#define MEADOW_MEAS_FREQ_READ_NO_CHAN_ACTIVITY            (-21)
+#define MEADOW_MEAS_FREQ_READ_INVALID_TIMER_NUMB          (-22)
+#define MEADOW_MEAS_FREQ_READ_INVALID_CHANNEL_NUMB        (-23)
+#define MEADOW_MEAS_FREQ_READ_TIMER_ACCESS_ERROR          (-24)
+#define MEADOW_MEAS_FREQ_READ_CHAN_NOT_CONFIG             (-25)
+#define MEADOW_MEAS_FREQ_READ_NO_CHANNEL_DATA             (-26)
+#define MEADOW_MEAS_FREQ_READ_NO_CHAN_INITIALIZED         (-27)
+
 struct mdwCfgTimerChan_s
 {
   uint32_t timerNumber;   // 1-14 (1 & 8 not supported)
