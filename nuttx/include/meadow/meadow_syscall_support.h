@@ -64,7 +64,7 @@ int meadow_adc_read_temp_vbat(double *batteryVoltage, double *temperatureValue);
 int pwrmgmt_most_recent_wakeup_reason(void);
 
 // Meadow measure frequency
-int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan);
+int meadow_measure_freq_configure(mdwFreqCfgTimer_t *mdwCfgTimerChan);
 int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *mdwFreqReturnData);
 
 #endif // __CONFIG_MEADOW_SRC_MEADOW_SYSCALL_SUPPORT__H

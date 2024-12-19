@@ -38,30 +38,44 @@
 #include <nuttx/config.h>
 #include <stdint.h>
 
-// Define error values returned by this implementation
-#define MEADOW_MEAS_FREQ_CONF_SUCCESSFUL                  (0)
-#define MEADOW_MEAS_FREQ_CONF_UNDEFINED_OPTION            (-1)
-#define MEADOW_MEAS_FREQ_CONF_TIM_NUMB_ILLEGAL            (-2)
-#define MEADOW_MEAS_FREQ_CONF_CHAN_NUMB_ILLEGAL           (-3)
-#define MEADOW_MEAS_FREQ_CONF_PORT_PIN_NOT_FOR_TIM        (-4)
-#define MEADOW_MEAS_FREQ_CONF_PORT_PIN_TIM_CHAN_NOT_VALID (-5)
-#define MEADOW_MEAS_FREQ_CONF_TIM_NOT_USABLE              (-6)
-#define MEADOW_MEAS_FREQ_CONF_TIM_CHAN_IN_USE             (-7)
-#define MEADOW_MEAS_FREQ_CONF_CHAN_MEM_ALLOC_FAILED       (-8)
-#define MEADOW_MEAS_FREQ_CONF_CONFIGGPIO_ERR              (-9)
-#define MEADOW_MEAS_FREQ_CONF_INIT_CHAN_HW_FAIL           (-10)
-#define MEADOW_MEAS_FREQ_CONF_INIT_TIM_HW_FAIL            (-11)
+// Configuration options
+#define MEADOW_MEAS_FREQ_CONF_OPTION_NO_DC    (1)
+#define MEADOW_MEAS_FREQ_CONF_OPTION_WITH_DC  (2)
+#define MEADOW_MEAS_FREQ_CONF_OPTION_UNCFG    (3)
 
-#define MEADOW_MEAS_FREQ_READ_SUCCESSFUL                  (0)
-#define MEADOW_MEAS_FREQ_READ_NO_CHAN_ACTIVITY            (-21)
-#define MEADOW_MEAS_FREQ_READ_INVALID_TIMER_NUMB          (-22)
-#define MEADOW_MEAS_FREQ_READ_INVALID_CHANNEL_NUMB        (-23)
-#define MEADOW_MEAS_FREQ_READ_TIMER_ACCESS_ERROR          (-24)
-#define MEADOW_MEAS_FREQ_READ_CHAN_NOT_CONFIG             (-25)
-#define MEADOW_MEAS_FREQ_READ_NO_CHANNEL_DATA             (-26)
-#define MEADOW_MEAS_FREQ_READ_NO_CHAN_INITIALIZED         (-27)
+// Define error values returned
+#define MEADOW_MEAS_FREQ_CONF_SUCCESSFUL                (0)
+#define MEADOW_MEAS_FREQ_CONF_UNDEFINED_OPTION          (-1)
+#define MEADOW_MEAS_FREQ_CONF_TIM_NUMB_ILLEGAL          (-2)
+#define MEADOW_MEAS_FREQ_CONF_CHAN_NUMB_ILLEGAL         (-3)
+#define MEADOW_MEAS_FREQ_CONF_PORT_PIN_NOT_FOR_TIM      (-4)
+#define MEADOW_MEAS_FREQ_CONF_PORT_PIN_TIM_CHAN_INVALID (-5)
+#define MEADOW_MEAS_FREQ_CONF_TIM_NOT_USABLE            (-6)
+#define MEADOW_MEAS_FREQ_CONF_TIM_CHAN_IN_USE           (-7)
+#define MEADOW_MEAS_FREQ_CONF_CHAN_MEM_ALLOC_FAILED     (-8)
+#define MEADOW_MEAS_FREQ_CONF_CONFIGGPIO_ERR            (-9)
+#define MEADOW_MEAS_FREQ_CONF_INIT_CHAN_HW_FAIL         (-10)
+#define MEADOW_MEAS_FREQ_CONF_INIT_TIM_HW_FAIL          (-11)
 
-struct mdwCfgTimerChan_s
+#define MEADOW_MEAS_FREQ_READ_SUCCESSFUL                (0)
+#define MEADOW_MEAS_FREQ_READ_NO_CHANS_ACTIVITY         (-21)
+#define MEADOW_MEAS_FREQ_READ_INVALID_TIMER_NUMB        (-22)
+#define MEADOW_MEAS_FREQ_READ_INVALID_CHANNEL_NUMB      (-23)
+#define MEADOW_MEAS_FREQ_READ_TIMER_ACCESS_NULL         (-24)
+#define MEADOW_MEAS_FREQ_READ_CHAN_NOT_CONFIG           (-25)
+#define MEADOW_MEAS_FREQ_READ_CHANNEL_DATA_NULL         (-26)
+#define MEADOW_MEAS_FREQ_READ_NO_CHANS_ACTIVE           (-27)
+#define MEADOW_MEAS_FREQ_READ_NO_INPUT_DETECTED         (-28)
+
+#define MEADOW_MEAS_FREQ_UNCFG_SUCCESSFUL               (0)
+#define MEADOW_MEAS_FREQ_UNCFG_INVALID_TIMER_NUMB       (-31)
+#define MEADOW_MEAS_FREQ_UNCFG_INVALID_CHANNEL_NUMB     (-32)
+#define MEADOW_MEAS_FREQ_UNCFG_TIMER_ACCESS_NULL        (-33)
+#define MEADOW_MEAS_FREQ_UNCFG_CHAN_NOT_CONFIG          (-34)
+#define MEADOW_MEAS_FREQ_UNCFG_NO_CHANNEL               (-35)
+#define MEADOW_MEAS_FREQ_UNCFG_IRQ_DETACH_ERR           (-36)
+
+struct mdwFreqCfgTimer_s
 {
   uint32_t timerNumber;   // 1-14 (1 & 8 not supported)
   uint32_t channelNumber; // 1-4
@@ -72,7 +86,7 @@ struct mdwCfgTimerChan_s
   // 3 = Unconfigure
   uint32_t configOption;    // See above
 };
-typedef struct mdwCfgTimerChan_s mdwCfgTimerChan_t;
+typedef struct mdwFreqCfgTimer_s mdwFreqCfgTimer_t;
 
 struct mdwFreqReturnData_s
 {
@@ -86,7 +100,7 @@ struct mdwFreqReturnData_s
 typedef struct mdwFreqReturnData_s mdwFreqReturnData_t;
 
 //--------------------------------------------------------------------------
-int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan);
+int meadow_measure_freq_configure(mdwFreqCfgTimer_t *mdwCfgTimerChan);
 int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *mdwFreqReturnData);
 
 #endif  // #ifndef __CONFIGS_MEADOW_SPEC_MEADOW_FREQ_SHARE__H

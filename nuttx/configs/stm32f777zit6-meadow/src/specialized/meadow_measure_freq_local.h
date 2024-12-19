@@ -95,6 +95,12 @@ typedef struct mdwFreqChanData_s mdwFreqChanData_t;
 #define ACTIVE_CHAN_BITFIELD_4 (0b00001000)
 
 // Offsets for channels in the mdwFreqChanData field
+#define FREQ_CHANNEL_NUMBER_CHAN_1 (1)
+#define FREQ_CHANNEL_NUMBER_CHAN_2 (2)
+#define FREQ_CHANNEL_NUMBER_CHAN_3 (3)
+#define FREQ_CHANNEL_NUMBER_CHAN_4 (4)
+
+// Offsets for channels in the mdwFreqChanData field
 #define FREQ_CHAN_DATA_OFFSET_CHAN_1 (0)
 #define FREQ_CHAN_DATA_OFFSET_CHAN_2 (1)
 #define FREQ_CHAN_DATA_OFFSET_CHAN_3 (2)

@@ -358,7 +358,7 @@ void meadow_apps_measure_freq_tests(uint32_t userData)
   int ret = OK;
 
   mdwFreqReturnData_t mdwFreqReturnData;
-  mdwCfgTimerChan_t mdwCfgTimerChan;
+  mdwFreqCfgTimer_t mdwCfgTimerChan;
 
   syslog(2, "Apps-side meadow_apps_measure_freq_tests 'set developer -d 20 -v %lu'\n",
             userData);

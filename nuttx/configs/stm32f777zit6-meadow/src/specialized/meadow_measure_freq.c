@@ -53,9 +53,9 @@
 // 12. Clean up code, remove unneeded header includes and retest
 // OPTIONAL BELOW
 // 13. For 16-bit timers, allow configuration to include SLOW, MED and
-//  FAST options?
+//  FAST options? NOT NEEDED
 // 14. Support Tim1 and Tim8? These have more complex IRQ requirements.
-//  Don't support until needed.
+//  SUPPORT WHEN NEEDED.
 
 /****************************************************************************
  * Included Files
@@ -211,7 +211,7 @@ static uint8_t validF7v2GpioArray[][5] =
  ************************************************************************************/
 
 static int meadow_measure_freq_isr(int irq, void *context, void *arg);
-static int meadow_measure_freq_unconfigure(mdwCfgTimerChan_t *mdwCfgTimerChan);
+static int meadow_measure_freq_unconfigure(mdwFreqCfgTimer_t *mdwCfgTimerChan);
 static int meadow_measure_freq_cfg_timer_hardware(mdwFreqTimerInfo_t *mdwFreqTimerInfo);
 static int meadow_measure_freq_cfg_channel_hardware(mdwFreqTimerInfo_t *mdwFreqTimerInfo,
           mdwFreqChanData_t *mdwFreqChanData);
@@ -598,16 +598,16 @@ static uint8_t meadow_measure_freq_get_chan_bit_set(const uint32_t timerChan)
 {
   switch(timerChan)
   {
-    case 1:
+    case FREQ_CHANNEL_NUMBER_CHAN_1:
       return ACTIVE_CHAN_BITFIELD_1;
       break;
-    case 2:
+    case FREQ_CHANNEL_NUMBER_CHAN_2:
       return ACTIVE_CHAN_BITFIELD_2;
       break;
-    case 3:
+    case FREQ_CHANNEL_NUMBER_CHAN_3:
       return ACTIVE_CHAN_BITFIELD_3;
       break;
-    case 4:
+    case FREQ_CHANNEL_NUMBER_CHAN_4:
       return ACTIVE_CHAN_BITFIELD_4;
       break;
     default:
@@ -737,7 +737,7 @@ static uint8_t meadow_measure_freq_get_chan_tim_port_pin(
  ****************************************************************************/
 // Called by Meadow.Core to configure a timer channel
 // Timer numbers range from 1 - 14. However, some are not defined.
-int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
+int meadow_measure_freq_configure(mdwFreqCfgTimer_t *mdwCfgTimerChan)
 {
   int ret;
   uint32_t timerNumber = mdwCfgTimerChan->timerNumber;
@@ -758,32 +758,24 @@ int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
     // (--) Diag LED
   }
 
-  // Future to support:
   // 0 = illegal
-  // 1 = Configure with Duty Cycle,
-  // 2 = Configure without Duty Cycle (reduces interrupts by 50%),
+  // 1 = Configure without Duty Cycle (reduces interrupts by 50%),
+  // 2 = Configure with Duty Cycle,
   // 3 = Unconfigure
-  if(mdwCfgTimerChan->configOption == 3)
-  {
-    ret = meadow_measure_freq_unconfigure(mdwCfgTimerChan);
-    syslog(2, "%s@%d-Unconfigure not yet implemented\n", __FILE__, __LINE__);
-    return -ENOSYS;   // Function not implemented
-  }
-  
   switch(mdwCfgTimerChan->configOption)
   {
-    case 1:     // Configure without Duty Cycle
+    case MEADOW_MEAS_FREQ_CONF_OPTION_NO_DC:
       chanNeedsDuty = false;
       break;
 
-    case 2:     // Configure with Duty Cycle
+    case MEADOW_MEAS_FREQ_CONF_OPTION_WITH_DC:
       chanNeedsDuty = true;
       break;
-
-    case 3:     // Unconfigure - Also removes Timer if no channels are left
+     
+     // Unconfigure - Also removes Timer if no channels are left
+    case MEADOW_MEAS_FREQ_CONF_OPTION_UNCFG:
       ret = meadow_measure_freq_unconfigure(mdwCfgTimerChan);
-      syslog(2, "%s@%d-Unconfigure not yet implemented\n", __FILE__, __LINE__);
-      return -ENOSYS;   // Function not implemented
+      return ret;   // Function not implemented
 
     default:
       syslog(2, "%s@%d-Unknown configure option:%llu\n",
@@ -820,7 +812,7 @@ int meadow_measure_freq_configure(mdwCfgTimerChan_t *mdwCfgTimerChan)
   {
     syslog(2, "%s@%d-The Port/Pin/Timer/Channel combination, not valid\n",
               __FILE__, __LINE__);
-    return MEADOW_MEAS_FREQ_CONF_PORT_PIN_TIM_CHAN_NOT_VALID;
+    return MEADOW_MEAS_FREQ_CONF_PORT_PIN_TIM_CHAN_INVALID;
   }
 
   // Check if this timer is useable and get a pointer if it is
@@ -1093,34 +1085,143 @@ int meadow_measure_freq_cfg_timer_hardware(mdwFreqTimerInfo_t *mdwFreqTimerInfo)
 
 //=============================================================
 // Called to unconfigure a timer
-// THIS CODE IS NOT COMPLETE!!!!!
 // It needs channelNumber etc.
-int meadow_measure_freq_unconfigure(mdwCfgTimerChan_t *mdwCfgTimerChan)
+int meadow_measure_freq_unconfigure(mdwFreqCfgTimer_t *mdwCfgTimerChan)
 {
-  mdwFreqTimerInfo_t *mdwFreqTimerInfo =
-            meadow_measure_freq_chk_get_timer_info(mdwCfgTimerChan->timerNumber);
+  int ret;
+  uint32_t channelOffset = mdwCfgTimerChan->channelNumber - 1;
+  uint16_t ccerRegVal;    // Capture/Compare Enable Register
+  uint16_t dierRegVal;    // DMA/Interrupt Enable Register
 
-  // Is this slot being used?
-  if(mdwFreqTimerInfo->mdwFreqChanData == NULL)
+  // Verify that provided timer and channel are valid
+  if(mdwCfgTimerChan->timerNumber > 14 || mdwCfgTimerChan->timerNumber < 1)
   {
-    syslog(LOG_ERR, "%s@%d-Can't unconfigure, this timer %lu not configured.\n",
-              __FILE__, __LINE__, mdwCfgTimerChan->timerNumber);
-    return -EBADSLT;    // Invalid slot
+    syslog(2, "%s@%d-Timer must be 1 - 14\n", __FILE__, __LINE__);
+    return MEADOW_MEAS_FREQ_UNCFG_INVALID_TIMER_NUMB;
   }
 
+  if(mdwCfgTimerChan->channelNumber > 4 || mdwCfgTimerChan->channelNumber < 1)
+  {
+    syslog(2, "%s@%d-Channel must be 1 - 4\n", __FILE__, __LINE__);
+    return MEADOW_MEAS_FREQ_UNCFG_INVALID_CHANNEL_NUMB;
+  }
+
+  mdwFreqTimerInfo_t *mdwFreqTimerInfo =
+            meadow_measure_freq_chk_get_timer_info(mdwCfgTimerChan->timerNumber);
+  if(mdwFreqTimerInfo == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-Couldn't get TimerInfo from timer number:%lu\n",
+          __FILE__, __LINE__, mdwCfgTimerChan->timerNumber);
+    return MEADOW_MEAS_FREQ_UNCFG_TIMER_ACCESS_NULL;
+  }
+
+syslog(1, "--> Entry and active channels:0x%02x\n",
+          mdwFreqTimerInfo->chanActiveBits);
+
+  uint32_t timerBase = mdwFreqTimerInfo->timerBase;
+
+  // Is the channel configured?
+  uint8_t channelBit = meadow_measure_freq_get_chan_bit_set(
+          mdwCfgTimerChan->channelNumber);
+  if((mdwFreqTimerInfo->chanActiveBits & channelBit) == 0)
+  {
+    syslog(1, "%s@%d-Rqst unconfigure, channel not configured\n", __FILE__, __LINE__);
+    return MEADOW_MEAS_FREQ_UNCFG_CHAN_NOT_CONFIG;
+  }
+
+  mdwFreqChanData_t *mdwFreqChanData =
+            mdwFreqTimerInfo->mdwFreqChanData[channelOffset];
+  if(mdwFreqChanData == NULL)
+  {
+    syslog(1, "%s@%d-Channel data NULL\n", __FILE__, __LINE__);
+    return MEADOW_MEAS_FREQ_UNCFG_NO_CHANNEL;
+  }
+
+syslog(1, "--> Disabling Timer IRQ & Timer, active channels:0x%02x\n",
+          mdwFreqTimerInfo->chanActiveBits);
+
   // Stop interrupts
-  // up_disable_irq(mdwFreqTimerInfo->timerIrqVec);
+  up_disable_irq(mdwFreqTimerInfo->timerIrqVec);
 
-  // // Stop timer
-  // meadow_measure_freq_disable(mdwFreqTimerInfo->timerBase);
+  // Stop timer
+  meadow_measure_freq_disable(mdwFreqTimerInfo->timerBase);
 
-  // // Unconfigure GPIO
-  // stm32_unconfiggpio(mdwFreqTimerInfo->mdwFreqChanData->inputConfig);
+  // Unconfigure channel hardware
+  ccerRegVal = getreg16(timerBase + STM32_GTIM_CCER_OFFSET);
+  dierRegVal = getreg16(timerBase + STM32_GTIM_DIER_OFFSET);
+  channelBit = mdwFreqTimerInfo->chanActiveBits;
 
-  // // Free runtime memory
-  // free(mdwFreqTimerInfo->mdwFreqChanData);
-  // mdwFreqTimerInfo->mdwFreqChanData = NULL;
-  return OK;
+  switch(mdwCfgTimerChan->channelNumber)
+  {
+    case FREQ_CHANNEL_NUMBER_CHAN_1:
+      channelBit &= ~ACTIVE_CHAN_BITFIELD_1;  // Clear channel field
+      ccerRegVal &= ~GTIM_CCER_CC1E;          // Disable capture channel 1
+      dierRegVal &= ~GTIM_DIER_CC1IE;         // DMA/Interrupt disable
+      break;
+    case FREQ_CHANNEL_NUMBER_CHAN_2:
+      channelBit &= ~ACTIVE_CHAN_BITFIELD_2;
+      ccerRegVal &= ~GTIM_CCER_CC2E;
+      dierRegVal &= ~GTIM_DIER_CC2IE;
+      break;
+    case FREQ_CHANNEL_NUMBER_CHAN_3:
+      channelBit &= ~ACTIVE_CHAN_BITFIELD_3;
+      ccerRegVal &= ~GTIM_CCER_CC3E;
+      dierRegVal &= ~GTIM_DIER_CC3IE;
+      break;
+    case FREQ_CHANNEL_NUMBER_CHAN_4:
+      channelBit &= ~ACTIVE_CHAN_BITFIELD_4;
+      ccerRegVal &= ~GTIM_CCER_CC4E;
+      dierRegVal &= ~GTIM_DIER_CC4IE;
+      break;
+  }
+
+  putreg16(ccerRegVal, timerBase + STM32_GTIM_CCER_OFFSET);
+  putreg16(dierRegVal, timerBase + STM32_GTIM_DIER_OFFSET); 
+  mdwFreqTimerInfo->chanActiveBits = channelBit;
+
+syslog(1, "--> Channels adjusted active channels:0x%02x\n",
+          mdwFreqTimerInfo->chanActiveBits);
+
+  // Unconfigure GPIO
+  stm32_unconfiggpio(mdwFreqChanData->inputConfig);
+
+  // Is the timer left with any active channels?
+  if(channelBit == 0)
+  {
+    syslog(1, "--> Need to remove Timer, active channels:0x%02x\n",
+              mdwFreqTimerInfo->chanActiveBits);
+
+    // Stop the timer clock
+    uint32_t apbClock = meadow_measure_freq_get_apb_clock(mdwFreqTimerInfo);
+    modifyreg32(apbClock, mdwFreqTimerInfo->timerClkEn, 0);
+
+    // Detach ISR
+    ret = irq_detach(mdwFreqTimerInfo->timerIrqVec);
+    if(ret < 0)
+    {
+      syslog(LOG_ERR, "%s@%d-irq_detach failed, ret:%d, errno:%d\n",
+            __FILE__, __LINE__, ret, errno);
+      return MEADOW_MEAS_FREQ_UNCFG_IRQ_DETACH_ERR;
+    }
+    mdwFreqTimerInfo->timerOverflow = 0;
+  }
+  else
+  {
+    syslog(1, "==> Re-enabling Timer, active channels:0x%02x\n",
+              mdwFreqTimerInfo->chanActiveBits);
+
+    // Re-enable interrupts
+    up_enable_irq(mdwFreqTimerInfo->timerIrqVec);
+
+    // Restart timer
+    meadow_measure_freq_enable(mdwFreqTimerInfo->timerBase);
+  }
+
+  // Free channel runtime memory
+  free(mdwFreqChanData);
+  mdwFreqChanData = NULL;
+
+  return MEADOW_MEAS_FREQ_UNCFG_SUCCESSFUL;
 }
 
 //================================================================
@@ -1142,9 +1243,6 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *returnData)
   uint64_t totalCaptureTime;
   uint64_t endCaptureTime = meadow_measure_freq_get_current_time();
 
-  // syslog(1, "-->Returning data-for timer:%lu, channel:%lu\n",
-  //           returnData->timerNumber, returnData->channelNumber);
-
   // Verify that provided timer and channel are valid
   if(returnData->timerNumber > 14 || returnData->timerNumber < 1)
   {
@@ -1164,8 +1262,12 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *returnData)
   {
     syslog(LOG_ERR, "%s@%d-Couldn't get TimerInfo from timer number:%lu\n",
           __FILE__, __LINE__, returnData->timerNumber);
-    return MEADOW_MEAS_FREQ_READ_TIMER_ACCESS_ERROR;
+    return MEADOW_MEAS_FREQ_READ_TIMER_ACCESS_NULL;
   }
+
+  syslog(1, "-->Returning data-for timer:%lu, channel:%lu, active channels:0x%02x\n",
+            returnData->timerNumber, returnData->channelNumber,
+            mdwFreqTimerInfo->chanActiveBits);
 
   // Is the channel configured?
   uint8_t channelBit = meadow_measure_freq_get_chan_bit_set(
@@ -1181,26 +1283,28 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *returnData)
   if(mdwFreqChanData == NULL)
   {
     syslog(1, "%s@%d-Channel data NULL\n", __FILE__, __LINE__);
-    return MEADOW_MEAS_FREQ_READ_NO_CHANNEL_DATA;
+    return MEADOW_MEAS_FREQ_READ_CHANNEL_DATA_NULL;
   }
 
-  // Is this timer been initialized?
+  // Does this timer have any channels?
   if(mdwFreqTimerInfo->chanActiveBits == 0)
   {
-    syslog(1, "No channel on timer initialized\n");
-    return MEADOW_MEAS_FREQ_READ_NO_CHAN_INITIALIZED;
+    // This should be impossible state
+    syslog(1, "No channels active\n");
+    return MEADOW_MEAS_FREQ_READ_NO_CHANS_ACTIVE;
   }
 
   // Any activity since last this code was last executed?
   if(mdwFreqChanData->gpioCountForAvg == 0)
   {
-    syslog(1, "No activity since last check\n");
     returnData->dutyCycleX1000  = 0;
     returnData->frequencyX1000  = 0;
     returnData->avgFreqX1000    = 0;
     // Reset capture time for next average
     mdwFreqChanData->startTimeForAvg = meadow_measure_freq_get_current_time();
-    return MEADOW_MEAS_FREQ_READ_NO_CHAN_ACTIVITY;
+
+    syslog(1, "No freq input since last check\n");
+    return MEADOW_MEAS_FREQ_READ_NO_INPUT_DETECTED;
   }
 
   //-------------------------------------------------------
