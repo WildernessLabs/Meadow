@@ -104,22 +104,32 @@
 static void meadow_freq_test_config_tim4_x4inputs(void)
 {
   // Timer 4 channel 1
-  meadow_kt_measure_freq_tests(10411);
+  meadow_kt_measure_freq_tests(1041);
 
   // Timer 4 channel 2
-  meadow_kt_measure_freq_tests(10421);
+  meadow_kt_measure_freq_tests(1042);
 
   // Timer 4 channel 3
-  meadow_kt_measure_freq_tests(10431);
+  meadow_kt_measure_freq_tests(1043);
   
   // Timer 4 channel 4
-  meadow_kt_measure_freq_tests(10441);
+  meadow_kt_measure_freq_tests(1044);
 }
 
 //===============================================================
 // Display the frequency information
-static void display_frequency_and_friends(mdwFreqReturnData_t mdwFreqReturnData)
+static void display_frequency_and_friends(
+          mdwFreqReturnData_t mdwFreqReturnData, int ret)
 {
+  if(ret < 0)
+  {
+    syslog(2, "Timer %lu, Channel:%lu - Error %d\n",
+            mdwFreqReturnData.timerNumber, 
+            mdwFreqReturnData.channelNumber,
+            ret);
+    return;
+  }
+  
   syslog(2, "Timer %lu, Channel:%lu - Freq:%6.2fHz, DC:%02.2f%%, AvgFreq:%6.2fHz, Input Count:%lu\n",
           mdwFreqReturnData.timerNumber, 
           mdwFreqReturnData.channelNumber,
@@ -143,19 +153,22 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
   syslog(2, "meadow_kt_measure_freq_tests 'set developer -d 19 -v %lu'\n",
             userData);
 
+  // userData 4 digits
+  // 1st digit = action
+  //  1=config no DC
+  //  2=config with DC
+  //  3=unconfigure
+  //  4=display data
+  // 2nd & 3rd digits = timer number (01-14)
+  // 4th digit = channel number (1-4)
   switch(userData)
   {
     case 1:
       syslog(2, "%s@%d-Invalid test:%lu\n", __FILE__, __LINE__, userData);
       break;
     
-    // The 4 digits
-    // 1st = action (1=config no DC, 2=config with DC, 3=unconfigure,
-    //      4=display data)
-    // 2nd & 3rd = timer number (01-14)
-    // 4th = channel (1-4)
     //--------------------------------------------------------------
-    // Create No Duty Cycle  '1'
+    // Create - No Duty Cycle  '1'
     case 1041:
       // Timer 4 channel 1
       mdwCfgTimerChan.timerNumber   = 4;
@@ -190,7 +203,7 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
       break;
 
     //--------------------------------------------------------------
-    // Create Use duty cycle  '2'
+    // Create - Use duty cycle  '2'
     case 2041:
       // Timer 4 channel 1
       mdwCfgTimerChan.timerNumber   = 4;
@@ -263,28 +276,28 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
       mdwFreqReturnData.timerNumber   = 4;
       mdwFreqReturnData.channelNumber = 1;
       ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
-      display_frequency_and_friends(mdwFreqReturnData);
+      display_frequency_and_friends(mdwFreqReturnData, ret);
       break;
     case 4042:
       // Timer 4 channel 2
       mdwFreqReturnData.timerNumber   = 4;
       mdwFreqReturnData.channelNumber = 2;
       ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
-      display_frequency_and_friends(mdwFreqReturnData);
+      display_frequency_and_friends(mdwFreqReturnData, ret);
       break;
     case 4043:
       // Timer 4 channel 3
       mdwFreqReturnData.timerNumber   = 4;
       mdwFreqReturnData.channelNumber = 3;
       ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
-      display_frequency_and_friends(mdwFreqReturnData);
+      display_frequency_and_friends(mdwFreqReturnData, ret);
       break;
     case 4044:
       // Timer 4 channel 4
       mdwFreqReturnData.timerNumber   = 4;
       mdwFreqReturnData.channelNumber = 4;
       ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
-      display_frequency_and_friends(mdwFreqReturnData);
+      display_frequency_and_friends(mdwFreqReturnData, ret);
       break;
 
     default:
@@ -295,8 +308,96 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
   // Display error encountered
   if(ret < 0)
   {
-    syslog(2, "%s@%d-Error: Test:%lu, ret:%d\n",
-              __FILE__, __LINE__, userData, ret);
+    char *errorStr;
+    switch(ret)
+    {
+      case MEADOW_MEAS_FREQ_CONF_UNDEFINED_OPTION:
+        errorStr = "CONF_UNDEFINED_OPTION";
+      break;
+      case MEADOW_MEAS_FREQ_CONF_TIM_NUMB_ILLEGAL:
+        errorStr = "CONF_TIM_NUMB_ILLEGAL";
+      break;
+      case MEADOW_MEAS_FREQ_CONF_CHAN_NUMB_ILLEGAL:
+        errorStr = "CONF_CHAN_NUMB_ILLEGAL";
+      break;
+      case MEADOW_MEAS_FREQ_CONF_PORT_PIN_NOT_FOR_TIM:
+        errorStr = "CONF_PORT_PIN_NOT_FOR_TIM";
+      break;
+      case MEADOW_MEAS_FREQ_CONF_PORT_PIN_TIM_CHAN_INVALID:
+        errorStr = "CONF_PORT_PIN_TIM_CHAN_INVALID";
+      break;
+      case MEADOW_MEAS_FREQ_CONF_TIM_NOT_USABLE:
+        errorStr = "CONF_TIM_NOT_USABLE";
+      break;
+      case MEADOW_MEAS_FREQ_CONF_TIM_CHAN_IN_USE:
+        errorStr = "CONF_TIM_CHAN_IN_USE";
+      break;
+      case MEADOW_MEAS_FREQ_CONF_CHAN_MEM_ALLOC_FAILED:
+        errorStr = "CONF_CHAN_MEM_ALLOC_FAILED";
+      break;
+      case MEADOW_MEAS_FREQ_CONF_CONFIGGPIO_ERR:
+        errorStr = "CONF_CONFIGGPIO_ERR";
+      break;
+      case MEADOW_MEAS_FREQ_CONF_INIT_CHAN_HW_FAIL:
+        errorStr = "CONF_INIT_CHAN_HW_FAIL";
+      break;
+      case MEADOW_MEAS_FREQ_CONF_INIT_TIM_HW_FAIL:
+        errorStr = "CONF_INIT_TIM_HW_FAIL";
+      break;
+      case MEADOW_MEAS_FREQ_READ_NO_CHANS_ACTIVITY:
+        errorStr = "READ_NO_CHANS_ACTIVITY";
+      break;
+      case MEADOW_MEAS_FREQ_READ_INVALID_TIMER_NUMB:
+        errorStr = "READ_INVALID_TIMER_NUMB";
+      break;
+      case MEADOW_MEAS_FREQ_READ_INVALID_CHANNEL_NUMB:
+        errorStr = "READ_INVALID_CHANNEL_NUMB";
+      break;
+      case MEADOW_MEAS_FREQ_READ_TIMER_ACCESS_NULL:
+        errorStr = "READ_TIMER_ACCESS_NULL";
+      break;
+      case MEADOW_MEAS_FREQ_READ_CHAN_NOT_CONFIG:
+        errorStr = "READ_CHAN_NOT_CONFIG";
+      break;
+      case MEADOW_MEAS_FREQ_READ_CHANNEL_DATA_NULL:
+        errorStr = "READ_CHANNEL_DATA_NULL";
+      break;
+      case MEADOW_MEAS_FREQ_READ_NO_CHANS_ACTIVE:
+        errorStr = "READ_NO_CHANS_ACTIVE";
+      break;
+      case MEADOW_MEAS_FREQ_READ_NO_INPUT_DETECTED:
+        errorStr = "READ_NO_INPUT_DETECTED";
+      break;
+      case MEADOW_MEAS_FREQ_UNCFG_INVALID_TIMER_NUMB:
+        errorStr = "UNCFG_INVALID_TIMER_NUMB";
+      break;
+      case MEADOW_MEAS_FREQ_UNCFG_INVALID_CHANNEL_NUMB:
+        errorStr = "UNCFG_INVALID_CHANNEL_NUMB";
+      break;
+      case MEADOW_MEAS_FREQ_UNCFG_TIMER_ACCESS_NULL:
+        errorStr = "UNCFG_TIMER_ACCESS_NULL";
+      break;
+      case MEADOW_MEAS_FREQ_UNCFG_CHAN_NOT_CONFIG:
+        errorStr = "UNCFG_CHAN_NOT_CONFIG";
+      break;
+      case MEADOW_MEAS_FREQ_UNCFG_NO_CHANNEL:
+        errorStr = "UNCFG_NO_CHANNEL";
+      break;
+      case MEADOW_MEAS_FREQ_UNCFG_IRQ_DETACH_ERR:
+        errorStr = "UNCFG_IRQ_DETACH_ERR";
+      break;
+      default:
+        errorStr = "Unknown error";
+      break;
+    }
+
+    syslog(2, "%s@%d-Error: Test:%lu, ret:%d (%s)\n",
+              __FILE__, __LINE__, userData, ret, errorStr);
+  }
+  else
+  {
+    syslog(2, "%s@%d-Success Test:%lu\n",
+              __FILE__, __LINE__, userData);
   }
 }
 
