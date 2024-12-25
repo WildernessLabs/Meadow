@@ -211,20 +211,23 @@ int meadow_measure_freq_isr(int irq, void *context, void *arg)
     // microseconds and at 960 kHz it will rollover every 68.3 milliseconds,
     // about 14.6 times/second.
     //
-    // What is done here is to have a 16/32-bit value for the timer count and
-    // another 32-bits for the overflow value. This approach will effectively
-    // add 32-bits to each timers size.
+    // What is done here is we have both 16/32-bit timer counts. Which isn't
+    // enough. Therefore, we use another 32-bit uint32_t for the overflow
+    // value. This approach will effectively add 32-bits to each timers size.
+    //
+    // This overflow value is for the entire timer and is used each channels
+    // in doing calculations.
     mdwFreqTimerInfo->timerOverflow++;
   }
 
   // Any other interrupts to handle?
   if(timStatusReg == 0)
   {
+    // Since there aren't we can exit
     putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
     return OK;
   }
 
-  // Note: attempted to optimize the time spend in the ISR, thus more code.
   //----------------------------------------------------------
   // Channel 1
   if(timStatusReg & GTIM_SR_CC1IF)
@@ -251,16 +254,22 @@ int meadow_measure_freq_isr(int irq, void *context, void *arg)
       // edges seen.
       if(mdwFreqChanData->useDutyCycle)
       {
-        // With duty cycle we must read the GPIO's input state
+        // With duty cycle we must read the GPIO's input state to determine
+        // if this is raising or falling edge.
         if(stm32_gpioread(mdwFreqChanData->inputConfig))
         {
           // Raising edge with duty cycle
+          // The end of the previous edge is now the beginning of this count.
+          // These are captured so that when the calculations are executed
+          // it is free to be unconcerned about changing values.
+          // Remember that when an ISR occurs, everything else stops,
+          // including the code that does the calculations.
           mdwFreqChanData->bgnResultCnt = mdwFreqChanData->endResultCnt;
           mdwFreqChanData->bgnResultOvr = mdwFreqChanData->endResultOvr;
           mdwFreqChanData->midResultCnt = mdwFreqChanData->midCaptureCnt;
           mdwFreqChanData->midResultOvr = mdwFreqChanData->midCaptureOvr;
 
-          // End is now
+          // Capture end count and current overflow count
           mdwFreqChanData->endResultCnt = capturedCount;
           mdwFreqChanData->endResultOvr = mdwFreqTimerInfo->timerOverflow;
 
@@ -524,16 +533,16 @@ static uint8_t meadow_measure_freq_get_channel_bit(const uint32_t timerChan)
   {
     case FREQ_CHANNEL_NUMBER_CHAN_1:
       return ACTIVE_CHAN_BITFIELD_1;
-      break;
+
     case FREQ_CHANNEL_NUMBER_CHAN_2:
       return ACTIVE_CHAN_BITFIELD_2;
-      break;
+
     case FREQ_CHANNEL_NUMBER_CHAN_3:
       return ACTIVE_CHAN_BITFIELD_3;
-      break;
+
     case FREQ_CHANNEL_NUMBER_CHAN_4:
       return ACTIVE_CHAN_BITFIELD_4;
-      break;
+
     default:
       return 0;
   }
@@ -1100,14 +1109,14 @@ int meadow_measure_freq_unconfigure(mdwFreqCfgTimer_t *mdwCfgTimerChan)
   putreg16(ccerRegVal, timerBase + STM32_GTIM_CCER_OFFSET);
   putreg16(dierRegVal, timerBase + STM32_GTIM_DIER_OFFSET);
 
-  // Save the remaining active channels
+  // Save the remaining active channels, if there are any.
   mdwFreqTimerInfo->chanActiveBits = channelBit;
 
   // Unconfigure no longer needed GPIO
   stm32_unconfiggpio(mdwFreqChanData->inputConfig);
 
   // If there are no active channels, unconfigure the timer itself.
-  // It's clock is already turned off.
+  // It's clock was already turned off.
   if(channelBit == 0)
   {
     syslog(LOG_INFO, "-->%s@%d-Removing Timer, no remaining channels\n",
