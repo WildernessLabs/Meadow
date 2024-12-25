@@ -38,13 +38,37 @@
 #include <nuttx/config.h>
 #include <stdint.h>
 
-// Configuration options
-#define MEADOW_MEAS_FREQ_CONF_OPTION_NO_DC    (1)
-#define MEADOW_MEAS_FREQ_CONF_OPTION_WITH_DC  (2)
-#define MEADOW_MEAS_FREQ_CONF_OPTION_UNCFG    (3)
+// Configuration options for configOption field
+#define MEADOW_MEAS_FREQ_CONF_OPTION_NO_DC      (1)
+#define MEADOW_MEAS_FREQ_CONF_OPTION_WITH_DC    (2)
+#define MEADOW_MEAS_FREQ_CONF_OPTION_UNCFG      (3)
 
-// Define error values returned
-#define MEADOW_MEAS_FREQ_CONF_SUCCESSFUL                (0)
+struct mdwFreqCfgTimer_s
+{
+  uint32_t timerNumber;   // 1-14 (1 & 8 not supported)
+  uint32_t channelNumber; // 1-4
+  uint32_t portAndPin;    // bits 7:4 port 0=A, 1=B & bits 3:0 pin 0-15
+  uint32_t configOption;  // See below
+  // 0 = illegal - Must set configOption to 1-3
+  // 1 = Configure without Duty Cycle,
+  // 2 = Configure with Duty Cycle (twice the interrupts),
+  // 3 = Unconfigure
+};
+typedef struct mdwFreqCfgTimer_s mdwFreqCfgTimer_t;
+
+struct mdwFreqReturnData_s
+{
+  uint32_t timerNumber;       // The timer number 1-14
+  uint32_t channelNumber;     // The channel number 1-4
+  uint32_t frequencyX1000;    // Frequency * 1000
+  uint32_t dutyCycleX1000;    // Duty Cycle * 1000
+  uint32_t avgFreqX1000;      // Average frequency * 1000
+  uint32_t gpioCountForAvg;   // Number of transitions since list read
+};
+typedef struct mdwFreqReturnData_s mdwFreqReturnData_t;
+
+// Define values returned by measurement code
+#define MEADOW_MEAS_FREQ_CONF_SUCCESSFUL                (10)
 #define MEADOW_MEAS_FREQ_CONF_UNDEFINED_OPTION          (-1)
 #define MEADOW_MEAS_FREQ_CONF_TIM_NUMB_ILLEGAL          (-2)
 #define MEADOW_MEAS_FREQ_CONF_CHAN_NUMB_ILLEGAL         (-3)
@@ -57,7 +81,7 @@
 #define MEADOW_MEAS_FREQ_CONF_INIT_CHAN_HW_FAIL         (-10)
 #define MEADOW_MEAS_FREQ_CONF_INIT_TIM_HW_FAIL          (-11)
 
-#define MEADOW_MEAS_FREQ_READ_SUCCESSFUL                (0)
+#define MEADOW_MEAS_FREQ_READ_SUCCESSFUL                (20)
 #define MEADOW_MEAS_FREQ_READ_NO_CHANS_ACTIVITY         (-21)
 #define MEADOW_MEAS_FREQ_READ_INVALID_TIMER_NUMB        (-22)
 #define MEADOW_MEAS_FREQ_READ_INVALID_CHANNEL_NUMB      (-23)
@@ -65,40 +89,15 @@
 #define MEADOW_MEAS_FREQ_READ_CHAN_NOT_CONFIG           (-25)
 #define MEADOW_MEAS_FREQ_READ_CHANNEL_DATA_NULL         (-26)
 #define MEADOW_MEAS_FREQ_READ_NO_CHANS_ACTIVE           (-27)
-#define MEADOW_MEAS_FREQ_READ_NO_INPUT_DETECTED         (-28)
+#define MEADOW_MEAS_FREQ_READ_FREQ_INPUT_NOT_DETECTED   (-28)
 
-#define MEADOW_MEAS_FREQ_UNCFG_SUCCESSFUL               (0)
+#define MEADOW_MEAS_FREQ_UNCFG_SUCCESSFUL               (30)
 #define MEADOW_MEAS_FREQ_UNCFG_INVALID_TIMER_NUMB       (-31)
 #define MEADOW_MEAS_FREQ_UNCFG_INVALID_CHANNEL_NUMB     (-32)
 #define MEADOW_MEAS_FREQ_UNCFG_TIMER_ACCESS_NULL        (-33)
 #define MEADOW_MEAS_FREQ_UNCFG_CHAN_NOT_CONFIG          (-34)
 #define MEADOW_MEAS_FREQ_UNCFG_NO_CHANNEL               (-35)
 #define MEADOW_MEAS_FREQ_UNCFG_IRQ_DETACH_ERR           (-36)
-
-struct mdwFreqCfgTimer_s
-{
-  uint32_t timerNumber;   // 1-14 (1 & 8 not supported)
-  uint32_t channelNumber; // 1-4
-  uint32_t portAndPin;    // bits 7:4 port 0=A, 1=B & bits 3:0 pin 0-15
-  // 0 = illegal
-  // 1 = Configure without Duty Cycle,
-  // 2 = Configure with Duty Cycle (twice the interrupts),
-  // 3 = Unconfigure
-  uint32_t configOption;    // See above
-};
-typedef struct mdwFreqCfgTimer_s mdwFreqCfgTimer_t;
-
-struct mdwFreqReturnData_s
-{
-  uint32_t timerNumber;       // The timer number 1-14
-  uint32_t channelNumber;     // The channel number 1-4
-  uint32_t frequencyX1000;    // Frequency * 1000
-  uint32_t dutyCycleX1000;    // Duty Cycle * 1000
-  uint32_t avgFreqX1000;      // Average frequency * 1000
-  uint32_t gpioCountForAvg;   // Number of transitions since list read
-  uint32_t retError;
-};
-typedef struct mdwFreqReturnData_s mdwFreqReturnData_t;
 
 //--------------------------------------------------------------------------
 int meadow_measure_freq_configure(mdwFreqCfgTimer_t *mdwCfgTimerChan);

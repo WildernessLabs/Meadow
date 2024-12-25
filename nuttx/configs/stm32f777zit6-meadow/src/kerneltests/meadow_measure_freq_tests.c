@@ -55,10 +55,14 @@
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
-// F7FeatherV2 PH10 is D02 connected to Timer5 32-bit, channel 1
-#define MEADOW_FREQ_TEST_PH10_D02  (uint8_t) GPIO_PORTH | GPIO_PIN10
+// F7FeatherV2 PH10 is D02 connected to Timer 5 32-bit, channel 1. This is the
+// only exposed 32-bit timer pin on F7FeatherV2. Timer 2 is also 32-bits but
+// used to control RGB LED
+// #define MEADOW_FREQ_TEST_PH10_D02  (uint8_t) GPIO_PORTH | GPIO_PIN10
 
-// F7FeatherV2 PB6 is D04 connected to Timer4 16-bit, channel 1
+// F7FeatherV2 exposes Timer 3 and Timer 4 and all 4 channels are exposed on
+// both.
+// F7FeatherV2 PB6 is D08 connected to Timer4 16-bit, channel 1
 #define MEADOW_FREQ_TEST_PB6_D08   (uint8_t) GPIO_PORTB | GPIO_PIN6
 // F7FeatherV2 PB7 is D07 connected to Timer4 16-bit, channel 2
 #define MEADOW_FREQ_TEST_PB7_D07   (uint8_t) GPIO_PORTB | GPIO_PIN7
@@ -305,7 +309,7 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
       break;
   }
 
-  // Display error encountered
+  // If error, display it
   if(ret < 0)
   {
     char *errorStr;
@@ -365,8 +369,8 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
       case MEADOW_MEAS_FREQ_READ_NO_CHANS_ACTIVE:
         errorStr = "READ_NO_CHANS_ACTIVE";
       break;
-      case MEADOW_MEAS_FREQ_READ_NO_INPUT_DETECTED:
-        errorStr = "READ_NO_INPUT_DETECTED";
+      case MEADOW_MEAS_FREQ_READ_FREQ_INPUT_NOT_DETECTED:
+        errorStr = "READ_FREQ_INPUT_NOT_DETECTED";
       break;
       case MEADOW_MEAS_FREQ_UNCFG_INVALID_TIMER_NUMB:
         errorStr = "UNCFG_INVALID_TIMER_NUMB";
@@ -396,8 +400,27 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
   }
   else
   {
-    syslog(2, "%s@%d-Success Test:%lu\n",
-              __FILE__, __LINE__, userData);
+    char *successStr;
+
+    if(ret == MEADOW_MEAS_FREQ_CONF_SUCCESSFUL)
+    {
+      successStr = "CONF_SUCCESSFUL";
+    }
+    else if(ret == MEADOW_MEAS_FREQ_READ_SUCCESSFUL)
+    {
+      successStr = "READ_SUCCESSFUL";
+    }
+    else if(ret == MEADOW_MEAS_FREQ_UNCFG_SUCCESSFUL)
+    {
+      successStr = "UNCFG_SUCCESSFUL";
+    }
+    else
+    {
+      successStr = "Unknown return value";
+    }
+
+    syslog(2, "%s@%d-Success Test:%lu, ret:%d (%s)\n",
+              __FILE__, __LINE__, userData, ret, successStr);
   }
 }
 
