@@ -32,71 +32,37 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-// This module, uses timers to calculate frequency
 
-// ToDo List
-// *1. Add a running average feature. It would be the average since the last
-//  reading.
-// *2. Add count of the input GPIO raising edges since last reading.
-// *3. Add CCM support. This requires changes to the configuration and adding,
-//  modifying or replacing existing tables to support more or all Timers
-//  and their associated GPIOs.
-// *4. Add Duty Cycle support
-// *5. Add multi-channel support. Support all timer channels for input.
-// *6. Average frequency needs support for all channels.
-// *7. Cleanup code and implement structs for caller (Meadow.Core)
-// *8. Add syscalls as needed and test on apps-side
-// *9. Make Duty Cycle monitoring configurable? This would cut the number
-//  of ISR calls by 50%.
-// *10. Improve returned data when there is no input or not configured.
-// 11. Implement unconfigure code and test.
-// 12. Clean up code, remove unneeded header includes and retest
-// OPTIONAL BELOW
-// 13. For 16-bit timers, allow configuration to include SLOW, MED and
-//  FAST options? NOT NEEDED
-// 14. Support Tim1 and Tim8? These have more complex IRQ requirements.
-//  SUPPORT WHEN NEEDED.
+// This module, uses timers to calculate frequency
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
-// Consider removing this and always build
-// WHAT HEADER FILES ARE REALLY NEEDED?
-#include <nuttx/config.h>
-#include <arch/board/board.h>
 
-#include <string.h>
-#include <stdbool.h>
+#include <nuttx/config.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <debug.h>
 #include <errno.h>
-
-#include "chip.h"
-#include "fcntl.h"
-#include <nuttx/semaphore.h>
 #include <nuttx/arch.h>
-
-#include "stm32f777zit6-meadow.h"
-
+#include <arch/board/board.h>
 #include <sys/ioctl.h>
 #include <nuttx/timers/timer.h>
 #include "stm32_tim.h"
 #include "stm32_gpio.h"
+#include "stm32f777zit6-meadow.h"
+#include "specialized/meadow_measure_freq_local.h"
 #include <meadow/meadow_hw_version.h>
 #include <meadow/hcom_shared_common.h>
 #include <meadow/meadow_measure_freq_shared.h>
-#include "specialized/meadow_measure_freq_local.h"
 
 //=====================================================
 // Diagnostic
-// #pragma GCC optimize("O0")    // Prevent compiler from changing the code
-// #pragma message "(--) meadow_measure_freq.c"
-#define MEADOW_MEASURE_FREQ_INCLUDE_REG_DUMP (0)
-
 // #define USE_MEADOW_DEBUG_HELPERS
 #undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
+// #pragma message "(--) meadow_measure_freq.c"
+// #pragma GCC optimize("O0")    // Prevent compiler from changing the code
+#define MEADOW_MEASURE_FREQ_INCLUDE_REG_DUMP (0)
 // Diagnostic
 
 /****************************************************************************
