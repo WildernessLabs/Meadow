@@ -226,11 +226,50 @@ typedef enum espcp_wi_fi_function espcp_wi_fi_function_t;
  */
 enum espcp_bluetooth_function
 {
+    /**
+     * @brief Start the Bluetooth service.
+     */
     espcp_bluetooth_function_start = 0,
+    /**
+     * @brief Stop the Bluetooth service.
+     */
     espcp_bluetooth_function_stop = 1,
+    /**
+     * @brief Get the handles for the service and characteristics.
+     */
     espcp_bluetooth_function_get_handles = 2,
+    /**
+     * @brief Set the value of a characteristic.
+     */
     espcp_bluetooth_function_server_data_set = 3,
-    espcp_bluetooth_function_client_write_request_event = 4
+    /**
+     * @brief Client has written to a characteristic value.
+     */
+    espcp_bluetooth_function_client_write_request_event = 4,
+    /**
+     * @brief Indicate that the Bluetooth service is starting.
+     */
+    espcp_bluetooth_starting_event = 5,
+    /**
+     * @brief Indicate the the Bluetooth service has started.
+     */
+    espcp_bluetooth_started_event = 6,
+    /**
+     * @brief Indicate the the Bluetooth service is stopping.
+     */
+    espcp_bluetooth_stopping_event = 7,
+    /**
+     * @brief Indicate the the Bluetooth service has stopped.
+     */
+    espcp_bluetooth_stopped_event = 8,
+    /**
+     * @brief Indicate that a client has connected to the Bluetooth service.
+     */
+    espcp_client_connected_event = 9,
+    /**
+     * @brief Indicate that a client has disconnected from the Bluetooth service.
+     */
+    espcp_client_disconnected_event = 10,
 };
 typedef enum espcp_bluetooth_function espcp_bluetooth_function_t;
 
