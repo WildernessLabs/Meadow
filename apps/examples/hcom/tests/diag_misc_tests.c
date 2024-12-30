@@ -36,6 +36,7 @@
 /****************************************************************************
  * Included Files
  ****************************************************************************/
+#include <nuttx/config.h>
 #include <stdio.h>
 #include "hcom_common.h"
 #include <meadow/hcom_shared_common.h>

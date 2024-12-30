@@ -317,82 +317,82 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
     {
       case MEADOW_MEAS_FREQ_CONF_UNDEFINED_OPTION:
         errorStr = "CONF_UNDEFINED_OPTION";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_CONF_TIM_NUMB_ILLEGAL:
         errorStr = "CONF_TIM_NUMB_ILLEGAL";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_CONF_CHAN_NUMB_ILLEGAL:
         errorStr = "CONF_CHAN_NUMB_ILLEGAL";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_CONF_PORT_PIN_NOT_FOR_TIM:
         errorStr = "CONF_PORT_PIN_NOT_FOR_TIM";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_CONF_PORT_PIN_TIM_CHAN_INVALID:
         errorStr = "CONF_PORT_PIN_TIM_CHAN_INVALID";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_CONF_TIM_NOT_USABLE:
         errorStr = "CONF_TIM_NOT_USABLE";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_CONF_TIM_CHAN_IN_USE:
         errorStr = "CONF_TIM_CHAN_IN_USE";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_CONF_CHAN_MEM_ALLOC_FAILED:
         errorStr = "CONF_CHAN_MEM_ALLOC_FAILED";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_CONF_CONFIGGPIO_ERR:
         errorStr = "CONF_CONFIGGPIO_ERR";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_CONF_INIT_CHAN_HW_FAIL:
         errorStr = "CONF_INIT_CHAN_HW_FAIL";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_CONF_INIT_TIM_HW_FAIL:
         errorStr = "CONF_INIT_TIM_HW_FAIL";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_READ_NO_CHANS_ACTIVITY:
         errorStr = "READ_NO_CHANS_ACTIVITY";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_READ_INVALID_TIMER_NUMB:
         errorStr = "READ_INVALID_TIMER_NUMB";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_READ_INVALID_CHANNEL_NUMB:
         errorStr = "READ_INVALID_CHANNEL_NUMB";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_READ_TIMER_ACCESS_NULL:
         errorStr = "READ_TIMER_ACCESS_NULL";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_READ_CHAN_NOT_CONFIG:
         errorStr = "READ_CHAN_NOT_CONFIG";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_READ_CHANNEL_DATA_NULL:
         errorStr = "READ_CHANNEL_DATA_NULL";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_READ_NO_CHANS_ACTIVE:
         errorStr = "READ_NO_CHANS_ACTIVE";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_READ_FREQ_INPUT_NOT_DETECTED:
         errorStr = "READ_FREQ_INPUT_NOT_DETECTED";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_UNCFG_INVALID_TIMER_NUMB:
         errorStr = "UNCFG_INVALID_TIMER_NUMB";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_UNCFG_INVALID_CHANNEL_NUMB:
         errorStr = "UNCFG_INVALID_CHANNEL_NUMB";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_UNCFG_TIMER_ACCESS_NULL:
         errorStr = "UNCFG_TIMER_ACCESS_NULL";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_UNCFG_CHAN_NOT_CONFIG:
         errorStr = "UNCFG_CHAN_NOT_CONFIG";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_UNCFG_NO_CHANNEL:
         errorStr = "UNCFG_NO_CHANNEL";
-      break;
+        break;
       case MEADOW_MEAS_FREQ_UNCFG_IRQ_DETACH_ERR:
         errorStr = "UNCFG_IRQ_DETACH_ERR";
-      break;
+        break;
       default:
         errorStr = "Unknown error";
-      break;
+        break;
     }
 
     syslog(2, "%s@%d-Error: Test:%lu, ret:%d (%s)\n",

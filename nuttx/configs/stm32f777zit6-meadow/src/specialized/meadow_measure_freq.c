@@ -565,7 +565,7 @@ static uint64_t meadow_measure_freq_get_current_time(void)
   // register not locked properly. Therefore, we'll implement the workaround
   // by reading the nsec twice and compare, if different repeat till equal.
 #ifdef CONFIG_STM32F7_HAVE_RTC_SUBSECONDS
-do
+  do
   {
     ret = up_rtc_getdatetime_with_subseconds(&rtcTime, &prevNsecs);
     if(ret < 0)
@@ -617,7 +617,7 @@ static uint8_t meadow_measure_freq_get_chan_tim_port_pin(
     {
       if(portAndPin == validF7v1GpioArray[timerOffset][entry])
       {
-        syslog(1, "%s@%d- V1 so far good\n", __FILE__, __LINE__);
+        break;    // So far good
       }
       entry++;
     }
