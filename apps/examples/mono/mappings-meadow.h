@@ -34,6 +34,8 @@ extern uint32_t meadow_os_reset_reason(void);
 extern uint32_t meadow_os_hardware_version(void);
 extern uint32_t meadow_os_native_protocol_version(void);
 extern int meadow_os_get_gateway_address(char *buffer);
+extern int meadow_measure_freq_configure(void* mdwCfgTimerChan);
+extern int meadow_measure_freq_return_freq_info(void* mdwFreqReturnData);
 
 MonoDlMapping meadow_mappings[] = {
        { "open", open },
@@ -98,6 +100,8 @@ MonoDlMapping meadow_mappings[] = {
        { "meadow_os_native_protocol_version", meadow_os_native_protocol_version},
        { "meadow_os_get_gateway_address", meadow_os_get_gateway_address},
        { "meadow_os_coprocessor_deep_sleep", meadow_os_coprocessor_deep_sleep},
+       { "meadow_measure_freq_configure", meadow_measure_freq_configure},
+       { "meadow_measure_freq_return_freq_info", meadow_measure_freq_return_freq_info},
 //       { "poll", poll },
 
 /*
