@@ -92,80 +92,260 @@ static mdwFreqTimerInfo_t mdwFreqTimerInfoArray[] =
 #define MEADOW_FREQ_TOTAL_TIMERS_AVAILABLE (sizeof(mdwFreqTimerInfoArray)/sizeof(mdwFreqTimerInfo_t))
 
 //----------------------------------------------------------------------------
-// This table contains all of the STM32F7's timers and their valid GPIOs and
+// This table contains all of the STM32F7's timers and their valid GPIOs with
 // channel. It is used for F7v1 and F7v2 and CCM. It should be able to verify
-// any timer GPIO combination with an STM32F7 MCU.
+// any timer, GPIO combination.
 mdwFreqChanPortPin_t validStm32F7GpioArray[][11] = 
 {
-// Tim
-//  1   PA8         PE9        PA9        PE11      PA10,      PE13,      PA11,      PE14
-      {{0x08, 1}, {0x49, 1}, {0x09, 2}, {0x4b, 2}, {0x0a, 3}, {0x4d, 3}, {0x0b, 4}, {0x4e, 4}, {0xff, 0}},
-//  2    PA0,      PA15,       PA1,       PB3,       PA2,      PB10,       PA3,      PB11
-      {{0x00, 1}, {0x0f, 1}, {0x01, 2}, {0x13, 2}, {0x02, 3}, {0x1a, 3}, {0x03, 4}, {0x1b, 4}, {0xff, 0}},
-//  3    PA6        PC6        PB4,       PA7        PC7,       PB5,       PB0        PC8,       PB1        PC9
-      {{0x06, 1}, {0x26, 1}, {0x14, 1}, {0x07, 2}, {0x27, 2}, {0x15, 2}, {0x10, 3}, {0x28, 3}, {0x11, 4}, {0x29, 4}, {0xff, 0}},
-//  4    PD12       PB6        PD13       PB7        PD14,      PB8        PD15       PB9
-      {{0x3c, 1}, {0x16, 1}, {0x3d, 2}, {0x17, 2}, {0x3e, 3}, {0x18, 3}, {0x3f, 4}, {0x19, 4}, {0xff, 0}},
-//  5    PA0        PH10       PA1        PH11       PA2        PH12,      PA3,       PI0},
-      {{0x00, 1}, {0x7a, 1}, {0x01, 2}, {0x7b, 2}, {0x02, 3}, {0x7c, 3}, {0x03, 4}, {0x80, 4}, {0xff, 0}},
-//  6  No GPIO
-      {{0xff, 0}},
-//  7  No GPIO
-      {{0xff, 0}},
-//  8    PC6        PI5        PC7        PI6        PC8        PI7        PC9        PI2
-      {{0x26, 1}, {0x85, 1}, {0x27, 2}, {0x86, 2}, {0x28, 3}, {0x87, 3}, {0x29, 4}, {0x82, 4}, {0xff, 0}},
-//  9    PE5        PA2        PE6        PA3
-      {{0x45, 1}, {0x02, 1}, {0x46, 2}, {0x03, 2}, {0xff, 0}},
-// 10    PF6        PB8
-      {{0x56, 1}, {0x18, 1}, {0xff, 0}},
-// 11    PF7        PB9
-      {{0x57, 1}, {0x19, 1}, {0xff, 0}},
-// 12    PH6        PB14       PH9        PB15
-      {{0x76, 1}, {0x1e, 1}, {0x79, 2}, {0x1f, 2}, {0xff, 0}},
-// 13    PF8        PA6
-      {{0x58, 1}, {0x06, 1}, {0xff, 0}},
-// 14    PF9        PA7
-      {{0x59, 1}, {0x07, 1}, {0xff, 0}},
+  /* Tim 1 */
+  {
+    {GPIO_PORTA | GPIO_PIN8,  1},   // PA8
+    {GPIO_PORTE | GPIO_PIN9,  1},   // PE9
+    {GPIO_PORTA | GPIO_PIN9,  2},   // PA9
+    {GPIO_PORTE | GPIO_PIN11, 2},   // PE11
+    {GPIO_PORTA | GPIO_PIN10, 3},   // PA10
+    {GPIO_PORTE | GPIO_PIN13, 3},   // PE13
+    {GPIO_PORTA | GPIO_PIN11, 4},   // PA11
+    {GPIO_PORTE | GPIO_PIN14, 4},   // PE14
+    {0xff, 0}
+  },
+
+  /* Tim 2 */
+  {
+    {GPIO_PORTA | GPIO_PIN0,  1},   // PA0
+    {GPIO_PORTA | GPIO_PIN15, 1},   // PA15
+    {GPIO_PORTA | GPIO_PIN1,  2},   // PA1
+    {GPIO_PORTB | GPIO_PIN3,  2},   // PB3
+    {GPIO_PORTA | GPIO_PIN2,  3},   // PA2
+    {GPIO_PORTB | GPIO_PIN10, 3},   // PB10
+    {GPIO_PORTA | GPIO_PIN3,  4},   // PA3
+    {GPIO_PORTB | GPIO_PIN11, 4},   // PB11
+    {0xff, 0}
+  },
+
+  /* Tim 3 */
+  {
+    {GPIO_PORTA | GPIO_PIN6, 1},    // PA6
+    {GPIO_PORTC | GPIO_PIN6, 1},    // PC6
+    {GPIO_PORTB | GPIO_PIN4, 1},    // PB4
+    {GPIO_PORTA | GPIO_PIN7, 2},    // PA7
+    {GPIO_PORTC | GPIO_PIN7, 2},    // PC7
+    {GPIO_PORTB | GPIO_PIN5, 2},    // PB5
+    {GPIO_PORTB | GPIO_PIN0, 3},    // PB0
+    {GPIO_PORTC | GPIO_PIN8, 3},    // PC8
+    {GPIO_PORTB | GPIO_PIN1, 4},    // PB1
+    {GPIO_PORTC | GPIO_PIN9, 4},    // PC9
+    {0xff, 0}
+  },
+  
+  /* Tim 4 */
+  {
+    {GPIO_PORTD | GPIO_PIN12, 1},    // PD12
+    {GPIO_PORTB | GPIO_PIN6,  1},    // PB6
+    {GPIO_PORTD | GPIO_PIN13, 2},    // PD13
+    {GPIO_PORTB | GPIO_PIN7,  2},    // PB7
+    {GPIO_PORTD | GPIO_PIN14, 3},    // PD14
+    {GPIO_PORTB | GPIO_PIN8,  3},    // PB8
+    {GPIO_PORTD | GPIO_PIN15, 4},    // PD15
+    {GPIO_PORTB | GPIO_PIN9,  4},    // PB9
+    {0xff, 0}
+  },
+
+  /* Tim 5 */
+  {
+    {GPIO_PORTA | GPIO_PIN0,  1},    // PA0
+    {GPIO_PORTH | GPIO_PIN10, 1},    // PH10
+    {GPIO_PORTA | GPIO_PIN1,  2},    // PA1
+    {GPIO_PORTH | GPIO_PIN11, 2},    // PH11
+    {GPIO_PORTA | GPIO_PIN2,  3},    // PA2
+    {GPIO_PORTH | GPIO_PIN12, 3},    // PH12
+    {GPIO_PORTA | GPIO_PIN3,  4},    // PA3
+    {GPIO_PORTI | GPIO_PIN0,  4},    // PI0
+    {0xff, 0}
+  },
+
+  /* Tim 6 No GPIOs */
+    {{0xff, 0}},
+
+  /* Tim 7 No GPIOs */
+    {{0xff, 0}},
+
+  /* Tim 8 */
+  {
+    {GPIO_PORTC | GPIO_PIN6, 1},    // PC6
+    {GPIO_PORTI | GPIO_PIN5, 1},    // PI5
+    {GPIO_PORTC | GPIO_PIN7, 2},    // PC7
+    {GPIO_PORTI | GPIO_PIN6, 2},    // PI6
+    {GPIO_PORTC | GPIO_PIN8, 3},    // PC8
+    {GPIO_PORTI | GPIO_PIN7, 3},    // PI7
+    {GPIO_PORTC | GPIO_PIN9, 4},    // PC9
+    {GPIO_PORTI | GPIO_PIN2, 4},    // PI2
+    {0xff, 0}
+  },
+
+  /* Tim 9 */
+  {
+    {GPIO_PORTE | GPIO_PIN5, 1},    // PE5
+    {GPIO_PORTA | GPIO_PIN2, 1},    // PA2
+    {GPIO_PORTE | GPIO_PIN6, 2},    // PE6
+    {GPIO_PORTA | GPIO_PIN3, 2},    // PA3
+    {0xff, 0}
+  },
+
+  /* Tim 10 */
+  {
+    {GPIO_PORTF | GPIO_PIN6, 1},    // PF6
+    {GPIO_PORTB | GPIO_PIN8, 1},    // PB8
+    {0xff, 0}
+  },
+
+  /* Tim 11 */
+  {
+    {GPIO_PORTF | GPIO_PIN7, 1},    // PF7
+    {GPIO_PORTB | GPIO_PIN9, 1},    // PB9
+    {0xff, 0}
+  },
+
+  /* Tim 12 */
+  {
+    {GPIO_PORTH | GPIO_PIN6,  1},    // PH6
+    {GPIO_PORTB | GPIO_PIN14, 1},    // PB14
+    {GPIO_PORTH | GPIO_PIN9,  2},    // PH9
+    {GPIO_PORTB | GPIO_PIN15, 2},    // PB15
+    {0xff, 0}
+  },
+
+  /* Tim 13 */
+  {
+    {GPIO_PORTF | GPIO_PIN8, 1},    // PF8
+    {GPIO_PORTA | GPIO_PIN6, 1},    // PA6
+    {0xff, 0}
+  },
+
+  /* Tim 14 */
+  {
+    {GPIO_PORTF | GPIO_PIN9, 1},    // PF9
+    {GPIO_PORTA | GPIO_PIN7, 1},    // PA7
+    {0xff, 0}
+  },
 };
 
-// Used to verify port and pin availability on F7v1
+//-------------------------------------------------
+// Used to verify port and pin availability on F7FeatherV1
 static uint8_t validF7v1GpioArray[][5] =
 {
-  // F7v1
-  /* TIM1  GPIO NOT EXPOSED     */ {0xff},
-  /* TIM2  GPIO NOT EXPOSED     */ {0xff},
-  /* TIM3  D02, D05, D06, D09   */ {0x26,0x27,0x10,0x11,0xff},
-  /* TIM4  D08, D07, D03*, D04* */ {0x16,0x17,0x18,0x19,0xff},
-  /* TIM5  D10,                 */ {0x7a,0xff},
-  /* TIM6 GPIO NOT EXPOSED      */ {0xff},
-  /* TIM7 GPIO NOT EXPOSED      */ {0xff},
-  /* TIM8 GPIO NOT EXPOSED      */ {0xff,0xff},
-  /* TIM9  A02,                 */ {0x03,0xff},
-  /* TIM10 D03*,                */ {0x18,0xff},
-  /* TIM11 D04*,                */ {0x19,0xff},
-  /* TIM12 D12, D13             */ {0x1e,0x1e,0xff},
-  /* TIM13 GPIO NOT EXPOSED     */ {0xff},
-  /* TIM14 A03,                 */ {0x07,0xff}
+  /* TIM1 No GPIO exposed */
+  {0xff},
+  /* TIM2  No GPIO exposed */
+  {0xff},
+  
+  /* TIM3  */
+  {GPIO_PORTC | GPIO_PIN6,  // PC6, D02
+   GPIO_PORTC | GPIO_PIN7,  // PC7, D05
+   GPIO_PORTB | GPIO_PIN0,  // PB0, D06
+   GPIO_PORTB | GPIO_PIN1,  // PB1, D09 (or PC9, D11)
+   0xff},
+
+  /* TIM4 */
+  {GPIO_PORTB | GPIO_PIN6,  // PB6, D08
+   GPIO_PORTB | GPIO_PIN7,  // PB7, D07
+   GPIO_PORTB | GPIO_PIN8,  // PB8, D03
+   GPIO_PORTB | GPIO_PIN9,  // PB9, D04
+   0xff},
+
+  // /* TIM5 */
+  {GPIO_PORTH | GPIO_PIN10,  // PH10, D10
+   0xff},
+
+  /* TIM6  No GPIO exposed */
+  {0xff},
+  /* TIM7  No GPIO exposed */
+  {0xff},
+  /* TIM8  No GPIO exposed */
+  {0xff},
+
+  /* TIM9  */
+  {GPIO_PORTA | GPIO_PIN3,  // PA3, A02
+   0xff},
+
+  /* TIM10 */
+  {GPIO_PORTB | GPIO_PIN8,  // PB8, D03
+   0xff},
+
+  /* TIM11 */
+  {GPIO_PORTB | GPIO_PIN9,  // PB9, D04
+   0xff},
+
+  /* TIM12 */
+  {GPIO_PORTB | GPIO_PIN14,  // PB14, D12
+   GPIO_PORTB | GPIO_PIN15,  // PB15, D13
+   0xff},
+
+  /* TIM13  No GPIO exposed */
+  {0xff},
+
+  /* TIM14 */
+  {GPIO_PORTA | GPIO_PIN7,  // PA7, A03
+   0xff},
 };
 
-// Used to verify port and pin availability on F7v2
+//-------------------------------------------------
+// Used to verify port and pin availability on F7FeatherV2
 static uint8_t validF7v2GpioArray[][5] =
 {
-  // F7v2
-  /* TIM1  GPIO NOT EXPOSED     */ {0xff},
-  /* TIM2  GPIO NOT EXPOSED     */ {0xff},
-  /* TIM3  D05, D10, A03, A04   */ {0x14,0x27,0x10,0x11,0xff},
-  /* TIM4  D08, D07, D03*, D04* */ {0x16,0x17,0x18,0x19,0xff},
-  /* TIM5  D02,            A02  */ {0x7a,0x03,0xff},
-  /* TIM6  GPIO NOT EXPOSED     */ {0xff},
-  /* TIM7  GPIO NOT EXPOSED     */ {0xff},
-  /* TIM8  GPIO NOT EXPOSED     */ {0xff},
-  /* TIM9  GPIO NOT EXPOSED     */ {0xff},
-  /* TIM10 D03*                 */ {0x18,0xff},
-  /* TIM11 D04*                 */ {0x19,0xff},
-  /* TIM12 D12, D13             */ {0x1e,0x1f,0xff},
-  /* TIM13 GPIO NOT EXPOSED     */ {0xff},
-  /* TIM14 GPIO NOT EXPOSED     */ {0xff}
+  /* TIM1 No GPIO exposed */
+  {0xff},
+
+  /* TIM2 No GPIO exposed */
+  {0xff},
+
+  /* TIM3 */
+  {GPIO_PORTB | GPIO_PIN4,  // PB4, D05
+   GPIO_PORTC | GPIO_PIN7,  // PC7, D10
+   GPIO_PORTB | GPIO_PIN0,  // PB0, A03
+   GPIO_PORTB | GPIO_PIN1,  // PB1, A04
+   0xff},
+
+  /* TIM4 D08, D07, D03*, D04* */ {0x16,0x17,0x18,0x19,0xff},
+  /* TIM4 */
+  {GPIO_PORTB | GPIO_PIN8,  // PB6, D08
+   GPIO_PORTB | GPIO_PIN7,  // PB7, D07
+   GPIO_PORTB | GPIO_PIN8,  // PB8, D03
+   GPIO_PORTB | GPIO_PIN9,  // PB9, D04
+   0xff},
+
+  /* TIM5 */
+  {GPIO_PORTH | GPIO_PIN10,  // PH10, D02
+   GPIO_PORTA | GPIO_PIN3,   // PA3, A02
+   0xff},
+
+  /* TIM6 No GPIO exposed */
+  {0xff},
+  /* TIM7 No GPIO exposed */
+  {0xff},
+  /* TIM8 No GPIO exposed */
+  {0xff},
+  /* TIM9 No GPIO exposed */
+  {0xff},
+
+  /* TIM10 */
+  {GPIO_PORTB | GPIO_PIN8,  // PB8, D03
+   0xff},
+
+  /* TIM11 */
+  {GPIO_PORTB | GPIO_PIN9,  // PB9, D04
+   0xff},
+
+  /* TIM12 */
+  {GPIO_PORTB | GPIO_PIN14,  // PB14, D12
+   GPIO_PORTB | GPIO_PIN15,  // PB15, D13
+   0xff},
+
+  /* TIM13 No GPIO exposed */
+  {0xff},
+
+  /* TIM14 No GPIO exposed */
+  {0xff},
 };
 
 /************************************************************************************

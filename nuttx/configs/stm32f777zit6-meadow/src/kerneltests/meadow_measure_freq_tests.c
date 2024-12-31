@@ -39,7 +39,7 @@
 
 // Only build if configured
 #if defined(CONFIG_MEASURE_FREQUENCY_TESTS)
-#pragma message "(--) meadow_measure_freq_tests.c"
+// #pragma message "(--) meadow_measure_freq_tests.c"
 
 #include <meadow/hcom_shared_common.h>
 #include <meadow/meadow_kernel_tests.h>
@@ -101,24 +101,6 @@
 
 //   return OK;
 // }
-
-//===============================================================
-// Configure 16-bit timer 4
-// Timer 4 all 4 channels, no duty cycle
-static void meadow_freq_test_config_tim4_x4inputs(void)
-{
-  // Timer 4 channel 1
-  meadow_kt_measure_freq_tests(1041);
-
-  // Timer 4 channel 2
-  meadow_kt_measure_freq_tests(1042);
-
-  // Timer 4 channel 3
-  meadow_kt_measure_freq_tests(1043);
-  
-  // Timer 4 channel 4
-  meadow_kt_measure_freq_tests(1044);
-}
 
 //===============================================================
 // Display the frequency information
