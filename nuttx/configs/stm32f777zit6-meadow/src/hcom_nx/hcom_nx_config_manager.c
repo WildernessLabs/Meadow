@@ -3148,12 +3148,15 @@ void hcom_nx_config_turn_on_the_cell_module()
             break;
 
             case CELL_EG21GL_MODULE:
-                // High pulse for 500 milliseconds to turn on the Quectel EG21-GL cell module
-                syslog(LOG_INFO, "Turning on EG21-GL module\n");
-                stm32_configgpio(GPIO_OUTPUT | turn_on_pin); 
-                stm32_gpiowrite(turn_on_pin, true);
-                usleep(2000000);
-                stm32_gpiowrite(turn_on_pin, false);
+                if (meadow_os_reset_reason() == MEADOW_OS_RESET_POWER_CYCLE)
+                {
+                    // High pulse for 500 milliseconds to turn on the Quectel EG21-GL cell module
+                    syslog(LOG_INFO, "Turning on EG21-GL module\n");
+                    stm32_configgpio(GPIO_OUTPUT | turn_on_pin);
+                    stm32_gpiowrite(turn_on_pin, true);
+                    usleep(2000000);
+                    stm32_gpiowrite(turn_on_pin, false);
+                }
             break;
 
             default:
