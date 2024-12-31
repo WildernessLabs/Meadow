@@ -318,11 +318,6 @@ if [ ! -z "$UNIT_TESTS" ]; then
             kconfig-tweak --file $NUTTX_CONFIG_FILE --enable MEASURE_FREQUENCY_TESTS
             BUILD_TESTS=true
             ;;
-            appsmeasfreq)
-            echo "Apps-side Measure Frequency tests requested."
-            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable APPS_MEASURE_FREQUENCY_TESTS
-            BUILD_TESTS=true
-            ;;
             all)
             echo "All tests requested."
             kconfig-tweak --file $NUTTX_CONFIG_FILE --enable ALL_MEADOW_TESTS
