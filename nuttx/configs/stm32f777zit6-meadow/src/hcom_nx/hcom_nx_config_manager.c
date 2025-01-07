@@ -2735,9 +2735,9 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
         kmm_free(configuration->esp_version.long_string);
         configuration->esp_version.long_string = hcom_nx_config_get_long_version_string(&configuration->esp_version);
         //
-        memcpy(configuration->board_mac_address, esp_config->board_mac_address, 6);
-        memcpy(configuration->bluetooth_mac_address, esp_config->bluetooth_mac_address, 6);
-        memcpy(configuration->soft_ap_mac_address, esp_config->soft_ap_mac_address, 6);
+        memcpy(configuration->board_mac_address, esp_config->board_mac_address, MAC_ADDRESS_LENGTH);
+        memcpy(configuration->bluetooth_mac_address, esp_config->bluetooth_mac_address, MAC_ADDRESS_LENGTH);
+        memcpy(configuration->soft_ap_mac_address, esp_config->soft_ap_mac_address, MAC_ADDRESS_LENGTH);
         configuration->esp32_reset_reason = esp_config->reset_reason;
     }
     hcom_nx_config_unlock();
