@@ -326,6 +326,21 @@
  */
 #define FAULT_LOGGING_RT_FILE_ERROR             ((1 << 5) << FAULT_LOGGING_RT_BIT_SHIFT)
 
+/**
+ * @brief Number of bytes used to hold a MAC address.
+ */
+#define MAC_ADDRESS_LENGTH 6
+
+/**
+ * @brief Format string to be used to expand a MAC address into a readable address.
+ */
+#define MAC_ADDRESS_FORMAT_STRING "%02X:%02X:%02X:%02X:%02X:%02X"
+
+/**
+ * @brief Parameters to be used to expand a MAC address into a readable address.
+ */
+#define MAC_ADDRESS_FORMAT_PARAMS(mac) mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]
+
 //==================================================
 //  Structure to hold cell network interface information
 struct cell_settings_s
@@ -748,12 +763,17 @@ struct meadow_configuration_s
   /**
    * @brief MAC address of the board. 
    */
-  uint8_t board_mac_address[6];
+  uint8_t board_mac_address[MAC_ADDRESS_LENGTH];
+
+  /**
+   * @brief Bluetooth MAC address of the board. 
+   */
+  uint8_t bluetooth_mac_address[MAC_ADDRESS_LENGTH];
 
   /**
    * @brief MAC address of the soft access point. 
    */  
-  uint8_t soft_ap_mac_address[6];
+  uint8_t soft_ap_mac_address[MAC_ADDRESS_LENGTH];
 
   /**
    *  @brief Number of retries for connects etc before the system gives up

@@ -138,10 +138,13 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
     snprintf(buffer, buffer_length, "SerialNo|%02X%02X%02X%02X%02X%02X~", config->chip_id[0], config->chip_id[1], config->chip_id[2], config->chip_id[3], config->chip_id[4], config->chip_id[5]);
     strcat(device_info, buffer);
 
-    snprintf(buffer, buffer_length, "WiFiMAC|%02X:%02X:%02X:%02X:%02X:%02X~", config->board_mac_address[0], config->board_mac_address[1], config->board_mac_address[2], config->board_mac_address[3], config->board_mac_address[4], config->board_mac_address[5]);
+    snprintf(buffer, buffer_length, "WiFiMAC|" MAC_ADDRESS_FORMAT_STRING "~", MAC_ADDRESS_FORMAT_PARAMS(config->board_mac_address));
     strcat(device_info, buffer);
 
-    snprintf(buffer, buffer_length, "SoftAPMac|%02X:%02X:%02X:%02X:%02X:%02X~", config->soft_ap_mac_address[0], config->soft_ap_mac_address[1], config->soft_ap_mac_address[2], config->soft_ap_mac_address[3], config->soft_ap_mac_address[4], config->soft_ap_mac_address[5]);
+    snprintf(buffer, buffer_length, "SoftAPMac|" MAC_ADDRESS_FORMAT_STRING "~", MAC_ADDRESS_FORMAT_PARAMS(config->soft_ap_mac_address));
+    strcat(device_info, buffer);
+
+    snprintf(buffer, buffer_length, "BtMAC|" MAC_ADDRESS_FORMAT_STRING "~", MAC_ADDRESS_FORMAT_PARAMS(config->bluetooth_mac_address));
     strcat(device_info, buffer);
 
     meadow_os_config_free_resources(config);
