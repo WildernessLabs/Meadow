@@ -144,6 +144,9 @@ void hcom_misc_rqst_get_device_info(uint32_t userData)
     snprintf(buffer, buffer_length, "SoftAPMac|%02X:%02X:%02X:%02X:%02X:%02X~", config->soft_ap_mac_address[0], config->soft_ap_mac_address[1], config->soft_ap_mac_address[2], config->soft_ap_mac_address[3], config->soft_ap_mac_address[4], config->soft_ap_mac_address[5]);
     strcat(device_info, buffer);
 
+    snprintf(buffer, buffer_length, "BtMAC|%02X:%02X:%02X:%02X:%02X:%02X~", config->bluetooth_mac_address[0], config->bluetooth_mac_address[1], config->bluetooth_mac_address[2], config->bluetooth_mac_address[3], config->bluetooth_mac_address[4], config->bluetooth_mac_address[5]);
+    strcat(device_info, buffer);
+
     meadow_os_config_free_resources(config);
   }
   strcat(device_info, "\n");

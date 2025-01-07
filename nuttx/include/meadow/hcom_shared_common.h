@@ -751,6 +751,11 @@ struct meadow_configuration_s
   uint8_t board_mac_address[6];
 
   /**
+   * @brief Bluetooth MAC address of the board. 
+   */
+  uint8_t bluetooth_mac_address[6];
+
+  /**
    * @brief MAC address of the soft access point. 
    */  
   uint8_t soft_ap_mac_address[6];
