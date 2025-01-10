@@ -407,241 +407,144 @@ int meadow_measure_freq_isr(int irq, void *context, void *arg)
     putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
     return OK;
   }
+  
+  // Pointer to channel data
+  mdwFreqChanData_t *freqChanDataArray[4];
+  // Current captured value.
+  uint32_t capturedCountArray[4];
 
   //----------------------------------------------------------
-  // Channel 1
-  if(timStatusReg & GTIM_SR_CC1IF)
+  // Get the important channel data first to be used in common code
+  if(timStatusReg & GTIM_SR_CC1IF)    // Channel 1
   {
     timStatusReg &= ~GTIM_SR_CC1IF;
 
-    // Ignore if channel not configured
+    // Ignore interrupt if channel not configured
     if(mdwFreqTimerInfo->chanActiveBits & ACTIVE_CHAN_BITFIELD_1)
     {
-      // Channel data pointer
-      mdwFreqChanData_t *mdwFreqChanData = 
+      freqChanDataArray[FREQ_CHAN_DATA_OFFSET_CHAN_1] = 
               mdwFreqTimerInfo->mdwFreqChanData[FREQ_CHAN_DATA_OFFSET_CHAN_1];
-      if(mdwFreqChanData == NULL)
+      if(freqChanDataArray[FREQ_CHAN_DATA_OFFSET_CHAN_1] == NULL)
       {
         syslog(LOG_ERR, "%s@%d-Error:Channel 1 is NULL\n", __FILE__, __LINE__);
         return -ENXIO;  // No such device or addres
       }
 
-      // Read the captured value. This resets reg value to 0.
-      uint32_t capturedCount = getreg32(timerBase + STM32_GTIM_CCR1_OFFSET);
-
-      // From this point the code is identical for all channels
-      // If using duty cycle, read the input GPIO, otherwise only raising
-      // edges seen.
-      if(mdwFreqChanData->useDutyCycle)
+      capturedCountArray[FREQ_CHAN_DATA_OFFSET_CHAN_1] = getreg32(timerBase + STM32_GTIM_CCR1_OFFSET);
+    }
+  }
+  
+  if(timStatusReg & GTIM_SR_CC2IF)    // Channel 2
+  {
+    timStatusReg &= ~GTIM_SR_CC2IF;
+    if(mdwFreqTimerInfo->chanActiveBits & ACTIVE_CHAN_BITFIELD_2)
+    {
+      freqChanDataArray[FREQ_CHAN_DATA_OFFSET_CHAN_2] = 
+              mdwFreqTimerInfo->mdwFreqChanData[FREQ_CHAN_DATA_OFFSET_CHAN_2];
+      if(freqChanDataArray[FREQ_CHAN_DATA_OFFSET_CHAN_2] == NULL)
       {
-        // With duty cycle we must read the GPIO's input state to determine
-        // if this is raising or falling edge.
-        if(stm32_gpioread(mdwFreqChanData->inputConfig))
-        {
-          // Raising edge with duty cycle
-          // The end of the previous edge is now the beginning of this count.
-          // These are captured so that when the calculations are executed
-          // it is free to be unconcerned about changing values.
-          // Remember that when an ISR occurs, everything else stops,
-          // including the code that does the calculations.
-          mdwFreqChanData->bgnResultCnt = mdwFreqChanData->endResultCnt;
-          mdwFreqChanData->bgnResultOvr = mdwFreqChanData->endResultOvr;
-          mdwFreqChanData->midResultCnt = mdwFreqChanData->midCaptureCnt;
-          mdwFreqChanData->midResultOvr = mdwFreqChanData->midCaptureOvr;
-
-          // Capture end count and current overflow count
-          mdwFreqChanData->endResultCnt = capturedCount;
-          mdwFreqChanData->endResultOvr = mdwFreqTimerInfo->timerOverflow;
-
-          // The following is for calculating average frequency
-          mdwFreqChanData->gpioCountForAvg++;
-        }
-        else
-        {
-          // Falling edge, only for duty cycle
-          mdwFreqChanData->midCaptureCnt = capturedCount;
-          mdwFreqChanData->midCaptureOvr = mdwFreqTimerInfo->timerOverflow;
-        }
+        syslog(LOG_ERR, "%s@%d-Error:Channel 2 is NULL\n", __FILE__, __LINE__);
+        return -ENXIO;  // No such device or addres
       }
-      else
+
+      capturedCountArray[FREQ_CHAN_DATA_OFFSET_CHAN_2] = getreg32(timerBase + STM32_GTIM_CCR2_OFFSET);
+    }
+  }
+
+  if(timStatusReg & GTIM_SR_CC3IF)    // Channel 3
+  {
+    timStatusReg &= ~GTIM_SR_CC3IF;
+    if(mdwFreqTimerInfo->chanActiveBits & ACTIVE_CHAN_BITFIELD_3)
+    {
+      freqChanDataArray[FREQ_CHAN_DATA_OFFSET_CHAN_3] = 
+              mdwFreqTimerInfo->mdwFreqChanData[FREQ_CHAN_DATA_OFFSET_CHAN_3];
+      if(freqChanDataArray[FREQ_CHAN_DATA_OFFSET_CHAN_3] == NULL)
       {
-        // Raising edge without duty cycle is end of previous capture and the
-        // beginning of a new capture
+        syslog(LOG_ERR, "%s@%d-Error:Channel 3 is NULL\n", __FILE__, __LINE__);
+        return -ENXIO;  // No such device or addres
+      }
+
+      capturedCountArray[FREQ_CHAN_DATA_OFFSET_CHAN_3] = getreg32(timerBase + STM32_GTIM_CCR3_OFFSET);
+    }
+  }
+  
+  if(timStatusReg & GTIM_SR_CC4IF)    // Channel 4
+  {
+    timStatusReg &= ~GTIM_SR_CC4IF;
+    if(mdwFreqTimerInfo->chanActiveBits & ACTIVE_CHAN_BITFIELD_4)
+    {
+      freqChanDataArray[FREQ_CHAN_DATA_OFFSET_CHAN_4] = 
+              mdwFreqTimerInfo->mdwFreqChanData[FREQ_CHAN_DATA_OFFSET_CHAN_4];
+      if(freqChanDataArray[FREQ_CHAN_DATA_OFFSET_CHAN_4] == NULL)
+      {
+        syslog(LOG_ERR, "%s@%d-Error:Channel 4 is NULL\n", __FILE__, __LINE__);
+        return -ENXIO;  // No such device or addres
+      }
+
+      capturedCountArray[FREQ_CHAN_DATA_OFFSET_CHAN_4] = getreg32(timerBase + STM32_GTIM_CCR4_OFFSET);
+    }
+  }
+
+  //----------------------------------------------------------
+  // Channel X
+  for(int chan = 0; chan < 4; chan++)
+  {
+    mdwFreqChanData_t *mdwFreqChanData = freqChanDataArray[chan];
+    if(freqChanDataArray[chan] == NULL)
+    {
+      continue;
+    }
+
+    uint32_t capturedCount = capturedCountArray[chan];
+
+  //----------------------------------------------------------   
+    if(mdwFreqChanData->useDutyCycle)
+    {
+      // With duty cycle we must read the GPIO's input state to determine
+      // if this is raising or falling edge.
+      if(stm32_gpioread(mdwFreqChanData->inputConfig))
+      {
+        // Raising edge with duty cycle
+        // The end of the previous edge is now the beginning of this count.
+        // These are captured so that when the calculations are executed
+        // it is free to be unconcerned about changing values.
         mdwFreqChanData->bgnResultCnt = mdwFreqChanData->endResultCnt;
         mdwFreqChanData->bgnResultOvr = mdwFreqChanData->endResultOvr;
         mdwFreqChanData->midResultCnt = mdwFreqChanData->midCaptureCnt;
         mdwFreqChanData->midResultOvr = mdwFreqChanData->midCaptureOvr;
 
-        // End is now
+        // Capture end count and current overflow count
         mdwFreqChanData->endResultCnt = capturedCount;
         mdwFreqChanData->endResultOvr = mdwFreqTimerInfo->timerOverflow;
 
         // The following is for calculating average frequency
         mdwFreqChanData->gpioCountForAvg++;
       }
-    }
-  }
-
-  //----------------------------------------------------------
-  // Channel 2
-  if(timStatusReg & GTIM_SR_CC2IF)
-  {
-    timStatusReg &= ~GTIM_SR_CC2IF;
-
-    if(mdwFreqTimerInfo->chanActiveBits & ACTIVE_CHAN_BITFIELD_2)
-    {
-      mdwFreqChanData_t *mdwFreqChanData = 
-                mdwFreqTimerInfo->mdwFreqChanData[FREQ_CHAN_DATA_OFFSET_CHAN_2];
-      if(mdwFreqChanData == NULL)
-      {
-        syslog(LOG_ERR, "%s@%d-Error:Channel 2 is NULL\n", __FILE__, __LINE__);
-        return -ENXIO;  // No such device or addres
-      }
-
-      uint32_t capturedCount = getreg32(timerBase + STM32_GTIM_CCR2_OFFSET);
-
-      if(mdwFreqChanData->useDutyCycle)
-      {
-        if(stm32_gpioread(mdwFreqChanData->inputConfig))
-        {
-          mdwFreqChanData->bgnResultCnt = mdwFreqChanData->endResultCnt;
-          mdwFreqChanData->bgnResultOvr = mdwFreqChanData->endResultOvr;
-          mdwFreqChanData->midResultCnt = mdwFreqChanData->midCaptureCnt;
-          mdwFreqChanData->midResultOvr = mdwFreqChanData->midCaptureOvr;
-
-          mdwFreqChanData->endResultCnt = capturedCount;
-          mdwFreqChanData->endResultOvr = mdwFreqTimerInfo->timerOverflow;
-
-          mdwFreqChanData->gpioCountForAvg++;
-        }
-        else
-        {
-          mdwFreqChanData->midCaptureCnt = capturedCount;
-          mdwFreqChanData->midCaptureOvr = mdwFreqTimerInfo->timerOverflow;
-        }
-      }
       else
       {
-        mdwFreqChanData->bgnResultCnt = mdwFreqChanData->endResultCnt;
-        mdwFreqChanData->bgnResultOvr = mdwFreqChanData->endResultOvr;
-        mdwFreqChanData->midResultCnt = mdwFreqChanData->midCaptureCnt;
-        mdwFreqChanData->midResultOvr = mdwFreqChanData->midCaptureOvr;
-
-        mdwFreqChanData->endResultCnt = capturedCount;
-        mdwFreqChanData->endResultOvr = mdwFreqTimerInfo->timerOverflow;
-
-        mdwFreqChanData->gpioCountForAvg++;
+        // Duty cycle falling edge
+        mdwFreqChanData->midCaptureCnt = capturedCount;
+        mdwFreqChanData->midCaptureOvr = mdwFreqTimerInfo->timerOverflow;
       }
     }
-  }
-
-  //----------------------------------------------------------
-  // Channel 3
-  if(timStatusReg & GTIM_SR_CC3IF)
-  {
-    timStatusReg &= ~GTIM_SR_CC3IF;
-
-    if(mdwFreqTimerInfo->chanActiveBits & ACTIVE_CHAN_BITFIELD_3)
+    else
     {
-      mdwFreqChanData_t *mdwFreqChanData = 
-                mdwFreqTimerInfo->mdwFreqChanData[FREQ_CHAN_DATA_OFFSET_CHAN_3];
-      if(mdwFreqChanData == NULL)
-      {
-        syslog(LOG_ERR, "%s@%d-Error:Channel 3 is NULL\n", __FILE__, __LINE__);
-        return -ENXIO;  // No such device or addres
-      }
+      // Not using duty cycle. Raising edge without duty cycle is end of
+      // previous capture and the beginning of a new capture.
+      mdwFreqChanData->bgnResultCnt = mdwFreqChanData->endResultCnt;
+      mdwFreqChanData->bgnResultOvr = mdwFreqChanData->endResultOvr;
+      mdwFreqChanData->midResultCnt = mdwFreqChanData->midCaptureCnt;
+      mdwFreqChanData->midResultOvr = mdwFreqChanData->midCaptureOvr;
 
-      uint32_t capturedCount = getreg32(timerBase + STM32_GTIM_CCR3_OFFSET);
+      // End is now
+      mdwFreqChanData->endResultCnt = capturedCount;
+      mdwFreqChanData->endResultOvr = mdwFreqTimerInfo->timerOverflow;
 
-      if(mdwFreqChanData->useDutyCycle)
-      {
-        if(stm32_gpioread(mdwFreqChanData->inputConfig))
-        {
-          mdwFreqChanData->bgnResultCnt = mdwFreqChanData->endResultCnt;
-          mdwFreqChanData->bgnResultOvr = mdwFreqChanData->endResultOvr;
-          mdwFreqChanData->midResultCnt = mdwFreqChanData->midCaptureCnt;
-          mdwFreqChanData->midResultOvr = mdwFreqChanData->midCaptureOvr;
-
-          mdwFreqChanData->endResultCnt = capturedCount;
-          mdwFreqChanData->endResultOvr = mdwFreqTimerInfo->timerOverflow;
-
-          mdwFreqChanData->gpioCountForAvg++;
-        }
-        else
-        {
-          mdwFreqChanData->midCaptureCnt = capturedCount;
-          mdwFreqChanData->midCaptureOvr = mdwFreqTimerInfo->timerOverflow;
-        }
-      }
-      else
-      {
-        mdwFreqChanData->bgnResultCnt = mdwFreqChanData->endResultCnt;
-        mdwFreqChanData->bgnResultOvr = mdwFreqChanData->endResultOvr;
-        mdwFreqChanData->midResultCnt = mdwFreqChanData->midCaptureCnt;
-        mdwFreqChanData->midResultOvr = mdwFreqChanData->midCaptureOvr;
-
-        mdwFreqChanData->endResultCnt = capturedCount;
-        mdwFreqChanData->endResultOvr = mdwFreqTimerInfo->timerOverflow;
-
-        mdwFreqChanData->gpioCountForAvg++;
-      }
+      // The following is for calculating average frequency
+      mdwFreqChanData->gpioCountForAvg++;
     }
   }
 
-  //----------------------------------------------------------
-  // Channel 4
-  if(timStatusReg & GTIM_SR_CC4IF)
-  {
-    timStatusReg &= ~GTIM_SR_CC4IF;
-
-    if(mdwFreqTimerInfo->chanActiveBits & ACTIVE_CHAN_BITFIELD_4)
-    {
-      mdwFreqChanData_t *mdwFreqChanData = 
-                mdwFreqTimerInfo->mdwFreqChanData[FREQ_CHAN_DATA_OFFSET_CHAN_4];
-      if(mdwFreqChanData == NULL)
-      {
-        syslog(LOG_ERR, "%s@%d-Error:Channel 4 is NULL\n", __FILE__, __LINE__);
-        return -ENXIO;  // No such device or addres
-      }
-
-      uint32_t capturedCount = getreg32(timerBase + STM32_GTIM_CCR4_OFFSET);
-
-      if(mdwFreqChanData->useDutyCycle)
-      {
-        if(stm32_gpioread(mdwFreqChanData->inputConfig))
-        {
-          mdwFreqChanData->bgnResultCnt = mdwFreqChanData->endResultCnt;
-          mdwFreqChanData->bgnResultOvr = mdwFreqChanData->endResultOvr;
-          mdwFreqChanData->midResultCnt = mdwFreqChanData->midCaptureCnt;
-          mdwFreqChanData->midResultOvr = mdwFreqChanData->midCaptureOvr;
-
-          mdwFreqChanData->endResultCnt = capturedCount;
-          mdwFreqChanData->endResultOvr = mdwFreqTimerInfo->timerOverflow;
-
-          mdwFreqChanData->gpioCountForAvg++;
-        }
-        else
-        {
-          mdwFreqChanData->midCaptureCnt = capturedCount;
-          mdwFreqChanData->midCaptureOvr = mdwFreqTimerInfo->timerOverflow;
-        }
-      }
-      else
-      {
-        mdwFreqChanData->bgnResultCnt = mdwFreqChanData->endResultCnt;
-        mdwFreqChanData->bgnResultOvr = mdwFreqChanData->endResultOvr;
-        mdwFreqChanData->midResultCnt = mdwFreqChanData->midCaptureCnt;
-        mdwFreqChanData->midResultOvr = mdwFreqChanData->midCaptureOvr;
-
-        mdwFreqChanData->endResultCnt = capturedCount;
-        mdwFreqChanData->endResultOvr = mdwFreqTimerInfo->timerOverflow;
-
-        mdwFreqChanData->gpioCountForAvg++;
-      }
-    }
-  }
-
-  // Clear the timer's status register
   putreg16(timStatusReg, timerBase + STM32_GTIM_SR_OFFSET);
   return OK;
 }
