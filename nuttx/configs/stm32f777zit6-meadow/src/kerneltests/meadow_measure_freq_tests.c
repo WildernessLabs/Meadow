@@ -377,7 +377,7 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
         break;
     }
 
-    syslog(2, "%s@%d-Error: Test:%lu, ret:%d (%s)\n",
+    syslog(2, "%s@%d-Failure: Test:%lu, ret:%d (%s)\n",
               __FILE__, __LINE__, userData, ret, errorStr);
   }
   else
@@ -401,7 +401,7 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
       successStr = "Unknown return value";
     }
 
-    syslog(2, "%s@%d-Success Test:%lu, ret:%d (%s)\n",
+    syslog(2, "%s@%d-Success: Test:%lu, ret:%d (%s)\n",
               __FILE__, __LINE__, userData, ret, successStr);
   }
 }
