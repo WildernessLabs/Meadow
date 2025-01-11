@@ -381,6 +381,10 @@ static int hcom_pppd_create_handler(void)
 // and to manage the PPP connection.
 static void *pppd_thread(void *cell_settings_ptr)
 {
+#if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
+    syslog(2, "New pthread [PID:%d],'%s'\n", getpid(), "pppd_thread");
+#endif
+
     cell_settings_t *cell_settings = (cell_settings_t *) cell_settings_ptr;
 
     if (cell_settings == NULL)

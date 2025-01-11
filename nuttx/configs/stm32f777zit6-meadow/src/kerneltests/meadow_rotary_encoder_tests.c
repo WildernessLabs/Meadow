@@ -42,7 +42,7 @@
 // Not yet active in Meadow.OS until needed by .Net
 #if MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER > 0
 #include "../hcom_nx/hcom_nx_common.h"
-#include "meadow_rotary_encoder.h" 
+#include "../specialized/meadow_rotary_encoder.h" 
 #include "stm32_gpio.h"   // stm32_configgpio
 
 // Only build if configured
@@ -85,7 +85,6 @@ static void rotary_encoder_config_test_remove_n(uint32_t userData);
 /************************************************************************************
  * Public Functions
  ************************************************************************************/
-// FUTURE-For when rotary encoder has it own unit test infrastructure
 // // set developer -d 18 come here
 void meadow_kt_rotary_encoder_tests(uint32_t userData)
 {

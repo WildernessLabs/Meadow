@@ -1041,7 +1041,7 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 
 // Build test code for rotary encoder. Remove when test code configuration
 // implemented.
-#define MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER        1
+#define MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER        0
 
 // Test partitioning of 5 MB of external flash
 #define MEADOW_INCLUDE_CODE_FOR_TESTING_5MB_OF_FLASH  1

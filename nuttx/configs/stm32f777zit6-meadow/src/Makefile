@@ -38,8 +38,7 @@
 ASRCS =
 CSRCS = stm32_boot.c stm32_spi.c stm32_extmem.c stm32_i2c.c \
  meadow-upd.c meadow_interrupt.c meadow_adc.c misc/meadow_cirbuf.c \
- meadow_hw_version.c misc/parse_iso8601_time.c \
- meadow_rotary_encoder.c
+ meadow_hw_version.c misc/parse_iso8601_time.c
 
 ifeq ($(CONFIG_ARCH_LEDS),y)
 CSRCS += stm32_autoleds.c
@@ -163,6 +162,7 @@ CSRCS += kerneltests/espcp_tests.c \
 		 kerneltests/meadow_rotary_encoder_tests.c \
 		 kerneltests/meadow_spi_dma_tests.c \
 		 kerneltests/meadow_os_tests.c \
+		 kerneltests/meadow_measure_freq_tests.c
 
 #
 #	Add the NTP client.
@@ -174,6 +174,16 @@ CSRCS += ntpclient/ntpclient.c misc/long_period_scheduler.c
 #
 CSRCS += misc/meadow_logging.c
 
+#
+#	Add Meadow caclulate frequency and duty cycle support.
+#
+# CSRCS += specialized/meadow_calc_freq_dc.c
+CSRCS += specialized/meadow_measure_freq.c
+
+#
+#	Add native rotary encoder support.
+#
+CSRCS += specialized/meadow_rotary_encoder.c
 
 #
 #	The libyaml library is required by cyaml.

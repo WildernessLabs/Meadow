@@ -463,6 +463,11 @@ int STUB_meadow_adc_read_temp_vbat(int nbr, uintptr_t parm1, uintptr_t parm2);
 int STUB_pwrmgmt_most_recent_wakeup_reason(int nbr);
 #endif
 
+#if defined(CONFIG_ARCH_BOARD_MEADOW)
+  STUB_meadow_measure_freq_configure(int nbr, uintptr_t parm1);
+  STUB_meadow_measure_freq_return_freq_info(int nbr, uintptr_t parm1);
+#endif
+
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 void STUB_meadow_kt_espcp_load_test_large_file_download(int nbr, uint32_t param);
 void STUB_meadow_kt_espcp_load_test_web_page(int nbr, uint32_t param);
@@ -517,6 +522,10 @@ void STUB_meadow_kt_spi_dma_tests(int nbr, uint32_t param);
 
 #if defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 void STUB_meadow_kt_rotary_encoder_tests(int nbr, uint32_t param);
+#endif
+
+#if defined(CONFIG_MEASURE_FREQUENCY_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+void STUB_meadow_kt_measure_freq_tests(int nbr, uint32_t param);
 #endif
 
 #if defined(CONFIG_ARCH_BOARD_MEADOW)

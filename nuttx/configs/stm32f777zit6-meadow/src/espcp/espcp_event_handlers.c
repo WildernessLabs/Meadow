@@ -142,6 +142,10 @@ static void *espcp_event_handler_thread(int argc, char *argv[])
 static void *espcp_event_handler_thread(void *parameters)
 #endif
 {
+#if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
+  syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), ESPCP_EVENT_HANDLER_THREAD_NAME);
+#endif
+
 #ifdef CONFIG_BUILD_PROTECTED
     espcp_config_lock();
     espcp_configuration_t *configuration = espcp_get_configuration();

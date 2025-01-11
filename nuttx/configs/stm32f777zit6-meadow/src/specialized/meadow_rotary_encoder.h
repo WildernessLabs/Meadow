@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/stm32f777-zit6-meadow/src/meadow_rotary_encoder.h
+ * configs/stm32f777zit6-meadow/src/specialized/meadow_rotary_encoder.h
  * 
  *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
