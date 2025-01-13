@@ -190,7 +190,7 @@ void SysTick_Handler(void)
   	{
 			if(blink_counter >= 50)
 			{
-				HAL_GPIO_TogglePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin);
+				// HAL_GPIO_TogglePin(OnboardLedBlue_GPIO_Port, OnboardLedBlue_Pin);
 				blink_counter = 0;
 			}
 		  blink_counter++;

@@ -29,12 +29,6 @@
 
 #define SIZEOF(X) (sizeof(X) / sizeof(X[0]))
 
-#define OnboardLedGreen_Pin GPIO_PIN_1
-#define OnboardLedGreen_GPIO_Port GPIOA
-#define OnboardLedBlue_Pin GPIO_PIN_0
-#define OnboardLedBlue_GPIO_Port GPIOA
-#define OnboardLedRed_Pin GPIO_PIN_2
-#define OnboardLedRed_GPIO_Port GPIOA
 
 extern uint8_t board_version;
 extern uint8_t bootloader_status;
