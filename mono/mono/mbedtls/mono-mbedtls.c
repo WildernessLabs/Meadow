@@ -3312,6 +3312,12 @@ int is_clear = 0;
 
 #define DEBUG_THRESHOLD     NO_DEBUG
 
+#if DEBUG_THRESHOLD > NO_DEBUG
+    #define MBEDTLS_PRINTF(...) do { printf(__VA_ARGS__); } while (0)
+#else
+    #define MBEDTLS_PRINTF(...)
+#endif
+
 // copied from mbedtls/programs/pkey/gen_key.c
 static int dev_random_entropy_poll( void *data, unsigned char *output,
                              size_t len, size_t *olen )
@@ -3372,7 +3378,7 @@ int mono_mbedtls_init (void)
         } 
 
         if ( ( ret = mbedtls_pk_parse_key( pkey, private_key_retrieved, private_key_retrieved_len, private_key_pass_retrieved, private_key_pass_retrieved_len - 1, mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 ) {
-            printf( " failed to parse private key %d\n\n", ret );
+            MBEDTLS_PRINTF( " failed to parse private key %d\n\n", ret );
             goto error;
         }
     }
@@ -3384,7 +3390,7 @@ int mono_mbedtls_init (void)
         mbedtls_x509_crt_init( clicert );
 
         if ( ( ret = mbedtls_x509_crt_parse( clicert, client_cert_retrieved, client_cert_retrieved_len ) ) != 0 ) {
-            printf( " failed to parse client certificate %d\n\n", ret);
+            MBEDTLS_PRINTF( " failed to parse client certificate %d\n\n", ret);
             goto error;
         }
     }
@@ -3395,7 +3401,7 @@ int mono_mbedtls_init (void)
 
     if( ( ret = mbedtls_ssl_config_defaults( &conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT ) ) != 0 )
     {
-        printf (" failed\n ! mbedtls_ssl_config_defaults returned %d\n\n", ret );
+        MBEDTLS_PRINTF (" failed\n ! mbedtls_ssl_config_defaults returned %d\n\n", ret );
         goto error;
     }
 
@@ -3412,13 +3418,13 @@ int mono_mbedtls_init (void)
                                           NULL, DEV_RANDOM_THRESHOLD,
                                           MBEDTLS_ENTROPY_SOURCE_STRONG)) != 0)
     {
-        printf(" failed\n  ! adding /dev/random entropy returned -0x%04x\n", (unsigned int)-ret);
+        MBEDTLS_PRINTF(" failed\n  ! adding /dev/random entropy returned -0x%04x\n", (unsigned int)-ret);
         goto error;
     }
 
     if ( ( ret = mbedtls_x509_crt_parse (&cacert, root_ca_pems, root_ca_pems_len) ) != 0)
     {
-        printf ("mono-mbedtls: failed parsing the root CA PEMs\n");
+        MBEDTLS_PRINTF ("mono-mbedtls: failed parsing the root CA PEMs\n");
         goto error;
     }
     mbedtls_ssl_conf_ca_chain( &conf, &cacert, NULL );
@@ -3428,7 +3434,7 @@ int mono_mbedtls_init (void)
                             (const unsigned char *) pers,
                             strlen( pers ) ) ) != 0 )
     {
-        printf( " failed\n  ! mbedtls_ctr_drbg_seed returned %d\n", ret );
+        MBEDTLS_PRINTF( " failed\n  ! mbedtls_ctr_drbg_seed returned %d\n", ret );
         goto error;
     }
     return 0;
@@ -3456,7 +3462,7 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
     server_fd = g_malloc (sizeof(mbedtls_net_context));
     if (server_fd == NULL)
     {
-        printf ("Failed to allocate socket descriptor\n");
+        MBEDTLS_PRINTF ("Failed to allocate socket descriptor\n");
         goto error;
     }
 
@@ -3467,7 +3473,7 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
     ssl = g_malloc (sizeof(mbedtls_ssl_context));
     if (ssl == NULL)
     {
-        printf ("Failed to allocate ssl context\n");
+        MBEDTLS_PRINTF ("Failed to allocate ssl context\n");
         goto error;
     }
 
@@ -3479,14 +3485,14 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
     //Assing the TLS config to the TLS context 
     if (( ret = mbedtls_ssl_setup (ssl, &conf) ) != 0)
     {
-        printf( "mbedtls_ssl_setup returned -0x%x\n", -ret );
+        MBEDTLS_PRINTF( "mbedtls_ssl_setup returned -0x%x\n", -ret );
         goto error;
     }
 
     // Set hostname for verification
     if (( ret = mbedtls_ssl_set_hostname( ssl, hostname ) ) != 0 ) 
     {
-        printf( "mbedtls_ssl_set_hostname returned -0x%x\n", -ret );
+        MBEDTLS_PRINTF( "mbedtls_ssl_set_hostname returned -0x%x\n", -ret );
         goto error;
     }
 
@@ -3495,7 +3501,7 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
         // Configure SSL context with client certificate and private key
         if ( ( ret = mbedtls_ssl_conf_own_cert( &conf, clicert, pkey ) ) != 0 ) 
         {
-            printf( " failed to configure client certificate and private key %d\n\n", ret );
+            MBEDTLS_PRINTF( " failed to configure client certificate and private key %d\n\n", ret );
             goto error;
         } 
     }
@@ -3506,7 +3512,7 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
     MonoMbedTlsContext *new_ctx = g_malloc (sizeof(MonoMbedTlsContext));
     if (new_ctx == NULL)
     {
-        printf("MonoMbedTlsConext failed to be allocated\n");
+        MBEDTLS_PRINTF("MonoMbedTlsConext failed to be allocated\n");
         goto error;
     }
 
@@ -3517,7 +3523,7 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
     return (intptr_t) new_ctx;
 
 error:
-    printf(" Failed to Connected \n");
+    MBEDTLS_PRINTF(" Failed to Connected \n");
 
     if (ssl) {
         mbedtls_ssl_free (ssl);
@@ -3584,7 +3590,7 @@ void mono_mbedtls_close (MonoMbedTlsContext * ctx)
         /* Close the connection by sending "close notify" message to the server. */
         if ((ret = mbedtls_ssl_close_notify(ctx->mbedtls_ctx) != 0))
         {
-            printf("mbedtls_ssl_close_notify returned: -0x%x\n", -ret);
+            MBEDTLS_PRINTF("mbedtls_ssl_close_notify returned: -0x%x\n", -ret);
         }
 
         if (ctx->mbedtls_ctx)
