@@ -341,7 +341,7 @@ static int espcp_spi_init(void)
     meadow_configuration_t *config = hcom_nx_config_get_pointer();
     if (config == NULL)
     {
-        frequency = 8000000UL;
+        frequency = DEFAULT_STM_ESP_SPI_SPEED;
     }
     else
     {
