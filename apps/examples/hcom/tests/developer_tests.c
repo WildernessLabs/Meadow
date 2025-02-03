@@ -139,6 +139,10 @@ static meadow_test_names_t _testNames[] =
     { MEADOW_TEST_FREQUENCY_MEASUREMENT, "Measure Frequency tests" },
 #endif
 
+#if defined(CONFIG_CELL_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { 20, "Cell tests", cell_script_tests },
+#endif
+
     //
     //  Meadow OS tests (900-999)
     //
