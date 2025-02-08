@@ -362,8 +362,16 @@ int meadow_eth_conn_process_link_status_change(bool linkStatusUp)
       return ret;
     }
 
+    hcom_nx_config_lock();
+    meadow_configuration_t *config = hcom_nx_config_get_pointer();
+    bool timeAtStart = config->get_network_time_at_startup;
+    hcom_nx_config_unlock();
+
     // Stop the periodic NTP time request
-    ntpc_stop();
+    if(timeAtStart)
+    {
+      ntpc_stop();
+    }
   }
 
   return ret;
