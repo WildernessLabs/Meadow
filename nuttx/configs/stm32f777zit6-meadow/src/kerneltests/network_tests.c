@@ -511,6 +511,98 @@ int network_test_get_multiple_large_files(int number_of_requests, char *webserve
     return(result);
 }
 
+#define BUFFER_SIZE 4096
+/**
+ * @brief Run a network performance test.
+ * 
+ * This method will get the files LargeFile1.html - LargeFile9.html and record the throughput of the system.
+ * 
+ * @return int OK if successful, ERROR if there is a problem.
+ */
+int network_test_performance(char *webserver_ip, int webserver_port)
+{
+    syslog(LOGGING_LEVEL, "********** Testing network performance.\n");
+
+    int sockfd;
+    struct sockaddr_in server_addr;
+    char *buffer;
+    ssize_t bytes_received;
+    char file_name[100];
+
+    for (int index = 1; index < 10; index++)
+    {
+        snprintf(file_name, sizeof(file_name), "GET /LargeFile%d.html HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n", index, webserver_ip);
+        syslog(LOGGING_LEVEL, "Download request %d.\n", index);
+        time_t start;
+        time(&start);
+
+        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (sockfd < 0)
+        {
+            syslog(LOGGING_LEVEL, "    FAIL: socket - Failed to create socket.\n");
+            return(ERROR);
+        }
+
+        memset(&server_addr, 0, sizeof(server_addr));
+        server_addr.sin_family = AF_INET;
+        server_addr.sin_port = htons(webserver_port);
+        if (inet_pton(AF_INET, webserver_ip, &server_addr.sin_addr) <= 0)
+        {
+            close(sockfd);
+            syslog(LOGGING_LEVEL, "    FAIL: inet_pton - Invalid address.\n");
+            return(ERROR);
+        }
+
+        if (connect(sockfd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0)
+        {
+            close(sockfd);
+            syslog(LOGGING_LEVEL, "    FAIL: connect - Failed to connect to server.\n");
+            return(ERROR);
+        }
+
+        if (send(sockfd, file_name, strlen(file_name), 0) < 0)
+        {
+            close(sockfd);
+            syslog(LOGGING_LEVEL, "    FAIL: send - Failed to send request.\n");
+            return(ERROR);
+        }
+
+        int total_bytes = 0;
+        buffer = (char *) malloc(BUFFER_SIZE);
+        if (buffer == NULL)
+        {
+            close(sockfd);
+            syslog(LOGGING_LEVEL, "    FAIL: malloc - Failed to allocate memory.\n");
+            return(ERROR);
+        }
+
+        while ((bytes_received = recv(sockfd, buffer, BUFFER_SIZE - 1, 0)) > 0)
+        {
+            total_bytes += bytes_received;
+        }
+
+        free(buffer);
+
+        if (bytes_received < 0)
+        {
+            syslog(LOGGING_LEVEL, "    FAIL: recv - Failed to receive data.\n");
+            return(ERROR);
+        }
+
+        close(sockfd);
+
+        time_t end;
+        time(&end);
+        double seconds = difftime(end, start);
+
+        syslog(LOGGING_LEVEL, "File downloaded successfully as LargeFile%d.html\n", index);
+        syslog(LOGGING_LEVEL, "Downloaded %d bytes in %.2f seconds\n", total_bytes, seconds);
+    }
+    usleep(DELAY);
+
+    return(OK);
+}
+
 /****************************************************************************
  * Name: network_test_misc_network_functions
  *
