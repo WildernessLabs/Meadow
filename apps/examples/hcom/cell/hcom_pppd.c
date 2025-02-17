@@ -71,10 +71,11 @@
 
 static char *thisFile = __FILE__;
 static bool cell_connected = false;
+static bool g_hcom_chat_event = false;
 static char *cell_at_cmds_output;
 static hcom_pppd_handler_t hcom_cell_handler;
 static hcom_cell_err_t cell_err;
-
+static sem_t g_hcom_pppd_sem;
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -358,6 +359,7 @@ static void hcom_pppd_at_cmd_event(int ret)
     int result = espcp_queue_event_messages(encodedData);
     hcom_logging_syslog(LOG_INFO, "%s-%d-Cell event message result: %d\n", thisFile, __LINE__, result);
   }
+  g_hcom_chat_event = true;
 }
 
 static int hcom_pppd_create_handler(void)
@@ -373,6 +375,16 @@ static int hcom_pppd_create_handler(void)
   }
 
   return OK;
+}
+
+static void hcom_pppd_lock()
+{
+  sem_wait(&g_hcom_pppd_sem);
+}
+
+static void hcom_pppd_unlock()
+{
+  sem_post(&g_hcom_pppd_sem);
 }
 
 //====================================================================
@@ -482,9 +494,44 @@ static void *pppd_thread(void *cell_settings_ptr)
     return NULL;
 }
 
+static void *chat_thread(void *arg)
+{
+  int hcom_state = 0;
+  while(1)
+  {
+    if (g_hcom_chat_event)
+    {
+      hcom_pppd_lock();
+      pppd_clear_state (&hcom_cell_handler,CELL_PAUSED);
+      g_hcom_chat_event = false;
+      hcom_pppd_unlock();
+    }
+    sleep(1);
+  }
+}
+
 bool meadow_cell_is_connected(void)
 {
     return cell_connected;
+}
+
+int meadow_cell_send_at_cmd(unsigned char *cmd)
+{
+  if (!cmd)
+    {
+      return -1;
+    }
+
+  if (strlen(cmd) > CONNECT_SCRIPT_MAX_SIZE)
+    {
+      return -2;
+    }
+
+  hcom_pppd_lock();
+  strncpy(hcom_cell_handler.script, cmd, CONNECT_SCRIPT_MAX_SIZE);
+  pppd_set_state(&hcom_cell_handler, (CELL_PAUSED | CELL_AT_CMD));
+  hcom_pppd_unlock();
+  return 0;
 }
 
 void meadow_cell_change_state(int state)
@@ -507,11 +554,11 @@ void meadow_cell_change_state(int state)
         {
           // Waiting until script performed.
           // Do this, we protect the early changed state.
-          while (hcom_cell_handler.state == (CELL_AT_CMD | CELL_PAUSED))
-            {
-              usleep(100);
-            }
-          hcom_cell_handler.state  = CELL_RESUMED;
+          // while (hcom_cell_handler.state == (CELL_AT_CMD | CELL_PAUSED))
+          //   {
+          //     usleep(100);
+          //   }
+          // hcom_cell_handler.state  = CELL_RESUMED;
         }
     }
   hcom_logging_syslog(LOG_INFO, "%s-%d-Cell current state: %d\n", thisFile, __LINE__, hcom_cell_handler.state);
@@ -527,6 +574,14 @@ void pppd_clear_state(hcom_pppd_handler_t *handler, int state)
   handler->state = handler->state ^ state;
 }
 
+int pppd_get_state(hcom_pppd_handler_t *handler)
+{
+  int ret = 0;
+  hcom_pppd_lock();
+  ret =  handler->state;
+  hcom_pppd_unlock();
+  return ret;
+}
 int meadow_get_cell_at_cmds_output(unsigned char *buf)
 {
     size_t len = strlen(cell_at_cmds_output) + 1;
@@ -615,6 +670,7 @@ int hcom_pppd_start()
 {
     int ret;
     pthread_t pppd_thread_id;
+    pthread_t pppd_thread_recv_id;
     meadow_configuration_t *config = meadow_os_deep_copy_config();
 
     if ((config != NULL) && (config->default_interface != NULL))
@@ -665,6 +721,11 @@ int hcom_pppd_start()
                 "ScanMode config has been deprecated! Consult how to use the network scanner on Meadow cellular docs.", thisFile, __LINE__);
 #endif
         }
+
+        sem_init(&g_hcom_pppd_sem, 0, 0);
+        sem_setprotocol(&g_hcom_pppd_sem, SEM_PRIO_NONE);
+        hcom_pppd_unlock();
+
         pthread_attr_t attr;
         struct sched_param param;
 
@@ -682,6 +743,12 @@ int hcom_pppd_start()
         // Set the priority of the thread
         param.sched_priority = HCOM_THREAD_PRIORITY_CELL_PPPD;
         pthread_attr_setschedparam(&attr, &param);
+        
+        ret = pthread_create(&pppd_thread_recv_id, &attr, &chat_thread, NULL);
+        if (ret  == OK)
+        {
+            hcom_logging_syslog(LOG_INFO, "%s@%d-Chat thread launched\n", thisFile, __LINE__);
+        }
 
         ret = pthread_create(&pppd_thread_id, &attr, pppd_thread, (void *) cell_settings);
         if (ret == OK)
