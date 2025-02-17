@@ -1332,6 +1332,35 @@ void meadow_kt_espcp_load_test_web_page(uint32_t arg)
 }
 
 /****************************************************************************
+ * Name: meadow_kt_espcp_network_performance_test
+ *
+ * Description:
+ *  Run the netowrk performance tests.
+ *
+ * Input Parameters:
+ *   arg - Argument passed to kernel test via CLI
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+void meadow_kt_espcp_network_performance_test(uint32_t arg)
+{
+    syslog(LOGGING_LEVEL, "Testing the network performance\n");
+
+    espcp_test_wait_for_esp_to_be_ready();
+    
+    espcp_test_start_wifi();
+
+    network_test_performance(WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT);
+
+    syslog(LOGGING_LEVEL, "Network performance test completed.\n");
+}
+
+/****************************************************************************
  * Name: meadow_kt_espcp_tests
  *
  * Description:
@@ -1366,6 +1395,9 @@ void meadow_kt_espcp_tests(uint32_t arg)
     espcp_test_enetdown();
 
     espcp_test_start_wifi();
+
+    network_test_performance(WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT);
+
     //
     //  We can start some actual network tests now we are connected to an 
     //  access point.

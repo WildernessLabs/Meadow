@@ -49,3 +49,4 @@ int network_test_get_multiple_web_pages(int number_of_requests, char *webserver_
 int network_tests_get_large_file(char *webserver_ip, int webserver_port, char *resource);
 int network_test_get_multiple_large_files(int number_of_requests, char *webserver_ip, int webserver_port, char *resource);
 void network_test_misc_network_functions(void);
+int network_test_performance(char *webserver_ip, int webserver_port);
