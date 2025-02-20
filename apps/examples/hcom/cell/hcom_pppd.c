@@ -71,7 +71,6 @@
 
 static char *thisFile = __FILE__;
 static bool cell_connected = false;
-static bool g_hcom_chat_event = false;
 static char *cell_at_cmds_output;
 static hcom_pppd_handler_t hcom_cell_handler;
 static hcom_cell_err_t cell_err;
@@ -307,6 +306,10 @@ int hcom_pppd_raise_event(uint32_t function, uint32_t status_code,
   {
     uint32_t encondedEventDataSize = ESPCP_EVENT_DATA_SIZE;
     uint8_t *encondedData = (uint8_t*)malloc(encondedEventDataSize);
+    if (!encondedData)
+    {
+      return result;
+    }
     espcp_encode_event_data(message, encondedData);
   
     result = espcp_queue_event_messages(encondedData);
@@ -359,7 +362,6 @@ static void hcom_pppd_at_cmd_event(int ret)
     int result = espcp_queue_event_messages(encodedData);
     hcom_logging_syslog(LOG_INFO, "%s-%d-Cell event message result: %d\n", thisFile, __LINE__, result);
   }
-  g_hcom_chat_event = true;
 }
 
 static int hcom_pppd_create_handler(void)
@@ -377,12 +379,12 @@ static int hcom_pppd_create_handler(void)
   return OK;
 }
 
-static void hcom_pppd_lock()
+static void hcom_pppd_lock(void)
 {
   sem_wait(&g_hcom_pppd_sem);
 }
 
-static void hcom_pppd_unlock()
+static void hcom_pppd_unlock(void)
 {
   sem_post(&g_hcom_pppd_sem);
 }
@@ -494,20 +496,20 @@ static void *pppd_thread(void *cell_settings_ptr)
     return NULL;
 }
 
-static void *chat_thread(void *arg)
+static void *hcom_pppd_event_thread(void *arg)
 {
-  int hcom_state = 0;
-  while(1)
+  int pppd_event = 0;
+  uint32_t pppd_function = 0;
+  while(true)
   {
-    if (g_hcom_chat_event)
+    pppd_event = pppd_get_state(&hcom_cell_handler);
+    if (pppd_event & CELL_CHAT_DONE)
     {
-      hcom_pppd_lock();
-      pppd_clear_state (&hcom_cell_handler,CELL_PAUSED);
-      g_hcom_chat_event = false;
-      hcom_pppd_unlock();
+      pppd_clear_state (&hcom_cell_handler, (CELL_PAUSED |CELL_CHAT_DONE));
     }
-    sleep(1);
+    usleep(500 * 1000);
   }
+  return NULL;
 }
 
 bool meadow_cell_is_connected(void)
@@ -522,15 +524,13 @@ int meadow_cell_send_at_cmd(unsigned char *cmd)
       return -1;
     }
 
-  if (strlen(cmd) > CONNECT_SCRIPT_MAX_SIZE)
+  if (strlen((const char *)cmd) > CONNECT_SCRIPT_MAX_SIZE)
     {
       return -2;
     }
 
-  hcom_pppd_lock();
-  strncpy(hcom_cell_handler.script, cmd, CONNECT_SCRIPT_MAX_SIZE);
+  strncpy(hcom_cell_handler.script, (const char *)cmd, CONNECT_SCRIPT_MAX_SIZE);
   pppd_set_state(&hcom_cell_handler, (CELL_PAUSED | CELL_AT_CMD));
-  hcom_pppd_unlock();
   return 0;
 }
 
@@ -546,19 +546,8 @@ void meadow_cell_change_state(int state)
           if (strlen(hcom_cell_handler.script) > 0)
             {
               hcom_logging_syslog(LOG_INFO, "%s-%d-Cell script: %s\n", thisFile, __LINE__, hcom_cell_handler.script);
-              pppd_set_state(&hcom_cell_handler, CELL_AT_CMD);
+              pppd_set_state(&hcom_cell_handler, CELL_PAUSED | CELL_AT_CMD);
             }
-          pppd_set_state(&hcom_cell_handler, CELL_PAUSED);
-        }
-      else
-        {
-          // Waiting until script performed.
-          // Do this, we protect the early changed state.
-          // while (hcom_cell_handler.state == (CELL_AT_CMD | CELL_PAUSED))
-          //   {
-          //     usleep(100);
-          //   }
-          // hcom_cell_handler.state  = CELL_RESUMED;
         }
     }
   hcom_logging_syslog(LOG_INFO, "%s-%d-Cell current state: %d\n", thisFile, __LINE__, hcom_cell_handler.state);
@@ -566,27 +555,27 @@ void meadow_cell_change_state(int state)
 
 void pppd_set_state(hcom_pppd_handler_t *handler, int state)
 {
+  hcom_pppd_lock();
   handler->state = handler->state | state;
+  hcom_pppd_unlock();
 }
 
 void pppd_clear_state(hcom_pppd_handler_t *handler, int state)
 {
+  hcom_pppd_lock();
   handler->state = handler->state ^ state;
+  hcom_pppd_unlock();
 }
 
 int pppd_get_state(hcom_pppd_handler_t *handler)
 {
-  int ret = 0;
-  hcom_pppd_lock();
-  ret =  handler->state;
-  hcom_pppd_unlock();
-  return ret;
+  return handler->state;
 }
+
 int meadow_get_cell_at_cmds_output(unsigned char *buf)
 {
     size_t len = strlen(cell_at_cmds_output) + 1;
     memcpy(buf, cell_at_cmds_output, len);
-
     return len;
 }
 
@@ -744,7 +733,7 @@ int hcom_pppd_start()
         param.sched_priority = HCOM_THREAD_PRIORITY_CELL_PPPD;
         pthread_attr_setschedparam(&attr, &param);
         
-        ret = pthread_create(&pppd_thread_recv_id, &attr, &chat_thread, NULL);
+        ret = pthread_create(&pppd_thread_recv_id, &attr, &hcom_pppd_event_thread, NULL);
         if (ret  == OK)
         {
             hcom_logging_syslog(LOG_INFO, "%s@%d-Chat thread launched\n", thisFile, __LINE__);
