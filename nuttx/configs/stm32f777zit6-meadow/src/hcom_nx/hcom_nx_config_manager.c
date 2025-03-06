@@ -3045,6 +3045,8 @@ void hcom_nx_config_process_cell_config_file(void)
             hcom_nx_config_map_cell_turn_on_pin(config);
 
             syslog(LOG_INFO, "Default cell turn-on pin mapped: %u\n", config->default_cell_settings->turn_on_pin);
+
+            meadow_cell_event_init();
         }
         else
         {

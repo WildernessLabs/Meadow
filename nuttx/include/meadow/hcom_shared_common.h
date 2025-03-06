@@ -416,6 +416,16 @@ struct cell_settings_s
 };
 typedef struct cell_settings_s cell_settings_t;
 
+struct cell_event_data_s
+{
+  uint16_t timeout;
+
+  uint16_t response;
+
+  uint8_t *command;
+};
+typedef struct cell_event_data_s cell_event_data_t;
+
 //==================================================
 //  Structure to hold network interface information
 struct meadow_network_interface_s

@@ -660,4 +660,5 @@ void espcp_encode_logging_configuration(espcp_logging_configuration_t *, uint8_t
 int espcp_encoded_log_message_buffer_size(espcp_log_message_t *);
 void espcp_encode_log_message(espcp_log_message_t *, uint8_t *);
 espcp_got_ip_event_data_t *espcp_extract_got_ip_event_data(uint8_t *);
+cell_event_data_t *espcp_extract_cell_event_data(uint8_t *buffer);
 #endif /* _ESPCP_ENCODERS_H */
