@@ -64,6 +64,7 @@
 #define GPS_AT_CMD_TIMEOUT 600
 #define NETWORK_SCAN_AT_CMD_TIMEOUT 600
 #define GET_CSQ_AT_CMD_TIMEOUT 120
+#define HCOM_PPPD_CHAT_THREAD_DELAY (5 * 1000 * 1000)
 
 /****************************************************************************
  * Private Data
@@ -498,20 +499,26 @@ static void *pppd_thread(void *cell_settings_ptr)
 
 static void *hcom_pppd_event_thread(void *arg)
 {
+  int ret = 0;
   int pppd_event = 0;
-  uint32_t pppd_function = 0;
-  char chat_script [250] = {0};
-  int chat_script_len = 0;
+  char chat_script [CELL_SCRIPT_LENGTH] = {0};
+
   while(true)
   {
+    ret = meadow_os_get_cell_script(&chat_script);
+    if (ret == OK)
+    {
+      strncpy(hcom_cell_handler.script, chat_script, CONNECT_SCRIPT_MAX_SIZE);
+      pppd_set_state(&hcom_cell_handler, (CELL_PAUSED | CELL_AT_CMD));
+    }
+
     pppd_event = pppd_get_state(&hcom_cell_handler);
     if (pppd_event & CELL_CHAT_DONE)
     {
       pppd_clear_state (&hcom_cell_handler, (CELL_PAUSED |CELL_CHAT_DONE));
     }
 
-    // meadow_os_get_cell_script(&chat_script, &chat_script_len);
-    usleep(500 * 1000);
+    usleep(HCOM_PPPD_CHAT_THREAD_DELAY);
   }
   return NULL;
 }
@@ -652,7 +659,7 @@ static void hcom_pppd_disconnected_event(int err_base)
     cell_err = err_base;
 }
 
-void hcom_pppd_chat_thread_create()
+static void hcom_pppd_chat_thread_create(void)
 {
   int result = ERROR;
   pthread_attr_t thread_attributes;
@@ -695,7 +702,6 @@ int hcom_pppd_start()
 {
     int ret;
     pthread_t pppd_thread_id;
-    pthread_t pppd_thread_recv_id;
     meadow_configuration_t *config = meadow_os_deep_copy_config();
 
     if ((config != NULL) && (config->default_interface != NULL))
@@ -750,13 +756,15 @@ int hcom_pppd_start()
         sem_init(&g_hcom_pppd_sem, 0, 0);
         sem_setprotocol(&g_hcom_pppd_sem, SEM_PRIO_NONE);
         hcom_pppd_unlock();
-        meadow_os_native_protocol_version();
+
+        // Create Chat thread
+        hcom_pppd_chat_thread_create();
+
         pthread_attr_t attr;
         struct sched_param param;
 
         // Initialize thread attributes
         pthread_attr_init(&attr);
-        hcom_pppd_chat_thread_create();
         // Set the stack size
         size_t stack_size = HCOM_THREAD_STACKSIZE_CELL_PPPD;
         pthread_attr_setstacksize(&attr, stack_size);
