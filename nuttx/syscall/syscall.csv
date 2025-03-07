@@ -87,6 +87,7 @@
 "meadow_os_deep_copy_config","meadow/meadow_os.h","defined(CONFIG_ARCH_BOARD_MEADOW)","meadow_configuration_t *"
 "meadow_os_espcp_enter_programming_mode","meadow/meadow_os.h","defined(CONFIG_ARCH_BOARD_MEADOW)","uint32_t"
 "meadow_os_get_gateway_address","meadow/meadow_os.h","defined(CONFIG_ARCH_BOARD_MEADOW)","int","char *"
+"meadow_os_get_cell_script","meadow/meadow_os.h","defined(CONFIG_ARCH_BOARD_MEADOW)","int","char *"
 "meadow_os_espcp_monitor_process_line","meadow/meadow_os.h","defined(CONFIG_ARCH_BOARD_MEADOW)","void", "char *"
 "meadow_os_espcp_reset","meadow/meadow_os.h","defined(CONFIG_ARCH_BOARD_MEADOW)","void"
 "meadow_os_hardware_version","meadow/meadow_os.h","defined(CONFIG_ARCH_BOARD_MEADOW)","uint32_t"
