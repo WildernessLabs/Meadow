@@ -341,6 +341,7 @@
  */
 #define MAC_ADDRESS_FORMAT_PARAMS(mac) mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]
 
+#define CELL_SCRIPT_LENGTH 250
 //==================================================
 //  Structure to hold cell network interface information
 struct cell_settings_s
@@ -415,6 +416,16 @@ struct cell_settings_s
   uint32_t scan_mode;
 };
 typedef struct cell_settings_s cell_settings_t;
+
+struct cell_event_data_s
+{
+  char *command;
+
+  uint16_t timeout;
+
+  uint16_t response;
+};
+typedef struct cell_event_data_s cell_event_data_t;
 
 //==================================================
 //  Structure to hold network interface information

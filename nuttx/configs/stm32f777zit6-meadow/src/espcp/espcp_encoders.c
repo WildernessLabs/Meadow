@@ -3249,3 +3249,37 @@ espcp_got_ip_event_data_t *espcp_extract_got_ip_event_data(uint8_t *buffer)
     got_ip_event_data->dns_address = espcp_extract_uint32(buffer);
     return got_ip_event_data;
 }
+
+/****************************************************************************
+ * Name: espcp_extract_cell_event_data
+ *
+ * Description:
+ *  Extract the cell_event_data_t object that is
+ *  encoded in the given buffer.
+ * 
+ *  Note that the returned pointer points to a block of memory on the heap and
+ *  this should eventually be released calling free(...).
+ *  
+ * Input Parameters:
+ *  at_command - pointer to the buffer containing the encoded
+ *  cell_event_data_t object.
+ *
+ * Returned Value:
+ *  Pointer to the extracted cell_event_data_t object.
+ *
+ * Assumptions/Limitations:
+ *   None
+ * 
+ * ****************************************************************************/
+cell_event_data_t *espcp_extract_cell_event_data(uint8_t *buffer)
+{
+    cell_event_data_t * event_data = (cell_event_data_t *)malloc(sizeof(cell_event_data_t));
+
+    event_data->command = espcp_extract_string(buffer);
+    buffer += espcp_string_length(event_data->command) + 1;
+    event_data->timeout = espcp_extract_uint16(buffer);
+    buffer+=2;
+    event_data->response = espcp_extract_uint16(buffer);
+
+    return event_data;
+}

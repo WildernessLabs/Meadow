@@ -50,6 +50,7 @@
 #include <meadow/meadow_os_persistent_data.h>
 #include <meadow/hcom_bbreg_defn.h>
 
+#include "../cell/meadow_cell_event.h"
 #include "../hcom_nx/hcom_nx_config_manager.h"
 
 /****************************************************************************
@@ -329,5 +330,31 @@ int meadow_os_get_gateway_address(char *buffer)
         ret = strlen(strcpy(buffer, address));
     }
 
+    return ret;
+}
+
+/****************************************************************************
+ * Name: meadow_os_get_cell_script
+ *
+ * Description:
+ *  Get the script to run on the cell.
+ *
+ * Input Parameters:
+ *  script - store the commands.
+ *
+ * Returned Value:
+ *   OK if successful, ERROR otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+int meadow_os_get_cell_script(char *script)
+{
+    int ret = ERROR;
+    if (script != NULL)
+    {
+        ret = meadow_cell_event_get_script(script, CELL_SCRIPT_LENGTH);
+    }
     return ret;
 }

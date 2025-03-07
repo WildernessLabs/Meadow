@@ -663,4 +663,5 @@ espcp_got_ip_event_data_t *espcp_extract_got_ip_event_data(uint8_t *);
 void espcp_encode_access_point_information(espcp_access_point_information_t *access_point_information, uint8_t *buffer);
 int espcp_access_point_information_buffer_size(espcp_access_point_information_t *access_point_information);
 
+cell_event_data_t *espcp_extract_cell_event_data(uint8_t *buffer);
 #endif /* _ESPCP_ENCODERS_H */
