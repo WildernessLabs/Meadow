@@ -3274,15 +3274,12 @@ espcp_got_ip_event_data_t *espcp_extract_got_ip_event_data(uint8_t *buffer)
 cell_event_data_t *espcp_extract_cell_event_data(uint8_t *buffer)
 {
     cell_event_data_t * event_data = (cell_event_data_t *)malloc(sizeof(cell_event_data_t));
+
+    event_data->command = espcp_extract_string(buffer);
+    buffer += espcp_string_length(event_data->command) + 1;
     event_data->timeout = espcp_extract_uint16(buffer);
     buffer+=2;
     event_data->response = espcp_extract_uint16(buffer);
-    buffer+=2;
 
-    event_data->command = (uint8_t*)malloc(40);
-    if (event_data->command != NULL)    
-    {
-        memcpy(event_data->command, buffer,40);
-    }
     return event_data;
 }

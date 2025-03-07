@@ -36,7 +36,7 @@
 #define _MEADOW_CELL_EVENT_H
 
 #include "../espcp/espcp_common.h"
-void meadow_cell_event_init(void);
-int meadow_cell_event_write(espcp_message_t *);
-int meadow_cell_event_read(char *, size_t);
+
+int meadow_cell_event_get_at_cmd(espcp_message_t *);
+int meadow_cell_event_get_script(char *, size_t);
 #endif

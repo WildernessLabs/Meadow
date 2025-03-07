@@ -34,9 +34,6 @@
  ****************************************************************************/
 #include <stdint.h>
 #include <string.h>
-#include <assert.h>
-#include <errno.h>
-#include <debug.h>
 #include <stdio.h>
 
 #include <nuttx/semaphore.h>
@@ -68,24 +65,89 @@ static bool g_cell_init = false;
  * Function Implementation
  ****************************************************************************/
 
- static meadow_cell_lock(void)
+ /****************************************************************************
+ * Name: meadow_cell_lock
+ *
+ * Description:
+ *  Lock the cell event.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+ static void meadow_cell_lock(void)
 {
     sem_wait(&cell_sem);
 }
 
-static meadow_cell_unlock(void)
+/****************************************************************************
+ * Name: meadow_cell_unlock
+ *
+ * Description:
+ *  Unlock the cell event.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+static void meadow_cell_unlock(void)
 {
     sem_post(&cell_sem);
 }
 
-void meadow_cell_event_init(void)
+/****************************************************************************
+ * Name: meadow_cell_event_init
+ *
+ * Description:
+ *  Initialize the cell event.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+
+static void meadow_cell_event_init(void)
 {
     sem_init(&cell_sem, 0, 1);
     sem_setprotocol(&cell_sem, SEM_PRIO_NONE);
     g_cell_init = true;
 }
 
-int meadow_cell_event_write(espcp_message_t *message)
+/****************************************************************************
+ * Name: meadow_cell_event_get_at_cmd
+ *
+ * Description:
+ *  Get the at command from a cell event.
+ *
+ * Input Parameters:
+ *  message - Pointer to an espcp_message_t object.
+ *
+ * Returned Value:
+ *   OK if successful, -EINVAL otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+int meadow_cell_event_get_at_cmd(espcp_message_t *message)
 {
     if (message == NULL)
     {
@@ -120,31 +182,41 @@ int meadow_cell_event_write(espcp_message_t *message)
     return OK;
 }
 
-int meadow_cell_event_read(char *script, size_t len)
+/****************************************************************************
+ * Name: meadow_cell_event_get_script
+ *
+ * Description:
+ *  Get the script to run on the cell.
+ *
+ * Input Parameters:
+ *  script - store the commands.
+ *  len    - max size of the script.
+ *
+ * Returned Value:
+ *   OK if successful, -ENODATA if no data available, ERROR otherwise.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+int meadow_cell_event_get_script(char *script, size_t len)
 {
-    int ret = -ERROR;
-    if (script != NULL)
+    if (script == NULL || !g_cell_init)
     {
-        meadow_cell_lock();
-
-        if (!g_cell_init)
-        {
-            return -ERROR;
-        }
-
-        int ret = -ENODATA;
-
-        if (cell_event_data_len > 0)
-        {
-            snprintf(script, len, "TIMEOUT %d \"\" %s PAUSE 3 %s ", 
-                            g_cell_event_data->timeout, 
-                            g_cell_event_data->command,
-                            g_cell_event_data->response  == 0 ? "OK" : "" );
-            cell_event_data_len = 0;
-            ret = 0;
-        }
-
-        meadow_cell_unlock();
+        return ERROR;
     }
-    return ret;
+
+    if (cell_event_data_len <= 0)
+    {
+        return -ENODATA;
+    }
+    meadow_cell_lock();
+
+    snprintf(script, len, "TIMEOUT %d \"\" %s PAUSE 3 %s \\c", 
+                    g_cell_event_data->timeout, 
+                    g_cell_event_data->command,
+                    g_cell_event_data->response  == 0 ? "OK" : "" );
+    cell_event_data_len = 0;
+    meadow_cell_unlock();
+    return OK;
 }

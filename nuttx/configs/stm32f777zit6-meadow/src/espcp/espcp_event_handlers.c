@@ -795,7 +795,7 @@ static void espcp_network_cell_event(espcp_message_t *message)
     {
         if (message->payload != NULL)
         {
-            meadow_cell_event_write(message);
+            meadow_cell_event_get_at_cmd(message);
         }
     }
     espcp_delete_message_and_payload(message);
