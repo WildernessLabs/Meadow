@@ -258,7 +258,7 @@ static int lps_daemon(int argc, char **argv)
  *  None
  *
  ****************************************************************************/
-static int lps_start(void)
+int lps_start(void)
 {
     int result = OK;
     //
