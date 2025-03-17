@@ -44,6 +44,7 @@
 #include "../espcp/espcp_coprocessor.h"
 #include <assert.h>
 #include "../misc/meadow_logging.h"
+#include "../misc/long_period_scheduler.h"
 
 #include "stm32f777zit6-meadow.h"
 #include "hcom_nx_config_manager.h"
@@ -163,6 +164,9 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     syslog(LOG_EMERG, "%s@%d-Cannot obtain configuration.\n", thisFile, __LINE__);
     return ERROR;
   }
+  // Initialize the long-period scheduler
+  lps_start();
+
   bool reset_esp32 = config->reset_esp32_at_startup;
 
   // Start trace messaging if so configured
