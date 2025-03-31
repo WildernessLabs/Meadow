@@ -506,7 +506,7 @@ namespace System {
 		/// <summary>
 		/// Return a set of all environment variables and their values
 		/// </summary>
-#if !MOBILE
+#if !MOBILE && !NUTTX
 		public static IDictionary GetEnvironmentVariables ()
 		{
 			StringBuilder sb = null;
@@ -755,7 +755,7 @@ namespace System {
 			return GetLogicalDrivesInternal ();
 		}
 
-#if !MOBILE
+#if !MOBILE && !NUTTX
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]
 		private static extern void internalBroadcastSettingChange ();
 
@@ -968,7 +968,7 @@ namespace System {
 		}
 #endif
 
-#if !MOBILE
+#if !MOBILE && !NUTTX
 		//
 		// Used by gacutil.exe
 		//

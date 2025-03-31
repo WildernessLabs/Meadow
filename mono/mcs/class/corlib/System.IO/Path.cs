@@ -302,7 +302,7 @@ namespace System.IO {
 			return InsecureGetFullPath (path);
 		}
 
-#if WIN_PLATFORM
+#if WIN_PLATFORM && !NUTTX
 		// http://msdn.microsoft.com/en-us/library/windows/desktop/aa364963%28v=vs.85%29.aspx
 		[DllImport("Kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
 		private static extern int GetFullPathName(string path, int numBufferChars, StringBuilder buffer, ref IntPtr lpFilePartOrNull); 
@@ -372,7 +372,7 @@ namespace System.IO {
 				string msg = Locale.GetText ("The specified path is not of a legal form (empty).");
 				throw new ArgumentException (msg);
 			}
-#if WIN_PLATFORM
+#if WIN_PLATFORM && !NUTTX
 			// adjust for drives, i.e. a special case for windows
 			if (Environment.IsRunningOnWindows)
 				path = WindowsDriveAdjustment (path);
@@ -750,7 +750,7 @@ namespace System.IO {
 			else {
 				string ret = String.Join (DirectorySeparatorStr, dirs, 0, target);
 				if (Environment.IsRunningOnWindows) {
-#if WIN_PLATFORM
+#if WIN_PLATFORM && !NUTTX
 					// append leading '\' of the UNC path that was lost in STEP 3.
 					if (isUnc)
 						ret = Path.DirectorySeparatorStr + ret;
@@ -897,7 +897,7 @@ namespace System.IO {
 				throw new ArgumentException (Locale.GetText ("Path is empty"));
 			if (path.IndexOfAny (Path.InvalidPathChars) != -1)
 				throw new ArgumentException (Locale.GetText ("Path contains invalid chars"));
-#if WIN_PLATFORM
+#if WIN_PLATFORM && !NUTTX
 			if (Environment.IsRunningOnWindows) {
 				int idx = path.IndexOf (':');
 				if (idx >= 0 && idx != 1)
