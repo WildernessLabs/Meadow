@@ -57,14 +57,14 @@ namespace System.Runtime.InteropServices
 		public static readonly int SystemMaxDBCSCharSize = 2; // don't know what this is
 		public static readonly int SystemDefaultCharSize = Environment.IsRunningOnWindows ? 2 : 1;
 
-#if !MOBILE || WINAOT
+#if !MOBILE || WINAOT || !NUTTX
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]
 		private extern static int AddRefInternal (IntPtr pUnk);
 #endif
 
 		public static int AddRef (IntPtr pUnk)
 		{
-#if !MOBILE || WINAOT
+#if !MOBILE || WINAOT || !NUTTX
 			if (pUnk == IntPtr.Zero)
 				throw new ArgumentNullException ("pUnk");
 			return AddRefInternal (pUnk);
@@ -430,7 +430,7 @@ namespace System.Runtime.InteropServices
 			throw new NotImplementedException ();
 		}
 
-#if !MOBILE && !NETCORE
+#if !MOBILE && !NETCORE && !NUTTX
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]
 		private extern static IntPtr GetCCW (object o, Type T);
 
@@ -446,7 +446,7 @@ namespace System.Runtime.InteropServices
 
 		public static IntPtr GetComInterfaceForObject (object o, Type T)
 		{
-#if MOBILE || NETCORE
+#if MOBILE || NETCORE || NUTTX
 			throw new PlatformNotSupportedException ();
 #else
 			IntPtr pItf = GetComInterfaceForObjectInternal (o, T);
@@ -479,14 +479,14 @@ namespace System.Runtime.InteropServices
 			throw new NotSupportedException ("MSDN states user code should never need to call this method.");
 		}
 
-#if !MOBILE
+#if !MOBILE && !NUTTX
 		[MethodImplAttribute(MethodImplOptions.InternalCall)]
 		private extern static int GetComSlotForMethodInfoInternal (MemberInfo m);
 #endif
 
 		public static int GetComSlotForMethodInfo (MemberInfo m)
 		{
-#if !MOBILE
+#if !MOBILE && !NUTTX
 			if (m == null)
 				throw new ArgumentNullException ("m");
 			if (!(m is MethodInfo))
@@ -635,14 +635,14 @@ namespace System.Runtime.InteropServices
 			GetNativeVariantForObject ((object)obj, pDstNativeVariant);
 		}
 
-#if !MOBILE && !FULL_AOT_RUNTIME
+#if !MOBILE && !FULL_AOT_RUNTIME && !NUTTX
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]
 		private static extern object GetObjectForCCW (IntPtr pUnk);
 #endif
 
 		public static object GetObjectForIUnknown (IntPtr pUnk)
 		{
-#if MOBILE || FULL_AOT_RUNTIME || NETCORE
+#if MOBILE || FULL_AOT_RUNTIME || NETCORE || NUTTX
 			throw new PlatformNotSupportedException ();
 #else
 			object obj = GetObjectForCCW (pUnk);
@@ -850,7 +850,7 @@ namespace System.Runtime.InteropServices
 			throw new PlatformNotSupportedException ();
 		}
 
-#if !MOBILE
+#if !MOBILE && !NUTTX
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]
 		public extern static bool IsComObject (object o);
 #else
@@ -930,14 +930,14 @@ namespace System.Runtime.InteropServices
 			return (T) PtrToStructure (ptr, typeof (T));
 		}
 
-#if !MOBILE || WINAOT
+#if !MOBILE || WINAOT || !NUTTX
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]
 		private extern static int QueryInterfaceInternal (IntPtr pUnk, ref Guid iid, out IntPtr ppv);
 #endif
 
 		public static int QueryInterface (IntPtr pUnk, ref Guid iid, out IntPtr ppv)
 		{
-#if !MOBILE || WINAOT
+#if !MOBILE || WINAOT || !NUTTX
 			if (pUnk == IntPtr.Zero)
 				throw new ArgumentNullException ("pUnk");
 			return QueryInterfaceInternal (pUnk, ref iid, out ppv);
@@ -1101,7 +1101,7 @@ namespace System.Runtime.InteropServices
 		[MethodImplAttribute(MethodImplOptions.InternalCall)]
 		public extern static IntPtr ReAllocHGlobal (IntPtr pv, IntPtr cb);
 
-#if !MOBILE || WINAOT
+#if !MOBILE || WINAOT || !NUTTX
 		[ReliabilityContractAttribute (Consistency.WillNotCorruptState, Cer.Success)]
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]
 		private extern static int ReleaseInternal (IntPtr pUnk);
@@ -1110,7 +1110,7 @@ namespace System.Runtime.InteropServices
 		[ReliabilityContract (Consistency.WillNotCorruptState, Cer.Success)]
 		public static int Release (IntPtr pUnk)
 		{
-#if !MOBILE || WINAOT
+#if !MOBILE || WINAOT || !NUTTX
 			if (pUnk == IntPtr.Zero)
 				throw new ArgumentNullException ("pUnk");
 
