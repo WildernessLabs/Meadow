@@ -43,8 +43,10 @@ namespace System {
 			// three classes when only one is needed.
 			if (!IsConsole) {
 				driver = CreateNullConsoleDriver ();
+#if !NUTTX
 			} else if (Environment.IsRunningOnWindows) {
 				driver = CreateWindowsConsoleDriver ();
+#endif
 			} else {
 				string term = Environment.GetEnvironmentVariable ("TERM");
 

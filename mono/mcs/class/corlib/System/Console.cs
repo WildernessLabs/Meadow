@@ -42,7 +42,7 @@ namespace System
 {
 	public static partial class Console
 	{
-#if MONO_FEATURE_CONSOLE
+#if MONO_FEATURE_CONSOLE && !NUTTX
 		private class WindowsConsole
 		{
 			public static bool ctrlHandlerAdded = false;
@@ -97,7 +97,7 @@ namespace System
 
 		static Console ()
 		{
-#if MONO_FEATURE_CONSOLE
+#if MONO_FEATURE_CONSOLE && !NUTTX 
 			if (Environment.IsRunningOnWindows) {
 				//
 				// On Windows, follow the Windows tradition
@@ -133,7 +133,7 @@ namespace System
 
 		static void SetupStreams (Encoding inputEncoding, Encoding outputEncoding)
 		{
-#if MONO_FEATURE_CONSOLE
+#if MONO_FEATURE_CONSOLE && !NUTTX
 			if (!Environment.IsRunningOnWindows && ConsoleDriver.IsConsole) {
 				stdin = new CStreamReader (OpenStandardInput (0), inputEncoding);
 				stdout = TextWriter.Synchronized (new CStreamWriter (OpenStandardOutput (0), outputEncoding, true) { AutoFlush = true });
@@ -486,7 +486,7 @@ namespace System
 
 			stdout.WriteLine (String.Format (format, args));
 		}
-#if MONO_FEATURE_CONSOLE
+#if MONO_FEATURE_CONSOLE && !NUTTX
 		public static int Read ()
 		{
 			if ((stdin is CStreamReader) && ConsoleDriver.IsConsole) {
@@ -536,7 +536,7 @@ namespace System
 			}
 		}
 
-#if MONO_FEATURE_CONSOLE
+#if MONO_FEATURE_CONSOLE && !NUTTX
 		public static ConsoleColor BackgroundColor {
 			get { return ConsoleDriver.BackgroundColor; }
 			set { ConsoleDriver.BackgroundColor = value; }
