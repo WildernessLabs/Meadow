@@ -3119,6 +3119,7 @@ void hcom_nx_config_turn_on_the_cell_module()
     uint32_t turn_on_pin;
     module_id = hcom_nx_config_get_cell_module_id();
     turn_on_pin = hcom_nx_config_get_cell_turn_on_pin();
+    uint32_t reset_reason = meadow_os_reset_reason();
 
     if (turn_on_pin > 0)
     {
@@ -3149,7 +3150,9 @@ void hcom_nx_config_turn_on_the_cell_module()
             break;
 
             case CELL_EG21GL_MODULE:
-                if (meadow_os_reset_reason() == MEADOW_OS_RESET_POWER_CYCLE)
+                if (reset_reason & (MEADOW_OS_RESET_BROWNOUT
+                    | MEADOW_OS_RESET_POWER_CYCLE
+                    | MEADOW_OS_RESET_LOW_POWER) || reset_reason == 0) // power cycle
                 {
                     // High pulse for 500 milliseconds to turn on the Quectel EG21-GL cell module
                     syslog(LOG_INFO, "Turning on EG21-GL module\n");
