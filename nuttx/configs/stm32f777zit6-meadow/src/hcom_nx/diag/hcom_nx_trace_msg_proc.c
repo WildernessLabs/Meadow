@@ -837,20 +837,29 @@ int hcom_nx_trace_msg_send_msg_to_uart1(const char *toUartBuf, size_t numbBytes)
   // we need to reconfigure them after mono starts. The problem is we don't know when
   // this is is. Therefore, we execute this code for a predetermined amount of time,
   // starting when mono has started running.
+
+  // There's a problem were PB14 and PB15 are used for inputs for measuring frequency.
+  // Removing this code via commenting it out is temporarily until I can get may
+  // system fixed
+  // (--) TEMPORARY HACK TO PREVENT PB14 and PB15 from being reconfigured
   if(_txRxReCfgStopTime != 0)
-  {
-    // Reconfigure uart1 (takes about 32usec to do all 4 commands)
-    stm32_unconfiggpio(GPIO_USART1_TX); // PB14
-    stm32_configgpio(GPIO_USART1_TX);
-    stm32_unconfiggpio(GPIO_USART1_RX); // PH13
-    stm32_configgpio(GPIO_USART1_RX);
+      _txRxReCfgStopTime = 0; // Stop any timing for this hack.
+
+  // (--) TEMPORARY HACK TO PREVENT PB14 and PB15 from being reconfigured
+  // if(_txRxReCfgStopTime != 0)
+  // {
+  //   // Reconfigure uart1 (takes about 32usec to do all 4 commands)
+  //   stm32_unconfiggpio(GPIO_USART1_TX); // PB14
+  //   stm32_configgpio(GPIO_USART1_TX);
+  //   stm32_unconfiggpio(GPIO_USART1_RX); // PB15
+  //   stm32_configgpio(GPIO_USART1_RX);
     
-    // Run until stop time is exceeded then stop the process
-    if(_txRxReCfgStopTime < hcom_nx_trace_get_time_ms())
-    {
-      _txRxReCfgStopTime = 0;      // Past so timeout no longer needed
-    }
-  }
+  //   // Run until stop time is exceeded then stop the process
+  //   if(_txRxReCfgStopTime < hcom_nx_trace_get_time_ms())
+  //   {
+  //     _txRxReCfgStopTime = 0;      // Past so timeout no longer needed
+  //   }
+  // }
 
   // Write string out the uart
   ssize_t nbytes = write(_uart1_fd, toUartBuf, numbBytes);
