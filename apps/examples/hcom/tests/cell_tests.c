@@ -57,16 +57,12 @@
 #define TTY_NAME "/dev/ttyS1" // COM4
 #define CHAT_TIMEOUT 30
 
-const char g_cell_signal_quality[] =
-    {
-        "TIMEOUT 30 \"\" AT+CSQ PAUSE 3 OK \\c"};
+const char g_cell_signal_quality[] = { "TIMEOUT 30 \"\" AT+CSQ PAUSE 3 OK \\c"};
 
-const char g_cell_scan_operator[] =
-    {
-        "TIMEOUT 30 \"\" AT+COPS=? PAUSE 3 OK \\c"};
+const char g_cell_scan_operator[] = { "TIMEOUT 30 \"\" AT+COPS=? PAUSE 3 OK \\c"};
 
 const char g_cell_gps[] =
-    {
+{
         "TIMEOUT 30 \"\" "
         "AT+QGPS=1,2,180,1 PAUSE 3 OK "
         "AT+QCFG=\\\"gpio\\\",1,64,1,0,0,1 PAUSE 3 OK "
@@ -80,7 +76,8 @@ const char g_cell_gps[] =
         "AT+QGPSEND PAUSE 3 OK "
         "AT+QCFG=\\\"gpio\\\",1,64,1,0,0,1 PAUSE 3 OK "
         "AT+QCFG=\\\"gpio\\\",3,64,0,1 PAUSE 3 OK "
-        "\\c"};
+        "\\c"
+};
 
 char cell_cmd_output[128] = {0};
 static struct chat_ctl cell_chat;
@@ -107,7 +104,7 @@ typedef enum
  *   userData - Argument passed to test via CLI
  *
  * Returned Value:
- *   None
+ *   Script according to the userData value.
  *
  * Assumptions/Limitations:
  *   None
@@ -118,11 +115,11 @@ static char *cell_get_script(uint32_t userData)
     switch (userData)
     {
     case CELL_SIGNAL_QUALITY:
-        return &g_cell_signal_quality;
+        return g_cell_signal_quality;
     case CELL_SCAN:
-        return &g_cell_scan_operator;
+        return g_cell_scan_operator;
     case CELL_GPS:
-        return &g_cell_gps;
+        return g_cell_gps;
     }
     return NULL;
 }
@@ -183,7 +180,7 @@ void cell_script_tests(uint32_t userData)
     }
 
     int ret = chat(&cell_chat, cell_script, &cell_cmd_output);
-    syslog(LOGGING_LEVEL, "Cell Ouput: %s \n", cell_cmd_output);
+    syslog(LOGGING_LEVEL, "Cell Output: %s \n", cell_cmd_output);
     close(cell_chat.fd);
 
     syslog(LOGGING_LEVEL, "Cell tests completed.\n");
