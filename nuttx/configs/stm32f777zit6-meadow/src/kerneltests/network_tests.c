@@ -280,7 +280,7 @@ int network_tests_get_html_page(char *webserver_ip, int webserver_port, char *pa
  ****************************************************************************/
 int network_tests_get_large_file(char *webserver_ip, int webserver_port, char *resource)
 {
-    syslog(LOGGING_LEVEL, "********** Getting a large file, URL: http://%s:%s/%s.\n", webserver_ip, webserver_port, resource);
+    syslog(LOGGING_LEVEL, "********** Getting a large file, URL: http://%s:%d/%s.\n", webserver_ip, webserver_port, resource);
 
     ALLOCATE_HEAP_STRUCTURES;
     GET_INITIAL_HEAP_INFORMATION;
@@ -489,17 +489,36 @@ int network_test_get_multiple_large_files(int number_of_requests, char *webserve
 {
     int result = OK;
 
-    syslog(LOGGING_LEVEL, "********** Getting a large file, URL: http://%s:%s/%s.\n", webserver_ip, webserver_port, resource);
+    syslog(LOGGING_LEVEL, "********** Getting a large file, URL: http://%s:%d/%s.\n", webserver_ip, webserver_port, resource);
+
+    if (number_of_requests < 1)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: number_of_requests - Must be greater than 0.\n");
+        return(-1);
+    }
 
     ALLOCATE_HEAP_STRUCTURES;
     GET_INITIAL_HEAP_INFORMATION;
 
-    for (int index = 0; index < number_of_requests; index++)
+    //
+    //  Get the file once to make sure that the server is active and any caching has been completed.
+    //
+    if (network_tests_get_large_file(webserver_ip, webserver_port, resource) < 0)
     {
-        if (network_tests_get_large_file(webserver_ip, webserver_port, resource) < 0)
+        result = -1;
+    }
+    else
+    {
+        //
+        //  We can now run the test now we know that the file has been loaded.
+        //
+        for (int index = 0; index < number_of_requests; index++)
         {
-            result = -1;
-            break;
+            if (network_tests_get_large_file(webserver_ip, webserver_port, resource) < 0)
+            {
+                result = -1;
+                break;
+            }
         }
     }
 
