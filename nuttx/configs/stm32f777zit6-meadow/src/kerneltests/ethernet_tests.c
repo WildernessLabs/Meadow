@@ -77,6 +77,7 @@
 #define BINARY_RESOURCE_NAME        "/binaryfile/"
 #define WEB_SERVER_IP_ADDRESS       "127.0.0.1"
 #define WEB_SERVER_PORT             80
+#define LARGE_TEST_FILE1            "LargeFile1.html"
 #endif
 
 //
