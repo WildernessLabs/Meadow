@@ -43,7 +43,7 @@ using Microsoft.Win32.SafeHandles;
 namespace Microsoft.Win32
 {
 
-#if MOBILE && !WIN_PLATFORM
+#if (MOBILE || NUTTX) && !WIN_PLATFORM
 	public sealed class RegistryKey : IDisposable
 	{
 		internal RegistryKey (RegistryHive hiveId)
