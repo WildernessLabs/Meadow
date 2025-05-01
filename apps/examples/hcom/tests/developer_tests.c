@@ -223,10 +223,10 @@ static meadow_test_t _tests[] =
  *  executed and the user will be informed that the test(s) is/are not
  *  available.
  * 
- *  If level is 0 then the test ID and description will be sent to CLI.
+ *  If param is 0 then the test ID and description will be sent to CLI.
  *
  * Input Parameters:
- *  level - The level passed using the -d parameter.  This is used to
+ *  param - The param passed using the -p parameter.  This is used to
  *          determine which test should be executed.
  *  value - User data specified using the -v parameter.  This will be
  *          used by the test method.
@@ -238,14 +238,14 @@ static meadow_test_t _tests[] =
  *  None.
  *
  ****************************************************************************/
-void hcom_developer_tests_developer(uint16_t level, uint32_t value)
+void hcom_developer_tests_developer(uint16_t param, uint32_t value)
 {
     bool found = false;
     char *hostMsg = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
     
-    syslog(2, "developer test Level:%u - userData:%lu\n", level, value);
+    syslog(2, "Developer test param: %u - value: %lu\n", param, value);
 
-    if ((level == 0) && (hostMsg != NULL))
+    if ((param == 0) && (hostMsg != NULL))
     {
         hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, "Available tests:\n", __FILE__, __LINE__);
     }
@@ -254,7 +254,7 @@ void hcom_developer_tests_developer(uint16_t level, uint32_t value)
     {
         for (int index = 0; index < sizeof(_tests) / sizeof(meadow_test_t); index++)
         {
-            if (level == 0)
+            if (param == 0)
             {
                 if (hostMsg != NULL)
                 {
@@ -265,7 +265,7 @@ void hcom_developer_tests_developer(uint16_t level, uint32_t value)
             }
             else
             {
-                if (_tests[index].testId == level)
+                if (_tests[index].testId == param)
                 {
                     _tests[index].testMethod(value);
                     found = true;
@@ -279,11 +279,11 @@ void hcom_developer_tests_developer(uint16_t level, uint32_t value)
         hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, "    No tests built into the system.\n", __FILE__, __LINE__);
     }
 
-    if ((!found) && (level != 0))
+    if ((!found) && (param != 0))
     {
         if (hostMsg != NULL)
         {
-            snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Test %u cannot be found.  Check that the test has been compiled into the system.\n", level);
+            snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Test %u cannot be found.  Check that the test has been compiled into the system.\n", param);
             hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, __FILE__, __LINE__);
         }
     }
