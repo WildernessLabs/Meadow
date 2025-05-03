@@ -39,7 +39,7 @@
 
 #include <nuttx/config.h>
 
-#if defined (CONFIG_MEADOW_OS_TESTS)
+#if defined (CONFIG_MEADOW_OS_TESTS) || defined (CONFIG_ALL_MEADOW_TESTS)
 
 #include <stdint.h>
 

@@ -47,7 +47,7 @@
 #include <meadow/meadow_apps_core_share.h>
 #include <dirent.h>
 
-#if defined (CONFIG_DIR_MGMT_TESTS)
+#if defined (CONFIG_DIR_MGMT_TESTS) || defined (CONFIG_ALL_MEADOW_TESTS)
 #pragma message "(--) dir_mgmt_tests.c"
 
 #include <sys/mount.h>

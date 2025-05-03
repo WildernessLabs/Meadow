@@ -41,7 +41,7 @@
 #include <meadow/hcom_shared_common.h>
 
 // Only build if configured
-#if defined(CONFIG_QUICK_MISC_TESTS)
+#if defined(CONFIG_QUICK_MISC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 #pragma message "(--) quick_misc_tests.c"
 
 // Diagnostic always as this is test code

@@ -505,7 +505,7 @@ SYSCALL_LOOKUP(meadow_adc_read_temp_vbat,            2, STUB_meadow_adc_read_tem
   SYSCALL_LOOKUP(meadow_kt_spi_dma_tests,  1, STUB_meadow_kt_spi_dma_tests)
 #endif
 
-#if defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#if (defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)) && (MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER > 0)
   SYSCALL_LOOKUP(meadow_kt_rotary_encoder_tests,  1, STUB_meadow_kt_rotary_encoder_tests)
 #endif
 

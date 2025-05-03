@@ -36,7 +36,9 @@
 /****************************************************************************
  * Included Files
  ****************************************************************************/
-#if defined(CONFIG_GPIO_TESTS)
+#include <nuttx/config.h>
+
+#if defined(CONFIG_GPIO_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 
 #include <meadow/meadow_hw_version.h>
 #include "../hcom_common.h"

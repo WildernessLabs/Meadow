@@ -41,7 +41,7 @@
 #include <meadow/hcom_shared_common.h>
 
 // Only build if configured
-#if defined(CONFIG_MEADOW_INTERRUPT_TESTS)
+#if defined(CONFIG_MEADOW_INTERRUPT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 #pragma message "(--) meadow_interrupt_tests.c"
 
 #include "stm32_gpio.h"   // stm32_configgpio

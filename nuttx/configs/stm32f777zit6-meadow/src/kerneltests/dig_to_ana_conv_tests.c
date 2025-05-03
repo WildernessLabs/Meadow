@@ -46,8 +46,8 @@
 #include <meadow/hcom_shared_common.h>
 #include <meadow/meadow_syscall_support.h>
 
-#if defined (CONFIG_DAC_TESTS)
-##pragma message "(--) Hacking dig_to_ana_conv_tests.c"
+#if defined (CONFIG_DAC_TESTS) || defined (CONFIG_ALL_MEADOW_TESTS)
+#pragma message "(--) Hacking dig_to_ana_conv_tests.c"
 
 // Diagnostic always as this is test code
 // #define USE_MEADOW_DEBUG_HELPERS
