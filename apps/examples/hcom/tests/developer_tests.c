@@ -1,6 +1,6 @@
 /****************************************************************************
  * \apps\examples\hcom\tests\developer_tests.c
- * 
+ *
  *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
@@ -61,7 +61,7 @@
  * Private Data
  ****************************************************************************/
 
-static meadow_test_names_t _testNames[] = 
+static meadow_test_names_t _testNames[] =
 {
     //
     //  Miscellaneous tests 1 - 999
@@ -176,7 +176,7 @@ static meadow_test_names_t _testNames[] =
 #endif
 };
 
-static meadow_test_methods_t _userspaceTests[] = 
+static meadow_test_methods_t _userspaceTests[] =
 {
     //
     //  Miscellaneous tests 1 - 999
@@ -235,10 +235,10 @@ static meadow_test_methods_t _userspaceTests[] =
  * Description:
  *  Locate the requested userspace test and execute the test passing the user
  *  data to the test method.
- * 
+ *
  *  If the test is not compiled into the system then then nothing will be
  *  executed.
- * 
+ *
  * Input Parameters:
  *  param - The param passed using the -p parameter.  This is used to
  *          determine which test should be executed.
@@ -255,7 +255,7 @@ static meadow_test_methods_t _userspaceTests[] =
 static int hcom_developer_tests_userspace_dispatcher(uint16_t param, uint32_t value)
 {
     int result = ERROR;
-    
+
     if (sizeof(_userspaceTests) > 0)
     {
         for (int index = 0; index < sizeof(_userspaceTests) / sizeof(meadow_test_methods_t); index++)
@@ -268,7 +268,7 @@ static int hcom_developer_tests_userspace_dispatcher(uint16_t param, uint32_t va
             }
         }
     }
-    
+
     return(result);
 }
 
@@ -282,11 +282,11 @@ static int hcom_developer_tests_userspace_dispatcher(uint16_t param, uint32_t va
  * Description:
  *  Locate the requested test and execute the test passing the user data to
  *  the test method.
- * 
+ *
  *  If the test is not compiled into the system then then nothing will be
  *  executed and the user will be informed that the test(s) is/are not
  *  available.
- * 
+ *
  *  If param is 0 then the test ID and description will be sent to CLI.
  *
  * Input Parameters:
@@ -312,7 +312,7 @@ void hcom_developer_tests_developer(uint16_t param, uint32_t value)
         syslog(2, "Developer tests: failed to allocate memory for hostMsg\n");
         return;
     }
-    
+
     syslog(2, "Developer test param: %u - value: %lu\n", param, value);
 
     if (param == 0)

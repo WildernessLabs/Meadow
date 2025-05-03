@@ -1,6 +1,6 @@
 /****************************************************************************
  * meadow_kt_dispatcher.c
- * 
+ *
  *   Copyright (C) 2025 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
@@ -66,7 +66,7 @@
  * Private Data
  ****************************************************************************/
 
-static meadow_test_methods_t _kernelTests[] = 
+static meadow_test_methods_t _kernelTests[] =
 {
 #if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
     { MEADOW_TEST_SD_CARD, meadow_kt_sd_card_tests },
@@ -135,10 +135,10 @@ static meadow_test_methods_t _kernelTests[] =
  * Description:
  *  Locate the requested kernel test and execute the test passing the user
  *  data to the test method.
- * 
+ *
  *  If the test is not compiled into the system then then nothing will be
  *  executed.
- * 
+ *
  * Input Parameters:
  *  param - The param passed using the -p parameter.  This is used to
  *          determine which test should be executed.
@@ -155,7 +155,7 @@ static meadow_test_methods_t _kernelTests[] =
 int meadow_kt_dispatcher(uint16_t param, uint32_t value)
 {
     int result = ERROR;
-    
+
     if (sizeof(_kernelTests) > 0)
     {
         for (int index = 0; index < sizeof(_kernelTests) / sizeof(meadow_test_methods_t); index++)
@@ -168,6 +168,6 @@ int meadow_kt_dispatcher(uint16_t param, uint32_t value)
             }
         }
     }
-    
+
     return(result);
 }

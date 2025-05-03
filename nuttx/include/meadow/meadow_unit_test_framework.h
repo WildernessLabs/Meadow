@@ -1,6 +1,6 @@
 /****************************************************************************
  * nuttx/include/meadow/meadow_unit_test_framework.h
- * 
+ *
  *   Copyright (C) 2025 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
@@ -166,7 +166,7 @@
 
 /**
  * @brief Battery backed domain write after reset test ID.
- */ 
+ */
 #define MEADOW_TEST_BBD_WRITE_AFTER_RESET           904
 
 /**

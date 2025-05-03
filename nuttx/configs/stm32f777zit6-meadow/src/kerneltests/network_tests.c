@@ -1,6 +1,6 @@
 /****************************************************************************
  * network_tests.c
- * 
+ *
  *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
@@ -112,7 +112,7 @@
  *
  * Assumptions/Limitations:
  *  Assumes that WiFi is started and the test web server is accessible.
- * 
+ *
  *  The server connects directly to an IP address.  The IP address is defined
  *  in the file secrets.h.
  *
@@ -134,7 +134,7 @@ int network_tests_get_html_page(char *webserver_ip, int webserver_port, char *pa
     {
         syslog(LOGGING_LEVEL, "    PASS: socket - Created socket.\n");
     }
-    
+
     struct sockaddr_in server;
     server.sin_addr.s_addr = inet_addr(webserver_ip);
 	server.sin_family = AF_INET;
@@ -258,11 +258,11 @@ int network_tests_get_html_page(char *webserver_ip, int webserver_port, char *pa
  *
  * Description:
  *  Get a large file from a web server.
- * 
+ *
  *  The file location is made up of three component:
- * 
+ *
  *  webserver_ip:webserver_port/resource
- * 
+ *
  *  This method will retrieve the resource only, no validation is performed
  *  and all data is disposed of after the method calls to a recvfrom call.
  *
@@ -295,7 +295,7 @@ int network_tests_get_large_file(char *webserver_ip, int webserver_port, char *r
     {
         syslog(LOGGING_LEVEL, "    PASS: socket - Created socket.\n");
     }
-    
+
     struct sockaddr_in server;
     server.sin_addr.s_addr = inet_addr(webserver_ip);
 	server.sin_family = AF_INET;
@@ -435,7 +435,7 @@ int network_tests_get_large_file(char *webserver_ip, int webserver_port, char *r
  *
  * Assumptions/Limitations:
  *  Assumes that WiFi is started and the test web server is accessible.
- * 
+ *
  *  The server connects directly to an IP address.  The IP address is defined
  *  in the file secrets.h.
  *
@@ -483,7 +483,7 @@ int network_test_get_multiple_web_pages(int number_of_requests, char *webserver_
  *
  * Assumptions/Limitations:
  *  Assumes that WiFi is started and the test web server is accessible.
- * 
+ *
  ****************************************************************************/
 int network_test_get_multiple_large_files(int number_of_requests, char *webserver_ip, int webserver_port, char *resource)
 {
@@ -533,9 +533,9 @@ int network_test_get_multiple_large_files(int number_of_requests, char *webserve
 #define BUFFER_SIZE 4096
 /**
  * @brief Run a network performance test.
- * 
+ *
  * This method will get the files LargeFile1.html - LargeFile9.html and record the throughput of the system.
- * 
+ *
  * @return int OK if successful, ERROR if there is a problem.
  */
 int network_test_performance(char *webserver_ip, int webserver_port)
@@ -659,7 +659,7 @@ int network_test_misc_network_functions(void)
         syslog(LOGGING_LEVEL, "    PASS: getifaddrs (ioctl)\n");
         freeifaddrs(ifa);
     }
-    
+
     GET_FINAL_HEAP_INFORMATION;
     HEAP_USAGE_PASS_OR_FAIL;
     COPY_FINAL_TO_START;
