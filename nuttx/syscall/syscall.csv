@@ -70,7 +70,7 @@
 "meadow_kt_measure_freq_tests","meadow/meadow_kernel_tests.h","defined(CONFIG_MEASURE_FREQUENCY_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)","void","uint32_t"
 "meadow_kt_power_management_tests","meadow/meadow_kernel_tests.h","defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)","void","uint32_t"
 "meadow_kt_quick_misc_tests","meadow/meadow_kernel_tests.h","defined(CONFIG_QUICK_MISC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)","void","uint32_t"
-"meadow_kt_rotary_encoder_tests","meadow/meadow_kernel_tests.h","defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)","void","uint32_t"
+"meadow_kt_rotary_encoder_tests","meadow/meadow_kernel_tests.h","(defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)) && (MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER > 0)","void","uint32_t"
 "meadow_kt_sd_card_tests","meadow/meadow_kernel_tests.h","defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)","void","uint32_t"
 "meadow_kt_spi_dma_tests","meadow/meadow_kernel_tests.h","defined(CONFIG_SPI_DMA_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)","void","uint32_t"
 "meadow_measure_freq_configure","meadow/meadow_measure_freq_shared.h","defined(CONFIG_ARCH_BOARD_MEADOW)","int", "mdwFreqCfgTimer_t *"
