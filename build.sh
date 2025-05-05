@@ -330,11 +330,10 @@ if [ ! -z "$UNIT_TESTS" ]; then
         esac
     done
 fi
-# if $BUILD_TESTS; then
-#   #
-#   # In case we need some global action to build tests or change config...
-#   #
-# fi
+
+if $BUILD_TESTS; then
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable KERNEL_TESTS_SYSCALL
+fi
 
 if $ENABLE_STACK_DUMP; then
   kconfig-tweak --file $NUTTX_CONFIG_FILE --enable MEADOW_LOGGING_ENABLE_STACK_DUMP
