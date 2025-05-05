@@ -152,7 +152,7 @@ static meadow_test_methods_t _kernelTests[] =
  *  None.
  *
  ****************************************************************************/
-int meadow_kt_dispatcher(uint16_t param, uint32_t value)
+int meadow_kt_dispatcher(uint32_t param, uint32_t value)
 {
     int result = ERROR;
 

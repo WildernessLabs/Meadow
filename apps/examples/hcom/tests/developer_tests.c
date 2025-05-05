@@ -46,6 +46,7 @@
 #include <meadow/hcom_upd_shared.h>
 #include <meadow/hcom_shared_common.h>
 #include <meadow/meadow_kernel_tests.h>
+#include <meadow/meadow_kt_dispatcher.h>
 
 #include "../diag/hcom_diag_gpio.h"
 
@@ -345,7 +346,7 @@ void hcom_developer_tests_developer(uint16_t param, uint32_t value)
         found = hcom_developer_tests_userspace_dispatcher(param, value) == OK;
         if (!found)
         {
-            // found = meadow_kt_dispatcher(param, value) == OK;
+            found = meadow_kt_dispatcher((uint32_t) param, value) == OK;
         }
         if (found)
         {
