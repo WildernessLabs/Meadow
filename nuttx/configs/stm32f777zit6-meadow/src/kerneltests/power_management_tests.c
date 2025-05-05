@@ -61,7 +61,7 @@
 
 #include "../pwrmgmt/pwrmgmt_local.h"
 
-#if defined (CONFIG_POWER_MANAGEMENT_TESTS)
+#if defined (CONFIG_POWER_MANAGEMENT_TESTS) || defined (CONFIG_ALL_MEADOW_TESTS)
 #pragma message "(--) power_management_tests.c"
 #endif
 
@@ -87,7 +87,7 @@
 /************************************************************************************
  * Private Data
  ************************************************************************************/
-#if defined (CONFIG_POWER_MANAGEMENT_TESTS)
+#if defined (CONFIG_POWER_MANAGEMENT_TESTS) || defined (CONFIG_ALL_MEADOW_TESTS)
 static char *thisFile = __FILE__;
 #endif
 
@@ -104,7 +104,7 @@ static char *thisFile = __FILE__;
 static int pwrmgmt_enter_test_alarm_timer_parsing(void);
 #endif
 
-#if defined (CONFIG_POWER_MANAGEMENT_TESTS)
+#if defined (CONFIG_POWER_MANAGEMENT_TESTS) || defined (CONFIG_ALL_MEADOW_TESTS)
 // #if (1)
 
 static void pwmmgmt_test_interrupt_wakeup_from_sleep(void);

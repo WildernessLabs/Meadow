@@ -36,6 +36,7 @@
 /****************************************************************************
  * Included Files
  ****************************************************************************/
+#include <nuttx/config.h>
 
 #include <meadow/hcom_shared_common.h>
 
@@ -46,7 +47,7 @@
 #include "stm32_gpio.h"   // stm32_configgpio
 
 // Only build if configured
-#if defined(CONFIG_ROTARY_ENCODER_TESTS)
+#if defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 #pragma message "(--) rotary_encoder_tests.c"
 
 // Diagnostic always as this is test code

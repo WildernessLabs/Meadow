@@ -55,7 +55,7 @@
 #include <meadow/meadow_syscall_support.h>
 #include "hcom_nx/hcom_nx_common.h"
 
-#if defined (CONFIG_ADC_TESTS)
+#if defined (CONFIG_ADC_TESTS) || defined (CONFIG_ALL_MEADOW_TESTS)
 
 #pragma message "(--) ana_to_dig_conv_tests.c included"
 

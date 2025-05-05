@@ -62,7 +62,7 @@
 
 #include "meadow_rotary_encoder.h"
 
-#if defined(CONFIG_ROTARY_ENCODER_TESTS)
+#if defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 #pragma message "(--) meadow_rotary_encoder.c"
 #endif
 

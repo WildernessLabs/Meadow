@@ -1,6 +1,6 @@
 /****************************************************************************
  * \apps\examples\hcom\tests\developer_tests.c
- * 
+ *
  *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
@@ -41,10 +41,12 @@
 
 #include <stdint.h>
 
+#include <meadow/meadow_unit_test_framework.h>
 #include "../hcom_common.h"
 #include <meadow/hcom_upd_shared.h>
 #include <meadow/hcom_shared_common.h>
 #include <meadow/meadow_kernel_tests.h>
+#include <meadow/meadow_kt_dispatcher.h>
 
 #include "../diag/hcom_diag_gpio.h"
 
@@ -56,157 +58,221 @@
  * Private types
  ****************************************************************************/
 
-/*
- *  Prototype for the test methods.
- */
-typedef void (*test_method_t)(uint32_t);
-
-/*
- *  Structure (and associated type definition) for the test methods and their IDs.
- */
-struct meadow_test_s
-{
-    /*
-    *  ID of a test.
-    */
-    uint16_t testId;
-
-    /*
-    *  Description of the test.
-    */
-    char *description;
-
-    /*
-    *  Method to be executed.
-    */
-    test_method_t testMethod;
-};
-typedef struct meadow_test_s meadow_test_t;
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
-static meadow_test_t _tests[] = 
+static meadow_test_names_t _testNames[] =
 {
-  //
-  //  Miscellaneous tests 1 - 999
-  //
+    //
+    //  Miscellaneous tests 1 - 999
+    //
 #if defined(CONFIG_SNPRINTF_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 1, "sprintf_chk tests", diag_misc_tests_snprintf_on_nuttx },
+    { MEADOW_TEST_SNPRINTF, "sprintf_chk tests" },
 #endif
 
 #if defined(CONFIG_GPIO_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 2, "GPIO tests", hcom_meadow_diag_gpio_tests },
+    { MEADOW_TEST_GPIO, "GPIO tests" },
 #endif
 
 #if defined(CONFIG_EXAMPLES_SQLITE_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 3, "NuttX SQLLite tests", hcom_meadow_sqlite_tests },
+    { MEADOW_TEST_SQLLITE, "NuttX SQLLite tests" },
 #endif
 
 #if defined(CONFIG_MCU_OVERLOAD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 4, "MCU Overload tests", diag_misc_tests_overload_mcu },
+    { MEADOW_TEST_MCU_OVERLOAD, "MCU Overload tests" },
 #endif
 
-#if defined(CONFIG_CHAT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS) || MEADOW_INCLUDE_ETHERNET_CHAT_TESTS_IN_BUILD > 0
-    { 5, "Chat client tests", diag_ethernet_chat_server },
+#if defined(CONFIG_CHAT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS) || (MEADOW_INCLUDE_ETHERNET_CHAT_TESTS_IN_BUILD > 0)
+    { MEADOW_TEST_CHAT_CLIENT, "Chat client tests" },
 #endif
 
 #if defined(CONFIG_BBR_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 6, "Battery backed register tests", hcom_bbr_tests },
+    { MEADOW_TEST_BBR, "Battery backed register tests" },
 #endif
 
 #if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 7, "SD card tests", meadow_kt_sd_card_tests },
+    { MEADOW_TEST_SD_CARD, "SD card tests" },
 #endif
 
 #if defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 8, "Power management tests", meadow_kt_power_management_tests },
+    { MEADOW_TEST_POWER_MANAGEMENT, "Power management tests" },
 #endif
 
 #if defined(CONFIG_ISO8601_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 9, "ISO8601 tests", meadow_kt_iso8601_tests },
+    { MEADOW_TEST_ISO8601, "ISO8601 tests" },
 #endif
 
 #if defined(CONFIG_QUICK_MISC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 10, "Quick and Misc tests", meadow_kt_quick_misc_tests },
+    { MEADOW_TEST_MISC, "Quick and Misc tests" },
 #endif
 
 #if defined(CONFIG_TENSORFLOW_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 11, "Tensorflow tests", tensorflow_tests_hello_world },
+    { MEADOW_TEST_TENSORFLOW, "Tensorflow tests" },
 #endif
 
 #if defined(CONFIG_DIR_MGMT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 13, "Directory mgmt tests", meadow_dir_mgmt_tests },
+    { MEADOW_TEST_DIRECTORY_MANAGEMENT, "Directory mgmt tests" },
 #endif
 
 #if defined(CONFIG_ADC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 14, "Analog to Digital tests", meadow_kt_adc_tests },
+    { MEADOW_TEST_ADC, "Analog to Digital tests" },
 #endif
 
 #if defined(CONFIG_DAC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 15, "Digital to Analog tests", meadow_kt_dac_tests },
+    { MEADOW_TEST_DAC, "Digital to Analog tests" },
 #endif
 
 #if defined(CONFIG_MEADOW_INTERRUPT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 16, "Meadow interrupt tests", meadow_kt_meadow_interrupt_tests },
+    { MEADOW_TEST_INTERRUPT, "Meadow interrupt tests" },
 #endif
 
 #if defined(CONFIG_SPI_DMA_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 17, "SPI DMA tests", meadow_kt_spi_dma_tests },
+    { MEADOW_TEST_SPI_DMA, "SPI DMA tests" },
 #endif
 
 #if defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 18, "Rotary Encoder tests", meadow_kt_rotary_encoder_tests },
+    { MEADOW_TEST_ROTARY_ENCODER, "Rotary Encoder tests" },
 #endif
 
 #if defined(CONFIG_MEASURE_FREQUENCY_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 19, "Measure Frequency tests", meadow_kt_measure_freq_tests },
+    { MEADOW_TEST_FREQUENCY_MEASUREMENT, "Measure Frequency tests" },
 #endif
 
-  //
-  //  Meadow OS tests (900-999)
-  //
-  //  These are not NuttX tests, they are tests for Wilderness Labs specific features.
-  //
+    //
+    //  Meadow OS tests (900-999)
+    //
 #if defined(CONFIG_MEADOW_OS_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 900, "User space assert", meadow_os_userspace_assert_test },
-    { 901, "User space meadow_os_reset_board", meadow_os_userspace_board_reset_test },
-    { 902, "Kernel space assert", meadow_kt_assert_test },
-    { 903, "Battery Backed Domain register tests", meadow_bbd_write_read_test },
-    { 904, "Battery Backed Domain write and reset test", meadow_bbd_write_and_reset_test },
-    { 905, "Battery Backed Domain read after reset test", meadow_bbd_read_after_reset_test },
+    { MEADOW_TEST_USER_SPACE_ASSERT, "User space assert" },
+    { MEADOW_TEST_USER_SPACE_RESET, "User space meadow_os_reset_board" },
+    { MEADOW_TEST_KERNEL_ASSERT, "Kernel space assert" },
+    { MEADOW_TEST_BBD_REGISTER, "Battery Backed Domain register tests" },
+    { MEADOW_TEST_BBD_WRITE_AFTER_RESET, "Battery Backed Domain write and reset test" },
+    { MEADOW_TEST_READ_AFTER_RESET, "Battery Backed Domain read after reset test" },
 #endif
 
-  //
-  //  ESP tests 1000 - 1199
-  //
+    //
+    //  ESP tests 1000 - 1199
+    //
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 1000, "All ESP32 tests", meadow_kt_espcp_tests },
-    { 1001, "ESP32 Load Test using simple web page", meadow_kt_espcp_load_test_web_page },
-    { 1002, "ESP32 Load Test using a binary file", meadow_kt_espcp_load_test_large_file_download },
+    { MEADOW_TEST_ALL_ESP32, "All ESP32 tests" },
+    { MEADOW_TEST_ESP_WEB_PAGE_LOAD_TEST, "ESP32 Load Test using simple web page" },
+    { MEADOW_TEST_ESP_BINARY_FILE_LOAD_TEST, "ESP32 Load Test using a binary file" },
 #endif
 
-  //
-  //  Ethernet tests 1200 - 1399
-  //
+    //
+    //  Ethernet tests 1200 - 1399
+    //
 #if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 1200, "All ethernet tests", meadow_kt_ethernet_tests },
-    { 1201, "Ethernet Load Test using a simple web page", meadow_kt_ethernet_load_test_web_page },
-    { 1202, "Ethernet Load Test using a binary file", meadow_kt_ethernet_load_test_large_file_download },
+    { MEADOW_TEST_ETHERNET, "All ethernet tests" },
+    { MEADOW_TEST_ETHERNET_WEB_PAGE_LOAD_TEST, "Ethernet Load Test using a simple web page" },
+    { MEADOW_TEST_ETHERNET_BINARY_FILE_LOAD_TEST, "Ethernet Load Test using a binary file" },
 #endif
 
-  //
-  //  BG77 tests 1400 - 1599
-  //
+    //
+    //  BG77 tests 1400 - 1599
+    //
 #if defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 1400, "All BG77 tests", meadow_kt_ethernet_tests },
+    { MEADOW_TEST_BG77, "All BG77 tests" },
+#endif
+};
+
+static meadow_test_methods_t _userspaceTests[] =
+{
+    //
+    //  Miscellaneous tests 1 - 999
+    //
+#if defined(CONFIG_SNPRINTF_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { MEADOW_TEST_SNPRINTF, diag_misc_tests_snprintf_on_nuttx },
+#endif
+
+#if defined(CONFIG_GPIO_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { MEADOW_TEST_GPIO, hcom_meadow_diag_gpio_tests },
+#endif
+
+#if defined(CONFIG_EXAMPLES_SQLITE_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { MEADOW_TEST_SQLLITE, hcom_meadow_sqlite_tests },
+#endif
+
+#if defined(CONFIG_MCU_OVERLOAD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { MEADOW_TEST_MCU_OVERLOAD, diag_misc_tests_overload_mcu },
+#endif
+
+#if (defined(CONFIG_CHAT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)) && (MEADOW_INCLUDE_ETHERNET_CHAT_TESTS_IN_BUILD > 0)
+    { MEADOW_TEST_CHAT_CLIENT, diag_ethernet_chat_server },
+#endif
+
+#if defined(CONFIG_BBR_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { MEADOW_TEST_BBR, hcom_bbr_tests },
+#endif
+
+#if defined(CONFIG_TENSORFLOW_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { MEADOW_TEST_TENSORFLOW, tensorflow_tests_hello_world },
+#endif
+
+#if defined(CONFIG_DIR_MGMT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { MEADOW_TEST_DIRECTORY_MANAGEMENT, meadow_dir_mgmt_tests },
+#endif
+
+#if defined(CONFIG_MEADOW_OS_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    //
+    //  Meadow OS tests (900-999)
+    //
+    { MEADOW_TEST_USER_SPACE_ASSERT, meadow_os_userspace_assert_test },
+    { MEADOW_TEST_USER_SPACE_RESET, meadow_os_userspace_board_reset_test },
+    { MEADOW_TEST_BBD_REGISTER, meadow_bbd_write_read_test },
+    { MEADOW_TEST_BBD_WRITE_AFTER_RESET, meadow_bbd_write_and_reset_test },
+    { MEADOW_TEST_READ_AFTER_RESET, meadow_bbd_read_after_reset_test },
 #endif
 };
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: hcom_developer_tests_userspace_dispatcher
+ *
+ * Description:
+ *  Locate the requested userspace test and execute the test passing the user
+ *  data to the test method.
+ *
+ *  If the test is not compiled into the system then then nothing will be
+ *  executed.
+ *
+ * Input Parameters:
+ *  param - The param passed using the -p parameter.  This is used to
+ *          determine which test should be executed.
+ *  value - User data specified using the -v parameter.  This will be
+ *          used by the test method.
+ *
+ * Returned Value:
+ *  OK if the test was found, ERROR if the test could not be located.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static int hcom_developer_tests_userspace_dispatcher(uint16_t param, uint32_t value)
+{
+    int result = ERROR;
+
+    syslog(LOGGING_LEVEL, "Checking for userspace test param: %u - value: %lu\n", param, value);
+    if (sizeof(_userspaceTests) > 0)
+    {
+        for (int index = 0; index < sizeof(_userspaceTests) / sizeof(meadow_test_methods_t); index++)
+        {
+            if (_userspaceTests[index].testId == param)
+            {
+                _userspaceTests[index].testMethod(value);
+                result = OK;
+                break;
+            }
+        }
+    }
+
+    return(result);
+}
 
 /****************************************************************************
  * Public Functions
@@ -218,15 +284,15 @@ static meadow_test_t _tests[] =
  * Description:
  *  Locate the requested test and execute the test passing the user data to
  *  the test method.
- * 
+ *
  *  If the test is not compiled into the system then then nothing will be
  *  executed and the user will be informed that the test(s) is/are not
  *  available.
- * 
- *  If level is 0 then the test ID and description will be sent to CLI.
+ *
+ *  If param is 0 then the test ID and description will be sent to CLI.
  *
  * Input Parameters:
- *  level - The level passed using the -d parameter.  This is used to
+ *  param - The param passed using the -p parameter.  This is used to
  *          determine which test should be executed.
  *  value - User data specified using the -v parameter.  This will be
  *          used by the test method.
@@ -238,54 +304,64 @@ static meadow_test_t _tests[] =
  *  None.
  *
  ****************************************************************************/
-void hcom_developer_tests_developer(uint16_t level, uint32_t value)
+void hcom_developer_tests_developer(uint16_t param, uint32_t value)
 {
     bool found = false;
     char *hostMsg = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
-    
-    syslog(2, "developer test Level:%u - userData:%lu\n", level, value);
 
-    if ((level == 0) && (hostMsg != NULL))
+    if (hostMsg == NULL)
     {
-        hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, "Available tests:\n", __FILE__, __LINE__);
+        syslog(2, "Developer tests: failed to allocate memory for hostMsg\n");
+        return;
     }
 
-    if (sizeof(_tests) > 0)
+    syslog(2, "Developer test param: %u - value: %lu\n", param, value);
+
+    if (param == 0)
     {
-        for (int index = 0; index < sizeof(_tests) / sizeof(meadow_test_t); index++)
+        hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, "Available tests:\n", __FILE__, __LINE__);
+        if (sizeof(_testNames) > 0)
         {
-            if (level == 0)
+            for (int index = 0; index < sizeof(_testNames) / sizeof(meadow_test_names_t); index++)
             {
-                if (hostMsg != NULL)
-                {
-                    snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "    %d - %s\n", _tests[index].testId, _tests[index].description);
-                    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, __FILE__, __LINE__);
-                }
-                found = true;
+                snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "    %d - %s\n", _testNames[index].testId, _testNames[index].description);
+                hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, __FILE__, __LINE__);
             }
-            else
-            {
-                if (_tests[index].testId == level)
-                {
-                    _tests[index].testMethod(value);
-                    found = true;
-                    break;
-                }
-            }
+        }
+        else
+        {
+            hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, "    No tests built into the system.\n", __FILE__, __LINE__);
         }
     }
     else
     {
-        hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, "    No tests built into the system.\n", __FILE__, __LINE__);
-    }
-
-    if ((!found) && (level != 0))
-    {
-        if (hostMsg != NULL)
+        for (int index = 0; index < sizeof(_testNames) / sizeof(meadow_test_names_t); index++)
         {
-            snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Test %u cannot be found.  Check that the test has been compiled into the system.\n", level);
-            hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, __FILE__, __LINE__);
+            if (_testNames[index].testId == param)
+            {
+                snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Executing %s\n", _testNames[index].description);
+                hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, __FILE__, __LINE__);
+                break;
+            }
         }
+        found = hcom_developer_tests_userspace_dispatcher(param, value) == OK;
+
+        #if defined(CONFIG_KERNEL_TESTS_SYSCALL)
+        if (!found)
+        {
+            found = meadow_kt_dispatcher((uint32_t) param, value) == OK;
+        }
+        #endif
+
+        if (found)
+        {
+            snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Complete.\n");
+        }
+        else
+        {
+            snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Test %u cannot be found.  Check that the test has been compiled into the system.\n", param);
+        }
+        hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, __FILE__, __LINE__);
     }
 
     free(hostMsg);

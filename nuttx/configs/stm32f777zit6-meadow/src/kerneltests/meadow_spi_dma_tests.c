@@ -52,7 +52,7 @@
 #include <up_arch.h>
 
 // Only build if configured
-#if defined(CONFIG_SPI_DMA_TESTS)
+#if defined(CONFIG_SPI_DMA_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 #pragma message "(--) spi_dma_tests.c"
 
 // This #define is needed to time the SPI DMA send/receive time

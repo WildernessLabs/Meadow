@@ -228,3 +228,25 @@ This entry is also wrapped in #ifdef CONFIG_NETDEV_IFINDEX...#endif statements:
 #endif
 
 Note the definition of the __SYS_termios value for use in the following #if statement.
+
+Using Copilot
+=============
+
+A new instructions file for Copilot has been added with a breakdown of the steps necessary
+to add a new syscall to the system.  This will add the template syscall data to the
+appropriate files.
+
+1 - Add the apprpriate CONFIG_ variable to control the addition of the syscall to the system.
+
+2 - Add the appropriate code files and prototypes the the appropriate header files.
+
+3 - Open Copilot edits and enter a prompt such as
+
+Use the instructions in NewSyscallInstructions.md. The config variable 
+is CONFIG_KERNEL_TESTS_SYSCALL, the function to be added is 
+int meadow_kt_dispatcher(uint16_t param, uint32_t value). The prototype is in 
+meadow_kt_dispatcher.h
+
+Known issues:
+
+1 - Copilot sometimes puts the definitions in the the wrong place in the syscall.h file.

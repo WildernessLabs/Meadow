@@ -25,8 +25,7 @@
  * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
  * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
@@ -468,70 +467,14 @@ int STUB_pwrmgmt_most_recent_wakeup_reason(int nbr);
   STUB_meadow_measure_freq_return_freq_info(int nbr, uintptr_t parm1);
 #endif
 
-#if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_espcp_load_test_large_file_download(int nbr, uint32_t param);
-void STUB_meadow_kt_espcp_load_test_web_page(int nbr, uint32_t param);
-void STUB_meadow_kt_espcp_tests(int nbr, uint32_t param);
-#endif
-
-#if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_ethernet_load_test_large_file_download(int nbr, uint32_t param);
-void STUB_meadow_kt_ethernet_load_test_web_page(int nbr, uint32_t param);
-void STUB_meadow_kt_ethernet_tests(int nbr, uint32_t param);
-#endif
-
-#if defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_bg77_tests(int nbr, uint32_t param);
-#endif
-
-#if defined(CONFIG_MEADOW_OS_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_assert_test(int nbr, uint32_t param);
-#endif
-
-#if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_sd_card_tests(int nbr, uint32_t param);
-#endif
-
-#if defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_power_management_tests(int nbr, uint32_t param);
-#endif
-
-#if defined(CONFIG_ISO8601_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_iso8601_tests(int nbr, uint32_t param);
-#endif
-
-#if defined(CONFIG_QUICK_MISC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_quick_misc_tests(int nbr, uint32_t param);
-#endif
-
-#if defined(CONFIG_ADC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_adc_tests(int nbr, uint32_t param);
-#endif
-
-#if defined(CONFIG_DAC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_dac_tests(int nbr, uint32_t param);
-#endif
-
-#if defined(CONFIG_MEADOW_INTERRUPT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_meadow_interrupt_tests(int nbr, uint32_t param);
-#endif
-
-#if defined(CONFIG_SPI_DMA_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_spi_dma_tests(int nbr, uint32_t param);
-#endif
-
-#if defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_rotary_encoder_tests(int nbr, uint32_t param);
-#endif
-
-#if defined(CONFIG_MEASURE_FREQUENCY_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-void STUB_meadow_kt_measure_freq_tests(int nbr, uint32_t param);
-#endif
-
 #if defined(CONFIG_ARCH_BOARD_MEADOW)
 void STUB_stm32_gpiowrite(int nbr, uint32_t parm1, int parm2);
 int STUB_stm32_configgpio(int nbr, uint32_t parm1);
 int STUB_stm32_unconfiggpio(int nbr, uint32_t parm1);
+#endif
+
+#if defined(CONFIG_KERNEL_TESTS_SYSCALL)
+uintptr_t STUB_meadow_kt_dispatcher(int nbr, uintptr_t parm1, uintptr_t parm2);
 #endif
 
 /****************************************************************************

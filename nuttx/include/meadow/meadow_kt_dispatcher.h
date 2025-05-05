@@ -1,7 +1,7 @@
 /****************************************************************************
- * \apps\examples\hcom\tests\meadow_os_userspace_tests.c
- * 
- *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
+ * meadow_kt_dispatcher.h
+ *
+ *   Copyright (C) 2025 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,79 +36,25 @@
 /****************************************************************************
  * Included Files
  ****************************************************************************/
-
 #include <nuttx/config.h>
-
-#if defined (CONFIG_MEADOW_OS_TESTS) || defined (CONFIG_ALL_MEADOW_TESTS)
 
 #include <stdint.h>
 
-#include "../hcom_common.h"
-#include <meadow/meadow_os.h>
-#include <meadow/meadow_kernel_tests.h>
-
 /****************************************************************************
- * Pre-processor Definitions
+ * Local defines.
  ****************************************************************************/
 
-/****************************************************************************
- * Private types
- ****************************************************************************/
+//
+//  Default logging level for this file.
+//
+#define LOGGING_LEVEL   1
 
 /****************************************************************************
- * Private Data
- ****************************************************************************/
-
-/****************************************************************************
- * Private Function Prototypes
+ * Private variables and associated macros.
  ****************************************************************************/
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-/****************************************************************************
- * Name: meadow_os_userspace_assert_test
- *
- * Description:
- *  Execute the userspace assert test in the OS.
- *
- * Input Parameters:
- *  userdata - Value passed to the test from the meadow command line.
- *             See: -v / --value parameter in meadow command line.
- *
- * Returned Value:
- *  None.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-void meadow_os_userspace_assert_test(uint32_t userdata)
-{
-    *((uint32_t *) NULL) = 0;
-}
-
-/****************************************************************************
- * Name: meadow_os_userspace_board_reset_test
- *
- * Description:
- *  Check that we can reset the board from user space.
- *
- * Input Parameters:
- *  userdata - Value passed to the test from the meadow command line.
- *             See: -v / --value parameter in meadow command line.
- *
- * Returned Value:
- *  None.
- *
- * Assumptions/Limitations:
- *  None.
- *
- ****************************************************************************/
-void meadow_os_userspace_board_reset_test(uint32_t userdata)
-{
-    meadow_os_reset_board(0);
-}
-
-#endif /* CONFIG_MEADOW_OS_TESTS */
+ int meadow_kt_dispatcher(uint32_t param, uint32_t value);

@@ -47,7 +47,7 @@
 
 #include <meadow/hcom_shared_common.h>
 
-#if defined (CONFIG_SD_CARD_TESTS)
+#if defined (CONFIG_SD_CARD_TESTS) || defined (CONFIG_ALL_MEADOW_TESTS)
 #pragma message "(--) sdcard_tests.c"
 
 /****************************************************************************
