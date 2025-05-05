@@ -632,92 +632,10 @@
 #  define SYS_meadow_measure_freq_return_freq_info  SYS_pwrmgmt_most_recent_wakeup_reason
 #endif
 
-#if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-#  define SYS_meadow_kt_espcp_load_test_large_file_download     (SYS_meadow_measure_freq_return_freq_info + 1)
-#  define SYS_meadow_kt_espcp_load_test_web_page                (SYS_meadow_measure_freq_return_freq_info + 2)
-#  define SYS_meadow_kt_espcp_tests                             (SYS_meadow_measure_freq_return_freq_info + 3)
-#else
-#  define SYS_meadow_kt_espcp_tests                              SYS_meadow_measure_freq_return_freq_info
-#endif
-
-#if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-#  define SYS_meadow_kt_ethernet_load_test_large_file_download  (SYS_meadow_kt_espcp_tests + 1)
-#  define SYS_meadow_kt_ethernet_load_test_web_page             (SYS_meadow_kt_espcp_tests + 2)
-#  define SYS_meadow_kt_ethernet_tests                          (SYS_meadow_kt_espcp_tests + 3)
-#else
-#  define SYS_meadow_kt_ethernet_tests SYS_meadow_kt_espcp_tests
-#endif
-
-#if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-#  define SYS_meadow_kt_sd_card_tests  (SYS_meadow_kt_ethernet_tests + 1)
-#else
-#  define SYS_meadow_kt_sd_card_tests  SYS_meadow_kt_ethernet_tests
-#endif
-
-#if defined(CONFIG_POWER_MANAGEMENT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-#  define SYS_meadow_kt_power_management_tests (SYS_meadow_kt_sd_card_tests + 1)
-#else
-#  define SYS_meadow_kt_power_management_tests SYS_meadow_kt_sd_card_tests
-#endif
-
-#if defined(CONFIG_ISO8601_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-#  define SYS_meadow_kt_iso8601_tests (SYS_meadow_kt_power_management_tests + 1)
-#else
-#  define SYS_meadow_kt_iso8601_tests SYS_meadow_kt_power_management_tests
-#endif
-
-#if defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-#  define SYS_meadow_kt_bg77_tests     (SYS_meadow_kt_iso8601_tests + 1)
-#else
-#  define SYS_meadow_kt_bg77_tests     (SYS_meadow_kt_iso8601_tests)
-#endif
-
-#if defined(CONFIG_MEADOW_OS_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-#  define SYS_meadow_kt_assert_test    (SYS_meadow_kt_bg77_tests + 1)
-#else
-#  define SYS_meadow_kt_assert_test    (SYS_meadow_kt_bg77_tests)
-#endif
-
-#if defined(CONFIG_QUICK_MISC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-#  define SYS_meadow_kt_quick_misc_tests     (SYS_meadow_kt_assert_test + 1)
-#else
-#  define SYS_meadow_kt_quick_misc_tests     (SYS_meadow_kt_assert_test)
-#endif
-
-#if defined(CONFIG_ADC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-#  define SYS_meadow_kt_adc_tests     (SYS_meadow_kt_quick_misc_tests + 1)
-#else
-#  define SYS_meadow_kt_adc_tests     (SYS_meadow_kt_quick_misc_tests)
-#endif
-
-#if defined(CONFIG_DAC_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-#  define SYS_meadow_kt_dac_tests     (SYS_meadow_kt_adc_tests + 1)
-#else
-#  define SYS_meadow_kt_dac_tests     (SYS_meadow_kt_adc_tests)
-#endif
-
-#if defined(CONFIG_MEADOW_INTERRUPT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-#  define SYS_meadow_kt_meadow_interrupt_tests     (SYS_meadow_kt_dac_tests + 1)
-#else
-#  define SYS_meadow_kt_meadow_interrupt_tests     (SYS_meadow_kt_dac_tests)
-#endif
-
-#if defined(CONFIG_SPI_DMA_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-#  define SYS_meadow_kt_spi_dma_tests     (SYS_meadow_kt_meadow_interrupt_tests + 1)
-#else
-#  define SYS_meadow_kt_spi_dma_tests     (SYS_meadow_kt_meadow_interrupt_tests)
-#endif
-
-#if defined(CONFIG_MEASURE_FREQUENCY_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-#  define SYS_meadow_kt_measure_freq_tests  (SYS_meadow_kt_spi_dma_tests + 1)
-#else
-#  define SYS_meadow_kt_measure_freq_tests  (SYS_meadow_kt_spi_dma_tests)
-#endif
-
 #if defined(CONFIG_KERNEL_TESTS_SYSCALL)
-#  define SYS_meadow_kt_dispatcher      (SYS_meadow_kt_measure_freq_tests + 1)
+#  define SYS_meadow_kt_dispatcher      (SYS_meadow_measure_freq_return_freq_info + 1)
 #else
-#  define SYS_meadow_kt_dispatcher      SYS_meadow_kt_measure_freq_tests
+#  define SYS_meadow_kt_dispatcher      SYS_meadow_measure_freq_return_freq_info
 #endif
 
 #if defined(CONFIG_ARCH_BOARD_MEADOW)
