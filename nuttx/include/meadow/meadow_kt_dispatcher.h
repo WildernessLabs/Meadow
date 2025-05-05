@@ -57,4 +57,4 @@
  * Public Functions
  ****************************************************************************/
 
- int meadow_kt_dispatcher(uint16_t param, uint32_t value);
+ int meadow_kt_dispatcher(uint32_t param, uint32_t value);
