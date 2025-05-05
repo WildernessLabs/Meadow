@@ -198,7 +198,7 @@ static meadow_test_methods_t _userspaceTests[] =
     { MEADOW_TEST_MCU_OVERLOAD, diag_misc_tests_overload_mcu },
 #endif
 
-#if defined(CONFIG_CHAT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS) || (MEADOW_INCLUDE_ETHERNET_CHAT_TESTS_IN_BUILD > 0)
+#if (defined(CONFIG_CHAT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)) && (MEADOW_INCLUDE_ETHERNET_CHAT_TESTS_IN_BUILD > 0)
     { MEADOW_TEST_CHAT_CLIENT, diag_ethernet_chat_server },
 #endif
 
@@ -257,6 +257,7 @@ static int hcom_developer_tests_userspace_dispatcher(uint16_t param, uint32_t va
 {
     int result = ERROR;
 
+    syslog(LOGGING_LEVEL, "Checking for userspace test param: %u - value: %lu\n", param, value);
     if (sizeof(_userspaceTests) > 0)
     {
         for (int index = 0; index < sizeof(_userspaceTests) / sizeof(meadow_test_methods_t); index++)

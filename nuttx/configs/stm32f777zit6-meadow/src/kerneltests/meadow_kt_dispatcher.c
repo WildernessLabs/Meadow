@@ -118,7 +118,8 @@ static meadow_test_methods_t _kernelTests[] =
     { MEADOW_TEST_ESP_BINARY_FILE_LOAD_TEST, meadow_kt_espcp_load_test_large_file_download },
 #endif
 
-#if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+
+#if (defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)) && (MEADOW_INCLUDE_ETHERNET_CHAT_TESTS_IN_BUILD > 0)
     { MEADOW_TEST_ETHERNET, meadow_kt_ethernet_tests },
     { MEADOW_TEST_ETHERNET_WEB_PAGE_LOAD_TEST, meadow_kt_ethernet_load_test_web_page },
     { MEADOW_TEST_ETHERNET_BINARY_FILE_LOAD_TEST, meadow_kt_ethernet_load_test_large_file_download },
@@ -156,6 +157,7 @@ int meadow_kt_dispatcher(uint32_t param, uint32_t value)
 {
     int result = ERROR;
 
+    syslog(LOGGING_LEVEL, "Checking for kernel test param: %u - value: %lu\n", param, value);
     if (sizeof(_kernelTests) > 0)
     {
         for (int index = 0; index < sizeof(_kernelTests) / sizeof(meadow_test_methods_t); index++)
