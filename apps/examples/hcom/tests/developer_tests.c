@@ -345,10 +345,14 @@ void hcom_developer_tests_developer(uint16_t param, uint32_t value)
             }
         }
         found = hcom_developer_tests_userspace_dispatcher(param, value) == OK;
+
+        #if defined(CONFIG_KERNEL_TESTS_SYSCALL)
         if (!found)
         {
             found = meadow_kt_dispatcher((uint32_t) param, value) == OK;
         }
+        #endif
+
         if (found)
         {
             snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Complete.\n");
