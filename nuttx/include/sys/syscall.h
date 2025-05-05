@@ -714,13 +714,19 @@
 #  define SYS_meadow_kt_measure_freq_tests  (SYS_meadow_kt_spi_dma_tests)
 #endif
 
-#if defined(CONFIG_ARCH_BOARD_MEADOW)
-#  define SYS_stm32_gpiowrite           (SYS_meadow_kt_measure_freq_tests + 1)
-#  define SYS_stm32_configgpio          (SYS_meadow_kt_measure_freq_tests + 2)
-#  define SYS_stm32_unconfiggpio        (SYS_meadow_kt_measure_freq_tests + 3)
-#  define SYS_maxsyscall                (SYS_meadow_kt_measure_freq_tests + 4)
+#if defined(CONFIG_KERNEL_TESTS_SYSCALL)
+#  define SYS_meadow_kt_dispatcher      (SYS_meadow_kt_measure_freq_tests + 1)
 #else
-#  define SYS_maxsyscall                (SYS_meadow_kt_measure_freq_tests)
+#  define SYS_meadow_kt_dispatcher      SYS_meadow_kt_measure_freq_tests
+#endif
+
+#if defined(CONFIG_ARCH_BOARD_MEADOW)
+#  define SYS_stm32_gpiowrite           (SYS_meadow_kt_dispatcher + 1)
+#  define SYS_stm32_configgpio          (SYS_meadow_kt_dispatcher + 2)
+#  define SYS_stm32_unconfiggpio        (SYS_meadow_kt_dispatcher + 3)
+#  define SYS_maxsyscall                (SYS_meadow_kt_dispatcher + 4)
+#else
+#  define SYS_maxsyscall                (SYS_meadow_kt_dispatcher)
 #endif
 
 /* Note that the reported number of system calls does *NOT* include the
