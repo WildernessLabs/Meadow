@@ -38,38 +38,21 @@
  ****************************************************************************/
 #include <nuttx/config.h>
 
+#if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <debug.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <unistd.h>
-#include <string.h>
 #include <poll.h>
 #include <nuttx/mm/mm.h>
-#include <assert.h>
 #include <sys/socket.h>
-#include <netdb.h>	//hostent
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <ifaddrs.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-
-#include "../meadow-upd.h"
-#include <meadow/hcom_shared_common.h>
-#include <meadow/meadow_kernel_tests.h>
-#include "../espcp/espcp_usrsock.h"
-#include "../espcp/espcp_common.h"
-#include "../espcp/espcp_coprocessor.h"
-#include "../espcp/espcp_system.h"
-#include "../espcp/espcp_file_system.h"
-#include "../hcom_nx/hcom_nx_config_manager.h"
+#include <nuttx/net/usrsock.h>
 
 #include "../espcp/espcp_test_heap_tracing.h"
 
@@ -87,6 +70,11 @@
 //
 #define DELAY           2000000
 
+//
+//  Size of the buffer used to send / receive data to / from the server.
+//
+#define BUFFER_SIZE 4096
+
 /****************************************************************************
  * Private variables and associated macros.
  ****************************************************************************/
@@ -98,163 +86,7 @@
 #pragma GCC diagnostic ignored "-Wunused-function"
 
 /****************************************************************************
- * Name: network_tests_get_html_page
- *
- * Description:
- *  Get a simple web page from a web server.
- *
- * Input Parameters:
- *   webserver_ip - IP address of the web server.
- *   webserver_port - Port number on the web server.
- *
- * Returned Value:
- *   0 on success, -1 on failure.
- *
- * Assumptions/Limitations:
- *  Assumes that WiFi is started and the test web server is accessible.
- *
- *  The server connects directly to an IP address.  The IP address is defined
- *  in the file secrets.h.
- *
- ****************************************************************************/
-int network_tests_get_html_page(char *webserver_ip, int webserver_port, char *page)
-{
-    syslog(LOGGING_LEVEL, "********** Getting a simple web page from %s.\n", webserver_ip);
-
-    ALLOCATE_HEAP_STRUCTURES;
-    GET_INITIAL_HEAP_INFORMATION;
-
-    int sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (sd < 0)
-    {
-        syslog(LOGGING_LEVEL, "    FAIL: socket - Failed to create socket.\n");
-        return(-1);
-    }
-    else
-    {
-        syslog(LOGGING_LEVEL, "    PASS: socket - Created socket.\n");
-    }
-
-    struct sockaddr_in server;
-    server.sin_addr.s_addr = inet_addr(webserver_ip);
-	server.sin_family = AF_INET;
-	server.sin_port = htons(webserver_port);
-
-	if (connect(sd, (struct sockaddr *) &server, sizeof(server)) < 0)
-	{
-		syslog(LOGGING_LEVEL, "    FAIL: connect - Failed to connect to %s.\n", webserver_ip);
-        return(-1);
-	}
-    else
-    {
-        syslog(LOGGING_LEVEL, "    PASS: connect - Connected to %s.\n", webserver_ip);
-    }
-
-    struct sockaddr addr;
-    socklen_t addrlen = sizeof(addr);
-    if (getpeername(sd, &addr, &addrlen) < 0)
-    {
-		syslog(LOGGING_LEVEL, "    FAIL: getpeername - Failed.\n");
-        return(-1);
-    }
-    else
-    {
-        struct sockaddr_in *sin = (struct sockaddr_in *) &addr;
-        if ((sin->sin_addr.s_addr == inet_addr(webserver_ip)) && (sin->sin_port == htons(webserver_port)))
-        {
-            syslog(LOGGING_LEVEL, "    PASS: getpeername - Socket address details are correct.\n");
-        }
-        else
-        {
-            syslog(LOGGING_LEVEL, "    FAIL: getpeername - Socket address details are incorrect.\n");
-            return(-1);
-        }
-    }
-
-    struct pollfd pollfds[] = { { sd, POLLIN | POLLOUT, 0} };
-    if (poll(pollfds, 1, 500) < 0)
-	{
-		syslog(LOGGING_LEVEL, "    FAIL: poll - Failed.\n");
-        return(-1);
-	}
-    else
-    {
-        if (pollfds[0].revents & POLLOUT)
-        {
-            syslog(LOGGING_LEVEL, "    PASS: poll - Socket ready for output.\n");
-        }
-        else
-        {
-            syslog(LOGGING_LEVEL, "    FAIL: poll - Socket is not ready for output.\n");
-            return(-1);
-        }
-    }
-
-    int buffer_length = 1024;
-    char buffer[buffer_length];
-    sprintf(buffer, "GET %s HTTP/1.1\r\n\r\n", page);
-	if (send(sd, buffer, strlen(buffer), 0) < 0)
-    {
-        syslog(LOGGING_LEVEL, "    FAIL: send - Failed to send GET request message.\n");
-        return(-1);
-    }
-    else
-    {
-        syslog(LOGGING_LEVEL, "    PASS: send - Sent GET request message.\n");
-    }
-
-    pollfds[0].fd = sd;
-    pollfds[0].events = POLLIN | POLLOUT;
-    pollfds[0].revents = 0;
-    if (poll(pollfds, 1, 500) < 0)
-	{
-		syslog(LOGGING_LEVEL, "    FAIL: poll - Failed.\n");
-        return(-1);
-	}
-    else
-    {
-        if (pollfds[0].revents & POLLIN)
-        {
-            syslog(LOGGING_LEVEL, "    PASS: poll - Socket ready for input.\n");
-        }
-        else
-        {
-            syslog(LOGGING_LEVEL, "    FAIL: poll - Socket is not ready for input.\n");
-            return(-1);
-        }
-    }
-
-    int bytes_read = recvfrom(sd, buffer, buffer_length, 0, NULL, 0);
-    if (bytes_read < 0)
-    {
-        syslog(LOGGING_LEVEL, "    FAIL: recvfrom - Failed to receive server reply.\n");
-        return(-1);
-    }
-    else
-    {
-        syslog(LOGGING_LEVEL, "    PASS: recvfrom - Received server reply (%d bytes).\n", bytes_read);
-    }
-
-    if (close(sd) < 0)
-    {
-        syslog(LOGGING_LEVEL, "    FAIL: close - Failed to close socket.\n");
-        return(-1);
-    }
-    else
-    {
-        syslog(LOGGING_LEVEL, "    PASS: close - Closed socket.\n");
-    }
-
-    usleep(DELAY);
-
-    GET_FINAL_HEAP_INFORMATION;
-    HEAP_USAGE_PASS_OR_FAIL;
-
-    return(0);
-}
-
-/****************************************************************************
- * Name: network_tests_get_large_file
+ * Name: network_tests_get_resource
  *
  * Description:
  *  Get a large file from a web server.
@@ -264,7 +96,7 @@ int network_tests_get_html_page(char *webserver_ip, int webserver_port, char *pa
  *  webserver_ip:webserver_port/resource
  *
  *  This method will retrieve the resource only, no validation is performed
- *  and all data is disposed of after the method calls to a recvfrom call.
+ *  and all data is disposed of after the method calls recvfrom.
  *
  * Input Parameters:
  *   webserver_ip - IP address of the web server.
@@ -275,15 +107,14 @@ int network_tests_get_html_page(char *webserver_ip, int webserver_port, char *pa
  *   0 on success, -1 on failure.
  *
  * Assumptions/Limitations:
- *  Assumes that WiFi is started and the test web server is accessible.
+ *  1 - The network (Ethernet / WiFi etc.) is available and the test web 
+ *      server is accessible.
+ *  2 - The caller will validate heap usage.
  *
  ****************************************************************************/
-int network_tests_get_large_file(char *webserver_ip, int webserver_port, char *resource)
+int network_tests_get_resource(char *webserver_ip, int webserver_port, char *resource)
 {
     syslog(LOGGING_LEVEL, "********** Getting a large file, URL: http://%s:%d/%s.\n", webserver_ip, webserver_port, resource);
-
-    ALLOCATE_HEAP_STRUCTURES;
-    GET_INITIAL_HEAP_INFORMATION;
 
     int sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sd < 0)
@@ -413,9 +244,6 @@ int network_tests_get_large_file(char *webserver_ip, int webserver_port, char *r
 
     usleep(DELAY);
 
-    GET_FINAL_HEAP_INFORMATION;
-    HEAP_USAGE_PASS_OR_FAIL;
-
     return(0);
 }
 
@@ -451,7 +279,7 @@ int network_test_get_multiple_web_pages(int number_of_requests, char *webserver_
 
     for (int index = 0; index < number_of_requests; index++)
     {
-        if (network_tests_get_html_page(webserver_ip, webserver_port, page) < 0)
+        if (network_tests_get_resource(webserver_ip, webserver_port, page) < 0)
         {
             result = -1;
             break;
@@ -503,7 +331,7 @@ int network_test_get_multiple_large_files(int number_of_requests, char *webserve
     //
     //  Get the file once to make sure that the server is active and any caching has been completed.
     //
-    if (network_tests_get_large_file(webserver_ip, webserver_port, resource) < 0)
+    if (network_tests_get_resource(webserver_ip, webserver_port, resource) < 0)
     {
         result = -1;
     }
@@ -514,7 +342,7 @@ int network_test_get_multiple_large_files(int number_of_requests, char *webserve
         //
         for (int index = 0; index < number_of_requests; index++)
         {
-            if (network_tests_get_large_file(webserver_ip, webserver_port, resource) < 0)
+            if (network_tests_get_resource(webserver_ip, webserver_port, resource) < 0)
             {
                 result = -1;
                 break;
@@ -530,7 +358,6 @@ int network_test_get_multiple_large_files(int number_of_requests, char *webserve
     return(result);
 }
 
-#define BUFFER_SIZE 4096
 /**
  * @brief Run a network performance test.
  *
@@ -705,3 +532,5 @@ int network_test_misc_network_functions(void)
 
     return(0);
 }
+
+#endif /* CONFIG_ESP_TESTS */
