@@ -118,7 +118,7 @@ static meadow_test_methods_t _kernelTests[] =
 
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
     { MEADOW_TEST_ALL_ESP32, meadow_kt_espcp_tests },
-    { MEADOW_TEST_ESP_WEB_PAGE_LOAD_TEST, meadow_kt_espcp_load_test_web_page },
+    { MEADOW_TEST_ESP_WEB_PAGE_LOAD_TEST, meadow_kt_espcp_test_get_web_resource },
 #endif
 
 

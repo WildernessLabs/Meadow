@@ -39,9 +39,8 @@
 
 #include <stdint.h>
 
-void meadow_kt_espcp_tests(uint32_t);
-void meadow_kt_espcp_load_test_web_page(uint32_t);
-void meadow_kt_espcp_load_test_large_file_download(uint32_t);
+void meadow_kt_espcp_tests(uint32_t arg);
+void meadow_kt_espcp_test_get_web_resource(uint32_t arg);
 
 void meadow_kt_ethernet_tests(uint32_t);
 void meadow_kt_ethernet_load_test_web_page(uint32_t);

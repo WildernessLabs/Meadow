@@ -156,8 +156,7 @@ static meadow_test_names_t _testNames[] =
     //
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
     { MEADOW_TEST_ALL_ESP32, "All ESP32 tests" },
-    { MEADOW_TEST_ESP_WEB_PAGE_LOAD_TEST, "ESP32 Load Test using simple web page" },
-    { MEADOW_TEST_ESP_BINARY_FILE_LOAD_TEST, "ESP32 Load Test using a binary file" },
+    { MEADOW_TEST_ESP_WEB_PAGE_LOAD_TEST, "ESP32 get web resource n times (use -v <count> to specify number of iterations, default = 1)" },
 #endif
 
     //
@@ -165,8 +164,7 @@ static meadow_test_names_t _testNames[] =
     //
 #if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
     { MEADOW_TEST_ETHERNET, "All ethernet tests" },
-    { MEADOW_TEST_ETHERNET_WEB_PAGE_LOAD_TEST, "Ethernet Load Test using a simple web page" },
-    { MEADOW_TEST_ETHERNET_BINARY_FILE_LOAD_TEST, "Ethernet Load Test using a binary file" },
+    { MEADOW_TEST_ETHERNET_WEB_PAGE_LOAD_TEST, "Ethernet get web resource n times (use -v <count> to specify number of iterations, default = 1)" },
 #endif
 
     //

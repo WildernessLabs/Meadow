@@ -185,11 +185,6 @@
 #define MEADOW_TEST_ESP_WEB_PAGE_LOAD_TEST          1001
 
 /**
- * @brief ESP32 binary file load test ID.
- */
-#define MEADOW_TEST_ESP_BINARY_FILE_LOAD_TEST       1002
-
-/**
  * @brief Ethernet (all tests) test ID.
  */
 #define MEADOW_TEST_ETHERNET                        1200
@@ -198,11 +193,6 @@
  * @brief Ethernet web page load test ID.
  */
 #define MEADOW_TEST_ETHERNET_WEB_PAGE_LOAD_TEST     1201
-
-/**
- * @brief Ethernet binary file load test ID.
- */
-#define MEADOW_TEST_ETHERNET_BINARY_FILE_LOAD_TEST  1202
 
 /**
  * @brief BG77 (all tests) test ID.
