@@ -38,7 +38,7 @@
  ****************************************************************************/
 #include <nuttx/config.h>
 
-#if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -73,7 +73,7 @@
 //
 //  Size of the buffer used to send / receive data to / from the server.
 //
-#define BUFFER_SIZE 4096
+#define BUFFER_SIZE     4096
 
 /****************************************************************************
  * Private variables and associated macros.
@@ -268,7 +268,7 @@ int network_tests_get_resource(char *webserver_ip, int webserver_port, char *res
  *  in the file secrets.h.
  *
  ****************************************************************************/
-int network_test_get_multiple_web_pages(int number_of_requests, char *webserver_ip, int webserver_port, char *page)
+int network_test_get_multiple_web_pages(int number_of_requests, char *webserver_ip, uint16_t webserver_port, char *page)
 {
     int result = OK;
 
@@ -313,7 +313,7 @@ int network_test_get_multiple_web_pages(int number_of_requests, char *webserver_
  *  Assumes that WiFi is started and the test web server is accessible.
  *
  ****************************************************************************/
-int network_test_get_multiple_large_files(int number_of_requests, char *webserver_ip, int webserver_port, char *resource)
+int network_test_get_multiple_large_files(int number_of_requests, char *webserver_ip, uint16_t webserver_port, char *resource)
 {
     int result = OK;
 
@@ -365,7 +365,7 @@ int network_test_get_multiple_large_files(int number_of_requests, char *webserve
  *
  * @return int OK if successful, ERROR if there is a problem.
  */
-int network_test_performance(char *webserver_ip, int webserver_port)
+int network_test_performance(char *webserver_ip, uint16_t webserver_port, char *resource)
 {
     syslog(LOGGING_LEVEL, "********** Testing network performance.\n");
 

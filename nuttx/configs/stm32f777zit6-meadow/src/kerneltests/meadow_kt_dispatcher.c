@@ -44,6 +44,7 @@
 
 #include <meadow/meadow_unit_test_framework.h>
 #include <meadow/meadow_kernel_tests.h>
+#include "../hcom_nx/hcom_nx_config_manager.h"
 
 /****************************************************************************
  * Local defines.
@@ -66,6 +67,9 @@
  * Private Data
  ****************************************************************************/
 
+ /**
+  * @brief Kernel test methods array.
+  */
 static meadow_test_methods_t _kernelTests[] =
 {
 #if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
@@ -115,7 +119,6 @@ static meadow_test_methods_t _kernelTests[] =
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
     { MEADOW_TEST_ALL_ESP32, meadow_kt_espcp_tests },
     { MEADOW_TEST_ESP_WEB_PAGE_LOAD_TEST, meadow_kt_espcp_load_test_web_page },
-    { MEADOW_TEST_ESP_BINARY_FILE_LOAD_TEST, meadow_kt_espcp_load_test_large_file_download },
 #endif
 
 
@@ -129,6 +132,11 @@ static meadow_test_methods_t _kernelTests[] =
     { MEADOW_TEST_BG77, meadow_kt_ethernet_tests },
 #endif
 };
+
+/**
+ * @brief Pointer to the network test configuration structure.
+ */
+network_tests_configuration_t *network_tests_configuration = NULL;
 
 /****************************************************************************
  * Name: meadow_kt_dispatcher
@@ -164,6 +172,7 @@ int meadow_kt_dispatcher(uint32_t param, uint32_t value)
         {
             if (_kernelTests[index].testId == param)
             {
+                network_tests_configuration = process_network_test_configuration_file();
                 _kernelTests[index].testMethod(value);
                 result = OK;
                 break;

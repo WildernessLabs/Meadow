@@ -38,6 +38,8 @@
  ****************************************************************************/
 #include <nuttx/config.h>
 
+#if defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -67,16 +69,7 @@
  * Local defines.
  ****************************************************************************/
 
-#if defined(CONFIG_BG77_TESTS)
 #include "secrets.h"
-#else
-#define WIFI_NETWORK                "Dummy, do not use"
-#define WIFI_PASSWORD               "Use contents of secrets.h"
-#define SIMPLE_WEB_SERVER_NAME      "pi4-ubuntu-001"
-#define SIMPLE_WEB_PAGE             "/"
-#define WEB_SERVER_IP_ADDRESS       "127.0.0.1"
-#define WEB_SERVER_PORT             80
-#endif
 
 //
 //  Default logging level for this file.
@@ -117,3 +110,5 @@ void meadow_kt_bg77_tests(uint32_t arg)
 
     syslog(LOGGING_LEVEL, "BG77 tests completed.\n");
 }
+
+#endif // CONFIG_BG77_TESTS

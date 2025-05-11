@@ -38,6 +38,8 @@
  ****************************************************************************/
 #include <nuttx/config.h>
 
+#if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -67,18 +69,12 @@
  * Local defines.
  ****************************************************************************/
 
-#if defined(CONFIG_ETHERNET_TESTS)
-#include "secrets.h"
-#else
-#define WIFI_NETWORK                "Dummy, do not use"
-#define WIFI_PASSWORD               "Use contents of secrets.h"
 #define SIMPLE_WEB_SERVER_NAME      "pi4-ubuntu-001"
 #define SIMPLE_WEB_PAGE             "/"
 #define BINARY_RESOURCE_NAME        "/binaryfile/"
 #define WEB_SERVER_IP_ADDRESS       "127.0.0.1"
 #define WEB_SERVER_PORT             80
 #define LARGE_TEST_FILE1            "LargeFile1.html"
-#endif
 
 //
 //  Default logging level for this file.
@@ -160,3 +156,5 @@ void meadow_kt_ethernet_tests(uint32_t arg)
 
     syslog(LOGGING_LEVEL, "Ethernet tests completed.\n");
 }
+
+#endif /* CONFIG_ETHERNET_TESTS */
