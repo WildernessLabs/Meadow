@@ -1265,7 +1265,7 @@ void espcp_test_wait_for_esp_to_be_ready(void)
 }
 
 /****************************************************************************
- * Name: meadow_kt_espcp_load_test_web_page
+ * Name: meadow_kt_espcp_test_get_web_resource
  *
  * Description:
  *  Load test downloading a simple web page.
@@ -1280,46 +1280,22 @@ void espcp_test_wait_for_esp_to_be_ready(void)
  *   None
  *
  ****************************************************************************/
-void meadow_kt_espcp_load_test_web_page(uint32_t arg)
+void meadow_kt_espcp_test_get_web_resource(uint32_t arg)
 {
-    syslog(LOGGING_LEVEL, "Testing the download of multiple web pages\n");
+    syslog(LOGGING_LEVEL, "Testing the download web resources\n");
 
     espcp_test_wait_for_esp_to_be_ready();
     
     espcp_test_start_wifi();
 
-    network_test_get_multiple_web_pages(arg, network_tests_configuration->server_ip, network_tests_configuration->server_port, network_tests_configuration->resource);
+    if (arg == 0)
+    {
+        arg = 1;
+    }
 
-    syslog(LOGGING_LEVEL, "Download of multiple web pages test completed.\n");
-}
+    network_test_get_web_resource(arg, network_tests_configuration->server_ip, network_tests_configuration->server_port, network_tests_configuration->resource);
 
-/****************************************************************************
- * Name: meadow_kt_espcp_network_performance_test
- *
- * Description:
- *  Run the netowrk performance tests.
- *
- * Input Parameters:
- *   arg - Argument passed to kernel test via CLI
- *
- * Returned Value:
- *   None
- *
- * Assumptions/Limitations:
- *   None
- *
- ****************************************************************************/
-void meadow_kt_espcp_network_performance_test(uint32_t arg)
-{
-    syslog(LOGGING_LEVEL, "Testing the network performance\n");
-
-    espcp_test_wait_for_esp_to_be_ready();
-    
-    espcp_test_start_wifi();
-
-    network_test_performance(network_tests_configuration->server_ip, network_tests_configuration->server_port, network_tests_configuration->resource);
-
-    syslog(LOGGING_LEVEL, "Network performance test completed.\n");
+    syslog(LOGGING_LEVEL, "Download of multiple web resources completed.\n");
 }
 
 /****************************************************************************
@@ -1358,14 +1334,12 @@ void meadow_kt_espcp_tests(uint32_t arg)
 
     espcp_test_start_wifi();
 
-    network_test_performance(network_tests_configuration->server_ip, network_tests_configuration->server_port, network_tests_configuration->resource);
-
     //
     //  We can start some actual network tests now we are connected to an 
     //  access point.
     //
     espcp_test_misc_network_functions();
-    network_test_get_multiple_web_pages(1, network_tests_configuration->server_ip, network_tests_configuration->server_port, network_tests_configuration->resource);
+    network_test_get_web_resource(arg, network_tests_configuration->server_ip, network_tests_configuration->server_port, network_tests_configuration->resource);
 
     syslog(LOGGING_LEVEL, "ESP32 tests completed.\n");
 }
