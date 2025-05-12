@@ -215,7 +215,7 @@ int network_test_get_resource(in_addr_t address, in_port_t port, char *request)
     }
 
     int bytes_read = 0;
-    const int amount_to_read = 1024;
+    const int amount_to_read = BUFFER_SIZE;
     int total_bytes = 0;
     do 
     {
