@@ -75,9 +75,54 @@
 //
 #define BUFFER_SIZE     4096
 
+/**
+ * @brief Time out for any poll requests.
+ */
+const int POLL_TIMEOUT = 500;
+
 /****************************************************************************
  * Private variables and associated macros.
  ****************************************************************************/
+
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: network_test_wait_for_poll_event
+ *
+ * Description:
+ *  Poll the specified socket for the specified events.  Repeat the poll
+ *  until the event is received or the number of attempts is exceeded.
+ *
+ * Input Parameters:
+ *   sd - Socket descriptor to poll.
+ *   events - Events to poll for.
+ *   attempts - Number of attempts to make.
+ *
+ * Returned Value:
+ *   0 on success, -1 on failure.
+ *
+ * Assumptions/Limitations:
+ *   None.
+ *
+ ****************************************************************************/
+static int network_test_wait_for_poll_event(int sd, int events, int attempts)
+{
+    struct pollfd pollfds[] = { { sd, events, 0} };
+    uint32_t attempt = 0;
+    while ((poll(pollfds, 1, 500) < 0) || ((pollfds[0].revents & events) == 0))
+    {
+        if (attempt > 10)
+        {
+            return(-1);
+        }
+        usleep(10000);
+        attempt++;
+    }
+
+    return(pollfds[0].revents & events ? 0 : -1);
+}   
 
 /****************************************************************************
  * Public Functions
@@ -114,17 +159,11 @@
  ****************************************************************************/
 int network_test_get_web_resource(uint32_t number_of_requests, char *webserver_ip, uint16_t webserver_port, char *resource)
 {
-    syslog(LOGGING_LEVEL, "********** Getting a large file, URL: http://%s:%d/%s.\n", webserver_ip, webserver_port, resource);
-
     int sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sd < 0)
     {
         syslog(LOGGING_LEVEL, "    FAIL: socket - Failed to create socket.\n");
         return(-1);
-    }
-    else
-    {
-        syslog(LOGGING_LEVEL, "    PASS: socket - Created socket.\n");
     }
 
     struct sockaddr_in server;
@@ -137,10 +176,6 @@ int network_test_get_web_resource(uint32_t number_of_requests, char *webserver_i
 		syslog(LOGGING_LEVEL, "    FAIL: connect - Failed to connect to %s.\n", webserver_ip);
         return(-1);
 	}
-    else
-    {
-        syslog(LOGGING_LEVEL, "    PASS: connect - Connected to %s.\n", webserver_ip);
-    }
 
     struct sockaddr addr;
     socklen_t addrlen = sizeof(addr);
@@ -152,34 +187,17 @@ int network_test_get_web_resource(uint32_t number_of_requests, char *webserver_i
     else
     {
         struct sockaddr_in *sin = (struct sockaddr_in *) &addr;
-        if ((sin->sin_addr.s_addr == inet_addr(webserver_ip)) && (sin->sin_port == htons(webserver_port)))
-        {
-            syslog(LOGGING_LEVEL, "    PASS: getpeername - Socket address details are correct.\n");
-        }
-        else
+        if (!((sin->sin_addr.s_addr == inet_addr(webserver_ip)) && (sin->sin_port == htons(webserver_port))))
         {
             syslog(LOGGING_LEVEL, "    FAIL: getpeername - Socket address details are incorrect.\n");
             return(-1);
         }
     }
 
-    struct pollfd pollfds[] = { { sd, POLLIN | POLLOUT, 0} };
-    if (poll(pollfds, 1, 500) < 0)
-	{
-		syslog(LOGGING_LEVEL, "    FAIL: poll - Failed.\n");
-        return(-1);
-	}
-    else
+    if (network_test_wait_for_poll_event(sd, POLLOUT, 10) < 0)
     {
-        if (pollfds[0].revents & POLLOUT)
-        {
-            syslog(LOGGING_LEVEL, "    PASS: poll - Socket ready for output.\n");
-        }
-        else
-        {
-            syslog(LOGGING_LEVEL, "    FAIL: poll - Socket is not ready for output.\n");
-            return(-1);
-        }
+        syslog(LOGGING_LEVEL, "    FAIL: poll - Socket is not ready for output.\n");
+        return(-1);
     }
 
     int buffer_length = 1024;
@@ -190,49 +208,15 @@ int network_test_get_web_resource(uint32_t number_of_requests, char *webserver_i
         syslog(LOGGING_LEVEL, "    FAIL: send - Failed to send GET request message.\n");
         return(-1);
     }
-    else
-    {
-        syslog(LOGGING_LEVEL, "    PASS: send - Sent GET request message.\n");
-    }
 
-    pollfds[0].fd = sd;
-    pollfds[0].events = POLLIN | POLLOUT;
-    pollfds[0].revents = 0;
-    uint32_t attempt = 0;
-    poll(pollfds, 1, 500);
-    while ((pollfds[0].revents & POLLIN) == 0)
-    {
-        if (attempt > 10)
-        {
-            syslog(LOGGING_LEVEL, "    FAIL: poll - Socket is not ready for input.\n");
-            return(-1);
-        }
-        usleep(10000);
-        attempt++;
-        poll(pollfds, 1, 500);
-    }
-    {
-        if (attempt > 10)
-        {
-            syslog(LOGGING_LEVEL, "    FAIL: poll - Socket is not ready for input.\n");
-            return(-1);
-        }
-        usleep(10000);
-        attempt++;
-        poll(pollfds, 1, 500);
-    }
-    if (pollfds[0].revents & POLLIN)
-    {
-        syslog(LOGGING_LEVEL, "    PASS: poll - Socket ready for input.\n");
-    }
-    else
+    if (network_test_wait_for_poll_event(sd, POLLIN, 10) < 0)
     {
         syslog(LOGGING_LEVEL, "    FAIL: poll - Socket is not ready for input.\n");
         return(-1);
     }
 
     int bytes_read = 1;             // Force the system to make on attempt.
-    attempt = 0;
+    int attempt = 0;
     while (bytes_read >= 0)
     {
         bytes_read = recvfrom(sd, buffer, buffer_length, 0, NULL, 0);
@@ -252,12 +236,6 @@ int network_test_get_web_resource(uint32_t number_of_requests, char *webserver_i
         syslog(LOGGING_LEVEL, "    FAIL: close - Failed to close socket.\n");
         return(-1);
     }
-    else
-    {
-        syslog(LOGGING_LEVEL, "    PASS: close - Closed socket.\n");
-    }
-
-    usleep(DELAY);
 
     return(0);
 }
