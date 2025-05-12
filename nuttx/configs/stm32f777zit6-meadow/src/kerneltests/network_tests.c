@@ -86,7 +86,7 @@
 #pragma GCC diagnostic ignored "-Wunused-function"
 
 /****************************************************************************
- * Name: network_tests_get_resource
+ * Name: network_test_get_web_resource
  *
  * Description:
  *  Get a large file from a web server.
@@ -112,7 +112,7 @@
  *  2 - The caller will validate heap usage.
  *
  ****************************************************************************/
-int network_tests_get_resource(char *webserver_ip, int webserver_port, char *resource)
+int network_test_get_web_resource(uint32_t number_of_requests, char *webserver_ip, uint16_t webserver_port, char *resource)
 {
     syslog(LOGGING_LEVEL, "********** Getting a large file, URL: http://%s:%d/%s.\n", webserver_ip, webserver_port, resource);
 
@@ -198,26 +198,41 @@ int network_tests_get_resource(char *webserver_ip, int webserver_port, char *res
     pollfds[0].fd = sd;
     pollfds[0].events = POLLIN | POLLOUT;
     pollfds[0].revents = 0;
-    if (poll(pollfds, 1, 500) < 0)
-	{
-		syslog(LOGGING_LEVEL, "    FAIL: poll - Failed.\n");
-        return(-1);
-	}
-    else
+    uint32_t attempt = 0;
+    poll(pollfds, 1, 500);
+    while ((pollfds[0].revents & POLLIN) == 0)
     {
-        if (pollfds[0].revents & POLLIN)
-        {
-            syslog(LOGGING_LEVEL, "    PASS: poll - Socket ready for input.\n");
-        }
-        else
+        if (attempt > 10)
         {
             syslog(LOGGING_LEVEL, "    FAIL: poll - Socket is not ready for input.\n");
             return(-1);
         }
+        usleep(10000);
+        attempt++;
+        poll(pollfds, 1, 500);
+    }
+    {
+        if (attempt > 10)
+        {
+            syslog(LOGGING_LEVEL, "    FAIL: poll - Socket is not ready for input.\n");
+            return(-1);
+        }
+        usleep(10000);
+        attempt++;
+        poll(pollfds, 1, 500);
+    }
+    if (pollfds[0].revents & POLLIN)
+    {
+        syslog(LOGGING_LEVEL, "    PASS: poll - Socket ready for input.\n");
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: poll - Socket is not ready for input.\n");
+        return(-1);
     }
 
     int bytes_read = 1;             // Force the system to make on attempt.
-    int attempt = 0;
+    attempt = 0;
     while (bytes_read >= 0)
     {
         bytes_read = recvfrom(sd, buffer, buffer_length, 0, NULL, 0);
@@ -279,7 +294,7 @@ int network_test_get_multiple_web_pages(int number_of_requests, char *webserver_
 
     for (int index = 0; index < number_of_requests; index++)
     {
-        if (network_tests_get_resource(webserver_ip, webserver_port, page) < 0)
+        if (network_test_get_web_resource(number_of_requests, webserver_ip, webserver_port, page) < 0)
         {
             result = -1;
             break;
@@ -331,7 +346,7 @@ int network_test_get_multiple_large_files(int number_of_requests, char *webserve
     //
     //  Get the file once to make sure that the server is active and any caching has been completed.
     //
-    if (network_tests_get_resource(webserver_ip, webserver_port, resource) < 0)
+    if (network_test_get_web_resource(number_of_requests, webserver_ip, webserver_port, resource) < 0)
     {
         result = -1;
     }
@@ -342,7 +357,7 @@ int network_test_get_multiple_large_files(int number_of_requests, char *webserve
         //
         for (int index = 0; index < number_of_requests; index++)
         {
-            if (network_tests_get_resource(webserver_ip, webserver_port, resource) < 0)
+            if (network_test_get_web_resource(number_of_requests, webserver_ip, webserver_port, resource) < 0)
             {
                 result = -1;
                 break;
