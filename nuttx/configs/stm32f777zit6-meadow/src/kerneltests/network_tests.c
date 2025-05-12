@@ -57,6 +57,12 @@
 #include "../espcp/espcp_test_heap_tracing.h"
 
 /****************************************************************************
+ * Compiler directives.
+ ****************************************************************************/
+
+ #pragma GCC diagnostic ignored "-Wunused-function"
+
+/****************************************************************************
  * Local defines.
  ****************************************************************************/
 
@@ -81,8 +87,13 @@
 const int POLL_TIMEOUT = 500;
 
 /****************************************************************************
- * Private variables and associated macros.
+ * Private variables.
  ****************************************************************************/
+
+ /**
+  * @brief Buffer to hold the data received from the server.
+  */
+ static uint8_t _read_buffer[BUFFER_SIZE];
 
 /****************************************************************************
  * Private Functions
@@ -128,7 +139,104 @@ static int network_test_wait_for_poll_event(int sd, int events, int attempts)
  * Public Functions
  ****************************************************************************/
 
-#pragma GCC diagnostic ignored "-Wunused-function"
+/****************************************************************************
+ * Name: network_test_get_resource
+ *
+ * Description:
+ *   Get a resource from a server.
+ *
+ * Input Parameters:
+ *   address - IP address of the server.
+ *   port - Port number on the server.
+ *   request - Request to be sent to the server.
+ *
+ * Returned Value:
+ *   0 on success, -1 on failure.
+ *
+ * Assumptions/Limitations:
+ *  1 - The network (Ethernet / WiFi etc.) is available and the test web 
+ *      server is accessible.
+ *  2 - The caller will validate heap usage.
+ *
+ ****************************************************************************/
+int network_test_get_resource(in_addr_t address, in_port_t port, char *request)
+{
+    int sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sd < 0)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: socket - Failed to create socket.\n");
+        return(-1);
+    }
+
+    struct sockaddr_in server;
+    server.sin_addr.s_addr = address;
+    server.sin_family = AF_INET;
+    server.sin_port = port;
+
+	if (connect(sd, (struct sockaddr *) &server, sizeof(server)) < 0)
+	{
+		syslog(LOGGING_LEVEL, "    FAIL: connect - Failed to connect server.\n");
+        return(-1);
+	}
+
+    struct sockaddr addr;
+    socklen_t addrlen = sizeof(addr);
+    if (getpeername(sd, &addr, &addrlen) < 0)
+    {
+		syslog(LOGGING_LEVEL, "    FAIL: getpeername - Failed.\n");
+        return(-1);
+    }
+    else
+    {
+        struct sockaddr_in *sin = (struct sockaddr_in *) &addr;
+        if (!((sin->sin_addr.s_addr == address)) && (sin->sin_port == port))
+        {
+            syslog(LOGGING_LEVEL, "    FAIL: getpeername - Socket address details are incorrect.\n");
+            return(-1);
+        }
+    }
+
+    if (network_test_wait_for_poll_event(sd, POLLOUT, 10) < 0)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: poll - Socket is not ready for output.\n");
+        return(-1);
+    }
+
+	if (send(sd, request, strlen(request), 0) < 0)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: send - Failed to send GET request message.\n");
+        return(-1);
+    }
+
+    if (network_test_wait_for_poll_event(sd, POLLIN, 10) < 0)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: poll - Socket is not ready for input.\n");
+        return(-1);
+    }
+
+    int bytes_read = 0;
+    const int amount_to_read = 1024;
+    int total_bytes = 0;
+    do 
+    {
+        bytes_read = recvfrom(sd, _read_buffer, amount_to_read, 0, NULL, 0);
+        if (bytes_read < 0)
+        {
+            syslog(LOGGING_LEVEL, "    FAIL: recvfrom - Failed to receive server reply.\n");
+            return(-1);
+        }
+        total_bytes += bytes_read;
+    }
+    while (bytes_read > 0);
+
+    if (close(sd) < 0)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: close - Failed to close socket.\n");
+        return(-1);
+    }
+
+    return(total_bytes);
+}
 
 /****************************************************************************
  * Name: network_test_get_web_resource
@@ -159,83 +267,32 @@ static int network_test_wait_for_poll_event(int sd, int events, int attempts)
  ****************************************************************************/
 int network_test_get_web_resource(uint32_t number_of_requests, char *webserver_ip, uint16_t webserver_port, char *resource)
 {
-    int sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (sd < 0)
-    {
-        syslog(LOGGING_LEVEL, "    FAIL: socket - Failed to create socket.\n");
-        return(-1);
-    }
+    syslog(LOGGING_LEVEL, "********** Getting %s from %s, %u request(%s\n", resource, webserver_ip, number_of_requests, number_of_requests == 1 ? "s" : "s");
 
-    struct sockaddr_in server;
-    server.sin_addr.s_addr = inet_addr(webserver_ip);
-	server.sin_family = AF_INET;
-	server.sin_port = htons(webserver_port);
+    in_addr_t address = inet_addr(webserver_ip);
+    in_port_t port = htons(webserver_port);
 
-	if (connect(sd, (struct sockaddr *) &server, sizeof(server)) < 0)
-	{
-		syslog(LOGGING_LEVEL, "    FAIL: connect - Failed to connect to %s.\n", webserver_ip);
-        return(-1);
-	}
+    char buffer[100];
+    snprintf(buffer, 100, "GET /%s HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n", resource, webserver_ip);
 
-    struct sockaddr addr;
-    socklen_t addrlen = sizeof(addr);
-    if (getpeername(sd, &addr, &addrlen) < 0)
+    time_t start;
+    time(&start);
+    uint32_t total_bytes = 0;
+    for (uint32_t index = 0; index < number_of_requests; index++)
     {
-		syslog(LOGGING_LEVEL, "    FAIL: getpeername - Failed.\n");
-        return(-1);
-    }
-    else
-    {
-        struct sockaddr_in *sin = (struct sockaddr_in *) &addr;
-        if (!((sin->sin_addr.s_addr == inet_addr(webserver_ip)) && (sin->sin_port == htons(webserver_port))))
+        int result = network_test_get_resource(address, port, buffer);
+        if (result < 0)
         {
-            syslog(LOGGING_LEVEL, "    FAIL: getpeername - Socket address details are incorrect.\n");
+            syslog(LOGGING_LEVEL, "    FAIL: network_test_get_resource - Failed to get resource.\n");
             return(-1);
         }
+        total_bytes += result;
     }
+    time_t end;
+    time(&end);
+    double seconds = difftime(end, start);
 
-    if (network_test_wait_for_poll_event(sd, POLLOUT, 10) < 0)
-    {
-        syslog(LOGGING_LEVEL, "    FAIL: poll - Socket is not ready for output.\n");
-        return(-1);
-    }
-
-    int buffer_length = 1024;
-    char buffer[buffer_length];
-    sprintf(buffer, "GET /%s HTTP/1.1\r\n\r\n", resource);
-	if (send(sd, buffer, strlen(buffer), 0) < 0)
-    {
-        syslog(LOGGING_LEVEL, "    FAIL: send - Failed to send GET request message.\n");
-        return(-1);
-    }
-
-    if (network_test_wait_for_poll_event(sd, POLLIN, 10) < 0)
-    {
-        syslog(LOGGING_LEVEL, "    FAIL: poll - Socket is not ready for input.\n");
-        return(-1);
-    }
-
-    int bytes_read = 1;             // Force the system to make on attempt.
-    int attempt = 0;
-    while (bytes_read >= 0)
-    {
-        bytes_read = recvfrom(sd, buffer, buffer_length, 0, NULL, 0);
-        if ((attempt == 0) && (bytes_read < 0))
-        {
-            syslog(LOGGING_LEVEL, "    FAIL: recvfrom - Failed to receive server reply.\n");
-            return(-1);
-        }
-        else
-        {
-            attempt++;
-        }
-    }
-
-    if (close(sd) < 0)
-    {
-        syslog(LOGGING_LEVEL, "    FAIL: close - Failed to close socket.\n");
-        return(-1);
-    }
+    syslog(LOGGING_LEVEL, "    PASS: Downloaded %d bytes in %.2f seconds, %.2f KBytes per second\n", total_bytes, seconds, (total_bytes / seconds) / 1024);
 
     return(0);
 }
