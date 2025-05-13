@@ -357,15 +357,12 @@ void hcom_developer_tests_developer(uint16_t param, uint32_t value)
             case TEST_ERR_OK:
                 snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Test %u completed successfully.\n", param);
                 break;
-
             case TEST_ERR_NOT_FOUND:
                 snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Test %u cannot be found.  Check that the test has been compiled into the system.\n", param);
                 break;
-
             case TEST_ERR_INVALID_CONFIG:
                 snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Invalid configuration file.\n");
                 break;
-
             default:
                 snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Unknown error.\n");
                 break;
