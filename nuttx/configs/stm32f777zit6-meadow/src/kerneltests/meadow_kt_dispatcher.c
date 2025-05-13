@@ -121,11 +121,9 @@ static meadow_test_methods_t _kernelTests[] =
     { MEADOW_TEST_ESP_WEB_PAGE_LOAD_TEST, meadow_kt_espcp_test_get_web_resource },
 #endif
 
-
-#if (defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)) && (MEADOW_INCLUDE_ETHERNET_CHAT_TESTS_IN_BUILD > 0)
+#if (defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS))
     { MEADOW_TEST_ETHERNET, meadow_kt_ethernet_tests },
-    { MEADOW_TEST_ETHERNET_WEB_PAGE_LOAD_TEST, meadow_kt_ethernet_load_test_web_page },
-    { MEADOW_TEST_ETHERNET_BINARY_FILE_LOAD_TEST, meadow_kt_ethernet_load_test_large_file_download },
+    { MEADOW_TEST_ETHERNET_WEB_PAGE_LOAD_TEST, meadow_kt_ethernet_get_web_resource },
 #endif
 
 #if defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
@@ -155,7 +153,9 @@ network_tests_configuration_t *network_tests_configuration = NULL;
  *          used by the test method.
  *
  * Returned Value:
- *  OK if the test was found, ERROR if the test could not be located.
+ *  TEST_ERR_OK: Test found and executed.
+ *  TEST_ERR_NOT_FOUND: Test not found.
+ *  TEST_ERR_INVALID_CONFIG: Invalid configuration file.
  *
  * Assumptions/Limitations:
  *  None.
@@ -163,7 +163,7 @@ network_tests_configuration_t *network_tests_configuration = NULL;
  ****************************************************************************/
 int meadow_kt_dispatcher(uint32_t param, uint32_t value)
 {
-    int result = ERROR;
+    int result = TEST_ERR_NOT_FOUND;
 
     syslog(LOGGING_LEVEL, "Checking for kernel test param: %u - value: %lu\n", param, value);
     if (sizeof(_kernelTests) > 0)
@@ -173,8 +173,13 @@ int meadow_kt_dispatcher(uint32_t param, uint32_t value)
             if (_kernelTests[index].testId == param)
             {
                 network_tests_configuration = process_network_test_configuration_file();
+                if (network_tests_configuration == NULL)
+                {
+                    syslog(LOGGING_LEVEL, "Failed to load network test configuration file.\n");
+                    return(TEST_ERR_INVALID_CONFIG);
+                }
                 _kernelTests[index].testMethod(value);
-                result = OK;
+                result = TEST_ERR_OK;
                 break;
             }
         }

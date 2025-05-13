@@ -3390,6 +3390,7 @@ network_tests_configuration_t *process_network_test_configuration_file(void)
             else
             {
                 syslog(LOG_INFO, "Invalid network test configuration file.\n");
+                meadow_logging_write(mfl_error, "Invalid network test configuration file.\n");
             }
         }
 
@@ -3397,14 +3398,10 @@ network_tests_configuration_t *process_network_test_configuration_file(void)
     }
     else
     {
-        if (err == CYAML_ERR_INVALID_VALUE)
-        {
-            syslog(LOG_INFO, "Network test configuration file could not be processed.\n");
-        }
-        else
-        {
-            meadow_logging_write(mfl_info, "Network test configuration file not found.\n");
-        }
+        char message[100];
+        snprintf(message, sizeof(message), "Network test configuration file could not be processed. Error: %d\n", err);
+        syslog(LOG_INFO, message);
+        meadow_logging_write(mfl_error, message);
     }
 
     return(network_test_configuration);
