@@ -63,13 +63,13 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include "../hcom_nx/hcom_nx_config_manager.h"
+
 #include "network_tests.h"
 
 /****************************************************************************
  * Local defines.
  ****************************************************************************/
-
-#include "secrets.h"
 
 //
 //  Default logging level for this file.
@@ -106,7 +106,7 @@ void meadow_kt_bg77_tests(uint32_t arg)
     // {
     //     arg = 1;
     // }
-    // network_test_get_multiple_web_pages(arg, WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT);
+    // network_test_get_web_resource(arg, network_tests_configuration->server_ip, network_tests_configuration->server_port, network_tests_configuration->resource);
 
     syslog(LOGGING_LEVEL, "BG77 tests completed.\n");
 }
