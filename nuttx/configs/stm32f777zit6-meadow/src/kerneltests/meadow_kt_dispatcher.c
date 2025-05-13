@@ -137,6 +137,10 @@ static meadow_test_methods_t _kernelTests[] =
 network_tests_configuration_t *network_tests_configuration = NULL;
 
 /****************************************************************************
+ * Public functions.
+ ****************************************************************************/
+
+/****************************************************************************
  * Name: meadow_kt_dispatcher
  *
  * Description:
