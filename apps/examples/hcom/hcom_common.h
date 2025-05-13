@@ -433,6 +433,7 @@ void diag_misc_tests_snprintf_on_nuttx(uint32_t userData);
 void hcom_meadow_sqlite_tests(uint32_t userData);
 void hcom_meadow_diag_gpio_tests(uint32_t userData);
 void meadow_dir_mgmt_tests(uint32_t userData);
+void cell_script_tests(uint32_t userData);
 
 void diag_misc_tests_overload_mcu(uint32_t userData);
 void diag_ethernet_chat_server(uint32_t userData);
