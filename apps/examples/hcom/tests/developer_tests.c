@@ -131,7 +131,7 @@ static meadow_test_names_t _testNames[] =
     { MEADOW_TEST_SPI_DMA, "SPI DMA tests" },
 #endif
 
-#if defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#if (defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)) && (MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER > 0)
     { MEADOW_TEST_ROTARY_ENCODER, "Rotary Encoder tests" },
 #endif
 
@@ -245,7 +245,9 @@ static meadow_test_methods_t _userspaceTests[] =
  *          used by the test method.
  *
  * Returned Value:
- *  OK if the test was found, ERROR if the test could not be located.
+ *  TEST_ERR_OK: Test found and executed.
+ *  TEST_ERR_NOT_FOUND: Test not found.
+ *  TEST_ERR_INVALID_CONFIG: Invalid configuration file.
  *
  * Assumptions/Limitations:
  *  None.
@@ -253,7 +255,7 @@ static meadow_test_methods_t _userspaceTests[] =
  ****************************************************************************/
 static int hcom_developer_tests_userspace_dispatcher(uint16_t param, uint32_t value)
 {
-    int result = ERROR;
+    int result = TEST_ERR_NOT_FOUND;
 
     syslog(LOGGING_LEVEL, "Checking for userspace test param: %u - value: %lu\n", param, value);
     if (sizeof(_userspaceTests) > 0)
@@ -263,7 +265,7 @@ static int hcom_developer_tests_userspace_dispatcher(uint16_t param, uint32_t va
             if (_userspaceTests[index].testId == param)
             {
                 _userspaceTests[index].testMethod(value);
-                result = OK;
+                result = TEST_ERR_OK;
                 break;
             }
         }
@@ -304,7 +306,6 @@ static int hcom_developer_tests_userspace_dispatcher(uint16_t param, uint32_t va
  ****************************************************************************/
 void hcom_developer_tests_developer(uint16_t param, uint32_t value)
 {
-    bool found = false;
     char *hostMsg = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
 
     if (hostMsg == NULL)
@@ -342,22 +343,32 @@ void hcom_developer_tests_developer(uint16_t param, uint32_t value)
                 break;
             }
         }
-        found = hcom_developer_tests_userspace_dispatcher(param, value) == OK;
+        int result = hcom_developer_tests_userspace_dispatcher(param, value);
 
         #if defined(CONFIG_KERNEL_TESTS_SYSCALL)
-        if (!found)
+        if (result == TEST_ERR_NOT_FOUND)
         {
-            found = meadow_kt_dispatcher((uint32_t) param, value) == OK;
+            result = meadow_kt_dispatcher((uint32_t) param, value);
         }
         #endif
 
-        if (found)
+        switch (result)
         {
-            snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Complete.\n");
-        }
-        else
-        {
-            snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Test %u cannot be found.  Check that the test has been compiled into the system.\n", param);
+            case TEST_ERR_OK:
+                snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Test %u completed successfully.\n", param);
+                break;
+
+            case TEST_ERR_NOT_FOUND:
+                snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Test %u cannot be found.  Check that the test has been compiled into the system.\n", param);
+                break;
+
+            case TEST_ERR_INVALID_CONFIG:
+                snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Invalid configuration file.\n");
+                break;
+
+            default:
+                snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Unknown error.\n");
+                break;
         }
         hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, __FILE__, __LINE__);
     }
