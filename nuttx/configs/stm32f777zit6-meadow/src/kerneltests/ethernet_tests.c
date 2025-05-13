@@ -70,7 +70,7 @@
  *   None
  *
  ****************************************************************************/
-void meadow_kt_ethernet_load_test_web_page(uint32_t arg)
+void meadow_kt_ethernet_get_web_resource(uint32_t arg)
 {
     syslog(LOGGING_LEVEL, "Testing the download of multiple web pages\n");
 
