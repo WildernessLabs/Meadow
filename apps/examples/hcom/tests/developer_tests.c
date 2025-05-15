@@ -149,6 +149,7 @@ static meadow_test_names_t _testNames[] =
     { MEADOW_TEST_BBD_REGISTER, "Battery Backed Domain register tests" },
     { MEADOW_TEST_BBD_WRITE_AFTER_RESET, "Battery Backed Domain write and reset test" },
     { MEADOW_TEST_READ_AFTER_RESET, "Battery Backed Domain read after reset test" },
+    { MEADOW_TEST_CLI_TIMEOUT, "CLI timeout test" },
 #endif
 
     //
@@ -221,6 +222,7 @@ static meadow_test_methods_t _userspaceTests[] =
     { MEADOW_TEST_BBD_REGISTER, meadow_bbd_write_read_test },
     { MEADOW_TEST_BBD_WRITE_AFTER_RESET, meadow_bbd_write_and_reset_test },
     { MEADOW_TEST_READ_AFTER_RESET, meadow_bbd_read_after_reset_test },
+    { MEADOW_TEST_CLI_TIMEOUT, meadow_os_cli_timeout_test },
 #endif
 };
 
@@ -367,7 +369,7 @@ void hcom_developer_tests_developer(uint16_t param, uint32_t value)
                 snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Unknown error.\n");
                 break;
         }
-        hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, __FILE__, __LINE__);
+        // hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, __FILE__, __LINE__);
     }
 
     free(hostMsg);

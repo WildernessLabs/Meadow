@@ -140,11 +140,6 @@
 #define MEADOW_TEST_FREQUENCY_MEASUREMENT           19
 
 /**
- * @brief Meadow OS test ID.
- */
-#define MEADOW_TEST_MEADOW_OS                      900
-
-/**
  * @brief User space assert test ID.
  */
 #define MEADOW_TEST_USER_SPACE_ASSERT               900
@@ -173,6 +168,12 @@
  * @brief Battery backed domain read after reset test ID.
  */
 #define MEADOW_TEST_READ_AFTER_RESET                905
+
+/**
+ * @brief CLI timeout test ID.
+ */
+#define MEADOW_TEST_CLI_TIMEOUT                     906
+
 
 /**
  * @brief ESP32 (all tests) test ID.
@@ -217,6 +218,11 @@
  * @brief TEST_ERR_INVALID_CONFIG
  */
 #define TEST_ERR_INVALID_CONFIG                     2
+
+/**
+ * @brief TEST_ERR_FAILED
+ */
+#define TEST_ERR_FAILED                             3
 
 /****************************************************************************
  * Private types
