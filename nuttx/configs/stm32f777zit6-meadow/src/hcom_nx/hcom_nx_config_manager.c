@@ -1908,7 +1908,7 @@ static meadow_configuration_t *hcom_nx_config_process_meadow_config_file(void)
         meadow_configuration = (meadow_configuration_t *) kmm_zalloc(sizeof(meadow_configuration_t));
         if (meadow_configuration != NULL)
         {
-        	yaml_configuration_t *configuration;
+        	yaml_configuration_t *configuration = NULL;
 
             cyaml_err_t err = cyaml_load_file(MEADOW_CONFIG_DEFAULT_FILE_NAME, &cyaml_config, &configuration_schema, (void **) &configuration, NULL);
             if ((err != CYAML_OK) || (configuration == NULL))
@@ -2765,7 +2765,7 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
  ****************************************************************************/
 void hcom_nx_config_process_wifi_credentials_file(void)
 {
-    yaml_wifi_credentials_t *credentials;
+    yaml_wifi_credentials_t *credentials = NULL;
 
     cyaml_err_t err = cyaml_load_file(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME, &cyaml_config, &wifi_credentials_schema, (void **)&credentials, NULL);
     if (err == CYAML_OK)
@@ -3399,7 +3399,7 @@ network_tests_configuration_t *process_network_test_configuration_file(void)
     else
     {
         char message[100];
-        snprintf(message, sizeof(message), "Network test configuration file could not be processed. Error: %d\n", err);
+        snprintf(message, sizeof(message), "Network test configuration file could not be processed. Error: %s\n", cyaml_strerror(err));
         syslog(LOG_INFO, message);
         meadow_logging_write(mfl_error, message);
     }
