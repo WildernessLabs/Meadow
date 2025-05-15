@@ -25,8 +25,8 @@
  * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
  * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
@@ -133,7 +133,57 @@ static int network_test_wait_for_poll_event(int sd, int events, int attempts)
     }
 
     return(pollfds[0].revents & events ? 0 : -1);
-}   
+}
+
+/****************************************************************************
+ * Name: network_test_number_with_commas
+ *
+ * Description:
+ *   Generate a string that has the number provided formatted with commas in
+ *   the correct place for thousands etc.abort
+ *
+ *   e.g.
+ *       4096 becomes 4,096
+ *
+ * Input Parameters:
+ *   number - Number to be formatted.
+ *
+ * Returned Value:
+ *   Pointer to a buffer holding the formatted number, NULL indicates failure.
+ *
+ * Assumptions/Limitations:
+ *   It is the responsibility of the caller to dispose of the memory holding
+ *   the number by calling free.
+ *
+ ****************************************************************************/
+char *network_test_number_with_commas(uint32_t number)
+{
+    uint32_t buffer_size = 14;              // 10 digits, plus 3 commas (max) + terminator.
+    char *buffer = malloc(buffer_size);
+
+    if (buffer == NULL)
+    {
+        return NULL;
+    }
+
+    size_t len = snprintf(buffer, buffer_size, "%u", number);
+
+    if (len <= 3)
+    {
+        return buffer;
+    }
+
+    int commas = (len - 1) / 3;
+    char *p = buffer + len;
+    for (int index = 0; index < commas; index++)
+    {
+        p -= 3;
+        memmove(p + 1, p, strlen(p) + 1);
+        *p = ',';
+    }
+
+    return buffer;
+}
 
 /****************************************************************************
  * Public Functions
@@ -154,7 +204,7 @@ static int network_test_wait_for_poll_event(int sd, int events, int attempts)
  *   0 on success, -1 on failure.
  *
  * Assumptions/Limitations:
- *  1 - The network (Ethernet / WiFi etc.) is available and the test web 
+ *  1 - The network (Ethernet / WiFi etc.) is available and the test web
  *      server is accessible.
  *  2 - The caller will validate heap usage.
  *
@@ -217,7 +267,7 @@ int network_test_get_resource(in_addr_t address, in_port_t port, char *request)
     int bytes_read = 0;
     const int amount_to_read = BUFFER_SIZE;
     int total_bytes = 0;
-    do 
+    do
     {
         bytes_read = recvfrom(sd, _read_buffer, amount_to_read, 0, NULL, 0);
         if (bytes_read < 0)
@@ -260,14 +310,19 @@ int network_test_get_resource(in_addr_t address, in_port_t port, char *request)
  *   0 on success, -1 on failure.
  *
  * Assumptions/Limitations:
- *  1 - The network (Ethernet / WiFi etc.) is available and the test web 
+ *  1 - The network (Ethernet / WiFi etc.) is available and the test web
  *      server is accessible.
  *  2 - The caller will validate heap usage.
  *
  ****************************************************************************/
 int network_test_get_web_resource(uint32_t number_of_requests, char *webserver_ip, uint16_t webserver_port, char *resource)
 {
-    syslog(LOGGING_LEVEL, "********** Getting %s from %s, %u request(%s\n", resource, webserver_ip, number_of_requests, number_of_requests == 1 ? "s" : "s");
+    if (number_of_requests == 0)
+    {
+        number_of_requests = 1;
+    }
+
+    syslog(LOGGING_LEVEL, "********** Getting %s from %s, %u request%s\n", resource, webserver_ip, number_of_requests, number_of_requests == 1 ? "" : "s");
 
     in_addr_t address = inet_addr(webserver_ip);
     in_port_t port = htons(webserver_port);
@@ -292,7 +347,22 @@ int network_test_get_web_resource(uint32_t number_of_requests, char *webserver_i
     time(&end);
     double seconds = difftime(end, start);
 
-    syslog(LOGGING_LEVEL, "    PASS: Downloaded %d bytes in %.2f seconds, %.2f KBytes per second\n", total_bytes, seconds, (total_bytes / seconds) / 1024);
+    if (seconds == 0)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: network_test_get_resource - Time taken is 0.\n");
+        return(-1);
+    }
+
+    char *formatted_number = network_test_number_with_commas(total_bytes);
+    if (formatted_number != NULL)
+    {
+        syslog(LOGGING_LEVEL, "    PASS: Downloaded %s bytes in %.2f seconds, %.2f KBytes per second\n", formatted_number, seconds, (total_bytes / seconds) / 1024);
+        free(formatted_number);
+    }
+    else
+    {
+        syslog(LOGGING_LEVEL, "    PASS: Downloaded %d bytes in %.2f seconds, %.2f KBytes per second\n", total_bytes, seconds, (total_bytes / seconds) / 1024);
+    }
 
     return(0);
 }
