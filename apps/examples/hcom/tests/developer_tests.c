@@ -149,7 +149,7 @@ static meadow_test_names_t _testNames[] =
     { MEADOW_TEST_BBD_REGISTER, "Battery Backed Domain register tests" },
     { MEADOW_TEST_BBD_WRITE_AFTER_RESET, "Battery Backed Domain write and reset test" },
     { MEADOW_TEST_READ_AFTER_RESET, "Battery Backed Domain read after reset test" },
-    { MEADOW_TEST_CLI_TIMEOUT, "CLI timeout test" },
+    { MEADOW_TEST_CLI_TIMEOUT, "CLI timeout test (use -v <seconds> to specify period between initial and final responses (default = 60 seconds)" },
 #endif
 
     //
