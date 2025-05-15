@@ -14,7 +14,26 @@ E.g.
 
 The build script should be checked for values for the test types.
 
-The tests can be verified using the command `meadow developer`, this will list all of the tests built into the system.
+The tests can be verified using the command `meadow developer`, this will list all of the tests built into the system.  Note that `meadow developer -p 0` is equivalent to `meadow developer`.  Typical output is:
+
+```
+Setting developer parameter 0 to 0
+Available tests:
+    1 - sprintf_chk tests
+    2 - GPIO tests
+    3 - NuttX SQLLite tests
+    4 - MCU Overload tests
+    5 - Chat client tests
+    6 - Battery backed register tests
+    7 - SD card tests
+    8 - Power management tests
+    9 - ISO8601 tests
+    10 - Quick and Misc tests
+    11 - Tensorflow tests
+.
+.
+.
+```
 
 ## Running the Tests
 
