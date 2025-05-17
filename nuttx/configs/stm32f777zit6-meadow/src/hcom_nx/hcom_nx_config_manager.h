@@ -44,7 +44,7 @@
  ****************************************************************************/
 
 //
-//  These defintions are determined by the ESP32.
+//  These definitions are determined by the ESP32.
 //
 #define MAXIMUM_SSID_LENGTH 32
 #define MAXIMUM_PASSWORD_LENGTH 64
@@ -60,6 +60,37 @@
 #define MAXIMUM_TURN_ON_PIN_LENGTH 8
 #define MAXIMUM_USER_LENGTH 64
 #define MAXIMUM_MODE_LENGTH 32
+
+/**
+ * @brief Name of the network test configuration file.
+ */
+#define NETWORK_TEST_CONFIGURATION_FILE_NAME "/meadow0/network_test.config.yaml"
+
+/****************************************************************************
+ * Public Types
+ ****************************************************************************/
+
+/**
+ * @brief Structure for network tests configuration.
+ */
+struct network_tests_configuration_s
+{
+    char *ssid;
+    char *password;
+    char *server_ip;
+    uint16_t server_port;
+    char *resource;
+};
+typedef struct network_tests_configuration_s network_tests_configuration_t;
+
+/****************************************************************************
+* Public Data
+****************************************************************************/
+
+/**
+ * @brief Pointer to the network test configuration structure.
+ */
+extern network_tests_configuration_t *network_tests_configuration;
 
 /****************************************************************************
  * Enums.
@@ -123,4 +154,6 @@ void hcom_nx_config_add_dns_address_into_file(uint32_t);
 void hcom_nx_config_update_network_interface(meadow_configuration_t *, uint32_t, uint32_t, uint32_t);
 void hcom_nx_config_update_dns_address(meadow_configuration_t *, uint32_t);
 void hcom_nx_config_clear_network_interface(meadow_configuration_t *);
+network_tests_configuration_t *process_network_test_configuration_file(void);
+
 #endif // __CONFIGS_MEADOW_SRC_HCOM_NX_CONFIG_MANAGER__H

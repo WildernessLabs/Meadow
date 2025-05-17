@@ -1,0 +1,6 @@
+TestParameters:
+    SSID: MeadowTest
+    Password: MeadowTest
+    ServerIP: 192.168.1.68
+    ServerPort: 80
+    Resource: LargeFile1.html

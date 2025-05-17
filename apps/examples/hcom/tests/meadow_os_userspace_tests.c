@@ -111,4 +111,49 @@ void meadow_os_userspace_board_reset_test(uint32_t userdata)
     meadow_os_reset_board(0);
 }
 
+/****************************************************************************
+ * Name: meadow_os_cli_timeout_test
+ *
+ * Description:
+ *  Provide a way to test the CLI timeout parameter.
+ *
+ * Input Parameters:
+ *  userdata - Value passed to the test from the meadow command line.
+ *             See: -v / --value parameter in meadow command line.
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+void meadow_os_cli_timeout_test(uint32_t userdata)
+{
+    char *hostMsg = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
+
+    if (hostMsg == NULL)
+    {
+        syslog(1, "Developer tests: failed to allocate memory for hostMsg\n");
+        return;
+    }
+
+    if (userdata == 0)
+    {
+        userdata = 60;
+    }
+
+    snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "CLI timeout test, sleeping for %lu seconds\n", userdata);
+    syslog(1, "%s", hostMsg);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, __FILE__, __LINE__);
+
+    sleep(userdata);
+
+    snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Back from sleep.\n");
+    syslog(1, "%s", hostMsg);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, __FILE__, __LINE__);
+
+    free(hostMsg);
+}
+
 #endif /* CONFIG_MEADOW_OS_TESTS */

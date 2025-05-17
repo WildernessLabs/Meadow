@@ -131,7 +131,7 @@ static meadow_test_names_t _testNames[] =
     { MEADOW_TEST_SPI_DMA, "SPI DMA tests" },
 #endif
 
-#if defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#if (defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)) && (MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER > 0)
     { MEADOW_TEST_ROTARY_ENCODER, "Rotary Encoder tests" },
 #endif
 
@@ -153,6 +153,7 @@ static meadow_test_names_t _testNames[] =
     { MEADOW_TEST_BBD_REGISTER, "Battery Backed Domain register tests" },
     { MEADOW_TEST_BBD_WRITE_AFTER_RESET, "Battery Backed Domain write and reset test" },
     { MEADOW_TEST_READ_AFTER_RESET, "Battery Backed Domain read after reset test" },
+    { MEADOW_TEST_CLI_TIMEOUT, "CLI timeout test (use -v <seconds> to specify period between initial and final responses, default = 60 seconds)" },
 #endif
 
     //
@@ -160,8 +161,7 @@ static meadow_test_names_t _testNames[] =
     //
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
     { MEADOW_TEST_ALL_ESP32, "All ESP32 tests" },
-    { MEADOW_TEST_ESP_WEB_PAGE_LOAD_TEST, "ESP32 Load Test using simple web page" },
-    { MEADOW_TEST_ESP_BINARY_FILE_LOAD_TEST, "ESP32 Load Test using a binary file" },
+    { MEADOW_TEST_ESP_WEB_PAGE_LOAD_TEST, "ESP32 get web resource n times (use -v <count> to specify number of iterations, default = 1)" },
 #endif
 
     //
@@ -169,8 +169,7 @@ static meadow_test_names_t _testNames[] =
     //
 #if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
     { MEADOW_TEST_ETHERNET, "All ethernet tests" },
-    { MEADOW_TEST_ETHERNET_WEB_PAGE_LOAD_TEST, "Ethernet Load Test using a simple web page" },
-    { MEADOW_TEST_ETHERNET_BINARY_FILE_LOAD_TEST, "Ethernet Load Test using a binary file" },
+    { MEADOW_TEST_ETHERNET_WEB_PAGE_LOAD_TEST, "Ethernet get web resource n times (use -v <count> to specify number of iterations, default = 1)" },
 #endif
 
     //
@@ -227,6 +226,7 @@ static meadow_test_methods_t _userspaceTests[] =
     { MEADOW_TEST_BBD_REGISTER, meadow_bbd_write_read_test },
     { MEADOW_TEST_BBD_WRITE_AFTER_RESET, meadow_bbd_write_and_reset_test },
     { MEADOW_TEST_READ_AFTER_RESET, meadow_bbd_read_after_reset_test },
+    { MEADOW_TEST_CLI_TIMEOUT, meadow_os_cli_timeout_test },
 #endif
 };
 
@@ -251,7 +251,9 @@ static meadow_test_methods_t _userspaceTests[] =
  *          used by the test method.
  *
  * Returned Value:
- *  OK if the test was found, ERROR if the test could not be located.
+ *  TEST_ERR_OK: Test found and executed.
+ *  TEST_ERR_NOT_FOUND: Test not found.
+ *  TEST_ERR_INVALID_CONFIG: Invalid configuration file.
  *
  * Assumptions/Limitations:
  *  None.
@@ -259,7 +261,7 @@ static meadow_test_methods_t _userspaceTests[] =
  ****************************************************************************/
 static int hcom_developer_tests_userspace_dispatcher(uint16_t param, uint32_t value)
 {
-    int result = ERROR;
+    int result = TEST_ERR_NOT_FOUND;
 
     syslog(LOGGING_LEVEL, "Checking for userspace test param: %u - value: %lu\n", param, value);
     if (sizeof(_userspaceTests) > 0)
@@ -269,7 +271,7 @@ static int hcom_developer_tests_userspace_dispatcher(uint16_t param, uint32_t va
             if (_userspaceTests[index].testId == param)
             {
                 _userspaceTests[index].testMethod(value);
-                result = OK;
+                result = TEST_ERR_OK;
                 break;
             }
         }
@@ -310,7 +312,6 @@ static int hcom_developer_tests_userspace_dispatcher(uint16_t param, uint32_t va
  ****************************************************************************/
 void hcom_developer_tests_developer(uint16_t param, uint32_t value)
 {
-    bool found = false;
     char *hostMsg = malloc(HCOM_LARGE_HOST_STRING_BUFF_LENGTH);
 
     if (hostMsg == NULL)
@@ -348,24 +349,31 @@ void hcom_developer_tests_developer(uint16_t param, uint32_t value)
                 break;
             }
         }
-        found = hcom_developer_tests_userspace_dispatcher(param, value) == OK;
+        int result = hcom_developer_tests_userspace_dispatcher(param, value);
 
         #if defined(CONFIG_KERNEL_TESTS_SYSCALL)
-        if (!found)
+        if (result == TEST_ERR_NOT_FOUND)
         {
-            found = meadow_kt_dispatcher((uint32_t) param, value) == OK;
+            result = meadow_kt_dispatcher((uint32_t) param, value);
         }
         #endif
 
-        if (found)
+        switch (result)
         {
-            snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Complete.\n");
+            case TEST_ERR_OK:
+                snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Test %u completed successfully.\n", param);
+                break;
+            case TEST_ERR_NOT_FOUND:
+                snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Test %u cannot be found.  Check that the test has been compiled into the system.\n", param);
+                break;
+            case TEST_ERR_INVALID_CONFIG:
+                snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Invalid configuration file.\n");
+                break;
+            default:
+                snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Unknown error.\n");
+                break;
         }
-        else
-        {
-            snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Test %u cannot be found.  Check that the test has been compiled into the system.\n", param);
-        }
-        hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, __FILE__, __LINE__);
+        // hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, __FILE__, __LINE__);
     }
 
     free(hostMsg);
