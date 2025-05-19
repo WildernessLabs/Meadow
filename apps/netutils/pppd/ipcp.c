@@ -49,6 +49,7 @@
 #include "netutils/pppd.h"
 #include "ahdlc.h"
 #include "../../examples/hcom/hcom_common.h"
+#include <meadow/meadow_os.h>
 
 /****************************************************************************
  * Pre-processor Definitions

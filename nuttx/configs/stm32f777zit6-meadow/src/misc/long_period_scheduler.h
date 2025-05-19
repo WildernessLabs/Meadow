@@ -73,3 +73,4 @@ typedef uint32_t (*lps_handler_t)(void);
 
 int lps_add_handler(lps_handler_t, uint32_t);
 void lps_remove_handler(lps_handler_t);
+int lps_start(void);

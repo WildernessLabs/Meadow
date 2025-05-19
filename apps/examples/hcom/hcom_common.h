@@ -451,6 +451,10 @@ void meadow_os_cli_timeout_test(uint32_t userdata);
 // for those cases when the caller doesn't supply any additional arguments.
 #define snprintf_chk(Buf, Len, Fmt, ...) hcom_common_utils_snprintf_chk(Buf, Len, __FILE__, __LINE__, Fmt, ##__VA_ARGS__ )
 
+// Networking related functions.
+void hcom_common_utils_erase_dns_resolver_file(void);
+void hcom_common_utils_add_servers_to_dns_resolver_file(char **servers, uint32_t server_count);
+
 //------------------------------------------------
 #endif // __ASSEMBLY__
 

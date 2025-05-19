@@ -145,5 +145,3 @@ int hcom_nx_route_in_bound_cli_command(struct hcom_nx_cmd_data *cmdData)
   }
   return -1;
 }
-
-

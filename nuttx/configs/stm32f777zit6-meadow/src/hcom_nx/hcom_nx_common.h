@@ -153,6 +153,8 @@ extern "C"
 
   // HCOM command handling
   int hcom_nx_route_in_bound_cli_command(struct hcom_nx_cmd_data *cmdData);
+  int hcom_nx_exec_profiler_do_not_send_to_uart1(struct hcom_nx_cmd_data *cmdData);
+  int hcom_nx_exec_profiler_forward_to_uart1(struct hcom_nx_cmd_data *cmdData);
 
   // External flash
   int hcom_nx_exec_ex_flash_setup(FAR struct mtd_dev_s *mtd);

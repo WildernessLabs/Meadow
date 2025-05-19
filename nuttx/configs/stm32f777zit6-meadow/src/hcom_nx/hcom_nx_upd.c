@@ -135,7 +135,7 @@ int hcom_upd_nx_read(FAR struct file *filep, FAR char *buffer, size_t buflen)
 // is set to -1
 static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 {
-  int ret;
+  int ret = -1;
   struct hcom_nx_upd_register_value *register_val;
   struct hcom_nx_upd_register_update *register_update;
   struct hcom_nx_upd_bbr_value *bbr_val;
