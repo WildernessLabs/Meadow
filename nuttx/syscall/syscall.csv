@@ -52,7 +52,7 @@
 "meadow_adc_read_values","meadow/meadow_syscall_support.h","defined (CONFIG_STM32F7_DMA2)","int"
 "meadow_adc_read_temp_vbat","meadow/meadow_syscall_support.h","defined (CONFIG_STM32F7_DMA2)","int","double *","double *"
 "meadow_cloud_provision","meadow/meadow_cloud.h","defined(CONFIG_MEADOW_CLOUD)","int","FAR const char *","int","FAR const char *","int","FAR void*"
-"meadow_cloud_release_private_key","meadow/meadow_cloud.h","defined(CONFIG_MEADOW_CLOUD)","int","FAR const char **"
+"meadow_cloud_release_private_key","meadow/meadow_cloud.h","defined(CONFIG_MEADOW_CLOUD)","int","char ** const"
 "meadow_cloud_retrieve_private_key","meadow/meadow_cloud.h","defined(CONFIG_MEADOW_CLOUD)","int","FAR const char **","int*"
 "meadow_idle_monitor_get_value","meadow/hcom_misc_diag.h","defined(CONFIG_ARCH_IDLE_CUSTOM)","int"
 "meadow_kt_dispatcher","meadow/meadow_kt_dispatcher.h","defined(CONFIG_KERNEL_TESTS_SYSCALL)","int","uint32_t","uint32_t"
