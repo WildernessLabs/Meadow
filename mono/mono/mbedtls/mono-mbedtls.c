@@ -3396,7 +3396,7 @@ int mono_mbedtls_init (void)
     }
 
 #if defined(__NuttX__)
-    meadow_client_cert_release_credentials((const char**) &client_cert_retrieved, (const char**) &private_key_retrieved, (const char**) &private_key_pass_retrieved);
+    meadow_client_cert_release_credentials((char ** const) &client_cert_retrieved, (char ** const) &private_key_retrieved, (char ** const) &private_key_pass_retrieved);
 #endif
 
     if( ( ret = mbedtls_ssl_config_defaults( &conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT ) ) != 0 )
@@ -3449,7 +3449,7 @@ int mono_mbedtls_init (void)
             g_free (clicert);
         }
 #if defined(__NuttX__)
-        meadow_client_cert_release_credentials((const char**) &client_cert_retrieved, (const char**) &private_key_retrieved, (const char**) &private_key_pass_retrieved);
+        meadow_client_cert_release_credentials((char ** const) &client_cert_retrieved, (char ** const) &private_key_retrieved, (char ** const) &private_key_pass_retrieved);
 #endif
         return ret;
 }
