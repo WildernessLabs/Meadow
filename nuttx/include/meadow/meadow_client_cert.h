@@ -64,7 +64,7 @@ static const int PASSWORD_SIZE = 512;
  ****************************************************************************/
 
 int meadow_client_cert_retrieve_credentials(FAR const char **client_cert_buf_ptr, int *client_cert_buf_len, FAR const char **private_key_buf_ptr, int *private_key_buf_len, FAR const char **private_key_pass_buf_ptr, int *private_key_pass_buf_len);
-int meadow_client_cert_release_credentials(FAR const char **client_cert_buf_ptr, FAR const char **private_key_buf_ptr, FAR const char **private_key_pass_buf_ptr);
+int meadow_client_cert_release_credentials(char ** const client_cert_buf_ptr, char ** const private_key_buf_ptr, char ** const private_key_pass_buf_ptr);
 int meadow_client_cert_initialize(void);
 
 #endif // __MEADOW_CLIENT_CERT_H__
