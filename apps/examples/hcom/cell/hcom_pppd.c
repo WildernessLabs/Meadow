@@ -505,7 +505,7 @@ static void *hcom_pppd_event_thread(void *arg)
 
   while(true)
   {
-    ret = meadow_os_get_cell_script(&chat_script);
+    ret = meadow_os_exe_cell_cmd(&chat_script);
     if (ret == OK)
     {
       strncpy(hcom_cell_handler.script, chat_script, CONNECT_SCRIPT_MAX_SIZE);

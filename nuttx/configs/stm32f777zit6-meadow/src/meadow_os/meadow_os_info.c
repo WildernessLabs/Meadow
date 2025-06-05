@@ -334,7 +334,7 @@ int meadow_os_get_gateway_address(char *buffer)
 }
 
 /****************************************************************************
- * Name: meadow_os_get_cell_script
+ * Name: meadow_os_exe_cell_cmd
  *
  * Description:
  *  Get the script to run on the cell.
@@ -349,7 +349,7 @@ int meadow_os_get_gateway_address(char *buffer)
  *  None
  *
  ****************************************************************************/
-int meadow_os_get_cell_script(char *script)
+int meadow_os_exe_cell_cmd(char *script)
 {
     int ret = ERROR;
     if (script != NULL)

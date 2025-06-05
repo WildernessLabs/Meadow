@@ -432,7 +432,7 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
   SYSCALL_LOOKUP(meadow_os_reset_board,                   1, STUB_meadow_os_reset_board)
   SYSCALL_LOOKUP(meadow_os_coprocessor_deep_sleep,        0, STUB_meadow_os_coprocessor_deep_sleep)
   SYSCALL_LOOKUP(meadow_os_get_gateway_address,           1, STUB_meadow_os_get_gateway_address)
-  SYSCALL_LOOKUP(meadow_os_get_cell_script,               1, STUB_meadow_os_get_cell_script)
+  SYSCALL_LOOKUP(meadow_os_exe_cell_cmd,               1, STUB_meadow_os_exe_cell_cmd)
 
 #endif
 

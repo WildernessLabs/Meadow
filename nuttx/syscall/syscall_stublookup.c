@@ -437,7 +437,7 @@ void STUB_meadow_os_espcp_reset(int nbr);
 uintptr_t STUB_meadow_os_espcp_enter_programming_mode(int nbr);
 void STUB_meadow_os_espcp_monitor_process_line(int nbr, uintptr_t parm1);
 int STUB_meadow_os_get_gateway_address(unsigned int nbr, uintptr_t parm1);
-int STUB_meadow_os_get_cell_script(unsigned int nbr, uintptr_t parm1);
+int STUB_meadow_os_exe_cell_cmd(unsigned int nbr, uintptr_t parm1);
 void STUB_meadow_os_bbd_clear_sram(int nbr);
 uintptr_t  STUB_meadow_os_bbd_register_clear_bits(int nbr, uintptr_t parm1, uintptr_t parm2);
 uintptr_t  STUB_meadow_os_bbd_register_get_value(int nbr, uintptr_t parm1, uintptr_t parm2);
