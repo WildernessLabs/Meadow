@@ -887,7 +887,7 @@ int meadow_measure_freq_configure(mdwFreqCfgTimer_t *mdwCfgTimerChan)
   //           ((portAndPin) >> 4) + 'A', portAndPin & 0x0f, inputGpioConfig);
   // // Diagnostic
 
-  // Valid GPIO so configure input for channel.
+  // Valided GPIO so, configure input for channel.
   ret = stm32_configgpio(inputGpioConfig);
   if(ret < 0)
   {
@@ -1274,13 +1274,15 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *returnData)
   // Verify that provided timer and channel are valid
   if(returnData->timerNumber > 14 || returnData->timerNumber < 1)
   {
-    syslog(LOG_ERR, "%s@%d-Timer must be 1 - 14\n", __FILE__, __LINE__);
+    syslog(LOG_ERR, "%s@%d-Timer must be 1 - 14, was:%lu\n",
+      __FILE__, __LINE__, returnData->timerNumber);
     return MEADOW_MEAS_FREQ_READ_INVALID_TIMER_NUMB;
   }
 
   if(returnData->channelNumber > 4 || returnData->channelNumber < 1)
   {
-    syslog(LOG_ERR, "%s@%d-Channel must be 1 - 4\n", __FILE__, __LINE__);
+    syslog(LOG_ERR, "%s@%d-Channel must be 1 - 4, was:%lu\n",
+      __FILE__, __LINE__, returnData->channelNumber);
     return MEADOW_MEAS_FREQ_READ_INVALID_CHANNEL_NUMB;
   }
 

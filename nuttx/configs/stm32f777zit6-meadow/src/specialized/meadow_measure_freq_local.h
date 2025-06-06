@@ -51,7 +51,7 @@
 // The clock speed can only be even multiples of the system clock.
 // See board.h for details.
 // #define MEADOW_FREQ_CLOCK_FREQ (96000000) // 96 MHz target frequency
-// For current application reduce clock speed
+// For current application reduce clock speed by 100x
 #define MEADOW_FREQ_CLOCK_FREQ (960000)       // 960kHz
 
 //=====================================================
@@ -61,10 +61,10 @@
 #define MEADOW_FREQ_16_BIT_OVERFLOW_COUNT  (65536)
 #define MEADOW_FREQ_32_BIT_OVERFLOW_COUNT  (4294967296)
 
-// To configure a GPIO as an input to a timer it, needs to contain the how it
-// will be used (input with pulldown), Pin and Port, the Timer defined
+// To configure a GPIO as an input to a timer it, needs to contain how it's
+// to be used (floating input), plus Pin and Port and the Timer defined
 // alternate function value plus the Nuttx GPIO_ALT value.
-#define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_PULLDOWN)
+#define MEADOW_TIMER_GPIO_CONST (GPIO_ALT | GPIO_INPUT | GPIO_FLOAT)
 
 //--------------------------------------------------------------------------
 // This structure contains runtime data

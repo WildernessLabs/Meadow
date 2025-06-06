@@ -103,6 +103,51 @@
 // }
 
 //===============================================================
+// Send syslog to CLI
+static void syslogToHost(int priority, FAR const IPTR char *fmt, ...)
+{
+  // syslog(1, "Entered syslogToHost()/n"); usleep(50 * 1000);
+
+  size_t maxStringLen = 256;
+  char * finalString = malloc(maxStringLen);
+  uint16_t requestType;
+  
+  switch (priority)
+  {
+  case LOG_INFO:
+    requestType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
+    break;
+  
+  case LOG_ERR:
+    requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
+    break;
+    
+  default:
+    requestType = HCOM_HOST_REQUEST_TEXT_TRACE_MSG;
+    break;
+  }
+  
+  va_list args;
+  va_start(args, fmt);
+
+  // Create the complete message with prefix
+  // The Nuttx version of snprintf will truncate the string based on the
+  // buffer size but will always place a terminating NULL at the end.
+  int stringLen = vsnprintf(finalString, maxStringLen - 1, fmt, args);
+
+  syslog(1, "Sending message to host\n"); usleep(50 * 1000);
+  
+  hcom_nx_route_text_to_host(requestType, finalString, stringLen);
+
+  // Diagnostic - to see all text on syslog too
+  // syslog(priority, finalString);
+  va_end(args);
+  
+  syslog(1, "Exiting sending message to host\n"); usleep(50 * 1000);
+  free(finalString);
+}
+
+//===============================================================
 // Display the frequency information
 static void display_frequency_and_friends(
           mdwFreqReturnData_t mdwFreqReturnData, int ret)
@@ -286,6 +331,75 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
       display_frequency_and_friends(mdwFreqReturnData, ret);
       break;
 
+    //--------------------------------------------------------------
+    // Create - No Duty Cycle  '1'
+    // Issue #842 channel data 'ProjLab 3e'
+    case 1121:
+      // Timer 12 channel 1
+      mdwCfgTimerChan.timerNumber   = 12;
+      mdwCfgTimerChan.channelNumber = 1;
+      mdwCfgTimerChan.configOption  = 1;
+      mdwCfgTimerChan.portAndPin    = GPIO_TIM12_CH1IN_1;
+      ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
+      break;
+    case 1122:
+      // Timer 12 channel 2
+      mdwCfgTimerChan.timerNumber   = 12;
+      mdwCfgTimerChan.channelNumber = 2;
+      mdwCfgTimerChan.configOption  = 1;
+      mdwCfgTimerChan.portAndPin    = GPIO_TIM12_CH2IN_1;
+      ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
+      break;
+    case 1101:
+      // Timer 10 channel 1
+      mdwCfgTimerChan.timerNumber   = 10;
+      mdwCfgTimerChan.channelNumber = 1;
+      mdwCfgTimerChan.configOption  = 1;
+      mdwCfgTimerChan.portAndPin    = GPIO_TIM10_CH1IN_1;
+      ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
+      break;
+    case 1052:
+      // Timer 5 channel 2
+      mdwCfgTimerChan.timerNumber   = 5;
+      mdwCfgTimerChan.channelNumber = 2;
+      mdwCfgTimerChan.configOption  = 1;
+      mdwCfgTimerChan.portAndPin    = GPIO_TIM5_CH1IN_2;
+      ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
+      break;
+
+    //--------------------------------------------------------------
+    // Display
+    // Issue #842 channel data 'ProjLab 3e'
+    case 4121:
+      // Timer 12 channel 1
+      mdwFreqReturnData.timerNumber   = 12;
+      mdwFreqReturnData.channelNumber = 1;
+      ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
+      display_frequency_and_friends(mdwFreqReturnData, ret);
+      break;
+    case 4122:
+      // Timer 12 channel 2
+      mdwFreqReturnData.timerNumber   = 12;
+      mdwFreqReturnData.channelNumber = 2;
+      ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
+      display_frequency_and_friends(mdwFreqReturnData, ret);
+      break;
+    case 4101:
+      // Timer 10 channel 1
+      syslog(1, "4101 - \n");
+      mdwFreqReturnData.timerNumber   = 10;
+      mdwFreqReturnData.channelNumber = 1;
+      ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
+      display_frequency_and_friends(mdwFreqReturnData, ret);
+      break;
+    case 4052:
+      // Timer 5 channel 2
+      mdwFreqReturnData.timerNumber   = 5;
+      mdwFreqReturnData.channelNumber = 2;
+      ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
+      display_frequency_and_friends(mdwFreqReturnData, ret);
+      break;
+      
     default:
       syslog(2, "meadow_measure_freq_tests, no test:%lu\n", userData);
       break;

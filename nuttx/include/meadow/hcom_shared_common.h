@@ -615,12 +615,12 @@ struct meadow_configuration_s
   int trace_level;
 
   /**
-   *  @brief Should trace output be diverted to UART1?
+   *  @brief Should trace output be diverted to UART?
    */
   uint8_t use_uart1_for_trace;
 
   /**
-   *  @brief Should profiler output be diverted to UART1?
+   *  @brief Should profiler output be diverted to UART?
    */
   uint8_t use_uart1_for_profiling;
 
@@ -985,9 +985,14 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 // The following control diagnostics that can be added to the built
 //
 // When set to 1 the syslog mask is set for all tracing except for
-// debug. At startup syslog messages are routed to UART1 without
+// debug. At startup syslog messages are routed to UART without
 // the need for configuration or the CLI Uart Trace command.
-#define HCOM_FORCE_SYSLOG_MASK_AND_OUTPUT_TO_UART1    0
+#define HCOM_FORCE_SYSLOG_MASK_AND_OUTPUT_TO_UART    0
+
+// The only valid UART options are 1 or 4. Standard is to output syslog using
+// ST-LINK via UART 1. Using UART4 is an optional workaround when ST-Link isn't
+// available.
+#define HCOM_DIAG_SYSLOG_UART_NUMBER                 4
 
 // Cause the build to include the ability to print a buffer
 // full of data, showing hex and ascii. Duplicate code is created

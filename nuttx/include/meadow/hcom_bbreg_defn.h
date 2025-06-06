@@ -99,9 +99,9 @@
 // This bit indicates if we are to send trace messages to the host PC
 #define HCOM_BBREG_ROUTE_TRACE_MSG_TO_HOST_BIT 0x00000200
 // This bit indicates if we are to send trace messages to the uart1
-#define HCOM_BBREG_ROUTE_TRACE_MSG_TO_UART1_BIT 0x00000400
+#define HCOM_BBREG_ROUTE_TRACE_MSG_TO_UART_BIT 0x00000400
 // Used to display host and uart1 routing at startup
-#define HCOM_BBREG_TRACE_MSG_TO_HOST_AND_UART1_BIT_MASK (HCOM_BBREG_ROUTE_TRACE_MSG_TO_HOST_BIT | HCOM_BBREG_ROUTE_TRACE_MSG_TO_UART1_BIT)
+#define HCOM_BBREG_TRACE_MSG_TO_HOST_AND_UART_BIT_MASK (HCOM_BBREG_ROUTE_TRACE_MSG_TO_HOST_BIT | HCOM_BBREG_ROUTE_TRACE_MSG_TO_UART_BIT)
 // This bit indicates if mono should be started during startup
 #define HCOM_BBREG_USER_RQST_MONO_ENABLE_BIT 0x00000800
 // The last time mono was started did it run?
@@ -109,6 +109,6 @@
 // This bit indicates if the debugging server should run after restart
 #define HCOM_BBREG_MONO_DEBUGGING_START_BIT 0x00002000
 // This bit indicates if we are to send profiler output binaries (.mlpd) to the uart1
-#define HCOM_BBREG_ROUTE_PROFILER_BINS_TO_UART1_BIT 0x00004000
+#define HCOM_BBREG_ROUTE_PROFILER_BINS_TO_UART_BIT 0x00004000
 
 #endif  //__INCLUDE_MEADOW_HCOM_BBREG_DEFN__H
