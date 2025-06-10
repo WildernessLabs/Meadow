@@ -989,9 +989,9 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 // the need for configuration or the CLI Uart Trace command.
 #define HCOM_FORCE_SYSLOG_MASK_AND_OUTPUT_TO_UART    0
 
-// The only valid UART options are 1 or 4. Standard is to output syslog using
-// ST-LINK via UART 1. Using UART4 is an optional workaround when ST-Link isn't
-// available.
+// The only valid UART options are 1, 4 or 6. The value of zero (0) will
+// cause no uart output. All other value are considered a build error.
+// [--] Add the rest of '#if' code to make the above true.
 #define HCOM_DIAG_SYSLOG_UART_NUMBER                 4
 
 // Cause the build to include the ability to print a buffer

@@ -46,6 +46,7 @@
 #include <meadow/meadow_measure_freq_shared.h>
 #include "../hcom_nx/hcom_nx_common.h"
 #include "stm32_gpio.h"   // stm32_configgpio
+#include <arch/board/board.h>
 
 // Diagnostic always as this is test code
 // #define USE_MEADOW_DEBUG_HELPERS
@@ -339,15 +340,15 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
       mdwCfgTimerChan.timerNumber   = 12;
       mdwCfgTimerChan.channelNumber = 1;
       mdwCfgTimerChan.configOption  = 1;
-      mdwCfgTimerChan.portAndPin    = GPIO_TIM12_CH1IN_1;
+      mdwCfgTimerChan.portAndPin    = GPIO_TIM12_CH1IN_1; // PB14
       ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
       break;
-    case 1122:
+    case 1122:    // <--THIS RETURNS INVALID CONFIGURATION
       // Timer 12 channel 2
       mdwCfgTimerChan.timerNumber   = 12;
       mdwCfgTimerChan.channelNumber = 2;
       mdwCfgTimerChan.configOption  = 1;
-      mdwCfgTimerChan.portAndPin    = GPIO_TIM12_CH2IN_1;
+      mdwCfgTimerChan.portAndPin    = GPIO_TIM12_CH2IN_1; // PB15
       ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
       break;
     case 1101:
@@ -358,12 +359,13 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
       mdwCfgTimerChan.portAndPin    = GPIO_TIM10_CH1IN_1;
       ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
       break;
-    case 1052:
-      // Timer 5 channel 2
+    case 1051:
+      // Timer 5 channel 1
       mdwCfgTimerChan.timerNumber   = 5;
-      mdwCfgTimerChan.channelNumber = 2;
+      mdwCfgTimerChan.channelNumber = 1;
       mdwCfgTimerChan.configOption  = 1;
       mdwCfgTimerChan.portAndPin    = GPIO_TIM5_CH1IN_2;
+
       ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
       break;
 
@@ -392,10 +394,10 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
       ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
       display_frequency_and_friends(mdwFreqReturnData, ret);
       break;
-    case 4052:
+    case 4051:
       // Timer 5 channel 2
       mdwFreqReturnData.timerNumber   = 5;
-      mdwFreqReturnData.channelNumber = 2;
+      mdwFreqReturnData.channelNumber = 1;
       ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
       display_frequency_and_friends(mdwFreqReturnData, ret);
       break;

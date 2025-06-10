@@ -695,8 +695,12 @@ static uint8_t meadow_measure_freq_get_chan_tim_port_pin(
 {
   int entry;
   int timerOffset = timerNumb - 1;
+  uint32_t hardwareVersion = meadow_hw_version_get();
+  
+  // [--] TESTING
+  syslog(1, "--->Hardware version is:%lu\n", hardwareVersion);
 
-  if(meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_F7V1)
+  if(hardwareVersion == MEADOW_F7_HW_VERSION_NUMB_F7V1)
   {
     // Verify port & pin are valid for FeatherV1 hardware
     entry = 0;
@@ -712,7 +716,7 @@ static uint8_t meadow_measure_freq_get_chan_tim_port_pin(
     if(validF7v1GpioArray[timerOffset][entry] == 0xff)
      return 0;
   }
-  else if (meadow_hw_version_get() == MEADOW_F7_HW_VERSION_NUMB_F7V2)
+  else if (hardwareVersion == MEADOW_F7_HW_VERSION_NUMB_F7V2)
   {
     // Verify port & pin are valid for FeatherV2 hardware
     entry = 0;
@@ -728,7 +732,7 @@ static uint8_t meadow_measure_freq_get_chan_tim_port_pin(
     if(validF7v2GpioArray[timerOffset][entry] == 0xff)
       return 0;
   }
-  else if (meadow_hw_version_get() != MEADOW_F7_HW_VERSION_NUMB_CCMV2)
+  else if (hardwareVersion != MEADOW_F7_HW_VERSION_NUMB_CCMV2)
   {
     // Unsupported device type
     syslog(1, "%s@%d- Unknown device type\n", __FILE__, __LINE__);
@@ -882,9 +886,13 @@ int meadow_measure_freq_configure(mdwFreqCfgTimer_t *mdwCfgTimerChan)
             mdwFreqTimerInfo->timerAltFunc;
 
   // // Diagnostic
-  // syslog(1, "-->%s@%d-TIM%lu, Chn:%lu, input Pin defn:0x%02x (P%c%d), Pin defn+AF:0x%08lx\n",
-  //           __FILE__, __LINE__, timerNumber, channelNumber, portAndPin,
-  //           ((portAndPin) >> 4) + 'A', portAndPin & 0x0f, inputGpioConfig);
+    // [--] TESTING
+  syslog(1, "-->%s@%d-TIM%lu, Chn:%lu, input Pin defn:0x%02x (P%c%d), AF:%u Pin defn+AF=0x%08lx\n",
+            __FILE__, __LINE__, timerNumber,
+            channelNumber, portAndPin,
+            ((portAndPin) >> 4) + 'A', portAndPin & 0x0f,
+            mdwFreqTimerInfo->timerAltFunc >> GPIO_AF_SHIFT,
+            inputGpioConfig);
   // // Diagnostic
 
   // Valided GPIO so, configure input for channel.
