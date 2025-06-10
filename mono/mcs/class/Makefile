@@ -430,8 +430,8 @@ xammac_net_4_5_SUBDIRS := $(mobile_common_dirs)
 xammac_net_4_5_PARALLEL_SUBDIRS := $(xammac_4_5_dirs_parallel)
 
 binary_reference_assemblies_SUBDIRS := reference-assemblies
-net_4_x_SUBDIRS := $(net_4_x_dirs)
-net_4_x_PARALLEL_SUBDIRS := $(net_4_x_parallel_dirs)
+net_4_x_SUBDIRS := $(mobile_common_dirs)
+net_4_x_PARALLEL_SUBDIRS := $(mobile_common_dirs_parallel)
 xbuild_12_SUBDIRS := $(xbuild_4_0_dirs)
 xbuild_14_SUBDIRS := $(xbuild_4_0_dirs) Microsoft.NuGet.Build.Tasks
 
