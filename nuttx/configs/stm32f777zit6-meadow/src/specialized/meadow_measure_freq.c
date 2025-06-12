@@ -1,7 +1,7 @@
 /****************************************************************************
- * nuttx/configs/stm32f777zit6-meadow/src/specialized/meadow_calc_freq_dc.c
+ * nuttx/configs/stm32f777zit6-meadow/src/specialized/meadow_measure_freq.c
  * 
- *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2024, 2025 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,6 +50,7 @@
 #include "stm32_tim.h"
 #include "stm32_gpio.h"
 #include "stm32f777zit6-meadow.h"
+#include "../hcom_nx/hcom_nx_common.h"
 #include "specialized/meadow_measure_freq_local.h"
 #include <meadow/meadow_hw_version.h>
 #include <meadow/hcom_shared_common.h>
@@ -60,12 +61,30 @@
 // #define USE_MEADOW_DEBUG_HELPERS
 #undef USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
-// #pragma message "(--) meadow_measure_freq.c"
+#pragma message "(--) meadow_measure_freq.c - CLEAN ME UP"
+
 // #pragma GCC optimize("O0")    // Prevent compiler from changing the code
+
 #define MEADOW_MEASURE_FREQ_INCLUDE_REG_DUMP (0)
+
+#define MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT (1)
+
 // Use pin for timing via scope
 // #define DEBUG_PIN_V2_D06 (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTB | GPIO_PIN13)
 // Diagnostic
+
+#define MEADOW_MEAS_FREQ_NUMB_OF_F7_TIMERS (14)
+
+// There are up to 10 entries for each timer
+#define MEADOW_MEAS_FREQ_MAX_CCM_ENTRIES_PER_TIMER (10)
+
+// Each Feather timer entry can have as many as 4 entries that takes 1 byte.
+#define MEADOW_MEAS_FREQ_MAX_F7_BYTES_PER_TIMER (4)
+
+// Need 2 bytes for each CCM entry because channel number is defined in this
+// as well as the port and pin pair
+#define MEADOW_MEAS_FREQ_MAX_CCM_BYTES_PER_TIMER \
+  (MEADOW_MEAS_FREQ_MAX_CCM_ENTRIES_PER_TIMER * 2)
 
 /****************************************************************************
  * Private Data
@@ -97,7 +116,7 @@ static mdwFreqTimerInfo_t mdwFreqTimerInfoArray[] =
 // This table contains all of the STM32F7's timers and their valid GPIOs with
 // channel. It is used for F7v1 and F7v2 and CCM. It should be able to verify
 // any timer, GPIO combination.
-mdwFreqChanPortPin_t validStm32F7GpioArray[][11] = 
+mdwFreqChanPortPin_t validStm32F7GpioArray[][MEADOW_MEAS_FREQ_MAX_CCM_ENTRIES_PER_TIMER] = 
 {
   /* Tim 1 */
   {
@@ -109,7 +128,6 @@ mdwFreqChanPortPin_t validStm32F7GpioArray[][11] =
     {GPIO_PORTE | GPIO_PIN13, 3},   // PE13
     {GPIO_PORTA | GPIO_PIN11, 4},   // PA11
     {GPIO_PORTE | GPIO_PIN14, 4},   // PE14
-    {0xff, 0}
   },
 
   /* Tim 2 */
@@ -122,7 +140,6 @@ mdwFreqChanPortPin_t validStm32F7GpioArray[][11] =
     {GPIO_PORTB | GPIO_PIN10, 3},   // PB10
     {GPIO_PORTA | GPIO_PIN3,  4},   // PA3
     {GPIO_PORTB | GPIO_PIN11, 4},   // PB11
-    {0xff, 0}
   },
 
   /* Tim 3 */
@@ -137,7 +154,6 @@ mdwFreqChanPortPin_t validStm32F7GpioArray[][11] =
     {GPIO_PORTC | GPIO_PIN8, 3},    // PC8
     {GPIO_PORTB | GPIO_PIN1, 4},    // PB1
     {GPIO_PORTC | GPIO_PIN9, 4},    // PC9
-    {0xff, 0}
   },
   
   /* Tim 4 */
@@ -150,7 +166,6 @@ mdwFreqChanPortPin_t validStm32F7GpioArray[][11] =
     {GPIO_PORTB | GPIO_PIN8,  3},    // PB8
     {GPIO_PORTD | GPIO_PIN15, 4},    // PD15
     {GPIO_PORTB | GPIO_PIN9,  4},    // PB9
-    {0xff, 0}
   },
 
   /* Tim 5 */
@@ -163,14 +178,13 @@ mdwFreqChanPortPin_t validStm32F7GpioArray[][11] =
     {GPIO_PORTH | GPIO_PIN12, 3},    // PH12
     {GPIO_PORTA | GPIO_PIN3,  4},    // PA3
     {GPIO_PORTI | GPIO_PIN0,  4},    // PI0
-    {0xff, 0}
   },
 
   /* Tim 6 No GPIOs */
-    {{0xff, 0}},
+    {},
 
   /* Tim 7 No GPIOs */
-    {{0xff, 0}},
+    {},
 
   /* Tim 8 */
   {
@@ -182,7 +196,6 @@ mdwFreqChanPortPin_t validStm32F7GpioArray[][11] =
     {GPIO_PORTI | GPIO_PIN7, 3},    // PI7
     {GPIO_PORTC | GPIO_PIN9, 4},    // PC9
     {GPIO_PORTI | GPIO_PIN2, 4},    // PI2
-    {0xff, 0}
   },
 
   /* Tim 9 */
@@ -191,163 +204,158 @@ mdwFreqChanPortPin_t validStm32F7GpioArray[][11] =
     {GPIO_PORTA | GPIO_PIN2, 1},    // PA2
     {GPIO_PORTE | GPIO_PIN6, 2},    // PE6
     {GPIO_PORTA | GPIO_PIN3, 2},    // PA3
-    {0xff, 0}
   },
 
   /* Tim 10 */
   {
     {GPIO_PORTF | GPIO_PIN6, 1},    // PF6
     {GPIO_PORTB | GPIO_PIN8, 1},    // PB8
-    {0xff, 0}
   },
 
   /* Tim 11 */
   {
     {GPIO_PORTF | GPIO_PIN7, 1},    // PF7
     {GPIO_PORTB | GPIO_PIN9, 1},    // PB9
-    {0xff, 0}
   },
 
   /* Tim 12 */
   {
     {GPIO_PORTH | GPIO_PIN6,  1},    // PH6
-    {GPIO_PORTB | GPIO_PIN14, 1},    // PB14
+    {GPIO_PORTB | GPIO_PIN14, 1},    // PB14 <-
     {GPIO_PORTH | GPIO_PIN9,  2},    // PH9
-    {GPIO_PORTB | GPIO_PIN15, 2},    // PB15
-    {0xff, 0}
+    {GPIO_PORTB | GPIO_PIN15, 2},    // PB15 <-
   },
 
   /* Tim 13 */
   {
     {GPIO_PORTF | GPIO_PIN8, 1},    // PF8
     {GPIO_PORTA | GPIO_PIN6, 1},    // PA6
-    {0xff, 0}
   },
 
   /* Tim 14 */
   {
     {GPIO_PORTF | GPIO_PIN9, 1},    // PF9
     {GPIO_PORTA | GPIO_PIN7, 1},    // PA7
-    {0xff, 0}
   },
 };
 
 //-------------------------------------------------
 // Used to verify port and pin availability on F7FeatherV1
-static uint8_t validF7v1GpioArray[][5] =
+static uint8_t validF7v1GpioArray[][MEADOW_MEAS_FREQ_MAX_F7_BYTES_PER_TIMER] =
 {
   /* TIM1 No GPIO exposed */
-  {0xff},
+  {},
+
   /* TIM2  No GPIO exposed */
-  {0xff},
+  {},
   
   /* TIM3  */
   {GPIO_PORTC | GPIO_PIN6,  // PC6, D02
    GPIO_PORTC | GPIO_PIN7,  // PC7, D05
    GPIO_PORTB | GPIO_PIN0,  // PB0, D06
    GPIO_PORTB | GPIO_PIN1,  // PB1, D09 (or PC9, D11)
-   0xff},
+  },
 
   /* TIM4 */
   {GPIO_PORTB | GPIO_PIN6,  // PB6, D08
    GPIO_PORTB | GPIO_PIN7,  // PB7, D07
    GPIO_PORTB | GPIO_PIN8,  // PB8, D03
    GPIO_PORTB | GPIO_PIN9,  // PB9, D04
-   0xff},
+  },
 
   // /* TIM5 */
   {GPIO_PORTH | GPIO_PIN10,  // PH10, D10
-   0xff},
+  },
 
   /* TIM6  No GPIO exposed */
-  {0xff},
+  {},
   /* TIM7  No GPIO exposed */
-  {0xff},
+  {},
   /* TIM8  No GPIO exposed */
-  {0xff},
+  {},
 
   /* TIM9  */
   {GPIO_PORTA | GPIO_PIN3,  // PA3, A02
-   0xff},
+  },
 
   /* TIM10 */
   {GPIO_PORTB | GPIO_PIN8,  // PB8, D03
-   0xff},
+  },
 
   /* TIM11 */
   {GPIO_PORTB | GPIO_PIN9,  // PB9, D04
-   0xff},
+  },
 
   /* TIM12 */
   {GPIO_PORTB | GPIO_PIN14,  // PB14, D12
    GPIO_PORTB | GPIO_PIN15,  // PB15, D13
-   0xff},
+  },
 
   /* TIM13  No GPIO exposed */
   {0xff},
 
   /* TIM14 */
   {GPIO_PORTA | GPIO_PIN7,  // PA7, A03
-   0xff},
+  },
 };
 
 //-------------------------------------------------
 // Used to verify port and pin availability on F7FeatherV2
-static uint8_t validF7v2GpioArray[][5] =
+static uint8_t validF7v2GpioArray[][MEADOW_MEAS_FREQ_MAX_F7_BYTES_PER_TIMER]=
 {
   /* TIM1 No GPIO exposed */
-  {0xff},
+  {},
 
   /* TIM2 No GPIO exposed */
-  {0xff},
+  {},
 
   /* TIM3 */
   {GPIO_PORTB | GPIO_PIN4,  // PB4, D05
    GPIO_PORTC | GPIO_PIN7,  // PC7, D10
    GPIO_PORTB | GPIO_PIN0,  // PB0, A03
    GPIO_PORTB | GPIO_PIN1,  // PB1, A04
-   0xff},
+  },
 
-  /* TIM4 D08, D07, D03*, D04* */ {0x16,0x17,0x18,0x19,0xff},
+  /* TIM4 D08, D07, D03*, D04* */
   /* TIM4 */
-  {GPIO_PORTB | GPIO_PIN8,  // PB6, D08
+  {GPIO_PORTB | GPIO_PIN6,  // PB6, D08
    GPIO_PORTB | GPIO_PIN7,  // PB7, D07
    GPIO_PORTB | GPIO_PIN8,  // PB8, D03
    GPIO_PORTB | GPIO_PIN9,  // PB9, D04
-   0xff},
+  },
 
   /* TIM5 */
   {GPIO_PORTH | GPIO_PIN10,  // PH10, D02
    GPIO_PORTA | GPIO_PIN3,   // PA3, A02
-   0xff},
+  },
 
   /* TIM6 No GPIO exposed */
-  {0xff},
+  {},
   /* TIM7 No GPIO exposed */
-  {0xff},
+  {},
   /* TIM8 No GPIO exposed */
-  {0xff},
+  {},
   /* TIM9 No GPIO exposed */
-  {0xff},
+  {},
 
   /* TIM10 */
   {GPIO_PORTB | GPIO_PIN8,  // PB8, D03
-   0xff},
+  },
 
   /* TIM11 */
   {GPIO_PORTB | GPIO_PIN9,  // PB9, D04
-   0xff},
+  },
 
   /* TIM12 */
   {GPIO_PORTB | GPIO_PIN14,  // PB14, D12
    GPIO_PORTB | GPIO_PIN15,  // PB15, D13
-   0xff},
+  },
 
   /* TIM13 No GPIO exposed */
-  {0xff},
+  {},
 
   /* TIM14 No GPIO exposed */
-  {0xff},
+  {},
 };
 
 /************************************************************************************
@@ -689,70 +697,158 @@ static uint64_t meadow_measure_freq_get_current_time(void)
 // This function will evaluate the GPIO based on 3 tables containing the
 // valid GPIOs. For CCM only one table is checked. For F7v1 and F7v2
 // The a version specific table is checked, and then the CCM table.
-// Returns the channel, 1-4 unless not found, then returns 0.
-static uint8_t meadow_measure_freq_get_chan_tim_port_pin(
+// Returns the channel, 1-4 unless error, then returns 0.
+static uint8_t meadow_measure_freq_verify_portpin_get_chan(
           const uint32_t timerNumb, uint8_t portAndPin)
 {
-  int entry;
-  int timerOffset = timerNumb - 1;
+  int entryCnt;
+  uint8_t *entryPtr;
+
+#if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
+  uint8_t dbgPortPin;
+#endif
+
+  int gpioArrayOff = timerNumb - 1;
   uint32_t hardwareVersion = meadow_hw_version_get();
-  
-  // [--] TESTING
-  syslog(1, "--->Hardware version is:%lu\n", hardwareVersion);
 
   if(hardwareVersion == MEADOW_F7_HW_VERSION_NUMB_F7V1)
-  {
-    // Verify port & pin are valid for FeatherV1 hardware
-    entry = 0;
-    while(validF7v1GpioArray[timerOffset][entry] != 0xff)
+  {    
+#if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
+    syslog(1, "--->%s@%d  This is a F7FeatherV1\n", __FILE__, __LINE__);
+#endif
+    // Find offset to top of array
+    uint8_t *featherArrayTop = &validF7v1GpioArray[gpioArrayOff][0];
+
+    // We know we have the right channel look for the GPIO match
+    for(entryCnt = 0;
+      entryCnt < MEADOW_MEAS_FREQ_MAX_F7_BYTES_PER_TIMER;
+      entryCnt++)
     {
-      if(portAndPin == validF7v1GpioArray[timerOffset][entry])
+      entryPtr = featherArrayTop + entryCnt;
+      if(*entryPtr == portAndPin)
       {
-        break;    // So far good
+#if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
+        syslog(1, "--->%s@%d-Found v1 match for 0x%02x at entry:%d\n",
+            __FILE__, __LINE__, portAndPin, entryCnt);
+        dbgPortPin = *entryPtr;
+#endif
+        break;
       }
-      entry++;
     }
 
-    if(validF7v1GpioArray[timerOffset][entry] == 0xff)
-     return 0;
+    if(entryCnt == MEADOW_MEAS_FREQ_MAX_F7_BYTES_PER_TIMER)
+    {
+      syslog(LOG_ERR, "Error: No port pin match found\n");
+      return 0;
+    }
+
+#if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
+    syslog(1, "--->%s@%d-F7v1 Timer%lu, Offset:%p, 0x%02x (P%c%d)\n\n",
+        __FILE__, __LINE__,
+        timerNumb, entryPtr, dbgPortPin,
+        ((dbgPortPin) >> 4) + 'A', dbgPortPin & 0x0f);
+#endif
   }
   else if (hardwareVersion == MEADOW_F7_HW_VERSION_NUMB_F7V2)
   {
-    // Verify port & pin are valid for FeatherV2 hardware
-    entry = 0;
-    while(validF7v2GpioArray[timerOffset][entry] != 0xff)
+#if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
+    // syslog(1, "--->%s@%d All Entries for F7FeatherV2\n", __FILE__, __LINE__);
+    // hcom_nx_diag_print_buffer((uint8_t *)&validF7v2GpioArray[0][0],
+    //   MEADOW_MEAS_FREQ_NUMB_OF_F7_TIMERS * MEADOW_MEAS_FREQ_MAX_F7_BYTES_PER_TIMER, 1);
+#endif
+
+    // Find offset to top of array
+    uint8_t *featherArrayTop = &validF7v2GpioArray[gpioArrayOff][0];
+
+    // We know we have the right channel so we need to look for the GPIO
+    // match
+    for(entryCnt = 0;
+      entryCnt < MEADOW_MEAS_FREQ_MAX_F7_BYTES_PER_TIMER;
+      entryCnt++)
     {
-      if(portAndPin == validF7v2GpioArray[timerOffset][entry])
+      entryPtr = featherArrayTop + entryCnt;
+      if(*entryPtr == portAndPin)
       {
-        break;    // So far good
+#if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
+        syslog(1, "--->%s@%d-Found v2 match for 0x%02x at entry:%d\n",
+            __FILE__, __LINE__, portAndPin, entryCnt);
+        dbgPortPin = *entryPtr;
+#endif
+        break;
       }
-      entry++;
     }
-    
-    if(validF7v2GpioArray[timerOffset][entry] == 0xff)
+
+    if(entryCnt == MEADOW_MEAS_FREQ_MAX_F7_BYTES_PER_TIMER)
+    {
+      syslog(LOG_ERR, "Error: No port pin match found\n");
       return 0;
+    }
+
+#if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
+    syslog(1, "--->%s@%d-F7v2 Timer%lu, Offset:%p, 0x%02x (P%c%d)\n\n",
+        __FILE__, __LINE__,
+        timerNumb, entryPtr, dbgPortPin,
+        ((dbgPortPin) >> 4) + 'A', dbgPortPin & 0x0f);
+#endif
   }
   else if (hardwareVersion != MEADOW_F7_HW_VERSION_NUMB_CCMV2)
   {
-    // Unsupported device type
-    syslog(1, "%s@%d- Unknown device type\n", __FILE__, __LINE__);
+    // Unsupported board type
+    syslog(LOG_ERR, "%s@%d- Unknown board type\n", __FILE__, __LINE__);
     return 0;
   }
 
-  // All hardware types reach here to find the timer channel and verify the
-  // port and pin are legal.
-  entry = 0;
-  while(validStm32F7GpioArray[timerOffset][entry].portPin != 0xff)
+  // All hardware boards reach here. For Feather boards we know exactly which
+  // GPIOs are available on which pin. But the CCM is used on a number of
+  // different boards. Therefore, we cannot do the same level of verification.
+  // We need to trust the the users have some idea of what they are doing.
+
+#if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
+  // syslog(1, "--->%s@%d All Entries for CCM\n", __FILE__, __LINE__);
+  // syslog(1, "--->Timer:%lu, Top of CCM array:%p\n", timerNumb, &validStm32F7GpioArray[0][0]);
+  // hcom_nx_diag_print_buffer((uint8_t *)&validStm32F7GpioArray[0][0],
+  //   MEADOW_MEAS_FREQ_NUMB_OF_F7_TIMERS * MEADOW_MEAS_FREQ_MAX_CCM_BYTES_PER_TIMER, 1);
+#endif
+
+  // Get top of array
+  mdwFreqChanPortPin_t *ccmArrayTop = &validStm32F7GpioArray[gpioArrayOff][0];
+  mdwFreqChanPortPin_t *ccmEntryPtr;
+
+  // Look for a port and pin match
+  for(entryCnt = 0;
+    entryCnt < MEADOW_MEAS_FREQ_MAX_CCM_ENTRIES_PER_TIMER;
+    entryCnt++)
   {
-    if(portAndPin == validStm32F7GpioArray[timerOffset][entry].portPin)
+    ccmEntryPtr = ccmArrayTop + entryCnt;
+    if(ccmEntryPtr->portPin == portAndPin)
     {
-      // Found valid channel
-      return validStm32F7GpioArray[timerOffset][entry].chan;
+#if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
+      syslog(1, "--->%s@%d-Found CCM match for 0x%02x at entry:%d\n",
+          __FILE__, __LINE__, portAndPin, entryCnt);
+#endif          
+      break;
     }
-    entry++;
   }
 
-  return 0; // Channel not found
+  if(entryCnt == MEADOW_MEAS_FREQ_MAX_CCM_ENTRIES_PER_TIMER)
+  {
+    syslog(LOG_ERR, "Error: No port pin match found\n");
+    return 0;
+  }
+
+  // Get the channel for this port and pin match
+  uint8_t timerChannel = ccmEntryPtr->chan;
+
+#if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
+  dbgPortPin = ccmEntryPtr->portPin;
+  syslog(1, "--->EXITING %s@%d-Timer%lu, Offset:%p, 0x%02x (P%c%d), channel:%u\n",
+      __FILE__, __LINE__, timerNumb, ccmEntryPtr,
+      dbgPortPin, ((dbgPortPin) >> 4) + 'A', dbgPortPin & 0x0f,
+      timerChannel);
+#endif
+
+  // Return the channel the Pin and Port are used with
+  return timerChannel;
 }
 
 /****************************************************************************
@@ -770,6 +866,13 @@ int meadow_measure_freq_configure(mdwFreqCfgTimer_t *mdwCfgTimerChan)
   uint32_t channelOffset = channelNumber - 1;
   bool timerNeedsConfig;
   bool chanNeedsDuty;
+
+#if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
+  syslog(1, "START CFG %s@%d-TIM%lu, Chn:%lu, input Pin defn:0x%02x (P%c%d)\n",
+            __FILE__, __LINE__, timerNumber,
+            channelNumber, portAndPin,
+            ((portAndPin) >> 4) + 'A', portAndPin & 0x0f);
+#endif
 
   if(timerNumber > 14 || timerNumber < 1)
   {
@@ -799,7 +902,7 @@ int meadow_measure_freq_configure(mdwFreqCfgTimer_t *mdwCfgTimerChan)
     case MEADOW_MEAS_FREQ_CONF_OPTION_WITH_DC:
       chanNeedsDuty = true;
       break;
-     
+
     case MEADOW_MEAS_FREQ_CONF_OPTION_UNCFG:
       // Unconfigure - Also removes Timer if no channels remain
       ret = meadow_measure_freq_unconfigure(mdwCfgTimerChan);
@@ -814,7 +917,7 @@ int meadow_measure_freq_configure(mdwFreqCfgTimer_t *mdwCfgTimerChan)
   // Insure a valid timer, channel, port+pin combination was supplied.
   // Timers have, at most, 4 channels, each representing 1 GPIO. For the
   // specified timer we need to verify a proper port and pin.
-  uint8_t chanValid4TimerPortPin = meadow_measure_freq_get_chan_tim_port_pin(
+  uint8_t chanValid4TimerPortPin = meadow_measure_freq_verify_portpin_get_chan(
             timerNumber, portAndPin);
   if(chanValid4TimerPortPin == 0)
   {
@@ -885,17 +988,17 @@ int meadow_measure_freq_configure(mdwFreqCfgTimer_t *mdwCfgTimerChan)
   inputGpioConfig = MEADOW_TIMER_GPIO_CONST | portAndPin | \
             mdwFreqTimerInfo->timerAltFunc;
 
-  // // Diagnostic
-    // [--] TESTING
-  syslog(1, "-->%s@%d-TIM%lu, Chn:%lu, input Pin defn:0x%02x (P%c%d), AF:%u Pin defn+AF=0x%08lx\n",
+#if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
+  syslog(1, "--->%s@%d-TIM%lu, Chn:%lu, input Pin defn:0x%02x (P%c%d), AF:%u Pin defn+AF=0x%08lx\n",
             __FILE__, __LINE__, timerNumber,
             channelNumber, portAndPin,
             ((portAndPin) >> 4) + 'A', portAndPin & 0x0f,
             mdwFreqTimerInfo->timerAltFunc >> GPIO_AF_SHIFT,
             inputGpioConfig);
-  // // Diagnostic
+#endif
 
   // Valided GPIO so, configure input for channel.
+  stm32_unconfiggpio(inputGpioConfig);
   ret = stm32_configgpio(inputGpioConfig);
   if(ret < 0)
   {
@@ -1303,10 +1406,12 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *returnData)
     return MEADOW_MEAS_FREQ_READ_TIMER_ACCESS_NULL;
   }
 
-  // syslog(1, "-->%s@%d-Returning data-for timer:%lu, channel:%lu, active channels:0x%02x\n",
+#if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
+  // syslog(1, "--->%s@%d-Returning data-for timer:%lu, channel:%lu, active channels:0x%02x\n",
   //         __FILE__, __LINE__,
   //         returnData->timerNumber, returnData->channelNumber,
   //         mdwFreqTimerInfo->chanActiveBits);
+#endif
 
   // Is the channel configured?
   uint8_t channelBit = meadow_measure_freq_get_channel_bit(
@@ -1416,32 +1521,32 @@ void meadow_measure_freq_diag_dump_timer_regs(char *label,
 {
   uint32_t timerBase = mdwFreqTimerInfo->timerBase;
 
-  syslog(1, "\nTimer:%lu Register Dump-%s\n", mdwFreqTimerInfo->timerNumb, label);
-  syslog(1, "\tCR1:\t0x%08x\tCR2:\t0x%08x\tSMCR:\t0x%08x\tDIER:\t0x%08x\n",
+  syslog(2, "\nTimer:%lu Register Dump-%s\n", mdwFreqTimerInfo->timerNumb, label);
+  syslog(2, "\tCR1:\t0x%08x\tCR2:\t0x%08x\tSMCR:\t0x%08x\tDIER:\t0x%08x\n",
           getreg16(timerBase + STM32_GTIM_CR1_OFFSET),
           getreg16(timerBase + STM32_GTIM_CR2_OFFSET),
           getreg32(timerBase + STM32_GTIM_SMCR_OFFSET),
           getreg16(timerBase + STM32_GTIM_DIER_OFFSET));
 
-  syslog(1, "\tSR:\t0x%08x\tEGR:\t0x%08x\tCCMR1:\t0x%08x\tCCMR2:\t0x%08x\n",
+  syslog(2, "\tSR:\t0x%08x\tEGR:\t0x%08x\tCCMR1:\t0x%08x\tCCMR2:\t0x%08x\n",
           getreg16(timerBase + STM32_GTIM_SR_OFFSET),
           getreg16(timerBase + STM32_GTIM_EGR_OFFSET),
           getreg32(timerBase + STM32_GTIM_CCMR1_OFFSET),
           getreg32(timerBase + STM32_GTIM_CCMR2_OFFSET));
 
-  syslog(1, "\tCCER:\t0x%08x\tCNT:\t0x%08x\tPSC:\t0x%08x\tARR:\t0x%08x\n",
+  syslog(2, "\tCCER:\t0x%08x\tCNT:\t0x%08x\tPSC:\t0x%08x\tARR:\t0x%08x\n",
           getreg16(timerBase + STM32_GTIM_CCER_OFFSET),
           getreg32(timerBase + STM32_GTIM_CNT_OFFSET),
           getreg16(timerBase + STM32_GTIM_PSC_OFFSET),
           getreg32(timerBase + STM32_GTIM_ARR_OFFSET));
 
-  syslog(1, "\tCCR1:\t0x%08x\tCCR2:\t0x%08x\tCCR3:\t0x%08x\tCCR4:\t0x%08x\n",
+  syslog(2, "\tCCR1:\t0x%08x\tCCR2:\t0x%08x\tCCR3:\t0x%08x\tCCR4:\t0x%08x\n",
           getreg32(timerBase + STM32_GTIM_CCR1_OFFSET),
           getreg32(timerBase + STM32_GTIM_CCR2_OFFSET),
           getreg32(timerBase + STM32_GTIM_CCR3_OFFSET),
           getreg32(timerBase + STM32_GTIM_CCR4_OFFSET));
 
-  syslog(1, "\tDCR:\t0x%08x\tDMAR:\t0x%08x\tOR:\t0x%08x\n",
+  syslog(2, "\tDCR:\t0x%08x\tDMAR:\t0x%08x\tOR:\t0x%08x\n",
           getreg16(timerBase + STM32_GTIM_DCR_OFFSET),
           getreg16(timerBase + STM32_GTIM_DMAR_OFFSET),
           getreg16(timerBase + STM32_GTIM_OR_OFFSET));

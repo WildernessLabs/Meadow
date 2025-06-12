@@ -987,7 +987,7 @@ int hcom_nx_exec_trace_forward_to_uart(struct hcom_nx_cmd_data *cmdData)
 {
   char *sendMsgToHost;
   
-   // Set the appropriate battery backed register bit
+  // Set the appropriate battery backed register bit
   modifyreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER,
               0, HCOM_BBREG_ROUTE_TRACE_MSG_TO_UART_BIT);
 

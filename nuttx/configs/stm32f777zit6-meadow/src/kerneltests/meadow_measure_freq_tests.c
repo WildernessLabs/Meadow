@@ -388,7 +388,6 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
       break;
     case 4101:
       // Timer 10 channel 1
-      syslog(1, "4101 - \n");
       mdwFreqReturnData.timerNumber   = 10;
       mdwFreqReturnData.channelNumber = 1;
       ret = meadow_measure_freq_return_freq_info(&mdwFreqReturnData);
