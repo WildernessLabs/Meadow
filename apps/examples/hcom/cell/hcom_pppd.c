@@ -515,7 +515,8 @@ static void *hcom_pppd_event_thread(void *arg)
     pppd_event = pppd_get_state(&hcom_cell_handler);
     if (pppd_event & CELL_CHAT_DONE)
     {
-      pppd_clear_state (&hcom_cell_handler, (CELL_PAUSED |CELL_CHAT_DONE));
+      pppd_clear_state (&hcom_cell_handler, (CELL_PAUSED |CELL_CHAT_DONE | CELL_AT_CMD));
+      hcom_pppd_at_cmd_event(OK);
     }
 
     usleep(HCOM_PPPD_CHAT_THREAD_DELAY);
@@ -574,7 +575,7 @@ void pppd_set_state(hcom_pppd_handler_t *handler, int state)
 void pppd_clear_state(hcom_pppd_handler_t *handler, int state)
 {
   hcom_pppd_lock();
-  handler->state = handler->state ^ state;
+  handler->state = handler->state & (~state);
   hcom_pppd_unlock();
 }
 

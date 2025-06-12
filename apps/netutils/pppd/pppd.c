@@ -244,10 +244,8 @@ void ppp_reconnect(FAR struct ppp_context_s *ctx)
         pppd_state = pppd_get_state(pppd_settings->cell_handler);
         if (pppd_state & CELL_AT_CMD)
           {
-              pppd_clear_state(ctx->settings->cell_handler, CELL_AT_CMD);
               memset(pppd_settings->cell_at_cmds_output, 0x00, sizeof(pppd_settings->cell_at_cmds_output));
               ret = chat(&ctx->ctl, ctx->settings->cell_handler->script, pppd_settings->cell_at_cmds_output);
-              ctx->settings->cell_handler->callback(ret);
               pppd_set_state(ctx->settings->cell_handler, CELL_CHAT_DONE);
           }
         usleep(1000); 
