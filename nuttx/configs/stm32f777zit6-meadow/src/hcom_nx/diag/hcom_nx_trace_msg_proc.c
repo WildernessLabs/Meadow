@@ -69,10 +69,12 @@
 #define HCOM_TRACE_RAMLOG_ASSUME_LARGEST_SYSLOG (384)
 #define HCOM_TRACE_RAMLOG_READ_BUF_SIZE (256)
 #define HCOM_TRACE_LOCAL_SYSLOG_CIR_BUF_SIZE (HCOM_TRACE_RAMLOG_READ_BUF_SIZE * 5)
-#define HCOM_TRACE_RAMLOG_SERIAL_PORT_NAME_1 ("/dev/ttyS0")    // UART 1
-#define HCOM_TRACE_RAMLOG_SERIAL_PORT_NAME_4 ("/dev/ttyS1")    // UART 4
 #define HCOM_TRACE_RAMLOG_RECONFIG_TIMEOUT (30)   // Seconds to reconfigure
 #define HCOM_TRACE_SHARED_SYSLOG_CIR_BUF_SIZE HCOM_TRACE_LOCAL_SYSLOG_CIR_BUF_SIZE
+
+#define HCOM_TRACE_RAMLOG_SERIAL_PORT_NAME_1 ("/dev/ttyS0")    // UART 1
+#define HCOM_TRACE_RAMLOG_SERIAL_PORT_NAME_4 ("/dev/ttyS1")    // UART 4
+#define HCOM_TRACE_RAMLOG_SERIAL_PORT_NAME_6 ("/dev/ttyS3")    // UART 6
 
 /****************************************************************************
  * Private Types
@@ -513,11 +515,19 @@ int hcom_nx_trace_msg_open_uart_serial_port()
     _uart_fd = -1;
   }
 
-#if HCOM_DIAG_SYSLOG_UART_NUMBER == 4
+#if HCOM_DIAG_SYSLOG_UART_NUMBER == 1
+  _uart_fd = open(HCOM_TRACE_RAMLOG_SERIAL_PORT_NAME_1, O_WRONLY);
+#elif HCOM_DIAG_SYSLOG_UART_NUMBER == 4
   _uart_fd = open(HCOM_TRACE_RAMLOG_SERIAL_PORT_NAME_4, O_WRONLY);
+#elif HCOM_DIAG_SYSLOG_UART_NUMBER == 6
+  _uart_fd = open(HCOM_TRACE_RAMLOG_SERIAL_PORT_NAME_6, O_WRONLY);
+#else
+#error "Must select a valid syslog uart"
+#endif
+
+#if HCOM_DIAG_SYSLOG_UART_NUMBER == 4
 #else
   // This is the default of alternate uart isn't 4
-  _uart_fd = open(HCOM_TRACE_RAMLOG_SERIAL_PORT_NAME_1, O_WRONLY);
 #endif
 
   if(_shutting_down) return OK;
@@ -528,6 +538,8 @@ int hcom_nx_trace_msg_open_uart_serial_port()
   }
   return OK;
 }
+
+
 
 //=================================================================
 // This function reads the data put into the ramlog by Nuttx
@@ -848,16 +860,23 @@ int hcom_nx_trace_msg_send_msg_to_uart(const char *toUartBuf, size_t numbBytes)
   {
     // [--] THE FOLLOWING MAY NEED TO BE REMOVED OR CHANGED
     // Reconfigure uart (takes about 32usec to do all 4 commands)
-#if HCOM_DIAG_SYSLOG_UART_NUMBER == 4
-    stm32_unconfiggpio(GPIO_UART4_RX); // PI9
-    stm32_configgpio(GPIO_UART4_RX);
-    stm32_unconfiggpio(GPIO_UART4_TX); // PH13
-    stm32_configgpio(GPIO_UART4_TX);
-#else
+#if HCOM_DIAG_SYSLOG_UART_NUMBER == 1
     stm32_unconfiggpio(GPIO_USART1_TX); // PB14
     stm32_configgpio(GPIO_USART1_TX);
     stm32_unconfiggpio(GPIO_USART1_RX); // PB15
     stm32_configgpio(GPIO_USART1_RX);
+#elif HCOM_DIAG_SYSLOG_UART_NUMBER == 4
+    stm32_unconfiggpio(GPIO_UART4_RX); // PI9
+    stm32_configgpio(GPIO_UART4_RX);
+    stm32_unconfiggpio(GPIO_UART4_TX); // PH13
+    stm32_configgpio(GPIO_UART4_TX);
+#elif HCOM_DIAG_SYSLOG_UART_NUMBER == 6
+    stm32_unconfiggpio(GPIO_USART6_RX); // PC7
+    stm32_configgpio(GPIO_USART6_RX);
+    stm32_unconfiggpio(GPIO_USART6_TX); // PC6
+    stm32_configgpio(GPIO_USART6_TX);
+#else
+#error "Must select a valid syslog uart"
 #endif
 
     // Run until stop time is exceeded then stop the process

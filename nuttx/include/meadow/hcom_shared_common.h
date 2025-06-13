@@ -989,15 +989,16 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 // the need for configuration or the CLI Uart Trace command.
 #define HCOM_FORCE_SYSLOG_MASK_AND_OUTPUT_TO_UART    0
 
-// The only valid UART options are 1, 4 or 6. The value of zero (0) will
-// cause no uart output. All other value are considered a build error.
-// [--] Add the rest of '#if' code to make the above true.
+// The only valid UART options are 1, 4 or 6. All other value are considered
+// a build error.
+// At this time this #define is only used in
+// '/configs/stm32f777zit6-meadow/src/hcom_nx/diag/hcom_nx_trace_msg_proc.c'
 #define HCOM_DIAG_SYSLOG_UART_NUMBER                 4
 
 // Cause the build to include the ability to print a buffer
 // full of data, showing hex and ascii. Duplicate code is created
 // on both the apps and nuttx side of hcom. On Apps side 
-// hcom_diag_print_buffer on Nuttx hcom_nx_diag_print_buffer
+// 'hcom_diag_print_buffer' on Nuttx 'hcom_nx_diag_print_buffer'
 #define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE           0
  // To output non-null terminated string. This won't work if binary in buffer
  // syslog(2, "%.*s\n", textLen, buffer);
