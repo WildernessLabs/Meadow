@@ -201,7 +201,7 @@
 #define MEADOW_TEST_BG77                            1400
 
 //---------------------------------------------------------------------------
-//      Test IDs.
+//      Test result codes.
 //---------------------------------------------------------------------------
 
 /**
@@ -223,6 +223,35 @@
  * @brief TEST_ERR_FAILED
  */
 #define TEST_ERR_FAILED                             3
+
+//---------------------------------------------------------------------------
+//      Network test parameter mappings.
+//---------------------------------------------------------------------------
+
+/**
+ * @brief Unit test parameter holding the SSID of the WiFi network to connect to.
+ */
+#define UNIT_TESTS_CONFIG_SSID              unit_tests_configuration->parameter1
+
+/**
+ * @brief Unit test parameter holding the password of the WiFi network to connect to.
+ */
+#define UNIT_TESTS_CONFIG_PASSWORD          unit_tests_configuration->parameter2
+
+/**
+ * @brief Unit test parameter holding the IP address of the server to connect to.
+ */
+#define UNIT_TESTS_CONFIG_SERVER_IP         unit_tests_configuration->parameter3
+
+/**
+ * @brief Unit test parameter holding the port of the server to connect to.
+ */
+#define UNIT_TESTS_CONFIG_SERVER_PORT       unit_tests_configuration->parameter4
+
+/**
+ * @brief Unit test parameter holding the resource to request from the server.
+ */
+#define UNIT_TESTS_CONFIG_RESOURCE          unit_tests_configuration->parameter5
 
 /****************************************************************************
  * Private types

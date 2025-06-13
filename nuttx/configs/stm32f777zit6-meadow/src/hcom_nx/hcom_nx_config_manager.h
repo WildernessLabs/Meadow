@@ -62,35 +62,79 @@
 #define MAXIMUM_MODE_LENGTH 32
 
 /**
- * @brief Name of the network test configuration file.
+ * @brief Name of the unit test configuration file.
  */
-#define NETWORK_TEST_CONFIGURATION_FILE_NAME "/meadow0/network_test.config.yaml"
+#define UNIT_TEST_CONFIGURATION_FILE_NAME "/meadow0/unittest.config.yaml"
 
 /****************************************************************************
  * Public Types
  ****************************************************************************/
 
 /**
- * @brief Structure for network tests configuration.
+ * @brief Structure for unit tests configuration.
  */
-struct network_tests_configuration_s
+struct unit_tests_configuration_s
 {
-    char *ssid;
-    char *password;
-    char *server_ip;
-    uint16_t server_port;
-    char *resource;
+    /**
+     * @brief Test parameter 1.
+     */
+    char *parameter1;
+
+    /**
+     * @brief Test parameter 2.
+     */
+    char *parameter2;
+
+    /**
+     * @brief Test parameter 3.
+     */
+    char *parameter3;
+
+    /**
+     * @brief Test parameter 4.
+     */
+    char *parameter4;
+
+    /**
+     * @brief Test parameter 5.
+     */
+    char *parameter5;
+
+    /**
+     * @brief Test parameter 6.
+     */
+    char *parameter6;
+
+    /**
+     * @brief Test parameter 7.
+     */
+    char *parameter7;
+
+    /**
+     * @brief Test parameter 8.
+     */
+    char *parameter8;
+
+    /**
+     * @brief Test parameter 9.
+     */
+    char *parameter9;
+
+    /**
+     * @brief Test parameter 10.
+     */
+    char *parameter10;
 };
-typedef struct network_tests_configuration_s network_tests_configuration_t;
+typedef struct unit_tests_configuration_s unit_tests_configuration_t;
 
 /****************************************************************************
 * Public Data
 ****************************************************************************/
 
 /**
- * @brief Pointer to the network test configuration structure.
+ * @brief Pointer to the unit test configuration structure.
  */
-extern network_tests_configuration_t *network_tests_configuration;
+extern unit_tests_configuration_t *unit_tests_configuration;
 
 /****************************************************************************
  * Enums.
@@ -154,6 +198,6 @@ void hcom_nx_config_add_dns_address_into_file(uint32_t);
 void hcom_nx_config_update_network_interface(meadow_configuration_t *, uint32_t, uint32_t, uint32_t);
 void hcom_nx_config_update_dns_address(meadow_configuration_t *, uint32_t);
 void hcom_nx_config_clear_network_interface(meadow_configuration_t *);
-network_tests_configuration_t *process_network_test_configuration_file(void);
+unit_tests_configuration_t *process_unit_tests_configuration_file(void);
 
 #endif // __CONFIGS_MEADOW_SRC_HCOM_NX_CONFIG_MANAGER__H

@@ -60,6 +60,7 @@
 #include "../espcp/espcp_common.h"
 #include "../espcp/espcp_file_system.h"
 #include "../hcom_nx/hcom_nx_config_manager.h"
+#include <meadow/meadow_unit_test_framework.h>
 
 #include "../espcp/espcp_test_heap_tracing.h"
 
@@ -382,9 +383,9 @@ static void espcp_test_start_wifi(void)
 {
     syslog(LOGGING_LEVEL, "********** Starting WiFi.\n");
 
-    if (network_tests_configuration == NULL)
+    if (unit_tests_configuration == NULL)
     {
-        syslog(LOGGING_LEVEL, "    FAIL: No network tests configuration.\n");
+        syslog(LOGGING_LEVEL, "    FAIL: No unit tests configuration.\n");
         return;
     }
 
@@ -400,8 +401,8 @@ static void espcp_test_start_wifi(void)
     GET_INITIAL_HEAP_INFORMATION;
 
     espcp_access_point_information_t access_point = { };
-    access_point.network_name = network_tests_configuration->ssid;
-    access_point.password = network_tests_configuration->password;
+    access_point.network_name = unit_tests_configuration->parameter1;
+    access_point.password = unit_tests_configuration->parameter2;
 
     struct upd_esp32_command message;
     memset(&message, 0, sizeof(struct upd_esp32_command));
@@ -1284,6 +1285,12 @@ void meadow_kt_espcp_test_get_web_resource(uint32_t arg)
 {
     syslog(LOGGING_LEVEL, "Testing the download web resources\n");
 
+    if (unit_tests_configuration == NULL)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: No unit tests configuration.\n");
+        return;
+    }
+
     espcp_test_wait_for_esp_to_be_ready();
     
     espcp_test_start_wifi();
@@ -1293,7 +1300,8 @@ void meadow_kt_espcp_test_get_web_resource(uint32_t arg)
         arg = 1;
     }
 
-    network_test_get_web_resource(arg, network_tests_configuration->server_ip, network_tests_configuration->server_port, network_tests_configuration->resource);
+    uint16_t port = string_to_server_port(UNIT_TESTS_CONFIG_SERVER_PORT);
+    network_test_get_web_resource(arg, UNIT_TESTS_CONFIG_SERVER_IP, port, UNIT_TESTS_CONFIG_RESOURCE);
 
     syslog(LOGGING_LEVEL, "Download of multiple web resources completed.\n");
 }
@@ -1319,6 +1327,13 @@ void meadow_kt_espcp_tests(uint32_t arg)
     syslog(LOGGING_LEVEL, "\n");
     syslog(LOGGING_LEVEL, "\n");
     syslog(LOGGING_LEVEL, "Executing ESP32 tests.\n");
+
+    if (unit_tests_configuration == NULL)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: No unit tests configuration.\n");
+        return;
+    }
+
     usleep(200);
 
     espcp_test_wait_for_esp_to_be_ready();
@@ -1333,15 +1348,16 @@ void meadow_kt_espcp_tests(uint32_t arg)
     espcp_test_enetdown();
 
     espcp_test_start_wifi();
-
     //
     //  We can start some actual network tests now we are connected to an 
     //  access point.
     //
     espcp_test_misc_network_functions();
-    network_test_get_web_resource(arg, network_tests_configuration->server_ip, network_tests_configuration->server_port, network_tests_configuration->resource);
+
+    uint16_t port = string_to_server_port(UNIT_TESTS_CONFIG_SERVER_PORT);
+    network_test_get_web_resource(arg, UNIT_TESTS_CONFIG_SERVER_IP, port, UNIT_TESTS_CONFIG_RESOURCE);
 
     syslog(LOGGING_LEVEL, "ESP32 tests completed.\n");
 }
 
-#endif
+#endif  // defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)

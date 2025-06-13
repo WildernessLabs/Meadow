@@ -3312,99 +3312,80 @@ void hcom_nx_config_init(void)
 
 /********************************************************************************************************************************************************
  *
- *  Process the network test configuration YAML file.
+ *  Process the unit test configuration YAML file.
  *
  *******************************************************************************************************************************************************/
 
  #if defined(CONFIG_KERNEL_TESTS_SYSCALL)
 
  /****************************************************************************
- * Name: network_tests_process_configuration_file
+ * Name: process_unit_tests_configuration_file
  *
  * Description:
- *  Process the network test configuration file and return a pointer to the
- *  network_tests_configuration_t structure containing the configuration.
+ *  Process the unit test configuration file and return a pointer to the
+ *  unit_tests_configuration_t structure containing the configuration.
  *
  * Input Parameters:
  *  None.
  *
  * Returned Value:
- *  Pointer to the newly created network_tests_configuration_t structure.
+ *  Pointer to the newly created unit_tests_configuration_t structure.
  *  NULL if the configuration file could not be processed.
  *
  * Assumptions/Limitations:
  *  None
  *
  ****************************************************************************/
-network_tests_configuration_t *process_network_test_configuration_file(void)
+unit_tests_configuration_t *process_unit_tests_configuration_file(void)
 {
     yaml_test_parameters_t *test_parameters = NULL;
-    network_tests_configuration_t *network_test_configuration = NULL;
+    unit_tests_configuration_t *unit_test_configuration = NULL;
 
-    cyaml_err_t err = cyaml_load_file(NETWORK_TEST_CONFIGURATION_FILE_NAME, &cyaml_config, &network_test_parameters_schema, (void **) &test_parameters, NULL);
+    cyaml_err_t err = cyaml_load_file(UNIT_TEST_CONFIGURATION_FILE_NAME, &cyaml_config, &unit_test_parameters_schema, (void **) &test_parameters, NULL);
     if (err == CYAML_OK)
     {
         if (test_parameters != NULL)
         {
             syslog(LOG_INFO, "Valid parameters found.\n");
-            network_test_configuration = (network_tests_configuration_t *) kmm_zalloc(sizeof(network_tests_configuration_t));
-            if (network_test_configuration == NULL)
+            unit_test_configuration = (unit_tests_configuration_t *) kmm_zalloc(sizeof(unit_tests_configuration_t));
+            if (unit_test_configuration == NULL)
             {
-                syslog(LOG_ERR, "Failed to allocate memory for network test configuration.\n");
-                cyaml_free(&cyaml_config, &network_test_parameters_schema, test_parameters, 0);
+                syslog(LOG_ERR, "Failed to allocate memory for unit test configuration.\n");
+                cyaml_free(&cyaml_config, &unit_test_parameters_schema, test_parameters, 0);
                 return(NULL);
             }
 
             if (test_parameters->parameters != NULL)
             {
-                if ((test_parameters->parameters->ssid != NULL) && (strlen(test_parameters->parameters->ssid) <= MAXIMUM_SSID_LENGTH) && (strlen(test_parameters->parameters->ssid) > 0))
-                {
-                    network_test_configuration->ssid = kmm_strdup(test_parameters->parameters->ssid);
-                }
-                if ((test_parameters->parameters->password != NULL) && (strlen(test_parameters->parameters->password) <= MAXIMUM_PASSWORD_LENGTH) && (strlen(test_parameters->parameters->password) > 0))
-                {
-                    network_test_configuration->password = kmm_strdup(test_parameters->parameters->password);
-                }
-                if (test_parameters->parameters->server_ip != NULL)
-                {
-                    network_test_configuration->server_ip = kmm_strdup(test_parameters->parameters->server_ip);
-                }
-                if (test_parameters->parameters->server_port != 0)
-                {
-                    uint32_t server_port = hcom_nx_config_parse_unsigned_integer(test_parameters->parameters->server_port, 80);
-                    if (server_port > 0xffff)
-                    {
-                        syslog(LOG_INFO, "Invalid server port number, defaulting to port 80.\n");
-                        network_test_configuration->server_port = 80;
-                    }
-                    else
-                    {
-                        network_test_configuration->server_port = (server_port & 0xffff);
-                    }
-                }
-                if (test_parameters->parameters->resource != NULL)
-                {
-                    network_test_configuration->resource = kmm_strdup(test_parameters->parameters->resource);
-                }
+                unit_test_configuration->parameter1 = (test_parameters->parameters->parameter1 == NULL) ? NULL : strdup(test_parameters->parameters->parameter1);
+                unit_test_configuration->parameter2 = (test_parameters->parameters->parameter2 == NULL) ? NULL : strdup(test_parameters->parameters->parameter2);
+                unit_test_configuration->parameter3 = (test_parameters->parameters->parameter3 == NULL) ? NULL : strdup(test_parameters->parameters->parameter3);
+                unit_test_configuration->parameter4 = (test_parameters->parameters->parameter4 == NULL) ? NULL : strdup(test_parameters->parameters->parameter4);
+                unit_test_configuration->parameter5 = (test_parameters->parameters->parameter5 == NULL) ? NULL : strdup(test_parameters->parameters->parameter5);
+                unit_test_configuration->parameter6 = (test_parameters->parameters->parameter6 == NULL) ? NULL : strdup(test_parameters->parameters->parameter6);
+                unit_test_configuration->parameter7 = (test_parameters->parameters->parameter7 == NULL) ? NULL : strdup(test_parameters->parameters->parameter7);
+                unit_test_configuration->parameter8 = (test_parameters->parameters->parameter8 == NULL) ? NULL : strdup(test_parameters->parameters->parameter8);
+                unit_test_configuration->parameter9 = (test_parameters->parameters->parameter9 == NULL) ? NULL : strdup(test_parameters->parameters->parameter9);
+                unit_test_configuration->parameter10 = (test_parameters->parameters->parameter10 == NULL) ? NULL : strdup(test_parameters->parameters->parameter10);
             }
             else
             {
-                syslog(LOG_INFO, "Invalid network test configuration file.\n");
-                meadow_logging_write(mfl_error, "Invalid network test configuration file.\n");
+                syslog(LOG_INFO, "Invalid unit test configuration file.\n");
+                meadow_logging_write(mfl_error, "Invalid unit test configuration file.\n");
             }
         }
 
-        cyaml_free(&cyaml_config, &network_test_parameters_schema, test_parameters, 0);
+        cyaml_free(&cyaml_config, &unit_test_parameters_schema, test_parameters, 0);
     }
     else
     {
         char message[100];
-        snprintf(message, sizeof(message), "Network test configuration file could not be processed. Error: %s\n", cyaml_strerror(err));
+        snprintf(message, sizeof(message), "Unit test configuration file could not be processed. Error: %s\n", cyaml_strerror(err));
         syslog(LOG_INFO, message);
         meadow_logging_write(mfl_error, message);
     }
 
-    return(network_test_configuration);
+    return(unit_test_configuration);
 }
 
 #endif

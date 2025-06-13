@@ -44,6 +44,7 @@
 
 #include "network_tests.h"
 #include "../hcom_nx/hcom_nx_config_manager.h"
+#include <meadow/meadow_unit_test_framework.h>
 
 /****************************************************************************
  * Local defines.
@@ -74,7 +75,14 @@ void meadow_kt_ethernet_get_web_resource(uint32_t arg)
 {
     syslog(LOGGING_LEVEL, "Testing the download of multiple web pages\n");
 
-    network_test_get_web_resource(arg, network_tests_configuration->server_ip, network_tests_configuration->server_port, network_tests_configuration->resource);
+    if (unit_tests_configuration == NULL)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: No unit tests configuration.\n");
+        return;
+    }
+
+    uint16_t port = string_to_server_port(UNIT_TESTS_CONFIG_SERVER_PORT);
+    network_test_get_web_resource(arg, UNIT_TESTS_CONFIG_SERVER_IP, port, UNIT_TESTS_CONFIG_RESOURCE);
 
     syslog(LOGGING_LEVEL, "Download of multiple web pages test completed.\n");
 }
@@ -82,7 +90,7 @@ void meadow_kt_ethernet_get_web_resource(uint32_t arg)
  * Name: meadow_kt_ethernet_tests
  *
  * Description:
- *  Execute any network tests.
+ *  Execute any ethernet tests.
  *
  * Input Parameters:
  *   arg - Argument passed to kernel test via CLI
@@ -100,9 +108,16 @@ void meadow_kt_ethernet_tests(uint32_t arg)
     syslog(LOGGING_LEVEL, "\n");
     syslog(LOGGING_LEVEL, "Executing ethernet network tests.\n");
 
-    network_test_get_web_resource(arg, network_tests_configuration->server_ip, network_tests_configuration->server_port, network_tests_configuration->resource);
+    if (unit_tests_configuration == NULL)
+    {
+        syslog(LOGGING_LEVEL, "    FAIL: No unit tests configuration.\n");
+        return;
+    }
+
+    uint16_t port = string_to_server_port(UNIT_TESTS_CONFIG_SERVER_PORT);
+    network_test_get_web_resource(arg, UNIT_TESTS_CONFIG_SERVER_IP, port, UNIT_TESTS_CONFIG_RESOURCE);
 
     syslog(LOGGING_LEVEL, "Ethernet tests completed.\n");
 }
 
-#endif /* CONFIG_ETHERNET_TESTS */
+#endif /* defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS) */
