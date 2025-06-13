@@ -343,7 +343,7 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
       mdwCfgTimerChan.portAndPin    = GPIO_TIM12_CH1IN_1; // PB14
       ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
       break;
-    case 1122:    // <--THIS RETURNS INVALID CONFIGURATION
+    case 1122:
       // Timer 12 channel 2
       mdwCfgTimerChan.timerNumber   = 12;
       mdwCfgTimerChan.channelNumber = 2;
@@ -351,12 +351,22 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
       mdwCfgTimerChan.portAndPin    = GPIO_TIM12_CH2IN_1; // PB15
       ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
       break;
+    case 5121:
+      // Timer 12 channel 1 but uses PH6. On ProjLab3e, it is exposed on
+      // mikroBUS 1 SCK of ProjLab3e.
+      mdwCfgTimerChan.timerNumber   = 12;
+      mdwCfgTimerChan.channelNumber = 1;
+      mdwCfgTimerChan.configOption  = 1;
+      mdwCfgTimerChan.portAndPin    = GPIO_TIM12_CH1IN_2; // PH6
+      ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
+      break;
     case 1101:
       // Timer 10 channel 1
       mdwCfgTimerChan.timerNumber   = 10;
       mdwCfgTimerChan.channelNumber = 1;
       mdwCfgTimerChan.configOption  = 1;
-      mdwCfgTimerChan.portAndPin    = GPIO_TIM10_CH1IN_1;
+     // F7Featherv2 D03
+      mdwCfgTimerChan.portAndPin    = GPIO_TIM10_CH1IN_1; // PB8
       ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
       break;
     case 1051:
@@ -364,7 +374,8 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
       mdwCfgTimerChan.timerNumber   = 5;
       mdwCfgTimerChan.channelNumber = 1;
       mdwCfgTimerChan.configOption  = 1;
-      mdwCfgTimerChan.portAndPin    = GPIO_TIM5_CH1IN_2;
+      // F7Featherv2 D02
+      mdwCfgTimerChan.portAndPin    = GPIO_TIM5_CH1IN_2;  // PH10 
 
       ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
       break;

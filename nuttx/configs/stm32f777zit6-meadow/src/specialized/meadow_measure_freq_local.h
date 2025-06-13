@@ -111,11 +111,11 @@ typedef struct mdwFreqChanData_s mdwFreqChanData_t;
 // element, each field is pre-defined from the 'struct freqTimerInfo_s array'
 struct mdwFreqTimerInfo_s
 {
-  uint8_t  timerNumb   : 4; // 1 - 14 timer number
-  uint8_t  timerWidth  : 1; // 16-bit or 32-bit timer? 0=16-bits, 1=32-bits
-  uint8_t  timerMaxClk : 1; // 0=STM32_APB1_TIM2_CLKIN, 1=STM32_APB2_TIM1_CLKIN
-  uint8_t  timerAPBClk : 1; // 0=STM32_RCC_APB1ENR, 1=STM32_RCC_APB2ENR
-  uint8_t  timerUsable : 1; // Is Timer useable? 0=No, 1=Yes
+  uint8_t  timerNumb   : 4; // ( # ) 1 - 14 timer number
+  uint8_t  timerWidth  : 1; // (32b) 16-bit or 32-bit timer? 0=16-bits, 1=32-bits
+  uint8_t  timerMaxClk : 1; // (216) 0=STM32_APB1_TIM2_CLKIN, 1=STM32_APB2_TIM1_CLKIN
+  uint8_t  timerAPBClk : 1; // (apb) 0=STM32_RCC_APB1ENR, 1=STM32_RCC_APB2ENR
+  uint8_t  timerUsable : 1; // (use) Is Timer useable? 0=No, 1=Yes
   uint32_t timerBase;       // Unique base address for each timer
   uint32_t timerClkEn;      // Offset for timer enable bit for APB1 or APB2
   uint32_t timerIrqVec;     // Timer's Interrupt vector
