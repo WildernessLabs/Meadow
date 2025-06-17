@@ -268,7 +268,7 @@ int mono_main(int hcom_argc, char *hcom_argv[])
   setenv("MONO_GC_PARAMS", "max-heap-size=16m,nursery-size=512k,soft-heap-limit=4m,major=marksweep", 1);
   setenv("MONO_GC_DEBUG", "max-valloc-size=24M", 1);
   setenv("MONO_TRACE_LISTENER", "Console.Out", 1);
-  setenv("TMPDIR", "/meadow0/Temp", 1);
+  setenv("TMPDIR", "/meadow0/Temp", 1); // Same as Meadow.Core's MeadowOS.FileSystem.TempDirectory circa Meadow 2.2
 
 #ifdef CONFIG_MTD_PARTITION
   mono_set_assemblies_path("/meadow0");
