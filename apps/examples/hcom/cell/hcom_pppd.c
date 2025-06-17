@@ -64,17 +64,18 @@
 #define GPS_AT_CMD_TIMEOUT 600
 #define NETWORK_SCAN_AT_CMD_TIMEOUT 600
 #define GET_CSQ_AT_CMD_TIMEOUT 120
+#define HCOM_PPPD_CHAT_THREAD_DELAY (5 * 1000 * 1000)
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-
+static pthread_t _chat_thread_handle;
 static char *thisFile = __FILE__;
 static bool cell_connected = false;
 static char *cell_at_cmds_output;
 static hcom_pppd_handler_t hcom_cell_handler;
 static hcom_cell_err_t cell_err;
-
+static sem_t g_hcom_pppd_sem;
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -306,6 +307,10 @@ int hcom_pppd_raise_event(uint32_t function, uint32_t status_code,
   {
     uint32_t encondedEventDataSize = ESPCP_EVENT_DATA_SIZE;
     uint8_t *encondedData = (uint8_t*)malloc(encondedEventDataSize);
+    if (!encondedData)
+    {
+      return result;
+    }
     espcp_encode_event_data(message, encondedData);
   
     result = espcp_queue_event_messages(encondedData);
@@ -373,6 +378,16 @@ static int hcom_pppd_create_handler(void)
   }
 
   return OK;
+}
+
+static void hcom_pppd_lock(void)
+{
+  sem_wait(&g_hcom_pppd_sem);
+}
+
+static void hcom_pppd_unlock(void)
+{
+  sem_post(&g_hcom_pppd_sem);
 }
 
 //====================================================================
@@ -482,9 +497,53 @@ static void *pppd_thread(void *cell_settings_ptr)
     return NULL;
 }
 
+static void *hcom_pppd_event_thread(void *arg)
+{
+  int ret = 0;
+  int pppd_event = 0;
+  char chat_script [CELL_SCRIPT_LENGTH] = {0};
+
+  while(true)
+  {
+    ret = meadow_os_exe_cell_cmd(&chat_script);
+    if (ret == OK)
+    {
+      strncpy(hcom_cell_handler.script, chat_script, CONNECT_SCRIPT_MAX_SIZE);
+      pppd_set_state(&hcom_cell_handler, (CELL_PAUSED | CELL_AT_CMD));
+    }
+
+    pppd_event = pppd_get_state(&hcom_cell_handler);
+    if (pppd_event & CELL_CHAT_DONE)
+    {
+      pppd_clear_state (&hcom_cell_handler, (CELL_PAUSED |CELL_CHAT_DONE | CELL_AT_CMD));
+      hcom_pppd_at_cmd_event(OK);
+    }
+
+    usleep(HCOM_PPPD_CHAT_THREAD_DELAY);
+  }
+  return NULL;
+}
+
 bool meadow_cell_is_connected(void)
 {
     return cell_connected;
+}
+
+int meadow_cell_send_at_cmd(unsigned char *cmd)
+{
+  if (!cmd)
+    {
+      return -1;
+    }
+
+  if (strlen((const char *)cmd) > CONNECT_SCRIPT_MAX_SIZE)
+    {
+      return -2;
+    }
+
+  strncpy(hcom_cell_handler.script, (const char *)cmd, CONNECT_SCRIPT_MAX_SIZE);
+  pppd_set_state(&hcom_cell_handler, (CELL_PAUSED | CELL_AT_CMD));
+  return 0;
 }
 
 void meadow_cell_change_state(int state)
@@ -499,19 +558,8 @@ void meadow_cell_change_state(int state)
           if (strlen(hcom_cell_handler.script) > 0)
             {
               hcom_logging_syslog(LOG_INFO, "%s-%d-Cell script: %s\n", thisFile, __LINE__, hcom_cell_handler.script);
-              pppd_set_state(&hcom_cell_handler, CELL_AT_CMD);
+              pppd_set_state(&hcom_cell_handler, CELL_PAUSED | CELL_AT_CMD);
             }
-          pppd_set_state(&hcom_cell_handler, CELL_PAUSED);
-        }
-      else
-        {
-          // Waiting until script performed.
-          // Do this, we protect the early changed state.
-          while (hcom_cell_handler.state == (CELL_AT_CMD | CELL_PAUSED))
-            {
-              usleep(100);
-            }
-          hcom_cell_handler.state  = CELL_RESUMED;
         }
     }
   hcom_logging_syslog(LOG_INFO, "%s-%d-Cell current state: %d\n", thisFile, __LINE__, hcom_cell_handler.state);
@@ -519,19 +567,27 @@ void meadow_cell_change_state(int state)
 
 void pppd_set_state(hcom_pppd_handler_t *handler, int state)
 {
+  hcom_pppd_lock();
   handler->state = handler->state | state;
+  hcom_pppd_unlock();
 }
 
 void pppd_clear_state(hcom_pppd_handler_t *handler, int state)
 {
-  handler->state = handler->state ^ state;
+  hcom_pppd_lock();
+  handler->state = handler->state & (~state);
+  hcom_pppd_unlock();
+}
+
+int pppd_get_state(hcom_pppd_handler_t *handler)
+{
+  return handler->state;
 }
 
 int meadow_get_cell_at_cmds_output(unsigned char *buf)
 {
     size_t len = strlen(cell_at_cmds_output) + 1;
     memcpy(buf, cell_at_cmds_output, len);
-
     return len;
 }
 
@@ -604,6 +660,38 @@ static void hcom_pppd_disconnected_event(int err_base)
     cell_err = err_base;
 }
 
+static void hcom_pppd_chat_thread_create(void)
+{
+  int result = ERROR;
+  pthread_attr_t thread_attributes;
+  result = pthread_attr_init(&thread_attributes);
+  if (result != OK)
+  {
+    return (-result);
+  }
+
+  struct sched_param scheduler_parameters;
+  scheduler_parameters.sched_priority = HCOM_THREAD_PRIORITY_CELL_PPPD;
+  result = pthread_attr_setschedparam(&thread_attributes, &scheduler_parameters);
+  if (result != OK)
+  {
+    return (-result);
+  }
+
+  result = pthread_attr_setstacksize(&thread_attributes, HCOM_THREAD_STACKSIZE_CELL_PPPD * 2);
+  if (result != OK)
+  {
+    return (-result);
+  }
+
+  result = pthread_create(&_chat_thread_handle, &thread_attributes, hcom_pppd_event_thread, NULL);
+  if (result != OK)
+  {
+    return (-result);
+  }
+  return result;
+}
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -665,12 +753,19 @@ int hcom_pppd_start()
                 "ScanMode config has been deprecated! Consult how to use the network scanner on Meadow cellular docs.", thisFile, __LINE__);
 #endif
         }
+
+        sem_init(&g_hcom_pppd_sem, 0, 0);
+        sem_setprotocol(&g_hcom_pppd_sem, SEM_PRIO_NONE);
+        hcom_pppd_unlock();
+
+        // Create Chat thread
+        hcom_pppd_chat_thread_create();
+
         pthread_attr_t attr;
         struct sched_param param;
 
         // Initialize thread attributes
         pthread_attr_init(&attr);
-
         // Set the stack size
         size_t stack_size = HCOM_THREAD_STACKSIZE_CELL_PPPD;
         pthread_attr_setstacksize(&attr, stack_size);

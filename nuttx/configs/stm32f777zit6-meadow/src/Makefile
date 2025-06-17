@@ -131,6 +131,8 @@ ethernet/meadow_ethnet_monitor.c \
 ethernet/meadow_ethnet_dhcp.c \
 ethernet/meadow_ethnet_ping.c
 
+CSRCS += cell/meadow_cell_event.c
+
 ifeq ($(CONFIG_MEADOW_ESPCP_MANAGER),y)
 CSRCS += espcp/espcp_thread.c \
 		 espcp/espcp_queue.c \

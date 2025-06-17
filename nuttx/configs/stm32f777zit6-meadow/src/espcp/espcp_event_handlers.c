@@ -45,6 +45,7 @@
 #include "generic_list.h"
 #include "../ntpclient/ntpclient.h"
 #include "../ethernet/meadow_ethnet_local.h"
+#include "../cell/meadow_cell_event.h"
 #include "../hcom_nx/hcom_nx_common.h"
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/meadow_thread_config.h>
@@ -66,6 +67,7 @@
 static void espcp_network_connected_event_handler(espcp_message_t *message);
 static void espcp_network_disconnected_event_handler(espcp_message_t *message);
 static void espcp_network_got_ip_event_handler(espcp_message_t *);
+static void espcp_network_cell_event(espcp_message_t *);
 
 static void espcp_system_get_configuration_event_handler(espcp_message_t *);
 static void espcp_system_error_event_handler(espcp_message_t *);
@@ -101,6 +103,12 @@ static espcp_event_handlers_t _system_handlers[] =
  */
 static espcp_event_handlers_t _bluetooth_handlers[] = 
 {
+    { END_OF_HANDLERS_VALUE, NULL }
+};
+
+static espcp_event_handlers_t _cell_handlers[] = 
+{
+    { espcp_cell_attention_command, espcp_network_cell_event},
     { END_OF_HANDLERS_VALUE, NULL }
 };
 
@@ -422,6 +430,48 @@ void espcp_dispatch_event(espcp_message_t *message)
 }
 
 /****************************************************************************
+ * Name: espcp_accept_event
+ *
+ * Description:
+ *  Accept an event to the designated event handler.
+ *
+ * Input Parameters:
+ *  message - Response (event information) to be processed
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+void espcp_accept_event(espcp_message_t *message)
+{
+    if (message != NULL)
+    {
+        espcp_event_handlers_t *handler = NULL;
+        switch (message->interface)
+        {
+            case espcp_esp32_interfaces_cell:
+                handler = _cell_handlers;
+                break;
+        }
+
+        if (handler != NULL)
+        {
+            while (handler->function != END_OF_HANDLERS_VALUE)
+            {   
+                if (handler->function == message->function)
+                {
+                    handler->event_handler(message);
+                    break;
+                }                       
+                handler++;
+            }
+        }
+    }
+}
+/****************************************************************************
  * Name: espcp_system_get_configuration_event_handler
  *
  * Description:
@@ -726,4 +776,29 @@ static void espcp_network_got_ip_event_handler(espcp_message_t *message)
     }
     espcp_pass_to_managed_event_handler(message);
     MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
+}
+
+/****************************************************************************
+ * Name: espcp_network_cell_event
+ *
+ * Description:
+ *   This event handler will be called when got request from manager side.
+ *
+ * Input Parameters:
+ *   message - Message from the cell containing event data.
+ *
+ ****************************************************************************/
+static void espcp_network_cell_event(espcp_message_t *message)
+{
+    MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
+    if (message->status_code == espcp_status_codes_completed_ok)
+    {
+        if (message->payload != NULL)
+        {
+            meadow_cell_event_get_at_cmd(message);
+        }
+    }
+    espcp_delete_message_and_payload(message);
+    MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
+
 }

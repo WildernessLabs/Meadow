@@ -1,8 +1,8 @@
 /****************************************************************************
- * espcp_event_handlers.h
- *
- *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
- *   Author: Mark Stevens
+ * meadow_os.h
+ * 
+ *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,55 +32,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
+#ifndef _MEADOW_CELL_EVENT_H
+#define _MEADOW_CELL_EVENT_H
 
-#ifndef __ESPCP_EVENT_HANDLERS_H__
-#define __ESPCP_EVENT_HANDLERS_H__
+#include "../espcp/espcp_common.h"
 
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
-#include <errno.h>
-#include <debug.h>
-#include <fcntl.h>
-
-#include "espcp_wifi.h"
-#include "espcp_shared_enums.h"
-#include "espcp_message.h"
-#include "espcp_encoders.h"
-#include "espcp_system.h"
-#include "espcp_common.h"
-#include "espcp_usrsock.h"
-
-/****************************************************************************
- * Structures
- ****************************************************************************/
-
-/*
- *  Structure used to hold a table of interrupt handlers for the ESP functions.
- */
-struct espcp_event_handlers_s
-{
-    /**
-     *  Function expecting to receive and interrupt.
-     */
-    uint32_t function;
-
-    /**
-     *  Method that will take the message and process it.
-     */
-    void (*event_handler)(espcp_message_t *);
-};
-typedef struct espcp_event_handlers_s espcp_event_handlers_t;
-
-/****************************************************************************
- * Public Function Prototypes
- ****************************************************************************/
-void espcp_event_handlers_init(void);
-espcp_message_t *espcp_get_event_data(uint32_t);
-void espcp_usrsock_poll_interrupt_handler(espcp_message_t *);   // Found in espcp_usrsock_sockif.c
-void espcp_dispatch_event(espcp_message_t *);
-void espcp_accept_event(espcp_message_t *);
-void espcp_pass_to_managed_event_handler(espcp_message_t *);
-
-#endif /* __ESPCP_EVENT_HANDLERS_H__ */
+int meadow_cell_event_get_at_cmd(espcp_message_t *);
+int meadow_cell_event_get_script(char *, size_t);
+#endif

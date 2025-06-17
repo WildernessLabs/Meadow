@@ -601,14 +601,15 @@
 #  define SYS_meadow_os_reset_board                     (SYS_meadow_client_cert_release_credentials + 18)
 #  define SYS_meadow_os_coprocessor_deep_sleep          (SYS_meadow_client_cert_release_credentials + 19)
 #  define SYS_meadow_os_get_gateway_address             (SYS_meadow_client_cert_release_credentials + 20)
+#  define SYS_meadow_os_exe_cell_cmd                 (SYS_meadow_client_cert_release_credentials + 21)
 #else
-#  define SYS_meadow_os_get_gateway_address             SYS_meadow_client_cert_release_credentials
+#  define SYS_meadow_os_exe_cell_cmd             SYS_meadow_client_cert_release_credentials
 #endif
 
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)
-#  define SYS_meadow_idle_monitor_get_value         (SYS_meadow_os_get_gateway_address + 1)
+#  define SYS_meadow_idle_monitor_get_value         (SYS_meadow_os_exe_cell_cmd + 1)
 #else
-#  define SYS_meadow_idle_monitor_get_value         SYS_meadow_os_get_gateway_address
+#  define SYS_meadow_idle_monitor_get_value         SYS_meadow_os_exe_cell_cmd
 #endif
 
 #if defined (CONFIG_STM32F7_DMA2)
