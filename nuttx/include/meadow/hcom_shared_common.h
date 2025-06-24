@@ -987,13 +987,21 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 // When set to 1 the syslog mask is set for all tracing except for
 // debug. At startup syslog messages are routed to UART without
 // the need for configuration or the CLI Uart Trace command.
-#define HCOM_FORCE_SYSLOG_MASK_AND_OUTPUT_TO_UART    0
+#define HCOM_FORCE_SYSLOG_MASK_AND_OUTPUT_TO_UART     0
 
 // The only valid UART options are 1, 4 or 6. All other value are considered
 // a build error.
-// At this time this #define is only used in
+// At this time this #define is only controls code in
 // '/configs/stm32f777zit6-meadow/src/hcom_nx/diag/hcom_nx_trace_msg_proc.c'
-#define HCOM_DIAG_SYSLOG_UART_NUMBER                 4
+#define HCOM_DIAG_SYSLOG_UART_NUMBER                  4
+
+// This causes the build to add code that allows a function on the Nuttx
+// side to routed text messages to the user side and be sent to the
+// Host (CLI).
+// Set to 1 to include and 0 to exclude.
+// This should probably be removed as the code is often used by
+// other modules.
+#define HCOM_INCLUDE_NX_CODE_TO_SEND_TEXT_TO_HOST     1
 
 // Cause the build to include the ability to print a buffer
 // full of data, showing hex and ascii. Duplicate code is created

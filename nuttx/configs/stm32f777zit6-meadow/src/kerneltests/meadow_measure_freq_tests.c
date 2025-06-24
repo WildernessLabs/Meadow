@@ -56,6 +56,13 @@
 /************************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
+// Set 1 to use UART for syslog output. The specific UART can be changed by
+// using HCOM_DIAG_SYSLOG_UART_NUMBER in
+// /nuttx/include/meadow/hcom_shared_common.h.
+// Set to 0 to send directly to CLI where the frequency measurement tests are
+// initiated.
+ #define MEADOW_FREQ_MEAS_TEST_USE_SYSLOG_OUTPUT (0)
+
 // F7FeatherV2 PH10 is D02 connected to Timer 5 32-bit, channel 1. This is the
 // only exposed 32-bit timer pin on F7FeatherV2. Timer 2 is also 32-bits but
 // used to control RGB LED
@@ -87,7 +94,7 @@
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
-// Configure 32-bit timer
+// Configure only available 32-bit timer 5
 // static int meadow_freq_dc_test_configure_32_Tim5_PH10(void)
 // {
 //   int ret = meadow_measure_freq_configure(5,  // Timer 5 D02 (32-bit)
@@ -104,30 +111,15 @@
 // }
 
 //===============================================================
-// Send syslog to CLI
+#if (MEADOW_FREQ_MEAS_TEST_USE_SYSLOG_OUTPUT == 0)
+// Send syslog like messages to CLI. This is needed because for Issue #842
+// we need to use PB14 and PB15 to do frequency measurements. But, these are
+// the pins used for syslog.
 static void syslogToHost(int priority, FAR const IPTR char *fmt, ...)
 {
-  // syslog(1, "Entered syslogToHost()/n"); usleep(50 * 1000);
-
   size_t maxStringLen = 256;
   char * finalString = malloc(maxStringLen);
-  uint16_t requestType;
-  
-  switch (priority)
-  {
-  case LOG_INFO:
-    requestType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
-    break;
-  
-  case LOG_ERR:
-    requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
-    break;
-    
-  default:
-    requestType = HCOM_HOST_REQUEST_TEXT_TRACE_MSG;
-    break;
-  }
-  
+ 
   va_list args;
   va_start(args, fmt);
 
@@ -135,18 +127,15 @@ static void syslogToHost(int priority, FAR const IPTR char *fmt, ...)
   // The Nuttx version of snprintf will truncate the string based on the
   // buffer size but will always place a terminating NULL at the end.
   int stringLen = vsnprintf(finalString, maxStringLen - 1, fmt, args);
-
-  syslog(1, "Sending message to host\n"); usleep(50 * 1000);
   
-  hcom_nx_route_text_to_host(requestType, finalString, stringLen);
+  hcom_nx_route_text_to_host(HCOM_HOST_REQUEST_TEXT_INFORMATION,
+    finalString, stringLen);
 
-  // Diagnostic - to see all text on syslog too
-  // syslog(priority, finalString);
   va_end(args);
-  
-  syslog(1, "Exiting sending message to host\n"); usleep(50 * 1000);
+
   free(finalString);
 }
+#endif
 
 //===============================================================
 // Display the frequency information
@@ -155,13 +144,21 @@ static void display_frequency_and_friends(
 {
   if(ret < 0)
   {
+#if (MEADOW_FREQ_MEAS_TEST_USE_SYSLOG_OUTPUT > 0)
     syslog(2, "Timer %lu, Channel:%lu - Error %d\n",
             mdwFreqReturnData.timerNumber, 
             mdwFreqReturnData.channelNumber,
             ret);
+#else
+    syslogToHost(2, "Timer %lu, Channel:%lu - Error %d\n",
+            mdwFreqReturnData.timerNumber, 
+            mdwFreqReturnData.channelNumber,
+            ret);
+#endif
     return;
   }
-  
+
+#if (MEADOW_FREQ_MEAS_TEST_USE_SYSLOG_OUTPUT > 0)
   syslog(2, "Timer %lu, Channel:%lu - Freq:%6.2fHz, DC:%02.2f%%, AvgFreq:%6.2fHz, Input Count:%lu\n",
           mdwFreqReturnData.timerNumber, 
           mdwFreqReturnData.channelNumber,
@@ -169,6 +166,15 @@ static void display_frequency_and_friends(
           ((double)mdwFreqReturnData.dutyCycleX1000)/1000.0,
           ((double)mdwFreqReturnData.avgFreqX1000)/1000.0,
           mdwFreqReturnData.gpioCountForAvg);
+#else  
+  syslogToHost(2, "Timer %lu, Channel:%lu - Freq:%6.2fHz, DC:%02.2f%%, AvgFreq:%6.2fHz, Input Count:%lu\n",
+          mdwFreqReturnData.timerNumber, 
+          mdwFreqReturnData.channelNumber,
+          ((double)mdwFreqReturnData.frequencyX1000)/1000.0,
+          ((double)mdwFreqReturnData.dutyCycleX1000)/1000.0,
+          ((double)mdwFreqReturnData.avgFreqX1000)/1000.0,
+          mdwFreqReturnData.gpioCountForAvg);
+#endif
 }
 
 /************************************************************************************
@@ -182,8 +188,13 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
   mdwFreqReturnData_t mdwFreqReturnData;
   mdwFreqCfgTimer_t mdwCfgTimerChan;
 
+#if (MEADOW_FREQ_MEAS_TEST_USE_SYSLOG_OUTPUT > 0)
   syslog(2, "meadow_kt_measure_freq_tests 'set developer -d 19 -v %lu'\n",
             userData);
+#else
+  syslogToHost(2, "meadow_kt_measure_freq_tests 'set developer -d 19 -v %lu'\n",
+            userData);
+#endif
 
   // userData 4 digits
   // 1st digit = action
@@ -351,7 +362,7 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
       mdwCfgTimerChan.portAndPin    = GPIO_TIM12_CH2IN_1; // PB15
       ret = meadow_measure_freq_configure(&mdwCfgTimerChan);
       break;
-    case 5121:
+    case 5121:    // 5 because uses GPIO not specified by Meadow in build.h
       // Timer 12 channel 1 but uses PH6. On ProjLab3e, it is exposed on
       // mikroBUS 1 SCK of ProjLab3e.
       mdwCfgTimerChan.timerNumber   = 12;
@@ -413,7 +424,11 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
       break;
       
     default:
+#if (MEADOW_FREQ_MEAS_TEST_USE_SYSLOG_OUTPUT > 0)
       syslog(2, "meadow_measure_freq_tests, no test:%lu\n", userData);
+#else
+    syslogToHost(2, "meadow_measure_freq_tests, no test:%lu\n", userData);
+#endif
       break;
   }
 
@@ -503,8 +518,13 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
         break;
     }
 
+#if (MEADOW_FREQ_MEAS_TEST_USE_SYSLOG_OUTPUT > 0)
     syslog(2, "%s@%d-Failure: Test:%lu, ret:%d (%s)\n",
               __FILE__, __LINE__, userData, ret, errorStr);
+#else
+    syslogToHost(2, "%s@%d-Failure: Test:%lu, ret:%d (%s)\n",
+              __FILE__, __LINE__, userData, ret, errorStr);
+#endif
   }
   else
   {
@@ -527,8 +547,13 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
       successStr = "Unknown return value";
     }
 
+#if (MEADOW_FREQ_MEAS_TEST_USE_SYSLOG_OUTPUT > 0)
     syslog(2, "%s@%d-Success: Test:%lu, ret:%d (%s)\n",
               __FILE__, __LINE__, userData, ret, successStr);
+#else
+    syslogToHost(2,  "%s@%d-Success: Test:%lu, ret:%d (%s)\n",
+              __FILE__, __LINE__, userData, ret, successStr);
+#endif
   }
 }
 

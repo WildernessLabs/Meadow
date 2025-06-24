@@ -57,21 +57,21 @@
 #include <meadow/meadow_measure_freq_shared.h>
 
 //=====================================================
-// Diagnostic
 // #define USE_MEADOW_DEBUG_HELPERS
 #undef USE_MEADOW_DEBUG_HELPERS
 // #include <meadow/meadow_debug_helpers.h>
-#pragma message "(--) meadow_measure_freq.c - CLEAN ME UP"
-
+#pragma message "(--) meadow_measure_freq.c"
 // #pragma GCC optimize("O0")    // Prevent compiler from changing the code
 
 #define MEADOW_MEASURE_FREQ_INCLUDE_REG_DUMP (0)
 
 // Adds syslog diagnostic output
-#define MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT (1)
+#define MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT (0)
 
+// Diagnostic
 // Use pin for timing via scope
-#define DEBUG_PIN_V2_D06 (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL | GPIO_SPEED_100MHz | GPIO_PORTB | GPIO_PIN13)
+// #define DEBUG_PIN_V2_D06 (GPIO_OUTPUT | GPIO_FLOAT | GPIO_PUSHPULL |
+//   GPIO_SPEED_100MHz | GPIO_PORTB | GPIO_PIN13)
 // Diagnostic
 
 #define MEADOW_MEAS_FREQ_NUMB_OF_F7_TIMERS (14)

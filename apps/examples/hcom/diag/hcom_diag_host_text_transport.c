@@ -40,7 +40,7 @@
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
 
-#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+#if (HCOM_INCLUDE_NX_CODE_TO_SEND_TEXT_TO_HOST > 0)
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -71,7 +71,7 @@ int hcom_host_text_transport_setup()
 
 //================================================================
 // Create a thread that can be used to transport the syslog message
-// from k-land to here in userland.
+// from nuttx land to here in userland.
 // This thread calls via hcom_via_nx_access into kernel land and lives
 // there until the a message is ready to be sent to the host text.
 void hcom_host_text_transport_create_thread()
@@ -151,4 +151,4 @@ int hcom_host_text_transport_setup()
   return OK;
 }
 
-#endif // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+#endif // #if (HCOM_INCLUDE_NX_CODE_TO_SEND_TEXT_TO_HOST > 0)
