@@ -60,7 +60,7 @@
 // #define USE_MEADOW_DEBUG_HELPERS
 #undef USE_MEADOW_DEBUG_HELPERS
 // #include <meadow/meadow_debug_helpers.h>
-#pragma message "(--) meadow_measure_freq.c"
+// #pragma message "(--) meadow_measure_freq.c"
 // #pragma GCC optimize("O0")    // Prevent compiler from changing the code
 
 #define MEADOW_MEASURE_FREQ_INCLUDE_REG_DUMP (0)

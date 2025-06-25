@@ -993,7 +993,8 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 // a build error.
 // At this time this #define is only controls code in
 // '/configs/stm32f777zit6-meadow/src/hcom_nx/diag/hcom_nx_trace_msg_proc.c'
-#define HCOM_DIAG_SYSLOG_UART_NUMBER                  4
+// The default must be maintained as UART 1.
+#define HCOM_DIAG_SYSLOG_UART_NUMBER                  1
 
 // This causes the build to add code that allows a function on the Nuttx
 // side to routed text messages to the user side and be sent to the
