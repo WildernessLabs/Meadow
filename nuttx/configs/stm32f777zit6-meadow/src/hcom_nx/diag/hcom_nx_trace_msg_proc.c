@@ -525,11 +525,6 @@ int hcom_nx_trace_msg_open_uart_serial_port()
 #error "Must select a valid syslog uart"
 #endif
 
-#if HCOM_DIAG_SYSLOG_UART_NUMBER == 4
-#else
-  // This is the default of alternate uart isn't 4
-#endif
-
   if(_shutting_down) return OK;
   if (_uart_fd < 0)
   {
