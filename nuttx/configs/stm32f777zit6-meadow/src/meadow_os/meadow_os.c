@@ -37,7 +37,7 @@
 
 #include <stdlib.h>
 
-#include <arch/board/board.h>
+#include <nuttx/board.h>
 
 #include <meadow/meadow_os.h>
 

@@ -69,9 +69,12 @@
 #define HCOM_TRACE_RAMLOG_ASSUME_LARGEST_SYSLOG (384)
 #define HCOM_TRACE_RAMLOG_READ_BUF_SIZE (256)
 #define HCOM_TRACE_LOCAL_SYSLOG_CIR_BUF_SIZE (HCOM_TRACE_RAMLOG_READ_BUF_SIZE * 5)
-#define HCOM_TRACE_RAMLOG_SERIAL_NAME ("/dev/ttyS0")    // UART 1
 #define HCOM_TRACE_RAMLOG_RECONFIG_TIMEOUT (30)   // Seconds to reconfigure
 #define HCOM_TRACE_SHARED_SYSLOG_CIR_BUF_SIZE HCOM_TRACE_LOCAL_SYSLOG_CIR_BUF_SIZE
+
+#define HCOM_TRACE_RAMLOG_SERIAL_PORT_NAME_1 ("/dev/ttyS0")    // UART 1
+#define HCOM_TRACE_RAMLOG_SERIAL_PORT_NAME_4 ("/dev/ttyS1")    // UART 4
+#define HCOM_TRACE_RAMLOG_SERIAL_PORT_NAME_6 ("/dev/ttyS3")    // UART 6
 
 /****************************************************************************
  * Private Types
@@ -97,11 +100,11 @@ static host_com_cir_buffer_t *_ramlog_cbuf;
 // CLI can consume them.
 static uint8_t *_syslogMsgBuf;
 static int _ramlog_fd;
-static int _uart1_fd;
+static int _uart_fd;
 static bool _trace_kthread_running;
 static bool _trace_log_to_host;
-static bool _trace_log_to_uart1;
-static bool _profiler_log_to_uart1;
+static bool _trace_log_to_uart;
+static bool _profiler_log_to_uart;
 static size_t _cliMsgLength;
 static sem_t _startupSem;
 static sem_t _readNxtSem;
@@ -122,13 +125,13 @@ static int hcom_nx_trace_msg_read_ramlog_loop(uint8_t *readBuf);
 static int hcom_nx_trace_msg_save_recvd_data(uint8_t readBuf[], const ssize_t recvByteCnt);
 static int hcom_nx_trace_msg_pull_all_packets_from_buffer(void);
 static int hcom_nx_trace_msg_route_trace_text(void);
-static int hcom_nx_trace_msg_send_msg_to_uart1(const char *toUartBuf, size_t numbBytes);
-static int hcom_nx_trace_msg_open_uart1_serial_port(void);
+static int hcom_nx_trace_msg_send_msg_to_uart(const char *toUartBuf, size_t numbBytes);
+static int hcom_nx_trace_msg_open_uart_serial_port(void);
 static void hcom_nx_trace_msg_wait_sem(sem_t *semaphore);
 static void hcom_nx_trace_kthread_exit_initiate(void);
 static void hcom_nx_trace_kthread_exit_cleanup(void);
 static void hcom_nx_trace_msg_sig_recv(int signo, FAR siginfo_t *info, FAR void *context);
-static void hcom_nx_uart1_direct(int priority, const char *outputMsg, ...);
+static void hcom_nx_uart_direct(int priority, const char *outputMsg, ...);
 
 //=========================================================================
 // Returns the current time as a 32-bit number representing millisec time.
@@ -158,7 +161,7 @@ int hcom_nx_trace_msg_proc_setup()
   hcom_nx_trace_read_bbreg_config();
 
   // Follow through with initialization if needed
-  if((_trace_log_to_host || _trace_log_to_uart1) && !_profiler_log_to_uart1)
+  if((_trace_log_to_host || _trace_log_to_uart) && !_profiler_log_to_uart)
     hcom_nx_trace_msg_lazy_initialization();
   return OK;
 }
@@ -172,13 +175,13 @@ void hcom_nx_trace_read_bbreg_config()
   // If started after nuttx start time recheck the battery
   // backed registers as it could have been long ago.
   bbrRegValue = getreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER);
-  if((HCOM_BBREG_ROUTE_TRACE_MSG_TO_UART1_BIT & bbrRegValue) > 0)
-    _trace_log_to_uart1 = true;
+  if((HCOM_BBREG_ROUTE_TRACE_MSG_TO_UART_BIT & bbrRegValue) > 0)
+    _trace_log_to_uart = true;
   else
-    _trace_log_to_uart1 = false;
+    _trace_log_to_uart = false;
 
-#if HCOM_FORCE_SYSLOG_MASK_AND_OUTPUT_TO_UART1 > 0
-  _trace_log_to_uart1 = true;
+#if HCOM_FORCE_SYSLOG_MASK_AND_OUTPUT_TO_UART > 0
+  _trace_log_to_uart = true;
 #endif
 
   if((HCOM_BBREG_ROUTE_TRACE_MSG_TO_HOST_BIT & bbrRegValue) > 0)
@@ -186,10 +189,10 @@ void hcom_nx_trace_read_bbreg_config()
   else
     _trace_log_to_host = false;
 
-  if((HCOM_BBREG_ROUTE_PROFILER_BINS_TO_UART1_BIT & bbrRegValue) > 0)
-    _profiler_log_to_uart1 = true;
+  if((HCOM_BBREG_ROUTE_PROFILER_BINS_TO_UART_BIT & bbrRegValue) > 0)
+    _profiler_log_to_uart = true;
   else
-    _profiler_log_to_uart1 = false;
+    _profiler_log_to_uart = false;
 }
 
 //==========================================================================
@@ -221,17 +224,17 @@ int hcom_nx_trace_msg_lazy_initialization()
     return OK;
 
   _ramlog_fd = -1;
-  _uart1_fd = -1;
+  _uart_fd = -1;
   _cliMsgLength = 0;
   _ramlog_reader_kthread_pid = 0;
 
-  // When trace logging is started and uart1 is able to output messages via
+  // When trace logging is started and uart is able to output messages via
   // uart we'll output one message very early. This message will not be output
   // using syslog but, directly via the uart. This will indicate that Meadow
   // has started. Also, since executed at startup, if the OS crashes, we
   // should still see this message which gives us a clue why no other trace
   // messages follow.
-  if(_trace_log_to_uart1 && !_profiler_log_to_uart1)
+  if(_trace_log_to_uart && !_profiler_log_to_uart)
   {
     struct tm tmNow;
     char timeBuf[64];
@@ -245,12 +248,12 @@ int hcom_nx_trace_msg_lazy_initialization()
     snprintf_chk(timeBuf, 64, "%02d:%02d:%02d", tmNow.tm_hour, tmNow.tm_min,
               tmNow.tm_sec);
 
-    hcom_nx_uart1_direct(0, "\n" HCOM_DEVICE_INFO_PRODUCT " initialization has begun at %s UTC Meadow time.\n", timeBuf);
+    hcom_nx_uart_direct(0, "\n" HCOM_DEVICE_INFO_PRODUCT " initialization has begun at %s UTC Meadow time.\n", timeBuf);
 
     // Close uart port because the file descriptor is open by a different thread
     // than the one that will normally handle trace processing.
-    close(_uart1_fd);
-    _uart1_fd = -1;
+    close(_uart_fd);
+    _uart_fd = -1;
   }
 
   // These semaphores are needed for sending trace to CLI
@@ -264,7 +267,7 @@ int hcom_nx_trace_msg_lazy_initialization()
   _ramlog_cbuf = (host_com_cir_buffer_t *)malloc(sizeof(struct host_com_cir_buffer_s));
   if (_ramlog_cbuf == NULL)
   {
-    hcom_nx_uart1_direct(LOG_ERR, "%s@%d-cir buf malloc\n", thisFile, __LINE__);
+    hcom_nx_uart_direct(LOG_ERR, "%s@%d-cir buf malloc\n", thisFile, __LINE__);
     return -ENOMEM;
   }
 
@@ -274,7 +277,7 @@ int hcom_nx_trace_msg_lazy_initialization()
   ret = hcom_cirbuf_init(_ramlog_cbuf, HCOM_TRACE_LOCAL_SYSLOG_CIR_BUF_SIZE, 0x0a);
   if (ret == HCOM_CIR_BUF_ALLOC_FAILED)
   {
-    hcom_nx_uart1_direct(LOG_ERR, "%s@%d-Cir buf alloc failed\n", thisFile, __LINE__);
+    hcom_nx_uart_direct(LOG_ERR, "%s@%d-Cir buf alloc failed\n", thisFile, __LINE__);
     return -1;
   }
 
@@ -282,7 +285,7 @@ int hcom_nx_trace_msg_lazy_initialization()
   _syslogMsgBuf = malloc(HCOM_TRACE_RAMLOG_ASSUME_LARGEST_SYSLOG);
   if (_syslogMsgBuf == NULL)
   {
-    hcom_nx_uart1_direct(LOG_ERR, "%s@%d-cir buf malloc\n", thisFile, __LINE__);
+    hcom_nx_uart_direct(LOG_ERR, "%s@%d-cir buf malloc\n", thisFile, __LINE__);
     return -ENOMEM;
   }
 
@@ -290,7 +293,7 @@ int hcom_nx_trace_msg_lazy_initialization()
   ret = hcom_nx_trace_msg_make_thread();
   if (ret < 0)
   {
-    hcom_nx_uart1_direct(LOG_ERR, "%s@%d-thread create, errno:%d\n",
+    hcom_nx_uart_direct(LOG_ERR, "%s@%d-thread create, errno:%d\n",
               thisFile, __LINE__, errno);
 
     free(_syslogMsgBuf);
@@ -320,7 +323,7 @@ int hcom_nx_trace_msg_make_thread()
 
 //=================================================================
 // This thread reads all ramlog messages received via syslog from
-// the ramlog buffer and routes them to the UART1 and CLI. This
+// the ramlog buffer and routes them to the UART and CLI. This
 // thread once started is not stopped until F7 reset.
 void *hcom_nx_trace_msg_kthread(int argc, char *argv[])
 {
@@ -369,10 +372,10 @@ void *hcom_nx_trace_msg_kthread(int argc, char *argv[])
       continue;
     }
 
-    // Open uart1 if it's requested
-    if(_trace_log_to_uart1 && !_profiler_log_to_uart1)
+    // Open uart if it's requested
+    if(_trace_log_to_uart && !_profiler_log_to_uart)
     {
-      ret = hcom_nx_trace_msg_open_uart1_serial_port();
+      ret = hcom_nx_trace_msg_open_uart_serial_port();
       if(_shutting_down) break;
       if(ret < 0)
       {
@@ -438,15 +441,15 @@ void hcom_nx_trace_kthread_exit_initiate()
 // and is used to reclaim resources
 void hcom_nx_trace_kthread_exit_cleanup()
 {
-  _trace_log_to_uart1 = false;
+  _trace_log_to_uart = false;
   _trace_log_to_host = false;
-  _profiler_log_to_uart1 = false;
+  _profiler_log_to_uart = false;
 
   close(_ramlog_fd);
   _ramlog_fd = -1;
 
-  close(_uart1_fd);
-  _uart1_fd = -1;
+  close(_uart_fd);
+  _uart_fd = -1;
 
   if(_ramlog_cbuf != NULL)
   {
@@ -471,10 +474,10 @@ void hcom_nx_trace_msg_close_and_delay(bool ramLogClose)
     _ramlog_fd = -1;
   }
 
-  if(_uart1_fd > -1)
+  if(_uart_fd > -1)
   {
-    close(_uart1_fd);
-    _uart1_fd = -1;
+    close(_uart_fd);
+    _uart_fd = -1;
   }
 
   // Wait and try again
@@ -495,7 +498,7 @@ int hcom_nx_trace_msg_open_ramlog()
   if(_shutting_down) return OK;
   if (_ramlog_fd < 0)
   {
-    hcom_nx_uart1_direct(LOG_ERR, "%s@%d-open %s, errno:%d\n",
+    hcom_nx_uart_direct(LOG_ERR, "%s@%d-open %s, errno:%d\n",
             thisFile, __LINE__, HCOM_TRACE_RAMLOG_DEVICE_NAME, errno);
     return -1;
   }
@@ -504,23 +507,34 @@ int hcom_nx_trace_msg_open_ramlog()
 }
 
 //=================================================================
-int hcom_nx_trace_msg_open_uart1_serial_port()
+int hcom_nx_trace_msg_open_uart_serial_port()
 {
-  if(_uart1_fd > -1)
+  if(_uart_fd > -1)
   {
-    close(_uart1_fd);
-    _uart1_fd = -1;
+    close(_uart_fd);
+    _uart_fd = -1;
   }
 
-  _uart1_fd = open(HCOM_TRACE_RAMLOG_SERIAL_NAME, O_WRONLY);
+#if HCOM_DIAG_SYSLOG_UART_NUMBER == 1
+  _uart_fd = open(HCOM_TRACE_RAMLOG_SERIAL_PORT_NAME_1, O_WRONLY);
+#elif HCOM_DIAG_SYSLOG_UART_NUMBER == 4
+  _uart_fd = open(HCOM_TRACE_RAMLOG_SERIAL_PORT_NAME_4, O_WRONLY);
+#elif HCOM_DIAG_SYSLOG_UART_NUMBER == 6
+  _uart_fd = open(HCOM_TRACE_RAMLOG_SERIAL_PORT_NAME_6, O_WRONLY);
+#else
+#error "Must select a valid syslog uart"
+#endif
+
   if(_shutting_down) return OK;
-  if (_uart1_fd < 0)
+  if (_uart_fd < 0)
   {
-    _uart1_fd = -1;
+    _uart_fd = -1;
     return -1;
   }
   return OK;
 }
+
+
 
 //=================================================================
 // This function reads the data put into the ramlog by Nuttx
@@ -538,14 +552,14 @@ int hcom_nx_trace_msg_read_ramlog_loop(uint8_t *readBuf)
     if (readReturn < 0 )
     {
       // Error
-      hcom_nx_uart1_direct(LOG_ERR, "%s@%d ramlog read readReturn:%d errno:%d\n",
+      hcom_nx_uart_direct(LOG_ERR, "%s@%d ramlog read readReturn:%d errno:%d\n",
               thisFile, __LINE__, readReturn, errno);
       return -errno;    // Close connection, wait and try again
     }
     else if (readReturn == 0)
     {
       // EOF
-      hcom_nx_uart1_direct(LOG_WARNING, "%s@%d ramlog read EOF read returned:%d errno:%d\n",
+      hcom_nx_uart_direct(LOG_WARNING, "%s@%d ramlog read EOF read returned:%d errno:%d\n",
               thisFile, __LINE__, readReturn, errno);
       return -errno;    // Close connection, wait and try again
     }
@@ -553,12 +567,12 @@ int hcom_nx_trace_msg_read_ramlog_loop(uint8_t *readBuf)
     {
       // Successful ramlog message read. Put message into circular buffer
       // unless all logging has been turned off
-      if(_trace_log_to_host || _trace_log_to_uart1)
+      if(_trace_log_to_host || _trace_log_to_uart)
       {
         ret = hcom_nx_trace_msg_save_recvd_data(readBuf, readReturn);
         if (ret < 0 )
         {
-          hcom_nx_uart1_direct(LOG_WARNING, "%s@%d hcom_nx_trace_msg_save_recvd_data() returned:%d\n",
+          hcom_nx_uart_direct(LOG_WARNING, "%s@%d hcom_nx_trace_msg_save_recvd_data() returned:%d\n",
                     thisFile, __LINE__, ret);
           return ret;    // Close connection, wait and try again
         }
@@ -611,7 +625,7 @@ int hcom_nx_trace_msg_save_recvd_data(uint8_t readBuf[], const ssize_t recvByteC
         // This makes no sense. Like a buffer full of garbage and no delimiter
         hcom_cirbuf_clear_buffer(_ramlog_cbuf);
 
-        hcom_nx_uart1_direct(LOG_ERR, "%s@%d-buffer corrupted or messages w/o linefeed. Deleted data.\n",
+        hcom_nx_uart_direct(LOG_ERR, "%s@%d-buffer corrupted or messages w/o linefeed. Deleted data.\n",
                  thisFile, __LINE__);
         
         return HCOM_CIR_BUF_GET_NONE_FOUND;    // Reported so throw data away.
@@ -620,7 +634,7 @@ int hcom_nx_trace_msg_save_recvd_data(uint8_t readBuf[], const ssize_t recvByteC
       if (pullResult == HCOM_CIR_BUF_GET_DELETED_TOO_BIG)
       {
         // The message was too long for the allocated buffer and has been deleted.
-        hcom_nx_uart1_direct(LOG_ERR, "%s@%d-pull packets from cir buf, msg too long, deleted\n",
+        hcom_nx_uart_direct(LOG_ERR, "%s@%d-pull packets from cir buf, msg too long, deleted\n",
                  thisFile, __LINE__);
         return pullResult;    // Reported and deleted.
       }
@@ -628,13 +642,13 @@ int hcom_nx_trace_msg_save_recvd_data(uint8_t readBuf[], const ssize_t recvByteC
     else if (addResult == HCOM_CIR_BUF_ADD_BAD_ARG)
     {
       // A bad argument is never expected
-      hcom_nx_uart1_direct(LOG_ERR, "%s@%d-Bad argument to cir buf\n", thisFile, __LINE__);
+      hcom_nx_uart_direct(LOG_ERR, "%s@%d-Bad argument to cir buf\n", thisFile, __LINE__);
       return addResult; // Report, throw data away and keep going
     }
     else
     {
       // Undefined error????
-      hcom_nx_uart1_direct(LOG_ERR, "%s@%d-Unknown cir buf add err:%d\n", thisFile, __LINE__, addResult);
+      hcom_nx_uart_direct(LOG_ERR, "%s@%d-Unknown cir buf add err:%d\n", thisFile, __LINE__, addResult);
       return addResult; // Report, throw data away and keep going
     }
   }   // while(!_shutting_down)
@@ -672,7 +686,7 @@ int hcom_nx_trace_msg_pull_all_packets_from_buffer()
       // Probably corrupted data or no linefeed at end of messages
       hcom_cirbuf_clear_buffer(_ramlog_cbuf);
 
-      hcom_nx_uart1_direct(LOG_ERR, "%s@%d-message %d long or w/o linefeed, deleted\n",
+      hcom_nx_uart_direct(LOG_ERR, "%s@%d-message %d long or w/o linefeed, deleted\n",
                 thisFile, __LINE__, packetLength);
 
       return ret; // _syslogMsgBuf too small, throw away data and keep going 
@@ -690,7 +704,7 @@ int hcom_nx_trace_msg_pull_all_packets_from_buffer()
     }
     else
     {
-      hcom_nx_uart1_direct(LOG_ERR, "%s@%d-processing data:%d\n", thisFile, __LINE__, ret);
+      hcom_nx_uart_direct(LOG_ERR, "%s@%d-processing data:%d\n", thisFile, __LINE__, ret);
       return HCOM_CIR_BUF_GET_NONE_FOUND;   // Assume buffer empty
     }
   }   // while(!_shutting_down)
@@ -705,10 +719,10 @@ int hcom_nx_trace_msg_route_trace_text(void)
 {
   int ret;
 
-  if(_trace_log_to_uart1)
+  if(_trace_log_to_uart)
   {
-    // Route to uart1
-    ret = hcom_nx_trace_msg_send_msg_to_uart1((char *) _syslogMsgBuf, _cliMsgLength);
+    // Route to uart
+    ret = hcom_nx_trace_msg_send_msg_to_uart((char *) _syslogMsgBuf, _cliMsgLength);
     if(ret < 0)
     {
       return ret;
@@ -778,21 +792,21 @@ size_t hcom_nx_trace_cli_trace_transport(char *buff, size_t buffLen)
 //==========================================================================
 // There's really isn't a good way to handle errors with ramlog because errors
 // cannot be written to syslog or we'll end up with an infinite loop. So,
-// the best we can do is send them to UART1, and hope it's being watched.
+// the best we can do is send them to UART, and hope it's being watched.
 //--------------------------------------------------------------------------
-// Send a string directly to uart1. The priority value is not used but makes
+// Send a string directly to uart. The priority value is not used but makes
 // this function signature like syslog so that this can be used as a substitute
 // for syslog.
-// Note:This funcion can ONLY be called from a kthread.
+// Note:This function can ONLY be called from a kthread.
 // Note:Calling from a userland pthread will CRASH Nuttx.
-void hcom_nx_uart1_direct(int priority, const char *fmt, ...)
+void hcom_nx_uart_direct(int priority, const char *fmt, ...)
 {
-#define HCOM_NX_UART1_DIRECT_BUF_LEN (256)
+#define HCOM_NX_UART_DIRECT_BUF_LEN (256)
   va_list ap;
   int stringLen;
 
   char *completeStr;
-  completeStr = malloc(HCOM_NX_UART1_DIRECT_BUF_LEN);
+  completeStr = malloc(HCOM_NX_UART_DIRECT_BUF_LEN);
   if(completeStr == NULL)
   {
     // Can't do anything else at this point
@@ -805,28 +819,28 @@ void hcom_nx_uart1_direct(int priority, const char *fmt, ...)
   // Returned value is the string length, including '\0'. But, if buffer is too
   // small the returned value is the needed buffer length excluding terminating
   // '\0'. However, sending direct to uart means a '\0' is not needed anyway.
-  stringLen = vsnprintf(completeStr, HCOM_NX_UART1_DIRECT_BUF_LEN, fmt, ap);
+  stringLen = vsnprintf(completeStr, HCOM_NX_UART_DIRECT_BUF_LEN, fmt, ap);
   va_end(ap);
 
-  // We need the actual length. So if trucated we'll use the buffer's length
-  if(stringLen > HCOM_NX_UART1_DIRECT_BUF_LEN)
-    stringLen = HCOM_NX_UART1_DIRECT_BUF_LEN;
+  // We need the actual length. So if truncated we'll use the buffer's length
+  if(stringLen > HCOM_NX_UART_DIRECT_BUF_LEN)
+    stringLen = HCOM_NX_UART_DIRECT_BUF_LEN;
 
-  hcom_nx_trace_msg_send_msg_to_uart1(completeStr, stringLen);
+  hcom_nx_trace_msg_send_msg_to_uart(completeStr, stringLen);
   
-  // Need a carrage return which we usually don't add
-  hcom_nx_trace_msg_send_msg_to_uart1("\r", 1);
+  // Need a carriage return which we usually don't add
+  hcom_nx_trace_msg_send_msg_to_uart("\r", 1);
   free(completeStr);
 }
 
 //==========================================================================
-// Forward the message to the uart1 for transmission
-int hcom_nx_trace_msg_send_msg_to_uart1(const char *toUartBuf, size_t numbBytes)
+// Forward the message to the uart for transmission
+int hcom_nx_trace_msg_send_msg_to_uart(const char *toUartBuf, size_t numbBytes)
 {
-  // If uart1 not opened do this now
-  if(_uart1_fd < 0 && !_profiler_log_to_uart1)
+  // If uart not opened do this now
+  if(_uart_fd < 0 && !_profiler_log_to_uart)
   {
-    int ret = hcom_nx_trace_msg_open_uart1_serial_port();
+    int ret = hcom_nx_trace_msg_open_uart_serial_port();
     if(ret < 0)
     {
       return ret;
@@ -839,12 +853,27 @@ int hcom_nx_trace_msg_send_msg_to_uart1(const char *toUartBuf, size_t numbBytes)
   // starting when mono has started running.
   if(_txRxReCfgStopTime != 0)
   {
-    // Reconfigure uart1 (takes about 32usec to do all 4 commands)
+    // [--] THE FOLLOWING MAY NEED TO BE REMOVED OR CHANGED
+    // Reconfigure uart (takes about 32usec to do all 4 commands)
+#if HCOM_DIAG_SYSLOG_UART_NUMBER == 1
     stm32_unconfiggpio(GPIO_USART1_TX); // PB14
     stm32_configgpio(GPIO_USART1_TX);
-    stm32_unconfiggpio(GPIO_USART1_RX); // PH13
+    stm32_unconfiggpio(GPIO_USART1_RX); // PB15
     stm32_configgpio(GPIO_USART1_RX);
-    
+#elif HCOM_DIAG_SYSLOG_UART_NUMBER == 4
+    stm32_unconfiggpio(GPIO_UART4_RX); // PI9
+    stm32_configgpio(GPIO_UART4_RX);
+    stm32_unconfiggpio(GPIO_UART4_TX); // PH13
+    stm32_configgpio(GPIO_UART4_TX);
+#elif HCOM_DIAG_SYSLOG_UART_NUMBER == 6
+    stm32_unconfiggpio(GPIO_USART6_RX); // PC7
+    stm32_configgpio(GPIO_USART6_RX);
+    stm32_unconfiggpio(GPIO_USART6_TX); // PC6
+    stm32_configgpio(GPIO_USART6_TX);
+#else
+#error "Must select a valid syslog uart"
+#endif
+
     // Run until stop time is exceeded then stop the process
     if(_txRxReCfgStopTime < hcom_nx_trace_get_time_ms())
     {
@@ -853,7 +882,7 @@ int hcom_nx_trace_msg_send_msg_to_uart1(const char *toUartBuf, size_t numbBytes)
   }
 
   // Write string out the uart
-  ssize_t nbytes = write(_uart1_fd, toUartBuf, numbBytes);
+  ssize_t nbytes = write(_uart_fd, toUartBuf, numbBytes);
   if (nbytes < 0)
   {
     return nbytes;
@@ -905,8 +934,8 @@ int hcom_nx_exec_trace_do_send_to_host(struct hcom_nx_cmd_data *cmdData)
     // Initialize as needed
     hcom_nx_trace_msg_lazy_initialization();
 
-    if(_trace_log_to_uart1)
-      sendMsgToHost = "Trace logs now sent to CLI and UART1";
+    if(_trace_log_to_uart)
+      sendMsgToHost = "Trace logs now sent to CLI and UART";
     else
       sendMsgToHost = "Trace logs now sent to CLI";
   }
@@ -935,7 +964,7 @@ int hcom_nx_exec_trace_do_not_send_to_host(struct hcom_nx_cmd_data *cmdData)
     // Disable ramlogs to host
     _trace_log_to_host = false;
 
-    if(!_trace_log_to_uart1)
+    if(!_trace_log_to_uart)
     {
       // Since no longer needed, terminate the main ramlog reader thread
       // and clean up it's resources
@@ -967,33 +996,33 @@ int hcom_nx_exec_trace_do_not_send_to_host(struct hcom_nx_cmd_data *cmdData)
 }
 
 //======================================================================================
-// Called from Meadow.CLI to enable tracing to uart1.
-int hcom_nx_exec_trace_forward_to_uart1(struct hcom_nx_cmd_data *cmdData)
+// [--] Called from Meadow.CLI to enable tracing to uart.
+int hcom_nx_exec_trace_forward_to_uart(struct hcom_nx_cmd_data *cmdData)
 {
   char *sendMsgToHost;
   
-   // Set the appropriate battery backed register bit
+  // Set the appropriate battery backed register bit
   modifyreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER,
-              0, HCOM_BBREG_ROUTE_TRACE_MSG_TO_UART1_BIT);
+              0, HCOM_BBREG_ROUTE_TRACE_MSG_TO_UART_BIT);
 
   // If ramlog configured, need to init ramlog now. This insures
   // that Meadow.CLI is listening
 #if defined (CONFIG_RAMLOG_SYSLOG)
-  if(_trace_log_to_uart1)
+  if(_trace_log_to_uart)
   {
-    sendMsgToHost = "No change. Trace logs already sent to UART1";
+    sendMsgToHost = "No change. Trace logs already sent to UART";
   }
   else
   {
-    _trace_log_to_uart1 = true;
+    _trace_log_to_uart = true;
 
     // Initialize if needed
     hcom_nx_trace_msg_lazy_initialization();
 
     if(_trace_log_to_host)
-      sendMsgToHost = "Trace logs now sent to UART1 and CLI";
+      sendMsgToHost = "Trace logs now sent to UART and CLI";
     else
-      sendMsgToHost = "Trace logs now sent to UART1";
+      sendMsgToHost = "Trace logs now sent to UART";
   }
 #else
   sendMsgToHost = "Trace logging not available";
@@ -1006,19 +1035,19 @@ int hcom_nx_exec_trace_forward_to_uart1(struct hcom_nx_cmd_data *cmdData)
 }
 
 //======================================================================================
-// Called from Meadow.CLI for ramlog output to uart1
-int hcom_nx_exec_trace_do_not_send_to_uart1(struct hcom_nx_cmd_data *cmdData)
+// [--] Called from Meadow.CLI to stop ramlog output to uart
+int hcom_nx_exec_trace_do_not_send_to_uart(struct hcom_nx_cmd_data *cmdData)
 {
   char *sendMsgToHost;
 
   // Clear the appropriate battery backed register bit
   modifyreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER,
-              HCOM_BBREG_ROUTE_TRACE_MSG_TO_UART1_BIT, 0);
+              HCOM_BBREG_ROUTE_TRACE_MSG_TO_UART_BIT, 0);
 
 #if defined (CONFIG_RAMLOG_SYSLOG)
-  if(_trace_log_to_uart1)
+  if(_trace_log_to_uart)
   {
-    _trace_log_to_uart1 = false;
+    _trace_log_to_uart = false;
 
     if(!_trace_log_to_host)
     {
@@ -1030,12 +1059,12 @@ int hcom_nx_exec_trace_do_not_send_to_uart1(struct hcom_nx_cmd_data *cmdData)
     }
     else
     {
-      sendMsgToHost = "Will no longer send trace logs to UART1";
+      sendMsgToHost = "Will no longer send trace logs to UART";
     }
   }
   else
   {
-    sendMsgToHost = "No change. Trace logs still not sent to UART1";
+    sendMsgToHost = "No change. Trace logs still not sent to UART";
   }
 #else
   sendMsgToHost = "Trace logging not available";
@@ -1047,26 +1076,26 @@ int hcom_nx_exec_trace_do_not_send_to_uart1(struct hcom_nx_cmd_data *cmdData)
 }
 
 //======================================================================================
-// Called from Meadow.CLI to enable profiling data output to uart1.
-int hcom_nx_exec_profiler_forward_to_uart1(struct hcom_nx_cmd_data *cmdData)
+// Called from Meadow.CLI to enable profiling data output to uart.
+int hcom_nx_exec_profiler_forward_to_uart(struct hcom_nx_cmd_data *cmdData)
 {
   char *sendMsgToHost;
   
    // Set the appropriate battery backed register bit
   modifyreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER,
-              0, HCOM_BBREG_ROUTE_PROFILER_BINS_TO_UART1_BIT);
+              0, HCOM_BBREG_ROUTE_PROFILER_BINS_TO_UART_BIT);
 
   // If ramlog configured, need to init ramlog now. This insures
   // that Meadow.CLI is listening
 #if defined (CONFIG_RAMLOG_SYSLOG)
-  if(_profiler_log_to_uart1)
+  if(_profiler_log_to_uart)
   {
-    sendMsgToHost = "No change. UART1 is still exclusive for profiling data";
+    sendMsgToHost = "No change. UART is still exclusive for profiling data";
   }
   else
   {
-    _profiler_log_to_uart1 = true;
-    sendMsgToHost = "UART1 is now exclusive for profiling data";
+    _profiler_log_to_uart = true;
+    sendMsgToHost = "UART is now exclusive for profiling data";
   }
 #else
   sendMsgToHost = "Profiler logging not available";
@@ -1079,24 +1108,24 @@ int hcom_nx_exec_profiler_forward_to_uart1(struct hcom_nx_cmd_data *cmdData)
 }
 
 //======================================================================================
-// Called from Meadow.CLI to disable profiling data output to uart1
-int hcom_nx_exec_profiler_do_not_send_to_uart1(struct hcom_nx_cmd_data *cmdData)
+// Called from Meadow.CLI to disable profiling data output to uart
+int hcom_nx_exec_profiler_do_not_send_to_uart(struct hcom_nx_cmd_data *cmdData)
 {
   char *sendMsgToHost;
 
   // Clear the appropriate battery backed register bit
   modifyreg32(HCOM_NX_MEADOW_BATTERY_BACKED_REGISTER,
-              HCOM_BBREG_ROUTE_PROFILER_BINS_TO_UART1_BIT, 0);
+              HCOM_BBREG_ROUTE_PROFILER_BINS_TO_UART_BIT, 0);
 
 #if defined (CONFIG_RAMLOG_SYSLOG)
-  if(_profiler_log_to_uart1)
+  if(_profiler_log_to_uart)
   {
-    _profiler_log_to_uart1 = false;
-    sendMsgToHost = "UART1 not exclusive for profiler, profiling data might still be visible if enabled in Mono.";
+    _profiler_log_to_uart = false;
+    sendMsgToHost = "UART not exclusive for profiler, profiling data might still be visible if enabled in Mono.";
   }
   else
   {
-    sendMsgToHost = "No change. UART1 still not exclusive for profiler, profiling data might still be visible if enabled in Mono";
+    sendMsgToHost = "No change. UART still not exclusive for profiler, profiling data might still be visible if enabled in Mono";
   }
 #else
   sendMsgToHost = "Profiler logging not available";
@@ -1116,16 +1145,16 @@ void hcom_nx_trace_insure_correct_config(bool uartTracing, bool cliTracing, bool
 
   if (uartProfiling)
   {
-    _profiler_log_to_uart1 = true;
-    _trace_log_to_uart1 = false;
+    _profiler_log_to_uart = true;
+    _trace_log_to_uart = false;
     return;
   }
 
   bool needToInit = false;
 
-  if(uartTracing && (!_trace_log_to_uart1))
+  if(uartTracing && (!_trace_log_to_uart))
   {
-    _trace_log_to_uart1 = true;
+    _trace_log_to_uart = true;
     needToInit = true;
   }
 

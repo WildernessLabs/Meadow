@@ -143,7 +143,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   struct hcom_nx_cmd_data *cmdData;
   struct hcom_nx_upd_is_part_mounted *is_mounted;
   hcom_nx_upd_cli_trace_transport_t *trace_transport;
-#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+#if defined(HCOM_INCLUDE_NX_CODE_TO_SEND_TEXT_TO_HOST)
   hcom_nx_upd_host_text_transport_t *text_transport;
 #endif
   hcom_nx_upd_get_hw_ver_t *hardwareVer;
@@ -154,7 +154,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 #endif
 #endif
 
-// At present (Sept 2021) The only use for this feature is with ethernet ping
+// This feature (CLI sending text commands) is no longer supported
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
   hcom_nx_upd_diag_app_command_t *diagAppCmd;
 #endif
@@ -222,6 +222,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 #endif
     return OK;
 
+#if (HCOM_INCLUDE_NX_CODE_TO_SEND_TEXT_TO_HOST > 0)
   case HCOM_NX_UPD_HOST_TEXT_TRANSPORT:
     text_transport = (hcom_nx_upd_host_text_transport_t *)arg;
     text_transport->msg_length = hcom_nx_text_to_host_transport(
@@ -229,6 +230,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
               text_transport->transport_buf,
               text_transport->buf_length);
     return OK;
+#endif
 
   case HCOM_NX_UPD_RESTORE_UART_CONFIG:
     return hcom_nx_restore_uart_reconfig(arg);
@@ -284,7 +286,7 @@ static int hcom_upd_nx_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
     ret = hcom_nx_exec_ex_flash_OS_update_flash2();
     return ret;
 
-// At present (Sept 2021) The only use for this feature is with ethernet
+// This feature is no longer supported
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
   case HCOM_NX_UPD_DIAG_APP_CMD:
     diagAppCmd = (hcom_nx_upd_diag_app_command_t*)arg;

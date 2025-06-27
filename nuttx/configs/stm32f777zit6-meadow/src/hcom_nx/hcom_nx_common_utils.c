@@ -123,7 +123,7 @@ int hcom_nx_utils_startup_handling_of_trace_level()
     _syslogMask &= 0x000000ff;   // LS 8 bits are syslog mask
   }
 
-#if HCOM_FORCE_SYSLOG_MASK_AND_OUTPUT_TO_UART1 > 0
+#if HCOM_FORCE_SYSLOG_MASK_AND_OUTPUT_TO_UART > 0
     _syslogMask = LOG_MASK(LOG_EMERG) | LOG_MASK(LOG_ALERT) | LOG_MASK(LOG_CRIT) |
               LOG_MASK(LOG_ERR) | LOG_MASK(LOG_WARNING) |
               LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_INFO) /* | LOG_MASK(LOG_DEBUG) */;
@@ -250,7 +250,7 @@ void hcom_nx_diag_print_buffer_x(const uint8_t buffer[], const int bufLen, uint8
     memset(lineBuff, 0x20, HCOM_UTIL_DISPLAY_LENGTH);
 
     // Buffer offset address
-    snprintf(&lineBuff[HCOM_UTIL_LEADING_SPACES], HCOM_UTIL_DISPLAY_LENGTH, "%08x ", rowStartOffset);
+    snprintf(&lineBuff[HCOM_UTIL_LEADING_SPACES], HCOM_UTIL_DISPLAY_LENGTH, "%08x ", buffer + rowStartOffset);
 
     hexOffset = HCOM_UTIL_HEXADECIMAL_OFFSET;
     asciiOffset = HCOM_UTIL_ASCII_OFFSET;

@@ -71,8 +71,7 @@
 // // #undef USE_MEADOW_DEBUG_HELPERS
 // #include <meadow/meadow_debug_helpers.h>
 
-// At present (Sept 2021) The only use for this feature is with ethernet
-#if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+#if (HCOM_INCLUDE_NX_CODE_TO_SEND_TEXT_TO_HOST > 0)
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -136,7 +135,7 @@ static void hcom_nx_route_text_wait_sem(sem_t *semaphore)
 }
 
 //=================================================================
-// Ship the a generic text message to host
+// Public entry to ship a generic text message to host
 // Note: The text must end with a '\n' character.
 int hcom_nx_route_text_to_host(uint16_t requestType, char *msgBuff,
           size_t msgLen)
@@ -217,8 +216,16 @@ size_t hcom_nx_text_to_host_transport(uint16_t *requestType,
 }
 
 #else
+// Dummy functions
 int hcom_nx_route_text_to_host_setup()
 {
   return OK;
 }
-#endif // #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
+
+int hcom_nx_route_text_to_host(uint16_t requestType,
+  char *msgBuff, size_t msgLen)
+{
+  return OK;
+}
+
+#endif // #if (HCOM_INCLUDE_NX_CODE_TO_SEND_TEXT_TO_HOST > 0)

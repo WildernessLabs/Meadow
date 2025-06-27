@@ -1110,7 +1110,7 @@ int hcom_nx_exec_ex_flash_write_assertion_data(const char *data, uint32_t length
  *  data must be large enough to hold the assertion data.
  *
  ****************************************************************************/
-int hcom_nx_exec_ex_flash_read_assertion_data(const char *data)
+int hcom_nx_exec_ex_flash_read_assertion_data(uint8_t *data)
 {
   int result = OK;
 

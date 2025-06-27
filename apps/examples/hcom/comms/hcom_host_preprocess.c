@@ -452,8 +452,8 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
   // determines if the packet is a command or data.
   HcomProtoDataMsg_t *hcomDataMsg = (HcomProtoDataMsg_t *) decodedPacket;
 
-  hcom_logging_syslog(LOG_DEBUG, "%s@%d-Data seq:%d, len:%d\n",
-            thisFile, __LINE__, hcomDataMsg->seqNumber, decodedSize);
+  // hcom_logging_syslog(LOG_DEBUG, "%s@%d-Data seq:%d, len:%d\n",
+  //           thisFile, __LINE__, hcomDataMsg->seqNumber, decodedSize);
 
   // Test to determine if this is a data packet or a command
   if (hcomDataMsg->seqNumber != HCOM_PROTOCOL_COMMAND_TYPE_SEQUENCE_NUMBER)

@@ -158,9 +158,9 @@ int hcom_logging_syslog_mask_init()
   char *traceCombo[] = {
     "none",
     "Host",
-    "UART1",
-    "Host+UART1"};
-  uint32_t destValue = hcom_bbreg_read_bbr_and_right_justify(HCOM_BBREG_TRACE_MSG_TO_HOST_AND_UART1_BIT_MASK);
+    "UART",
+    "Host+UART"};
+  uint32_t destValue = hcom_bbreg_read_bbr_and_right_justify(HCOM_BBREG_TRACE_MSG_TO_HOST_AND_UART_BIT_MASK);
   char *traceDest = traceCombo[destValue];
 #else
   char *traceDest = "unknown";
@@ -227,7 +227,7 @@ void hcom_diag_logging_change_trace_level(uint32_t userData)
       break;
   }
 
-#if HCOM_FORCE_SYSLOG_MASK_AND_OUTPUT_TO_UART1 > 0
+#if HCOM_FORCE_SYSLOG_MASK_AND_OUTPUT_TO_UART > 0
   newSyslogMask |= LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_INFO);
 #endif
 
