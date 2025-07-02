@@ -3347,6 +3347,10 @@ unit_tests_configuration_t *process_unit_tests_configuration_file(void)
         if (test_parameters != NULL)
         {
             syslog(LOG_INFO, "Valid parameters found.\n");
+            //
+            //  We put the configuration and the strings into user space memory to allow the user space unit tests to access the data.
+            //  This is simpler than adding a deep copy method and we only compile this into the build if the unit tests are enabled.
+            //
             unit_test_configuration = (unit_tests_configuration_t *) zalloc(sizeof(unit_tests_configuration_t));
             if (unit_test_configuration == NULL)
             {
