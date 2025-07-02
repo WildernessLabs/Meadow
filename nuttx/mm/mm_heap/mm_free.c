@@ -44,8 +44,6 @@
 
 #include <nuttx/mm/mm.h>
 
-extern struct mm_heap_s g_kmmheap;
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -84,12 +82,13 @@ void mm_free(FAR struct mm_heap_s *heap, FAR void *mem)
   //  The block of code below can be used to track memory being returned to the wrong heap.
   //  The check for which heap is crude but works in both the kernel and user space builds.
   //  
-  // if (!mm_heapmember(heap, mem))
-  //   {
-  //     syslog(2, "Memory address %p is not in %s heap\n", mem, heap->mm_heapstart[0] == 0x2004a000 ? "kernel" : "user");
-  //     mm_givesemaphore(heap);
-  //     return;
-  //   }
+  if (!mm_heapmember(heap, mem))
+    {
+      __asm__("bkpt");
+      syslog(2, "Memory address %p is not in %s heap\n", mem, heap->mm_heapstart[0] == 0x2004a000 ? "kernel" : "user");
+      mm_givesemaphore(heap);
+      return;
+    }
 
   /* Map the memory chunk into a free node */
 
