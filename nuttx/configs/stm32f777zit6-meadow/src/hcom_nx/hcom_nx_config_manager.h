@@ -36,6 +36,7 @@
 #define __CONFIGS_MEADOW_SRC_HCOM_NX_CONFIG_MANAGER__H
 
 #include <meadow/hcom_shared_common.h>
+#include <meadow/meadow_unit_test_framework.h>
 #include "../libcyaml/cyaml.h"
 #include "../espcp/espcp_encoders.h"
 
@@ -69,63 +70,6 @@
 /****************************************************************************
  * Public Types
  ****************************************************************************/
-
-/**
- * @brief Structure for unit tests configuration.
- */
-struct unit_tests_configuration_s
-{
-    /**
-     * @brief Test parameter 1.
-     */
-    char *parameter1;
-
-    /**
-     * @brief Test parameter 2.
-     */
-    char *parameter2;
-
-    /**
-     * @brief Test parameter 3.
-     */
-    char *parameter3;
-
-    /**
-     * @brief Test parameter 4.
-     */
-    char *parameter4;
-
-    /**
-     * @brief Test parameter 5.
-     */
-    char *parameter5;
-
-    /**
-     * @brief Test parameter 6.
-     */
-    char *parameter6;
-
-    /**
-     * @brief Test parameter 7.
-     */
-    char *parameter7;
-
-    /**
-     * @brief Test parameter 8.
-     */
-    char *parameter8;
-
-    /**
-     * @brief Test parameter 9.
-     */
-    char *parameter9;
-
-    /**
-     * @brief Test parameter 10.
-     */
-    char *parameter10;
-};
-typedef struct unit_tests_configuration_s unit_tests_configuration_t;
 
 /****************************************************************************
 * Public Data

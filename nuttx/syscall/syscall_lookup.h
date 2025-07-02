@@ -434,6 +434,10 @@ SYSCALL_LOOKUP(up_assert,                  2, STUB_up_assert)
   SYSCALL_LOOKUP(meadow_os_get_gateway_address,           0, STUB_meadow_os_get_gateway_address)
 #endif
 
+#if defined(CONFIG_KERNEL_TESTS_SYSCALL)
+  SYSCALL_LOOKUP(meadow_os_get_unit_tests_config,         0, STUB_meadow_os_get_unit_tests_config)
+#endif
+
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)
   SYSCALL_LOOKUP(meadow_idle_monitor_get_value,     0, STUB_meadow_idle_monitor_get_value)
 #endif

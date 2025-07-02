@@ -445,6 +445,7 @@ void meadow_bbd_write_read_test(uint32_t userdata);
 void meadow_bbd_write_and_reset_test(uint32_t userdata);
 void meadow_bbd_read_after_reset_test(uint32_t userdata);
 void meadow_os_cli_timeout_test(uint32_t userdata);
+void meadow_os_userspace_get_test_configuration_test(uint32_t userdata);
 
 // This macro calls a function adding file and line info. I kept the entire
 // macro on a single line to reduce line number confusion. The ## is needed

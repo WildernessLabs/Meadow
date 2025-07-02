@@ -3347,7 +3347,7 @@ unit_tests_configuration_t *process_unit_tests_configuration_file(void)
         if (test_parameters != NULL)
         {
             syslog(LOG_INFO, "Valid parameters found.\n");
-            unit_test_configuration = (unit_tests_configuration_t *) kmm_zalloc(sizeof(unit_tests_configuration_t));
+            unit_test_configuration = (unit_tests_configuration_t *) zalloc(sizeof(unit_tests_configuration_t));
             if (unit_test_configuration == NULL)
             {
                 syslog(LOG_ERR, "Failed to allocate memory for unit test configuration.\n");
@@ -3357,16 +3357,16 @@ unit_tests_configuration_t *process_unit_tests_configuration_file(void)
 
             if (test_parameters->parameters != NULL)
             {
-                unit_test_configuration->parameter1 = (test_parameters->parameters->parameter1 == NULL) ? NULL : strdup(test_parameters->parameters->parameter1);
-                unit_test_configuration->parameter2 = (test_parameters->parameters->parameter2 == NULL) ? NULL : strdup(test_parameters->parameters->parameter2);
-                unit_test_configuration->parameter3 = (test_parameters->parameters->parameter3 == NULL) ? NULL : strdup(test_parameters->parameters->parameter3);
-                unit_test_configuration->parameter4 = (test_parameters->parameters->parameter4 == NULL) ? NULL : strdup(test_parameters->parameters->parameter4);
-                unit_test_configuration->parameter5 = (test_parameters->parameters->parameter5 == NULL) ? NULL : strdup(test_parameters->parameters->parameter5);
-                unit_test_configuration->parameter6 = (test_parameters->parameters->parameter6 == NULL) ? NULL : strdup(test_parameters->parameters->parameter6);
-                unit_test_configuration->parameter7 = (test_parameters->parameters->parameter7 == NULL) ? NULL : strdup(test_parameters->parameters->parameter7);
-                unit_test_configuration->parameter8 = (test_parameters->parameters->parameter8 == NULL) ? NULL : strdup(test_parameters->parameters->parameter8);
-                unit_test_configuration->parameter9 = (test_parameters->parameters->parameter9 == NULL) ? NULL : strdup(test_parameters->parameters->parameter9);
-                unit_test_configuration->parameter10 = (test_parameters->parameters->parameter10 == NULL) ? NULL : strdup(test_parameters->parameters->parameter10);
+                unit_test_configuration->parameter1 = (test_parameters->parameters->parameter1 == NULL) ? NULL : meadow_os_copy_string(test_parameters->parameters->parameter1);
+                unit_test_configuration->parameter2 = (test_parameters->parameters->parameter2 == NULL) ? NULL : meadow_os_copy_string(test_parameters->parameters->parameter2);
+                unit_test_configuration->parameter3 = (test_parameters->parameters->parameter3 == NULL) ? NULL : meadow_os_copy_string(test_parameters->parameters->parameter3);
+                unit_test_configuration->parameter4 = (test_parameters->parameters->parameter4 == NULL) ? NULL : meadow_os_copy_string(test_parameters->parameters->parameter4);
+                unit_test_configuration->parameter5 = (test_parameters->parameters->parameter5 == NULL) ? NULL : meadow_os_copy_string(test_parameters->parameters->parameter5);
+                unit_test_configuration->parameter6 = (test_parameters->parameters->parameter6 == NULL) ? NULL : meadow_os_copy_string(test_parameters->parameters->parameter6);
+                unit_test_configuration->parameter7 = (test_parameters->parameters->parameter7 == NULL) ? NULL : meadow_os_copy_string(test_parameters->parameters->parameter7);
+                unit_test_configuration->parameter8 = (test_parameters->parameters->parameter8 == NULL) ? NULL : meadow_os_copy_string(test_parameters->parameters->parameter8);
+                unit_test_configuration->parameter9 = (test_parameters->parameters->parameter9 == NULL) ? NULL : meadow_os_copy_string(test_parameters->parameters->parameter9);
+                unit_test_configuration->parameter10 = (test_parameters->parameters->parameter10 == NULL) ? NULL : meadow_os_copy_string(test_parameters->parameters->parameter10);
             }
             else
             {
@@ -3386,6 +3386,33 @@ unit_tests_configuration_t *process_unit_tests_configuration_file(void)
     }
 
     return(unit_test_configuration);
+}
+
+/****************************************************************************
+ * Name: meadow_os_get_unit_tests_config
+ *
+ * Description:
+ *  Get the unit tests configuration.
+ * 
+ *  This function is provided to allow the unit tests to access the
+ *  configuration parameters defined in the unit test configuration file
+ *  from user space.  This is the syscall interface to the unit test
+ *  configuration.
+ *
+ * Input Parameters:
+ *  None.
+ *
+ * Returned Value:
+ *  Pointer to the unit_tests_configuration_t structure containing the
+ *  unit tests configuration.
+ *
+ * Assumptions/Limitations:
+ *  None
+ *
+ ****************************************************************************/
+unit_tests_configuration_t *meadow_os_get_unit_tests_config(void)
+{
+    return process_unit_tests_configuration_file();
 }
 
 #endif
