@@ -346,13 +346,6 @@ struct w25qxxxjv_dev_s
   FAR uint8_t           *sector;      /* Allocated sector data */
 #endif
 };
-struct w25qxxxjv_erase_s
-{
-  uint8_t sector;
-  uint8_t sector_32k;
-  uint8_t sector_64k;
-};
-
 
 /****************************************************************************
  * Private Function Prototypes
@@ -1284,9 +1277,6 @@ static int w25qxxxjv_erase(FAR struct mtd_dev_s *dev, off_t startblock,
 {
   FAR struct w25qxxxjv_dev_s *priv = (FAR struct w25qxxxjv_dev_s *)dev;
   size_t blocksleft = nblocks;
-  size_t nblocks_erased = 1;
-  uint8_t option = W25QXXXJV_SECTOR_ERASE;
-
 #ifdef CONFIG_W25QXXXJV_SECTOR512
   int ret;
 #endif
@@ -1301,32 +1291,21 @@ static int w25qxxxjv_erase(FAR struct mtd_dev_s *dev, off_t startblock,
     {
       /* Erase each sector */
 
-      if (!(blocksleft % 16))
-        {
-          nblocks_erased = 16;
-          option = W25QXXXJV_BLOCK_ERASE_64K;
-          finfo("Sector erase 64kB\n");
-        }
-      else if (!(blocksleft % 8))
-        {
-          nblocks_erased = 8;
-          option = W25QXXXJV_BLOCK_ERASE_32K;
-          finfo("Sector erase  32kB\n");
-        }
-      else
-        {
-          nblocks_erased = 1;
-          option = W25QXXXJV_SECTOR_ERASE;
-          finfo("Sector erase  4kB\n");
-        }
+        size_t blocks_to_erase = (blocksleft >= 16) ? 16 : (blocksleft >= 8) ? 8  : 1;
 
-        blocksleft -= nblocks_erased;
+        uint8_t erase_option = (blocks_to_erase == 16) ? W25QXXXJV_BLOCK_ERASE_64K :
+                                (blocks_to_erase == 8)  ? W25QXXXJV_BLOCK_ERASE_32K :
+                                                           W25QXXXJV_SECTOR_ERASE;
+
+        finfo("blocks to erase: %d option: 0x%x\n", (int)blocks_to_erase, erase_option);
+
+        blocksleft -= blocks_to_erase;
 #ifdef CONFIG_W25QXXXJV_SECTOR512
       w25qxxxjv_erase_cache(priv, startblock);
 #else
-      w25qxxxjv_erase_sector(priv, startblock, option);
+      w25qxxxjv_erase_sector(priv, startblock, erase_option);
 #endif
-      startblock += nblocks_erased;
+      startblock += blocks_to_erase;
     }
 
 #ifdef CONFIG_W25QXXXJV_SECTOR512

@@ -242,4 +242,5 @@
 #define SCNxMAX     "llx"
 #define SCNxPTR     "x"
 
+#define PRIxOFF     PRIX64
 #endif /* __ARCH_ARM_INCLUDE_INTTYPES_H */
