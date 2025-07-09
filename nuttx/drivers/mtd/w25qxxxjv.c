@@ -389,7 +389,7 @@ static int  w25qxxxjv_unprotect(FAR struct w25qxxxjv_dev_s *priv,
 static bool w25qxxxjv_isprotected(FAR struct w25qxxxjv_dev_s *priv,
               uint8_t status, off_t address);
 static int  w25qxxxjv_erase_sector(FAR struct w25qxxxjv_dev_s *priv,
-                                   off_t offset);
+                                   off_t offset, uint8_t option);
 static int  w25qxxxjv_erase_chip(FAR struct w25qxxxjv_dev_s *priv);
 static int  w25qxxxjv_read_byte(FAR struct w25qxxxjv_dev_s *priv,
                                 FAR uint8_t *buffer,
@@ -889,7 +889,7 @@ static bool w25qxxxjv_isprotected(FAR struct w25qxxxjv_dev_s *priv,
  ****************************************************************************/
 
 static int w25qxxxjv_erase_sector(FAR struct w25qxxxjv_dev_s *priv,
-                                  off_t sector)
+                                  off_t sector, uint8_t option)
 {
   off_t address;
   uint8_t status;
@@ -920,7 +920,7 @@ static int w25qxxxjv_erase_sector(FAR struct w25qxxxjv_dev_s *priv,
 
   w25qxxxjv_write_enable(priv);
   w25qxxxjv_command_address(priv->qspi,
-                            W25QXXXJV_SECTOR_ERASE,
+                            option,
                             address, priv->addresslen);
 
   /* Wait for erasure to finish */
@@ -1196,7 +1196,7 @@ static void w25qxxxjv_erase_cache(struct w25qxxxjv_dev_s *priv, off_t sector)
                       (priv->sectorshift - W25QXXXJV_SECTOR512_SHIFT);
       finfo("sector: %ld esectno: %d\n", sector, esectno);
 
-      DEBUGVERIFY(w25qxxxjv_erase_sector(priv, esectno));
+      DEBUGVERIFY(w25qxxxjv_erase_sector(priv, esectno, W25QXXXJV_SECTOR_ERASE));
       SET_ERASED(priv);
     }
 
@@ -1241,7 +1241,7 @@ static int w25qxxxjv_write_cache(FAR struct w25qxxxjv_dev_s *priv,
                            (priv->sectorshift - W25QXXXJV_SECTOR512_SHIFT);
           finfo("sector: %ld esectno: %d\n", sector, esectno);
 
-          ret = w25qxxxjv_erase_sector(priv, esectno);
+          ret = w25qxxxjv_erase_sector(priv, esectno, W25QXXXJV_SECTOR_ERASE);
           if (ret < 0)
             {
               ferr("ERROR: w25qxxxjv_erase_sector failed: %d\n", ret);
@@ -1284,19 +1284,28 @@ static int w25qxxxjv_erase(FAR struct mtd_dev_s *dev, off_t startblock,
   finfo("startblock: %08lx nblocks: %d\n", (long)startblock, (int)nblocks);
 
   /* Lock access to the SPI bus until we complete the erase */
-
+ 
   w25qxxxjv_lock(priv->qspi);
 
-  while (blocksleft-- > 0)
+  while (blocksleft > 0)
     {
       /* Erase each sector */
 
+        size_t blocks_to_erase = (blocksleft >= 16) ? 16 : (blocksleft >= 8) ? 8  : 1;
+
+        uint8_t erase_option = (blocks_to_erase == 16) ? W25QXXXJV_BLOCK_ERASE_64K :
+                                (blocks_to_erase == 8)  ? W25QXXXJV_BLOCK_ERASE_32K :
+                                                           W25QXXXJV_SECTOR_ERASE;
+
+        finfo("blocks to erase: %d option: 0x%x\n", (int)blocks_to_erase, erase_option);
+
+        blocksleft -= blocks_to_erase;
 #ifdef CONFIG_W25QXXXJV_SECTOR512
       w25qxxxjv_erase_cache(priv, startblock);
 #else
-      w25qxxxjv_erase_sector(priv, startblock);
+      w25qxxxjv_erase_sector(priv, startblock, erase_option);
 #endif
-      startblock++;
+      startblock += blocks_to_erase;
     }
 
 #ifdef CONFIG_W25QXXXJV_SECTOR512
