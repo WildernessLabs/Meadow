@@ -85,7 +85,8 @@ void hcom_file_write_shutdown()
 }
 
 //==================================================================
-// The active file is the file currently being downloaded to flash
+// The active file is the file about to be downloaded to flash
+// This utility function is only used by 'hcom_file_dnld_stm32f7.c'
 int hcom_file_write_open_active_file(hcom_dnld_shared_t *dnldShared)
 {
   if (_shutting_down)
@@ -106,11 +107,11 @@ int hcom_file_write_open_active_file(hcom_dnld_shared_t *dnldShared)
 
   // Second (flags) parameter O_RDONLY, O_WRONLY, or O_RDWR ||
   // Third parameter 644 = owner has read and write permission, group has
-  // read and others have read 777 everyone has read write and execute
+  // read and others have read, 777 everyone has read write and execute
   // permission.
   set_errno(0);
 
-  dnldShared->dnldFileFD = open(dnldShared->dnldFullPathName, O_RDWR | O_CREAT | O_TRUNC, 0644);
+  dnldShared->dnldFileFD = open(dnldShared->dnldFullPathName, O_RDWR | O_CREAT, 0644);
   if (dnldShared->dnldFileFD == -1)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-open '%s', errno:%d\n",

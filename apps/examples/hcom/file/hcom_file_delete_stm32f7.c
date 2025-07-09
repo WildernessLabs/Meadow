@@ -75,75 +75,23 @@ int hcom_file_delete_stm32f7_file_by_name(hcom_dnld_shared_t *dnldShared)
 }
 
 //====================================================================
-// This is a internal function accessable to internal callers
+// This is a internal function accessible to internal callers
 int hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShared)
 {
   int ret;
 
-  // Memory for text message to host
-  char *hostMsg = malloc(HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
-  if(hostMsg == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-    return -ENOMEM;
-  }
-
-  // Delete the specified file
-  ret = unlink(dnldShared->dnldFullPathName);
+  // Delete the requested file and tell host about any problems
+  ret = hcom_file_misc_delete_existing(dnldShared, false);
   if (ret < 0)
   {
-    char *errorCause = malloc(HCOM_TINY_HOST_STRING_BUFF_LENGTH);
-    ret = -get_errno();
-    switch(ret)
-    {
-      case -ENOENT: // No such file or directory
-      strncpy(errorCause, "No such file",
-                HCOM_TINY_HOST_STRING_BUFF_LENGTH);
-      break;
-
-      case -EEXIST: // File already open
-      strncpy(errorCause, "Another file is being processed",
-                HCOM_TINY_HOST_STRING_BUFF_LENGTH);
-      break;
-      
-      case -ENAMETOOLONG: // File name too long
-      strncpy(errorCause, "File name too long",
-                HCOM_TINY_HOST_STRING_BUFF_LENGTH);
-      break;
-
-      case -EMFILE: // Too many files open
-      strncpy(errorCause, "Too many files open",
-                HCOM_TINY_HOST_STRING_BUFF_LENGTH);
-      break;
-
-      default:  // different error
-      snprintf_chk(errorCause, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-                "Unexpected error:%d", ret);
-      break;
-    }
-
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Error-failed to delete:'%s' %s (errno:%d)\n",
-        thisFile, __LINE__, dnldShared->dnldFullPathName, errorCause, get_errno());
-
-    // Message to host PC
-    snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
-          "Meadow failed to delete file '%s', %s",
-          dnldShared->dnldFullPathName, errorCause);
-    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, thisFile, __LINE__);
-
-    free(errorCause);
-    free(hostMsg);
-
-    // Concluded message will be sent by caller
+    // Error already reported to host
     return ret;
   }
-  else
-  {
+
 #if defined (CONFIG_DIR_MGMT_TESTS)
-    syslog(2, "%s@%d-DIAG-File:'%s' deleted\n",
-          thisFile, __LINE__, dnldShared->dnldFullPathName);
+  syslog(2, "%s@%d-DIAG-File:'%s' deleted\n",
+        thisFile, __LINE__, dnldShared->dnldFullPathName);
 #endif
-  }
 
   // Once the file has been deleted we must delete any parent, empty
   // subdirectories.
@@ -153,6 +101,13 @@ int hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShare
     uint32_t dirDepth = dnldShared->dnldPathNameEleCount - \
               HCOM_FILE_DNLD_MANDATORY_DIR_ELEMENTS;
     char *pathNameTemp = malloc(strlen(dnldShared->dnldFullPathName) + 1);
+
+    if(pathNameTemp == NULL)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+      return -ENOMEM;
+    }
+
     strcpy(pathNameTemp, dnldShared->dnldFullPathName);
 
     // We'll remove the deepest directory to the first.
@@ -214,6 +169,13 @@ int hcom_file_delete_stm32f7_file_by_name_internal(hcom_dnld_shared_t *dnldShare
   }
 
   // Send text message to host.
+  char *hostMsg = malloc(HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
+  if(hostMsg == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
+
   snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
         "File '%s' deleted", dnldShared->dnldFullPathName);
   hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg, thisFile, __LINE__);

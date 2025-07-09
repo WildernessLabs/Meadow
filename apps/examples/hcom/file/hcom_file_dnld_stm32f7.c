@@ -117,9 +117,18 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
   dnldShared->dnldInitFileCrc = fileMsg->fileInfo.fileCheckSum;
 
   // Log some diagnostic information
-  hcom_logging_syslog(LOG_INFO, "%s@%d-Meadow downloading file (FileLen:%d, Crc:0x%08x, Name:%s)\n",
+  hcom_logging_syslog(LOG_INFO, "%s@%d-Meadow download begin (FileLen:%d, Crc:0x%08x, Name:%s)\n",
           thisFile, __LINE__, dnldShared->dnldInitFileSize,
           dnldShared->dnldInitFileCrc, dnldShared->dnldOrigPathName);
+
+  // [--] TRY TO DELETING THE FILE FIRST
+  // [--] NOTE:IF DELETED THE OPEN DOESN'T NEED O_TRUNC
+  ret = hcom_file_misc_delete_existing(dnldShared, true);
+  if (ret < 0)
+  {
+    // Error, but not no such file
+    return ret;
+  }
 
   // Open the file in F7 file system
   ret = hcom_file_write_open_active_file(dnldShared);
@@ -190,6 +199,14 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
 {
   int ret;
   char* hostMsg = NULL;
+  static bool firstTime = true;
+
+  if(firstTime)
+  {
+    firstTime = false;
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
+              0, "Data being recvd", thisFile, __LINE__);
+  }
 
   // Ignore download if it's not expected. Either not begin or an error
   if(dnldShared->dnldCurrentState != HcomStm32F7DnldStateFileXfer)
@@ -213,6 +230,12 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
   if(seqNumb % 250 == 0)
     hcom_logging_syslog(LOG_DEBUG, "Sequence %d\n", hcomDataMsg->seqNumber);
 #endif
+
+  // char seqNumMsg[16];
+// [--] DIAGNOSTIC
+  // snprintf_chk(seqNumMsg, 16, "Sequence:%u\r", hcomDataMsg->seqNumber);
+  // hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
+  //           0, seqNumMsg, thisFile, __LINE__);
 
   // Compare _xferRecvFullFileSize with _xferCalcFullFileSize and send a message to host
   int percentDone = (dnldShared->dnldCalcFileSize  * 100) / dnldShared->dnldInitFileSize;
@@ -290,7 +313,7 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
   char *msgToSend;
   uint16_t requestType;
 
-  hcom_logging_syslog(LOG_NOTICE, "End of file write received\n");
+  hcom_logging_syslog(LOG_NOTICE, "EOF received from CLI\n");
 
   if(dnldShared->dnldCurrentState != HcomStm32F7DnldStateFileXfer)
   {
@@ -378,8 +401,7 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
   // Send text message to host
   hcom_host_send_simple_string_msg(requestType, 0, msgToSend, thisFile, __LINE__);
 
-  if(hostMsg != NULL)
-    free(hostMsg);
+  free(hostMsg);
 
 #if HCOM_RECV_DEBUG_TIMING > 0
   _dbgReceptionEndedAt = hcom_utils_get_current_time64_ns();

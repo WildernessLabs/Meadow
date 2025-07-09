@@ -250,6 +250,7 @@ void hcom_host_process_shutdown()
   free(_packet_dest_buf);
 
   hcom_dir_mgmt_free_file_info(_dnldShared);
+  free(_dnldShared);
 }
 
 //==========================================================================

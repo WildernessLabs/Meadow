@@ -16,7 +16,7 @@ from datetime import datetime
 from datetime import timedelta
 
 BRIEF_PAUSE_BETWEEN_DOWNLOADS = 0.1
-POLL_SECONDS_BEFORE_FAILURE = 3.0
+POLL_SECONDS_BEFORE_FAILURE = 3
 POLL_TOTAL_QUIT_DNLD_COUNT = POLL_SECONDS_BEFORE_FAILURE / BRIEF_PAUSE_BETWEEN_DOWNLOADS
 
 class MeadowFileDownloader:
@@ -50,8 +50,8 @@ class MeadowFileDownloader:
 
             # Monitor output in real-time
             while True:
-                time.sleep(BRIEF_PAUSE_BETWEEN_DOWNLOADS)
-                self.pollActiveCount = self.pollActiveCount + 1.0
+                time.sleep(BRIEF_PAUSE_BETWEEN_DOWNLOADS)       # like 100 ms
+                self.pollActiveCount = self.pollActiveCount + 1
 
                 if self.pollActiveCount > POLL_TOTAL_QUIT_DNLD_COUNT:
                     print(f"TIMEOUT: No output for > {POLL_SECONDS_BEFORE_FAILURE} seconds - marking as failure", flush=True)
@@ -62,10 +62,9 @@ class MeadowFileDownloader:
 
                 # Is there stdout text?
                 if output != "":
+                    # Looks like text
                     self.pollActiveCount = 0
                     self.process_if_percent(output.strip())
-                    # To see other text use following
-                    #if not self.process_if_percent(output.strip()):
 
                 # Check if CLI exited?
                 return_code = process.poll()
@@ -171,6 +170,10 @@ class MeadowFileDownloader:
                 # Execute the download
                 startTime = time.perf_counter()
                 success = self.run_cli_command()
+                endTime = time.perf_counter()
+
+                self.dnldExecutionTime = endTime - startTime
+                self.totExecutionTime = self.totExecutionTime + self.dnldExecutionTime
 
                 if self.running:
                     if success:
@@ -179,24 +182,12 @@ class MeadowFileDownloader:
                     else:
                         self.failure_count += 1
                         print(f"\n✗ Iteration {self.iteration_count} FAILURE")
-                
-                    endTime = time.perf_counter()
 
-                    # Convert time floats to datetime objects and subtract to get correct time delta
-                    endDateTime = datetime.fromtimestamp(endTime)
-                    startDateTime = datetime.fromtimestamp(startTime)
-                    # Don't just subtract timestamps use datetime to create a timedelta
-                    executionTime = endDateTime - startDateTime
+                # Display download statistics
+                self.display_stats()
 
-                    # Convert back to timestamp as float
-                    self.dnldExecutionTime = timedelta.total_seconds(executionTime)
-                    self.totExecutionTime = self.totExecutionTime + self.dnldExecutionTime
-
-                    # Display updated statistics
-                    self.display_stats()
-
-                    # Pause before next download
-                    time.sleep(2.0)
+                # Pause before next download
+                time.sleep(2.0)
 
         except KeyboardInterrupt:
             print("\nStopping tool (Ctrl+C received)")

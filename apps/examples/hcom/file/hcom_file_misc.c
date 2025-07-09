@@ -215,3 +215,78 @@ int meadow_read_file_total_free_flash_size(uint32_t *totalBytes,
 
   return OK;
 }
+
+// ===================================================================
+// Delete a file from the Meadow file system
+int hcom_file_misc_delete_existing(hcom_dnld_shared_t *dnldShared,
+  bool ignoreENOENT)
+{
+  int ret;
+
+  // Delete the specified file
+  ret = unlink(dnldShared->dnldFullPathName);
+  if(ret >= 0)
+  {
+    return OK;
+  }
+
+  // Find the actual error 
+  ret = -get_errno();
+
+  // ENOENT isn't an error it's what we want
+  if(ret == -ENOENT && (ignoreENOENT))
+  {
+    return OK;
+  }
+
+  // On error report problem
+  char *hostMsg = malloc(HCOM_SHORT_HOST_STRING_BUFF_LENGTH);
+  if(hostMsg == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
+
+  char *errorCause = malloc(HCOM_TINY_HOST_STRING_BUFF_LENGTH);
+  switch(ret)
+  {
+    case -ENOENT: // No such file or directory
+    strncpy(errorCause, "No such file",
+              HCOM_TINY_HOST_STRING_BUFF_LENGTH);
+    break;
+
+    case -EEXIST: // File already open
+    strncpy(errorCause, "Another file is being processed",
+              HCOM_TINY_HOST_STRING_BUFF_LENGTH);
+    break;
+    
+    case -ENAMETOOLONG: // File name too long
+    strncpy(errorCause, "File name too long",
+              HCOM_TINY_HOST_STRING_BUFF_LENGTH);
+    break;
+
+    case -EMFILE: // Too many files open
+    strncpy(errorCause, "Too many files open",
+              HCOM_TINY_HOST_STRING_BUFF_LENGTH);
+    break;
+
+    default:  // different error
+    snprintf_chk(errorCause, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+              "Unexpected error:%d", ret);
+    break;
+  }
+
+  hcom_logging_syslog(LOG_ERR, "%s@%d-Error-failed to delete:'%s' %s (errno:%d)\n",
+      thisFile, __LINE__, dnldShared->dnldFullPathName, errorCause, get_errno());
+
+  // Message to host PC
+  snprintf_chk(hostMsg, HCOM_SHORT_HOST_STRING_BUFF_LENGTH,
+        "Meadow failed to delete file '%s', %s",
+        dnldShared->dnldFullPathName, errorCause);
+  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, thisFile, __LINE__);
+
+  free(errorCause);
+  free(hostMsg);
+
+  return ret;
+}
