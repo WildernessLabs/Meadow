@@ -568,7 +568,7 @@ static const cyaml_schema_value_t cell_settings_schema =
 
 /********************************************************************************************************************************************************
  * 
- *  Network test configuration YAML description.
+ *  Unit test configuration YAML description.
  * 
  *******************************************************************************************************************************************************/ 
 
@@ -580,29 +580,54 @@ static const cyaml_schema_value_t cell_settings_schema =
 struct yaml_parameters_s
 {
     /**
-     *  Name of the network access point to connect to.
+     *  Test parameter 1
      */
-    char *ssid;
+    char *parameter1;
 
     /**
-     *  Password for the network access point.
+     *  Test parameter 2
      */
-    char *password;
-
+    char *parameter2;
+    
     /**
-     *  IP address of the server to connect to.
-     */ 
-    char *server_ip;
-
-    /**
-     *  Port number of the server to connect to.
+     *  Test parameter 3
      */
-    char *server_port;
-
+    char *parameter3;
+    
     /**
-     *  Name of the resource to request from the server.
+     *  Test parameter 4
      */
-    char *resource;
+    char *parameter4;
+    
+    /**
+     *  Test parameter 5
+     */
+    char *parameter5;
+    
+    /**
+     *  Test parameter 6
+     */
+    char *parameter6;
+    
+    /**
+     *  Test parameter 7
+     */
+    char *parameter7;
+    
+    /**
+     *  Test parameter 8
+     */
+    char *parameter8;
+    
+    /**
+     *  Test parameter 9
+     */
+    char *parameter9;
+    
+    /**
+     *  Test parameter 10
+     */
+    char *parameter10;
 };
 typedef struct yaml_parameters_s yaml_parameters_t;
 
@@ -613,11 +638,16 @@ typedef struct yaml_parameters_s yaml_parameters_t;
  */
 static const cyaml_schema_field_t test_parameters_schema[] =
 {
-    CYAML_FIELD_STRING_PTR("Ssid", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_parameters_t, ssid, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("Password", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_parameters_t, password, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("ServerIP", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_parameters_t, server_ip, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("ServerPort", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_parameters_t, server_port, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_STRING_PTR("Resource", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_parameters_t, resource, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("Parameter1", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_parameters_t, parameter1, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("Parameter2", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_parameters_t, parameter2, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("Parameter3", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_parameters_t, parameter3, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("Parameter4", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_parameters_t, parameter4, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("Parameter5", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_parameters_t, parameter5, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("Parameter6", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_parameters_t, parameter6, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("Parameter7", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_parameters_t, parameter7, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("Parameter8", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_parameters_t, parameter8, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("Parameter9", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_parameters_t, parameter9, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("Parameter10", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_parameters_t, parameter10, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
 
@@ -634,7 +664,7 @@ struct yaml_test_parameters_s
 {
     /**
      *  Information about the test parameters
-     */
+     */ 
     yaml_parameters_t *parameters;
 };
 typedef struct yaml_test_parameters_s yaml_test_parameters_t;
@@ -644,7 +674,7 @@ typedef struct yaml_test_parameters_s yaml_test_parameters_t;
  *
  *  This is an array of the field definitions.
  */
-static const cyaml_schema_field_t network_test_parameters_fields_schema[] =
+static const cyaml_schema_field_t unit_test_parameters_fields_schema[] =
 {
     CYAML_FIELD_MAPPING_PTR("TestParameters", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_test_parameters_t, parameters, test_parameters_schema),
 	CYAML_FIELD_END
@@ -653,9 +683,9 @@ static const cyaml_schema_field_t network_test_parameters_fields_schema[] =
 /**
  *  Top level schema for the data from the YAML configuration file is a mapping.
  */
-static const cyaml_schema_value_t network_test_parameters_schema =
+static const cyaml_schema_value_t unit_test_parameters_schema =
 {
-    CYAML_VALUE_MAPPING(CYAML_FLAG_POINTER, yaml_test_parameters_t, network_test_parameters_fields_schema)
+    CYAML_VALUE_MAPPING(CYAML_FLAG_POINTER, yaml_test_parameters_t, unit_test_parameters_fields_schema)
 };
 
 #endif /* CONFIG_KERNEL_TESTS_SYSCALL */

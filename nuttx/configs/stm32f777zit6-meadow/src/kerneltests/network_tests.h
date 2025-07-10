@@ -46,4 +46,4 @@
 
 int network_test_get_web_resource(int number_of_requests, char *webserver_ip, uint16_t webserver_port, char *page);
 void network_test_misc_network_functions(void);
-
+uint16_t string_to_server_port(const char *port);

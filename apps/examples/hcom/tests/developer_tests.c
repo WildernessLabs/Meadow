@@ -140,7 +140,7 @@ static meadow_test_names_t _testNames[] =
 #endif
 
 #if defined(CONFIG_CELL_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-    { 20, "Cell tests", cell_script_tests },
+    { MEADOW_TEST_CELL_TESTS, "Cell tests" },
 #endif
 
     //
@@ -153,7 +153,7 @@ static meadow_test_names_t _testNames[] =
     { MEADOW_TEST_BBD_REGISTER, "Battery Backed Domain register tests" },
     { MEADOW_TEST_BBD_WRITE_AFTER_RESET, "Battery Backed Domain write and reset test" },
     { MEADOW_TEST_READ_AFTER_RESET, "Battery Backed Domain read after reset test" },
-    { MEADOW_TEST_CLI_TIMEOUT, "CLI timeout test (use -v <seconds> to specify period between initial and final responses, default = 60 seconds)" },
+    { MEADOW_TEST_GET_TEST_CONFIGURATION, "Get test configuration from the kernel" },
 #endif
 
     //
@@ -227,6 +227,7 @@ static meadow_test_methods_t _userspaceTests[] =
     { MEADOW_TEST_BBD_WRITE_AFTER_RESET, meadow_bbd_write_and_reset_test },
     { MEADOW_TEST_READ_AFTER_RESET, meadow_bbd_read_after_reset_test },
     { MEADOW_TEST_CLI_TIMEOUT, meadow_os_cli_timeout_test },
+    { MEADOW_TEST_GET_TEST_CONFIGURATION, meadow_os_userspace_get_test_configuration_test },
 #endif
 };
 

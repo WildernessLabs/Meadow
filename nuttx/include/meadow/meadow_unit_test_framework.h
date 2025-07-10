@@ -42,6 +42,67 @@
 #include <stdbool.h>
 
 /****************************************************************************
+ * Public types.
+ ****************************************************************************/
+
+ /**
+ * @brief Structure for unit tests configuration.
+ */
+struct unit_tests_configuration_s
+{
+    /**
+     * @brief Test parameter 1.
+     */
+    char *parameter1;
+
+    /**
+     * @brief Test parameter 2.
+     */
+    char *parameter2;
+
+    /**
+     * @brief Test parameter 3.
+     */
+    char *parameter3;
+
+    /**
+     * @brief Test parameter 4.
+     */
+    char *parameter4;
+
+    /**
+     * @brief Test parameter 5.
+     */
+    char *parameter5;
+
+    /**
+     * @brief Test parameter 6.
+     */
+    char *parameter6;
+
+    /**
+     * @brief Test parameter 7.
+     */
+    char *parameter7;
+
+    /**
+     * @brief Test parameter 8.
+     */
+    char *parameter8;
+
+    /**
+     * @brief Test parameter 9.
+     */
+    char *parameter9;
+
+    /**
+     * @brief Test parameter 10.
+     */
+    char *parameter10;
+};
+typedef struct unit_tests_configuration_s unit_tests_configuration_t;
+
+/****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
@@ -140,6 +201,11 @@
 #define MEADOW_TEST_FREQUENCY_MEASUREMENT           19
 
 /**
+ * @brief Cell tests ID.
+ */
+#define MEADOW_TEST_CELL_TESTS                      20
+
+/**
  * @brief User space assert test ID.
  */
 #define MEADOW_TEST_USER_SPACE_ASSERT               900
@@ -174,6 +240,10 @@
  */
 #define MEADOW_TEST_CLI_TIMEOUT                     906
 
+/**
+ * @brief Get test configuration test ID.
+ */
+#define MEADOW_TEST_GET_TEST_CONFIGURATION          907
 
 /**
  * @brief ESP32 (all tests) test ID.
@@ -201,7 +271,7 @@
 #define MEADOW_TEST_BG77                            1400
 
 //---------------------------------------------------------------------------
-//      Test IDs.
+//      Test result codes.
 //---------------------------------------------------------------------------
 
 /**
@@ -223,6 +293,35 @@
  * @brief TEST_ERR_FAILED
  */
 #define TEST_ERR_FAILED                             3
+
+//---------------------------------------------------------------------------
+//      Network test parameter mappings.
+//---------------------------------------------------------------------------
+
+/**
+ * @brief Unit test parameter holding the SSID of the WiFi network to connect to.
+ */
+#define UNIT_TESTS_CONFIG_SSID              unit_tests_configuration->parameter1
+
+/**
+ * @brief Unit test parameter holding the password of the WiFi network to connect to.
+ */
+#define UNIT_TESTS_CONFIG_PASSWORD          unit_tests_configuration->parameter2
+
+/**
+ * @brief Unit test parameter holding the IP address of the server to connect to.
+ */
+#define UNIT_TESTS_CONFIG_SERVER_IP         unit_tests_configuration->parameter3
+
+/**
+ * @brief Unit test parameter holding the port of the server to connect to.
+ */
+#define UNIT_TESTS_CONFIG_SERVER_PORT       unit_tests_configuration->parameter4
+
+/**
+ * @brief Unit test parameter holding the resource to request from the server.
+ */
+#define UNIT_TESTS_CONFIG_RESOURCE          unit_tests_configuration->parameter5
 
 /****************************************************************************
  * Private types

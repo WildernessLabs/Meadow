@@ -36,6 +36,7 @@
 #define __MEADOW_OS_H
 
 #include <meadow/hcom_shared_common.h>
+#include <meadow/meadow_unit_test_framework.h>
 
 /****************************************************************************
  * Uncomment the #define below to turn on debug help macros.
@@ -94,6 +95,11 @@
 //
 void meadow_os_config_free_resources(meadow_configuration_t *);
 meadow_configuration_t *meadow_os_deep_copy_config(void);
+
+#if defined(CONFIG_KERNEL_TESTS_SYSCALL)
+unit_tests_configuration_t *meadow_os_get_unit_tests_config(void);
+#endif
+
 //
 //  Power cycle, and reset methods.
 //
@@ -108,6 +114,7 @@ int meadow_os_reset_update_counters(void);
 uint32_t meadow_os_native_protocol_version(void);
 void meadow_os_raise_simple_exception(uint32_t);
 void meadow_os_reset_board(int);
+char *meadow_os_copy_string(char *source);
 //
 //  ESP coprocessor specific methods.
 //

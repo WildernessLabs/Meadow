@@ -448,6 +448,10 @@ uintptr_t STUB_meadow_os_reset_board(int nbr, uintptr_t parm1);
 void STUB_meadow_os_coprocessor_deep_sleep(int nbr);
 #endif
 
+#if defined(CONFIG_KERNEL_TESTS_SYSCALL)
+uintptr_t STUB_meadow_os_get_unit_tests_config(int nbr);
+#endif
+
 #if defined (CONFIG_ARCH_IDLE_CUSTOM)
 int STUB_meadow_idle_monitor_get_value(int nbr);
 #endif
@@ -463,8 +467,8 @@ int STUB_pwrmgmt_most_recent_wakeup_reason(int nbr);
 #endif
 
 #if defined(CONFIG_ARCH_BOARD_MEADOW)
-  STUB_meadow_measure_freq_configure(int nbr, uintptr_t parm1);
-  STUB_meadow_measure_freq_return_freq_info(int nbr, uintptr_t parm1);
+  int STUB_meadow_measure_freq_configure(int nbr, uintptr_t parm1);
+  int STUB_meadow_measure_freq_return_freq_info(int nbr, uintptr_t parm1);
 #endif
 
 #if defined(CONFIG_ARCH_BOARD_MEADOW)

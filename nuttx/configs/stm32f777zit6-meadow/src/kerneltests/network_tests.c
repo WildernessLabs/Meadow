@@ -189,6 +189,23 @@ char *network_test_number_with_commas(uint32_t number)
  * Public Functions
  ****************************************************************************/
 
+ /**
+  * @brief Convert a string representation of a port number to a uint16_t.
+  *
+  * @param port The string representation of the port number.
+  * @return uint16_t The converted port number, or 80 if the port string is invalid.
+  */
+ uint16_t string_to_server_port(const char *port)
+ {
+    if (port == NULL)
+    {
+        return 80;
+    }
+
+    int number = atoi(port);
+    return((number == 0) ? 80 : (uint16_t) number);
+}
+
 /****************************************************************************
  * Name: network_test_get_resource
  *

@@ -132,9 +132,9 @@ static meadow_test_methods_t _kernelTests[] =
 };
 
 /**
- * @brief Pointer to the network test configuration structure.
+ * @brief Pointer to the unit test configuration structure.
  */
-network_tests_configuration_t *network_tests_configuration = NULL;
+unit_tests_configuration_t *unit_tests_configuration = NULL;
 
 /****************************************************************************
  * Public functions.
@@ -159,7 +159,6 @@ network_tests_configuration_t *network_tests_configuration = NULL;
  * Returned Value:
  *  TEST_ERR_OK: Test found and executed.
  *  TEST_ERR_NOT_FOUND: Test not found.
- *  TEST_ERR_INVALID_CONFIG: Invalid configuration file.
  *
  * Assumptions/Limitations:
  *  None.
@@ -176,12 +175,7 @@ int meadow_kt_dispatcher(uint32_t param, uint32_t value)
         {
             if (_kernelTests[index].testId == param)
             {
-                network_tests_configuration = process_network_test_configuration_file();
-                if (network_tests_configuration == NULL)
-                {
-                    syslog(LOGGING_LEVEL, "Failed to load network test configuration file.\n");
-                    return(TEST_ERR_INVALID_CONFIG);
-                }
+                unit_tests_configuration = process_unit_tests_configuration_file();
                 _kernelTests[index].testMethod(value);
                 result = TEST_ERR_OK;
                 break;
