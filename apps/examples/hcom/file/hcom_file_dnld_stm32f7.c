@@ -121,8 +121,13 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
           thisFile, __LINE__, dnldShared->dnldInitFileSize,
           dnldShared->dnldInitFileCrc, dnldShared->dnldOrigPathName);
 
-  // [--] TRY TO DELETING THE FILE FIRST
-  // [--] NOTE:IF DELETED THE OPEN DOESN'T NEED O_TRUNC
+  // Delete was added to address Meadow Issue #855 and O_TRUNC was removed
+  // from the open call. I'd been told that Issue #855 was causing Meadow to
+  // throw an assertion. After this change I modified defconf
+  // CONFIG_BOARD_RESET_ON_ASSERT to be '0' (which) instead of '2'), which
+  // should have prevented Meadow.OS from restarting. But, with this defconfig
+  // change, even after several days of continuous downloading, no assertion
+  // was seen. Did this fix the problem or was the report I received wrong?
   ret = hcom_file_misc_delete_existing(dnldShared, true);
   if (ret < 0)
   {
@@ -130,7 +135,8 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
     return ret;
   }
 
-  // Open the file in F7 file system
+  // Open the file in F7 file system. With Issue #855 the above delete was
+  // added meaning that this call will always create a new file.
   ret = hcom_file_write_open_active_file(dnldShared);
   if (ret < 0)
   {
