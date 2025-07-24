@@ -233,7 +233,7 @@ int hcom_file_misc_delete_existing(hcom_dnld_shared_t *dnldShared,
   // Find the actual error 
   ret = -get_errno();
 
-  // ENOENT isn't an error it's what we want
+  // ENOENT isn't an error it's what we want, no file found
   if(ret == -ENOENT && (ignoreENOENT))
   {
     return OK;

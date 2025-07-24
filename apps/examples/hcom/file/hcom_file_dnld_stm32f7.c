@@ -85,7 +85,7 @@ uint64_t _dbgReceptionEndedAt;
  ****************************************************************************/
 int hcom_file_dnld_stm32f7_setup()
 {
-    _stateErrShown = false;   // In case of data before begin
+  _stateErrShown = false;   // In case of data before begin
   return OK;
 }
 
@@ -182,7 +182,6 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
           0, hostMsg, thisFile, __LINE__);
 
     free(hostMsg);
-    return ret;
   }
   else
   {
@@ -190,8 +189,8 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
     dnldShared->dnldCurrentState = HcomStm32F7DnldStateFileXfer;
 
     // Notify CLI that it's okay to send the file's data now
-    hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_OKAY,
-              0, thisFile, __LINE__);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_OKAY,
+              0, "", thisFile, __LINE__);
     ret = OK;
   }
 
@@ -205,14 +204,6 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
 {
   int ret;
   char* hostMsg = NULL;
-  static bool firstTime = true;
-
-  if(firstTime)
-  {
-    firstTime = false;
-    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
-              0, "Data being recvd", thisFile, __LINE__);
-  }
 
   // Ignore download if it's not expected. Either not begin or an error
   if(dnldShared->dnldCurrentState != HcomStm32F7DnldStateFileXfer)
@@ -259,7 +250,6 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
 
     snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
               "File %d%% downloaded", percentDone);
-
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
               0, hostMsg, thisFile, __LINE__);
     free(hostMsg);
@@ -357,7 +347,7 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
               thisFile, __LINE__, detectError);
 
     snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
-            "Download of '%s' state unknown due to checksum calulation fault:%d",
+            "Download of '%s' state unknown due to checksum calculation fault:%d",
             dnldShared->dnldOrigPathName, detectError);
     msgToSend = hostMsg;
     requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
@@ -406,7 +396,6 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
 
   // Send text message to host
   hcom_host_send_simple_string_msg(requestType, 0, msgToSend, thisFile, __LINE__);
-
   free(hostMsg);
 
 #if HCOM_RECV_DEBUG_TIMING > 0

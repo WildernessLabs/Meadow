@@ -58,7 +58,6 @@ class MeadowFileDownloader:
                 if output == "":
                     # No response from CLI this loop
                     cliSilence = time.perf_counter() - cliLastMsgAt
-                    print(f"No Text. CLI silent for {cliSilence}")
 
                     # Did CLI die?
                     if cliSilence > POLL_SECONDS_BEFORE_FAILURE:

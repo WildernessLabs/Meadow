@@ -546,8 +546,8 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
     {
       // Caller expects a Concluded message for all messages, even for
       // a wrong CLI protocol version.
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
-                thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+              "", thisFile, __LINE__);
 
       // Exit if below HCOM_PROTOCOL_MINIMUM_PROTOCOL_NUMBER
       return -ENOTSUP;
@@ -657,7 +657,8 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       // These request types need a Concluded message. Why? Because in the
       // normal case the End message will do this. But, on an error the End
       // message cannot be expected.
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
 
       return ret;   // On error exit
     }
@@ -679,8 +680,8 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
                 thisFile, __LINE__);
 
       // Caller expects a Concluded message for End message.
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
-                thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+                "", thisFile, __LINE__);
 
       return -EOWNERDEAD;
     }
