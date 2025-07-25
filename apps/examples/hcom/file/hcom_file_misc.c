@@ -248,6 +248,12 @@ int hcom_file_misc_delete_existing(hcom_dnld_shared_t *dnldShared,
   }
 
   char *errorCause = malloc(HCOM_TINY_HOST_STRING_BUFF_LENGTH);
+  if(errorCause == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    return -ENOMEM;
+  }
+  
   switch(ret)
   {
     case -ENOENT: // No such file or directory
