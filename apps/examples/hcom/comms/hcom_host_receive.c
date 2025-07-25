@@ -271,7 +271,8 @@ int hcom_host_recv_restart_concluded()
   // then a `Concluded` message must be sent
   if(hcom_bbreg_is_bbr_bit_set(HCOM_BBREG_RESTART_INITIATED_BY_HOST_CMD_BIT))
   {
-    hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+      "", thisFile, __LINE__);
   }
 
   return OK;

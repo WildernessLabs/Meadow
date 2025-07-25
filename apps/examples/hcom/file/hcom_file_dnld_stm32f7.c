@@ -85,7 +85,7 @@ uint64_t _dbgReceptionEndedAt;
  ****************************************************************************/
 int hcom_file_dnld_stm32f7_setup()
 {
-    _stateErrShown = false;   // In case of data before begin
+  _stateErrShown = false;   // In case of data before begin
   return OK;
 }
 
@@ -117,11 +117,26 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
   dnldShared->dnldInitFileCrc = fileMsg->fileInfo.fileCheckSum;
 
   // Log some diagnostic information
-  hcom_logging_syslog(LOG_INFO, "%s@%d-Meadow downloading file (FileLen:%d, Crc:0x%08x, Name:%s)\n",
+  hcom_logging_syslog(LOG_INFO, "%s@%d-Meadow download begin (FileLen:%d, Crc:0x%08x, Name:%s)\n",
           thisFile, __LINE__, dnldShared->dnldInitFileSize,
           dnldShared->dnldInitFileCrc, dnldShared->dnldOrigPathName);
 
-  // Open the file in F7 file system
+  // Delete was added to address Meadow Issue #855 and O_TRUNC was removed
+  // from the open call. I'd been told that Issue #855 was causing Meadow to
+  // throw an assertion. After this change I modified defconf
+  // CONFIG_BOARD_RESET_ON_ASSERT to be '0' (which) instead of '2'), which
+  // should have prevented Meadow.OS from restarting. But, with this defconfig
+  // change, even after several days of continuous downloading, no assertion
+  // was seen. Did this fix the problem or was the report I received wrong?
+  ret = hcom_file_misc_delete_existing(dnldShared, true);
+  if (ret < 0)
+  {
+    // Error, but not no such file
+    return ret;
+  }
+
+  // Open the file in F7 file system. With Issue #855 the above delete was
+  // added meaning that this call will always create a new file.
   ret = hcom_file_write_open_active_file(dnldShared);
   if (ret < 0)
   {
@@ -167,7 +182,6 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
           0, hostMsg, thisFile, __LINE__);
 
     free(hostMsg);
-    return ret;
   }
   else
   {
@@ -175,8 +189,8 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
     dnldShared->dnldCurrentState = HcomStm32F7DnldStateFileXfer;
 
     // Notify CLI that it's okay to send the file's data now
-    hcom_host_send_header_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_OKAY,
-              0, thisFile, __LINE__);
+    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_OKAY,
+              0, "", thisFile, __LINE__);
     ret = OK;
   }
 
@@ -214,6 +228,12 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
     hcom_logging_syslog(LOG_DEBUG, "Sequence %d\n", hcomDataMsg->seqNumber);
 #endif
 
+  // char seqNumMsg[16];
+// [--] DIAGNOSTIC
+  // snprintf_chk(seqNumMsg, 16, "Sequence:%u\r", hcomDataMsg->seqNumber);
+  // hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
+  //           0, seqNumMsg, thisFile, __LINE__);
+
   // Compare _xferRecvFullFileSize with _xferCalcFullFileSize and send a message to host
   int percentDone = (dnldShared->dnldCalcFileSize  * 100) / dnldShared->dnldInitFileSize;
   if(percentDone / 10 != dnldShared->dnldPercentSent)
@@ -230,7 +250,6 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
 
     snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
               "File %d%% downloaded", percentDone);
-
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
               0, hostMsg, thisFile, __LINE__);
     free(hostMsg);
@@ -290,7 +309,7 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
   char *msgToSend;
   uint16_t requestType;
 
-  hcom_logging_syslog(LOG_NOTICE, "End of file write received\n");
+  hcom_logging_syslog(LOG_NOTICE, "EOF received from CLI\n");
 
   if(dnldShared->dnldCurrentState != HcomStm32F7DnldStateFileXfer)
   {
@@ -328,7 +347,7 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
               thisFile, __LINE__, detectError);
 
     snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
-            "Download of '%s' state unknown due to checksum calulation fault:%d",
+            "Download of '%s' state unknown due to checksum calculation fault:%d",
             dnldShared->dnldOrigPathName, detectError);
     msgToSend = hostMsg;
     requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
@@ -377,9 +396,7 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
 
   // Send text message to host
   hcom_host_send_simple_string_msg(requestType, 0, msgToSend, thisFile, __LINE__);
-
-  if(hostMsg != NULL)
-    free(hostMsg);
+  free(hostMsg);
 
 #if HCOM_RECV_DEBUG_TIMING > 0
   _dbgReceptionEndedAt = hcom_utils_get_current_time64_ns();

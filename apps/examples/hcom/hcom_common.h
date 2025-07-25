@@ -259,6 +259,8 @@ uint32_t hcom_file_misc_calc_crc_for_file(char *completeFilePath, off_t *fileSiz
         uint32_t *blockSizeKB, int *detectError);
 uint32_t hcom_file_misc_calc_crc_for_file_fd(int fd, char *completeFilePath,
         off_t *fileSize, uint32_t *blockSizeKB, int *detectError);
+int hcom_file_misc_delete_existing(hcom_dnld_shared_t *dnldShared,
+  bool ignoreENOENT);
 
 // -----------------------------------------------
 // Mono related

@@ -41,3 +41,4 @@
 int app_update(void);
 int os_update(void);
 int firmware_update(void);
+void hcom_ota_rqst_register_device(uint32_t userData);

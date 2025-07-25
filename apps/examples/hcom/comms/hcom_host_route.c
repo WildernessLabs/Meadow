@@ -41,6 +41,7 @@
 #include <meadow/hcom_protocol.h>
 #include <meadow/hcom_shared_common.h>
 #include <nuttx/config.h>
+#include "../ota/hcom_ota.h"
 
 #if defined (CONFIG_HCOM_ESP32_COMMS)
 #include "../esp32/hcom_esp32_comms.h"
@@ -100,7 +101,8 @@ int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
     // Start file transfer handles Meadow. The End file transfer will send the
     // Concluded message, unless there's an error then it will be sent here
     case HCOM_MDOW_REQUEST_START_FILE_TRANSFER:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       ret = hcom_file_dnld_stm32f7_file_begin(hdrMsg, dnldShared);
       break;
 
@@ -109,13 +111,16 @@ int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
     // CLI end file transfer provides the 'Concluded' message, even on error.
     case HCOM_MDOW_REQUEST_END_FILE_TRANSFER:
       ret = hcom_file_dnld_stm32f7_file_end(dnldShared);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_DELETE_FILE_BY_NAME:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       ret = hcom_file_delete_stm32f7_file_by_name(dnldShared);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 
     //-------------------------------------------------
@@ -124,7 +129,8 @@ int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
     // Note: Start file transfer provides the 'Accepted' message and
     // end file transfer the 'Concluded' message
     case HCOM_MDOW_REQUEST_START_ESP_FILE_TRANSFER:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_file_dnld_esp32_file_begin(hdrMsg);
       break;
 
@@ -132,126 +138,155 @@ int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
     // end file transfer the 'Concluded' message
     case HCOM_MDOW_REQUEST_END_ESP_FILE_TRANSFER:
       hcom_file_dnld_esp32_file_end(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_READ_ESP_MAC_ADDRESS:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_esp32_util_read_esp32_mac(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_RESTART_ESP32:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_esp32_util_restart_esp32(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 #endif
 
     //---------------------------------------------------
     case HCOM_MDOW_REQUEST_VERIFY_ERASED_FLASH:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_CHANGE_TRACE_LEVEL:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_diag_logging_change_trace_level(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 #if HCOM_SUPPORT_CLIV1_LEGACY_BEHAVIOR > 0
     case HCOM_MDOW_REQUEST_LIST_PARTITION_FILES:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_file_lists_all_files_in_meadow0(hdrMsg, dnldShared, false);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_LIST_PART_FILES_AND_CRC:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_file_lists_all_files_in_meadow0(hdrMsg, dnldShared, true);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 #endif
 
     // New Dec2023 to support subdirectories
     case HCOM_MDOW_REQUEST_LIST_FILES_SUBDIR:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_file_lists_all_files_in_subdirectories(hdrMsg, dnldShared, false);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 
     // New Dec2023 to support subdirectories
     case HCOM_MDOW_REQUEST_LIST_FILES_SUBDIR_CRC:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_file_lists_all_files_in_subdirectories(hdrMsg, dnldShared, true);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_GET_DEVICE_INFORMATION:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_misc_rqst_get_device_info(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_GET_DEVICE_NAME:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_misc_rqst_get_device_name(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 
     //-------------------------------------------------------------------------
     // The following restart Meadow. The HCOM_HOST_REQUEST_TEXT_CONCLUDED message
     // is sent by the Meadow restart code, after Meadow has restarted.
     case HCOM_MDOW_REQUEST_RESTART_PRIMARY_MCU:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
-          thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
+        "", thisFile, __LINE__);
       hcom_via_nx_host_restart_meadow();
       break;
 
     case HCOM_MDOW_REQUEST_PART_RENEW_FILE_SYS:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
-          thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
+        "", thisFile, __LINE__);
       hcom_via_nx_host_restart_meadow();
       break;
 
     case HCOM_MDOW_REQUEST_BULK_FLASH_ERASE:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
-          thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
+        "", thisFile, __LINE__);
       hcom_via_nx_host_restart_meadow();
       break;
 
     case HCOM_MDOW_REQUEST_MONO_DISABLE:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_mono_ctrl_disable_mono(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
-          thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
+        "", thisFile, __LINE__);
       hcom_via_nx_host_restart_meadow();
       break;
 
     case HCOM_MDOW_REQUEST_MONO_ENABLE:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_mono_ctrl_enable_mono(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
-          thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_RECONNECT, userData,
+        "", thisFile, __LINE__);
       hcom_via_nx_host_restart_meadow();
       break;
 
     case HCOM_MDOW_REQUEST_ENTER_DFU_MODE:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_misc_rqst_enter_dfu_mode(userData);
       hcom_via_nx_only_restart_meadow();
       break;
 
     case HCOM_MDOW_REQUEST_MONO_FLASH:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 
     // -------------------------------------------------------
@@ -262,7 +297,8 @@ int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
     // downloaded. This is like the file downloading for system files
     // 1. CLI sends this first
     case HCOM_MDOW_REQUEST_MONO_UPDATE_RUNTIME:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       ret = hcom_file_dnld_stm32f7_file_begin(hdrMsg, dnldShared);
       break;
       
@@ -275,105 +311,133 @@ int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
       // flash area and then copies the file.
       // Note: a different requestType is used than sent
       hcom_via_nx_forward_cli_cmd_to_nx(HCOM_MDOW_REQUEST_MONO_FLASH, userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 
     // -------------------------------------------------------
 
     case HCOM_MDOW_REQUEST_MONO_RUN_STATE:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+         "", thisFile, __LINE__);
       hcom_mono_ctrl_report_mono_enabled_state(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+         "", thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_SEND_TRACE_TO_HOST:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+         "", thisFile, __LINE__);
       // Both k-land and userland need this command.
       // The nuttx side must start first
       hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
       hcom_trace_to_cli_enable_command(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+         "", thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_NO_TRACE_TO_HOST:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+         "", thisFile, __LINE__);
       // Both k-land and userland need this command.
       // The nuttx side must stop first so the pthread it holds so it can terminate
       hcom_trace_to_cli_disable_command(userData);
       hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
       hcom_trace_to_cli_disable_cleanup(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+         "", thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_NO_TRACE_TO_UART:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+         "", thisFile, __LINE__);
       hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+         "", thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_SEND_TRACE_TO_UART:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+         "", thisFile, __LINE__);
       hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+         "", thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_NO_PROFILER_TO_UART:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+         "", thisFile, __LINE__);
       hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+         "", thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_SEND_PROFILER_TO_UART:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+         "", thisFile, __LINE__);
       hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+         "", thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_GET_INITIAL_FILE_BYTES:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+         "", thisFile, __LINE__);
       hcom_file_upld_proc_initial_bytes_in_file(hdrMsg, packetSize);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+         "", thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_UPLOAD_FILE_INIT:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+         "", thisFile, __LINE__);
       ret = hcom_file_upld_proc_start_file_upload(dnldShared);
-      // After data sent the HCOM_HOST_REQUEST_TEXT_CONCLUDED message will be sent
-      // by HCOM_MDOW_REQUEST_UPLOAD_START_DATA_SEND case.
+      // After data sent the HCOM_HOST_REQUEST_TEXT_CONCLUDED message will be
+      // sent by HCOM_MDOW_REQUEST_UPLOAD_START_DATA_SEND case.
       break;
 
     case HCOM_MDOW_REQUEST_UPLOAD_START_DATA_SEND:
       ret = hcom_file_upld_proc_begin_file_uploading(dnldShared);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+         "", thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_UPLOAD_ABORT_DATA_SEND:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_file_upld_proc_abort_file_upload(hdrMsg, packetSize, userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+         "", thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_RTC_SET_TIME_CMD:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+         "", thisFile, __LINE__);
       hcom_via_nx_execute_rtc_set_clock(hdrMsg, packetSize);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+         "", thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_RTC_READ_TIME_CMD:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+         "", thisFile, __LINE__);
       hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+         "", thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_RTC_WAKEUP_TIME_CMD:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+         "", thisFile, __LINE__);
       hcom_via_nx_execute_rtc_set_wakeup_time(hdrMsg, packetSize);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+         "", thisFile, __LINE__);
       break;
 
 #if defined (CONFIG_HCOM_MONO_REMOTE_DEBUGGING) 
     case HCOM_MDOW_REQUEST_MONO_START_DBG_SESSION:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+         "", thisFile, __LINE__);
       hcom_mono_remote_dbg_enable(userData);
 
       // This will restart meadow and send the concluded message on restart
@@ -383,55 +447,70 @@ int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
       // Debugging data received from VS via CLI
     case HCOM_MDOW_REQUEST_DEBUGGING_DEBUGGER_DATA:
       // Accepted and concluded not needed here! This is debugging data
-      hcom_mono_remote_dbg_recv_host_sending_to_mono(hdrMsg, packetSize, userData);
+      hcom_mono_remote_dbg_recv_host_sending_to_mono(hdrMsg, packetSize,
+        userData);
       break;
 #endif
 
     case HCOM_MDOW_REQUEST_DEVELOPER:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_developer_tests_developer(hdrMsg->stdHeader.extraData, userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_GET_FILES_AND_FOLDERS:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_file_lists_all_dev_dir_and_files_start(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 
 #if HCOM_INCLUDE_QSPI_FLASH_TESTS_IN_BUILD > 0
     case HCOM_MDOW_REQUEST_QSPI_FLASH_INIT:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_QSPI_FLASH_WRITE:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 
     case HCOM_MDOW_REQUEST_QSPI_FLASH_READ:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_via_nx_forward_cli_cmd_to_nx(requestType, userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 #endif
 
     // Aug 2022 used for ping and CLI doesn't support it.
     case HCOM_MDOW_REQUEST_EXEC_DIAG_APP_CMD:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_via_nx_exec_diag_app_cmd(hdrMsg, packetSize);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 
     //------------------------------------------------------
     // The following currently does nothing
     case HCOM_MDOW_REQUEST_ENABLE_DISABLE_NSH:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_diag_misc_launch_nsh(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 
     // The following command
@@ -440,9 +519,11 @@ int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
     //   c) Returns to the host the device's public key
 
     case HCOM_MDOW_REQUEST_OTA_REGISTER_DEVICE:
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ACCEPTED, 0,
+        "", thisFile, __LINE__);
       hcom_ota_rqst_register_device(userData);
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
       break;
 
     default:
@@ -452,14 +533,15 @@ int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
                 "Meadow received unknown/unavailable CLI request:0x%04x received",
                 requestType);
 
-      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_REJECTED, 0, hostMsg,
-              thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_REJECTED, 0,
+              hostMsg, thisFile, __LINE__);
 
       hcom_logging_syslog(LOG_ERR, "%s@%d-Received unsupported request type:0x%04x\n",
              thisFile, __LINE__, requestType);
       hcom_diag_print_buffer((const uint8_t*)hdrMsg, packetSize, LOG_ERR);
       
-      hcom_host_send_header_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0, thisFile, __LINE__);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
+        "", thisFile, __LINE__);
     }
   }
 
