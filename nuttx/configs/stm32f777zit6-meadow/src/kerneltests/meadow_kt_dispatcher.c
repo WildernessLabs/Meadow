@@ -44,7 +44,6 @@
 
 #include <meadow/meadow_unit_test_framework.h>
 #include <meadow/meadow_kernel_tests.h>
-#include "../hcom_nx/hcom_nx_config_manager.h"
 
 /****************************************************************************
  * Local defines.
@@ -67,9 +66,6 @@
  * Private Data
  ****************************************************************************/
 
- /**
-  * @brief Kernel test methods array.
-  */
 static meadow_test_methods_t _kernelTests[] =
 {
 #if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
@@ -118,27 +114,21 @@ static meadow_test_methods_t _kernelTests[] =
 
 #if defined(CONFIG_ESP_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
     { MEADOW_TEST_ALL_ESP32, meadow_kt_espcp_tests },
-    { MEADOW_TEST_ESP_WEB_PAGE_LOAD_TEST, meadow_kt_espcp_test_get_web_resource },
+    { MEADOW_TEST_ESP_WEB_PAGE_LOAD_TEST, meadow_kt_espcp_load_test_web_page },
+    { MEADOW_TEST_ESP_BINARY_FILE_LOAD_TEST, meadow_kt_espcp_load_test_large_file_download },
 #endif
 
-#if (defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS))
+
+#if (defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)) && (MEADOW_INCLUDE_ETHERNET_CHAT_TESTS_IN_BUILD > 0)
     { MEADOW_TEST_ETHERNET, meadow_kt_ethernet_tests },
-    { MEADOW_TEST_ETHERNET_WEB_PAGE_LOAD_TEST, meadow_kt_ethernet_get_web_resource },
+    { MEADOW_TEST_ETHERNET_WEB_PAGE_LOAD_TEST, meadow_kt_ethernet_load_test_web_page },
+    { MEADOW_TEST_ETHERNET_BINARY_FILE_LOAD_TEST, meadow_kt_ethernet_load_test_large_file_download },
 #endif
 
 #if defined(CONFIG_BG77_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
     { MEADOW_TEST_BG77, meadow_kt_ethernet_tests },
 #endif
 };
-
-/**
- * @brief Pointer to the network test configuration structure.
- */
-network_tests_configuration_t *network_tests_configuration = NULL;
-
-/****************************************************************************
- * Public functions.
- ****************************************************************************/
 
 /****************************************************************************
  * Name: meadow_kt_dispatcher
@@ -157,9 +147,7 @@ network_tests_configuration_t *network_tests_configuration = NULL;
  *          used by the test method.
  *
  * Returned Value:
- *  TEST_ERR_OK: Test found and executed.
- *  TEST_ERR_NOT_FOUND: Test not found.
- *  TEST_ERR_INVALID_CONFIG: Invalid configuration file.
+ *  OK if the test was found, ERROR if the test could not be located.
  *
  * Assumptions/Limitations:
  *  None.
@@ -167,7 +155,7 @@ network_tests_configuration_t *network_tests_configuration = NULL;
  ****************************************************************************/
 int meadow_kt_dispatcher(uint32_t param, uint32_t value)
 {
-    int result = TEST_ERR_NOT_FOUND;
+    int result = ERROR;
 
     syslog(LOGGING_LEVEL, "Checking for kernel test param: %u - value: %lu\n", param, value);
     if (sizeof(_kernelTests) > 0)
@@ -176,14 +164,8 @@ int meadow_kt_dispatcher(uint32_t param, uint32_t value)
         {
             if (_kernelTests[index].testId == param)
             {
-                network_tests_configuration = process_network_test_configuration_file();
-                if (network_tests_configuration == NULL)
-                {
-                    syslog(LOGGING_LEVEL, "Failed to load network test configuration file.\n");
-                    return(TEST_ERR_INVALID_CONFIG);
-                }
                 _kernelTests[index].testMethod(value);
-                result = TEST_ERR_OK;
+                result = OK;
                 break;
             }
         }

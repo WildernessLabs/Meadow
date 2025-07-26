@@ -84,7 +84,7 @@
 #define UNKNOWN_VERSION_STRING              "Not available"
 
 /****************************************************************************
- * Local type definitions.
+ * Local type defintions.
  ****************************************************************************/
 
 /****************************************************************************
@@ -99,7 +99,7 @@ static meadow_configuration_t *meadow_configuration = NULL;
 /**
  *  @brief Array of network interfaces available.
  */
-static meadow_network_interface_t network_interfaces[] =
+static meadow_network_interface_t network_interfaces[] = 
 {
     {
         .interface_type = MEADOW_IFT_ESP32,
@@ -172,7 +172,7 @@ const f7_micro_v2_pin_mapping_t f7_micro_v2_pin_mappings[] = {
     { F7_MICRO_V2_G12_PIN_NAME, F7_MICRO_V2_G12_PIN },
 };
 
-struct meadow_uart_mapping_s
+struct meadow_uart_mapping_s  
 {
     const char *tty_name;
     const char *com_name;
@@ -183,10 +183,10 @@ const struct meadow_uart_mapping_s hcom_nx_uart_mapping [] =
     { MEADOW_UART1_NAME, MEADOW_COM1_NAME},
     { MEADOW_UART4_NAME, MEADOW_COM4_NAME},
     { MEADOW_UART6_NAME, MEADOW_COM6_NAME},
-};
+}; 
 
 /**
- * @brief Names of the valid ESP log destinations.
+ * @brief Names of the valid ESP log destinations. 
  */
 meadow_log_destinations_t valid_esp_log_destinations[] =
 {
@@ -205,7 +205,7 @@ static char *esp_log_component_names[] = {
     "thread",
     "spi",
     "messages",             // Messages between the STM32 and ESP32
-    "buffers",              // Contents of buffers on the ESP32 (e.g. sendto buffer)
+    "buffers",              // Contents of buffers on the ESP32 (e.g. sendto buffer)               
 };
 
 /****************************************************************************
@@ -337,8 +337,8 @@ void hcom_nx_config_populate_cell_network_mode_id(meadow_configuration_t *config
  *
  * Description:
  *  Map the cell network mode according to the Mode defined in
- *  the cell.config.yaml, since different modules may use distinct integers
- *  to reference network modes (e.g., Cat-M1 is 8 for Quectel BG95-M3,
+ *  the cell.config.yaml, since different modules may use distinct integers 
+ *  to reference network modes (e.g., Cat-M1 is 8 for Quectel BG95-M3, 
  *  but 7 for Quectel BG770A).
  *
  * Input Parameters:
@@ -463,7 +463,7 @@ void hcom_nx_config_map_cell_network_mode(meadow_configuration_t *config)
  * Input Parameters:
  *  config - Pointer to the system config object
  *  settings - Pointer to the system settings object
- *
+ * 
  * Returned Value:
  *  None
  *
@@ -733,7 +733,7 @@ int hcom_nx_config_is_valid_host_name(const char *host_name)
 static char *hcom_nx_config_get_long_version_string(meadow_version_number_t *version)
 {
     char *result = NULL;
-
+    
     if ((version->major != 0) || (version->minor != 0) || (version->revision != 0) || (version->build != 0))
     {
         char *storage = (char *) kmm_zalloc(150);
@@ -750,8 +750,8 @@ static char *hcom_nx_config_get_long_version_string(meadow_version_number_t *ver
                 {
                     snprintf(branch_name, 66, ":%s", version->branch_name);
                 }
-                snprintf_chk(storage, 150, "%d.%d.%d.%d built %02d %s 20%02d %02d:%02d:%02d UTC (%08x%s)",
-                    version->major, version->minor, version->revision, version->build, version->day,
+                snprintf_chk(storage, 150, "%d.%d.%d.%d built %02d %s 20%02d %02d:%02d:%02d UTC (%08x%s)", 
+                    version->major, version->minor, version->revision, version->build, version->day, 
                     version->month_text, version->year, version->hour, version->minute, version->second,
                     version->hash, branch_name);
                 result = kmm_strdup(storage);
@@ -787,7 +787,7 @@ static char *hcom_nx_config_get_short_version_string(meadow_version_number_t *ve
     if (version != NULL)
     {
         char version_string[45];    // Long enough for 4294967295.4294967295.4294967295.4294967295
-
+        
         if ((version->major != 0) || (version->minor != 0) || (version->revision != 0) || (version->build != 0))
         {
             snprintf(version_string, 45, "%d.%d.%d.%d", version->major, version->minor, version->revision, version->build);
@@ -1075,9 +1075,9 @@ static int hcom_nx_config_set_device_name(meadow_configuration_t *config, uint8_
  *
  * Description:
  *  Parse the string given and return 0 or 1 value (for false / true).
- *
- *  The default_value is returned if an error occurs.
- *
+ * 
+ *  The default_value is returned if an error occurs. 
+ * 
  * Input Parameters:
  *  config_value - pointer to a string in the config file.
  *  default_value - Default value to be used
@@ -1126,7 +1126,7 @@ static uint8_t hcom_nx_config_parse_boolean(const char *config_value, uint8_t de
  * Description:
  *  Safely convert the number represented as a string into an unsigned integer.
  *  object.
- *
+ * 
  * Input Parameters:
  *  number - String to be converted.
  *  default_value - Default value to be used
@@ -1265,7 +1265,7 @@ static void hcom_nx_config_setup_dns_servers(meadow_configuration_t *config, con
         perror("Memory allocation error");
         return;
     }
-
+    
     for (int index = 0; index < server_count; index++)
     {
         config->dns_servers[index] = kmm_strdup(servers[index]);
@@ -1456,7 +1456,7 @@ static int hcom_nx_config_update_dns_file(char *path, char* server)
  * Input Parameters:
  *  config - pointer to the configuration object.
  *  gateway - default gateway address.
- *
+ * 
  * Returned Value:
  *  None.
  *
@@ -1483,7 +1483,7 @@ void hcom_nx_config_add_default_gateway_dns_file(meadow_configuration_t *config,
                 if (hcom_nx_config_update_dns_file(CONFIG_NETDB_RESOLVCONF_PATH, gateway_addr) < 0)
                 {
                     syslog(LOG_ERR, "Failed to add default gateway\n");
-                    return;
+                    return; 
                 }
                 syslog(LOG_INFO, "Successful to add default gateway\n");
                 config->default_interface->gateway_changed = true;
@@ -1500,7 +1500,7 @@ void hcom_nx_config_add_default_gateway_dns_file(meadow_configuration_t *config,
  *
  * Input Parameters:
  *  dns - dns address.
- *
+ * 
  * Returned Value:
  *  None.
  *
@@ -1602,7 +1602,7 @@ void hcom_nx_config_update_dns_address(meadow_configuration_t *config, uint32_t 
  *
  * Input Parameters:
  *  -config : pointer to the configuration object.
- *
+ * 
  * Returned Value:
  *  None.
  *
@@ -1781,7 +1781,7 @@ static void hcom_nx_config_process_network_section(yaml_network_t *network_confi
  *
  * Description:
  *  Parse the list of destinations for the ESP log data.
- *
+ * 
  *  An invalid destination string will raise an invalid configuration file
  *  exception to managed code.
  *
@@ -1826,7 +1826,7 @@ static esp_log_destination_t hcom_nx_config_esp_log_destination(char const *dest
  * Description:
  *  Parse the list of components that can generate logging information and
  *  compare against the list of acceptable components.
- *
+ * 
  * Input Parameters:
  *  components - semi-colon separated list of components.
  *
@@ -1908,7 +1908,7 @@ static meadow_configuration_t *hcom_nx_config_process_meadow_config_file(void)
         meadow_configuration = (meadow_configuration_t *) kmm_zalloc(sizeof(meadow_configuration_t));
         if (meadow_configuration != NULL)
         {
-        	yaml_configuration_t *configuration = NULL;
+        	yaml_configuration_t *configuration;
 
             cyaml_err_t err = cyaml_load_file(MEADOW_CONFIG_DEFAULT_FILE_NAME, &cyaml_config, &configuration_schema, (void **) &configuration, NULL);
             if ((err != CYAML_OK) || (configuration == NULL))
@@ -1936,7 +1936,7 @@ static meadow_configuration_t *hcom_nx_config_process_meadow_config_file(void)
                 meadow_configuration->reset_esp32_at_startup = 1;
                 meadow_configuration->esp_spi_speed_hz = DEFAULT_STM_ESP_SPI_SPEED;
                 meadow_configuration->maximum_retry_count = 3;
-                hcom_nx_config_setup_default_dns_servers();
+                hcom_nx_config_setup_default_dns_servers();                
                 hcom_nx_config_setup_default_ntp_servers(meadow_configuration);
                 meadow_configuration->ntp_refresh_period_seconds = NTP_DEFAULT_REFRESH_PERIOD;
                 meadow_configuration->default_interface = &network_interfaces[MEADOW_DEFAULT_NETWORK_INTERFACE];
@@ -2192,7 +2192,7 @@ static int hcom_nx_config_get_uint8_value(uint8_t source, uint8_t *destination, 
 static int hcom_nx_config_get_string_value(char *source, uint8_t *destination, int destination_length)
 {
     int result = ERROR;
-
+    
     if (source == NULL)
     {
         if ((destination != NULL) && (destination_length > 0))
@@ -2765,7 +2765,7 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
  ****************************************************************************/
 void hcom_nx_config_process_wifi_credentials_file(void)
 {
-    yaml_wifi_credentials_t *credentials = NULL;
+    yaml_wifi_credentials_t *credentials;
 
     cyaml_err_t err = cyaml_load_file(MEADOW_WIFI_CREDENTIALS_DEFAULT_FILE_NAME, &cyaml_config, &wifi_credentials_schema, (void **)&credentials, NULL);
     if (err == CYAML_OK)
@@ -2777,7 +2777,7 @@ void hcom_nx_config_process_wifi_credentials_file(void)
                 bool clear_credentials = hcom_nx_config_parse_boolean(credentials->credentials->clear_default_credentials, false);
                 if (!clear_credentials)
                 {
-                    if ((credentials->credentials->ssid != NULL) && (strlen(credentials->credentials->ssid) <= MAXIMUM_SSID_LENGTH) && (strlen(credentials->credentials->ssid) > 0))
+                    if ((credentials->credentials->ssid != NULL) && (strlen(credentials->credentials->ssid) <= MAXIMUM_SSID_LENGTH) & (strlen(credentials->credentials->ssid) > 0))
                     {
                         char password[MAXIMUM_PASSWORD_LENGTH + 1];
                         memset(password, 0, MAXIMUM_PASSWORD_LENGTH + 1);
@@ -2861,11 +2861,11 @@ void hcom_nx_config_process_wifi_credentials_file(void)
  *
  * Input Parameters:
  *  None.
- *
+ * 
  * Returned Value:
  *  Correspondent module id for the cell module model defined
  *  by the user.
- *
+ * 
  * Assumptions/Limitations:
  *  None.
  *
@@ -2900,11 +2900,11 @@ int hcom_nx_config_get_cell_module_id(void)
  *
  * Input Parameters:
  *  None.
- *
+ * 
  * Returned Value:
  *  Correspondent device pin for the turn-on pin defined
  *  by the user.
- *
+ * 
  * Assumptions/Limitations:
  *  None.
  *
@@ -2942,7 +2942,7 @@ int hcom_nx_config_get_cell_turn_on_pin(void)
  *
  * Assumptions/Limitations:
  *  None.
- *
+ * 
  ****************************************************************************/
 void hcom_nx_config_process_cell_config_file(void)
 {
@@ -2996,7 +2996,7 @@ void hcom_nx_config_process_cell_config_file(void)
 
             config->default_cell_settings->turn_on_pin_name = ((settings->settings->turn_on_pin_name != NULL) &&
                                                         (strlen(settings->settings->turn_on_pin_name) <= MAXIMUM_TURN_ON_PIN_LENGTH) &&
-                                                        (strlen(settings->settings->turn_on_pin_name) > 0)) ?
+                                                        (strlen(settings->settings->turn_on_pin_name) > 0)) ? 
                                                         kmm_strdup(settings->settings->turn_on_pin_name) :
                                                         kmm_strdup(DEFAULT_CELL_TURN_ON_PIN);
 
@@ -3048,7 +3048,7 @@ void hcom_nx_config_process_cell_config_file(void)
         }
         else
         {
-            if (config->default_cell_settings != NULL)
+            if (config->default_cell_settings != NULL) 
             {
                 free(config->default_cell_settings);
                 config->default_cell_settings = NULL;
@@ -3068,7 +3068,7 @@ void hcom_nx_config_process_cell_config_file(void)
  *
  * Description:
  *  Use the OS build time as the minimum initial value for the system clock.
- *
+ * 
  *  SSL certificate validation requires the clock to be set to a recent time.
  *  The board must be operating after the OS build time so using this gives
  *  the board a starting point.  A more accurate clock can be set later
@@ -3115,7 +3115,7 @@ void hcom_nx_config_set_time_to_os_build_time(void)
  ****************************************************************************/
 void hcom_nx_config_turn_on_the_cell_module()
 {
-    uint32_t module_id;
+    uint32_t module_id; 
     uint32_t turn_on_pin;
     module_id = hcom_nx_config_get_cell_module_id();
     turn_on_pin = hcom_nx_config_get_cell_turn_on_pin();
@@ -3128,7 +3128,7 @@ void hcom_nx_config_turn_on_the_cell_module()
             case CELL_BG770A_MODULE:
                 // Low pulse for 3 seconds to turn on the Quectel BG770A-GL cell module
                 syslog(LOG_INFO, "Turning on BG770A module\n");
-                stm32_configgpio(GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | turn_on_pin);
+                stm32_configgpio(GPIO_OUTPUT | GPIO_FLOAT | GPIO_OPENDRAIN | turn_on_pin); 
                 stm32_gpiowrite(turn_on_pin, false);
                 usleep(3000000);
                 stm32_gpiowrite(turn_on_pin, true);
@@ -3250,9 +3250,9 @@ void hcom_nx_config_refresh_mono_version(meadow_configuration_t *config)
  * Description:
  *  Setup the configuration system and populate the configuration structure
  *  with data from the configuration file.
- *
+ * 
  *  Note that one of the side effects of this method is to copy the Mono
- *  runtime into RAM making it ready for use (assuming the runtime file is
+ *  runtime into RAM making it ready for use (assuming the runtime file is 
  *  validated OK).
  *
  * Input Parameters:
@@ -3309,102 +3309,3 @@ void hcom_nx_config_init(void)
         syslog(LOG_ERR, "Configuration should only be initialised once.\n");
     }
 }
-
-/********************************************************************************************************************************************************
- *
- *  Process the network test configuration YAML file.
- *
- *******************************************************************************************************************************************************/
-
- #if defined(CONFIG_KERNEL_TESTS_SYSCALL)
-
- /****************************************************************************
- * Name: network_tests_process_configuration_file
- *
- * Description:
- *  Process the network test configuration file and return a pointer to the
- *  network_tests_configuration_t structure containing the configuration.
- *
- * Input Parameters:
- *  None.
- *
- * Returned Value:
- *  Pointer to the newly created network_tests_configuration_t structure.
- *  NULL if the configuration file could not be processed.
- *
- * Assumptions/Limitations:
- *  None
- *
- ****************************************************************************/
-network_tests_configuration_t *process_network_test_configuration_file(void)
-{
-    yaml_test_parameters_t *test_parameters = NULL;
-    network_tests_configuration_t *network_test_configuration = NULL;
-
-    cyaml_err_t err = cyaml_load_file(NETWORK_TEST_CONFIGURATION_FILE_NAME, &cyaml_config, &network_test_parameters_schema, (void **) &test_parameters, NULL);
-    if (err == CYAML_OK)
-    {
-        if (test_parameters != NULL)
-        {
-            syslog(LOG_INFO, "Valid parameters found.\n");
-            network_test_configuration = (network_tests_configuration_t *) kmm_zalloc(sizeof(network_tests_configuration_t));
-            if (network_test_configuration == NULL)
-            {
-                syslog(LOG_ERR, "Failed to allocate memory for network test configuration.\n");
-                cyaml_free(&cyaml_config, &network_test_parameters_schema, test_parameters, 0);
-                return(NULL);
-            }
-
-            if (test_parameters->parameters != NULL)
-            {
-                if ((test_parameters->parameters->ssid != NULL) && (strlen(test_parameters->parameters->ssid) <= MAXIMUM_SSID_LENGTH) && (strlen(test_parameters->parameters->ssid) > 0))
-                {
-                    network_test_configuration->ssid = kmm_strdup(test_parameters->parameters->ssid);
-                }
-                if ((test_parameters->parameters->password != NULL) && (strlen(test_parameters->parameters->password) <= MAXIMUM_PASSWORD_LENGTH) && (strlen(test_parameters->parameters->password) > 0))
-                {
-                    network_test_configuration->password = kmm_strdup(test_parameters->parameters->password);
-                }
-                if (test_parameters->parameters->server_ip != NULL)
-                {
-                    network_test_configuration->server_ip = kmm_strdup(test_parameters->parameters->server_ip);
-                }
-                if (test_parameters->parameters->server_port != 0)
-                {
-                    uint32_t server_port = hcom_nx_config_parse_unsigned_integer(test_parameters->parameters->server_port, 80);
-                    if (server_port > 0xffff)
-                    {
-                        syslog(LOG_INFO, "Invalid server port number, defaulting to port 80.\n");
-                        network_test_configuration->server_port = 80;
-                    }
-                    else
-                    {
-                        network_test_configuration->server_port = (server_port & 0xffff);
-                    }
-                }
-                if (test_parameters->parameters->resource != NULL)
-                {
-                    network_test_configuration->resource = kmm_strdup(test_parameters->parameters->resource);
-                }
-            }
-            else
-            {
-                syslog(LOG_INFO, "Invalid network test configuration file.\n");
-                meadow_logging_write(mfl_error, "Invalid network test configuration file.\n");
-            }
-        }
-
-        cyaml_free(&cyaml_config, &network_test_parameters_schema, test_parameters, 0);
-    }
-    else
-    {
-        char message[100];
-        snprintf(message, sizeof(message), "Network test configuration file could not be processed. Error: %s\n", cyaml_strerror(err));
-        syslog(LOG_INFO, message);
-        meadow_logging_write(mfl_error, message);
-    }
-
-    return(network_test_configuration);
-}
-
-#endif
