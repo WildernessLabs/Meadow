@@ -38,21 +38,77 @@
  ****************************************************************************/
 #include <nuttx/config.h>
 
-#if defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
-
 #include <stdint.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <debug.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <unistd.h>
+#include <string.h>
+#include <poll.h>
+#include <nuttx/mm/mm.h>
+#include <assert.h>
+#include <sys/socket.h>
+#include <netdb.h>	//hostent
+#include <arpa/inet.h>
+#include <net/if.h>
+#include <ifaddrs.h>
+#include <sys/ioctl.h>
+#include <sys/time.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "network_tests.h"
-#include "../hcom_nx/hcom_nx_config_manager.h"
 
 /****************************************************************************
  * Local defines.
  ****************************************************************************/
 
+#if defined(CONFIG_ETHERNET_TESTS)
+#include "secrets.h"
+#else
+#define WIFI_NETWORK                "Dummy, do not use"
+#define WIFI_PASSWORD               "Use contents of secrets.h"
+#define SIMPLE_WEB_SERVER_NAME      "pi4-ubuntu-001"
+#define SIMPLE_WEB_PAGE             "/"
+#define BINARY_RESOURCE_NAME        "/binaryfile/"
+#define WEB_SERVER_IP_ADDRESS       "127.0.0.1"
+#define WEB_SERVER_PORT             80
+#define LARGE_TEST_FILE1            "LargeFile1.html"
+#endif
+
 //
 //  Default logging level for this file.
 //
 #define LOGGING_LEVEL   1
+
+/****************************************************************************
+ * Name: meadow_kt_ethernet_load_test_large_file_download
+ *
+ * Description:
+ *  Load test downloading a large file.
+ *
+ * Input Parameters:
+ *   arg - Argument passed to kernel test via CLI
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+void meadow_kt_ethernet_load_test_large_file_download(uint32_t arg)
+{
+    syslog(LOGGING_LEVEL, "Testing the download of large files\n");
+
+    network_test_get_multiple_large_files(arg, WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT, BINARY_RESOURCE_NAME);
+
+    syslog(LOGGING_LEVEL, "Download of large file test completed.\n");
+}
 
 /****************************************************************************
  * Name: meadow_kt_ethernet_load_test_web_page
@@ -70,11 +126,11 @@
  *   None
  *
  ****************************************************************************/
-void meadow_kt_ethernet_get_web_resource(uint32_t arg)
+void meadow_kt_ethernet_load_test_web_page(uint32_t arg)
 {
     syslog(LOGGING_LEVEL, "Testing the download of multiple web pages\n");
 
-    network_test_get_web_resource(arg, network_tests_configuration->server_ip, network_tests_configuration->server_port, network_tests_configuration->resource);
+    network_test_get_multiple_web_pages(arg, WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT, SIMPLE_WEB_PAGE);
 
     syslog(LOGGING_LEVEL, "Download of multiple web pages test completed.\n");
 }
@@ -100,9 +156,7 @@ void meadow_kt_ethernet_tests(uint32_t arg)
     syslog(LOGGING_LEVEL, "\n");
     syslog(LOGGING_LEVEL, "Executing ethernet network tests.\n");
 
-    network_test_get_web_resource(arg, network_tests_configuration->server_ip, network_tests_configuration->server_port, network_tests_configuration->resource);
+    network_test_get_multiple_web_pages(1, WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT, SIMPLE_WEB_PAGE);
 
     syslog(LOGGING_LEVEL, "Ethernet tests completed.\n");
 }
-
-#endif /* CONFIG_ETHERNET_TESTS */

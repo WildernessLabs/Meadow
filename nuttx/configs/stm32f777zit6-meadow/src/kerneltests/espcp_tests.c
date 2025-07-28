@@ -43,27 +43,42 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <debug.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <unistd.h>
+#include <string.h>
 #include <poll.h>
+#include <nuttx/mm/mm.h>
+#include <assert.h>
 #include <sys/socket.h>
 #include <netdb.h>	//hostent
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <ifaddrs.h>
 #include <sys/ioctl.h>
+#include <sys/time.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
 #include "../meadow-upd.h"
+#include <meadow/hcom_upd_shared.h>
 #include <meadow/hcom_shared_common.h>
 #include <meadow/meadow_kernel_tests.h>
 #include "../espcp/espcp_usrsock.h"
 #include "../espcp/espcp_common.h"
+#include "../espcp/espcp_coprocessor.h"
+#include "../espcp/espcp_system.h"
 #include "../espcp/espcp_file_system.h"
 #include "../hcom_nx/hcom_nx_config_manager.h"
 
 #include "../espcp/espcp_test_heap_tracing.h"
 
 #include "network_tests.h"
+
+#include "secrets.h"
 
 //
 //  Default logging level for this file.
@@ -382,12 +397,6 @@ static void espcp_test_start_wifi(void)
 {
     syslog(LOGGING_LEVEL, "********** Starting WiFi.\n");
 
-    if (network_tests_configuration == NULL)
-    {
-        syslog(LOGGING_LEVEL, "    FAIL: No network tests configuration.\n");
-        return;
-    }
-
     //
     //  Connecting to the WiFi generates two events (if all goes well), One 
     //  once the network interface has started and one once the connection
@@ -400,8 +409,8 @@ static void espcp_test_start_wifi(void)
     GET_INITIAL_HEAP_INFORMATION;
 
     espcp_access_point_information_t access_point = { };
-    access_point.network_name = network_tests_configuration->ssid;
-    access_point.password = network_tests_configuration->password;
+    access_point.network_name = WIFI_NETWORK;
+    access_point.password = WIFI_PASSWORD;
 
     struct upd_esp32_command message;
     memset(&message, 0, sizeof(struct upd_esp32_command));
@@ -1265,7 +1274,36 @@ void espcp_test_wait_for_esp_to_be_ready(void)
 }
 
 /****************************************************************************
- * Name: meadow_kt_espcp_test_get_web_resource
+ * Name: meadow_kt_espcp_test_large_file_download
+ *
+ * Description:
+ *  Load test downloading a large file.
+ *
+ * Input Parameters:
+ *   arg - Argument passed to kernel test via CLI
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+void meadow_kt_espcp_load_test_large_file_download(uint32_t arg)
+{
+    syslog(LOGGING_LEVEL, "Testing the download of large files\n");
+
+    espcp_test_wait_for_esp_to_be_ready();
+    
+    espcp_test_start_wifi();
+
+    network_test_get_multiple_large_files(arg, WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT, BINARY_RESOURCE_NAME);
+
+    syslog(LOGGING_LEVEL, "Download of large file test completed.\n");
+}
+
+/****************************************************************************
+ * Name: meadow_kt_espcp_load_test_web_page
  *
  * Description:
  *  Load test downloading a simple web page.
@@ -1280,22 +1318,46 @@ void espcp_test_wait_for_esp_to_be_ready(void)
  *   None
  *
  ****************************************************************************/
-void meadow_kt_espcp_test_get_web_resource(uint32_t arg)
+void meadow_kt_espcp_load_test_web_page(uint32_t arg)
 {
-    syslog(LOGGING_LEVEL, "Testing the download web resources\n");
+    syslog(LOGGING_LEVEL, "Testing the download of multiple web pages\n");
 
     espcp_test_wait_for_esp_to_be_ready();
     
     espcp_test_start_wifi();
 
-    if (arg == 0)
-    {
-        arg = 1;
-    }
+    network_test_get_multiple_web_pages(arg, WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT, SIMPLE_WEB_PAGE);
 
-    network_test_get_web_resource(arg, network_tests_configuration->server_ip, network_tests_configuration->server_port, network_tests_configuration->resource);
+    syslog(LOGGING_LEVEL, "Download of multiple web pages test completed.\n");
+}
 
-    syslog(LOGGING_LEVEL, "Download of multiple web resources completed.\n");
+/****************************************************************************
+ * Name: meadow_kt_espcp_network_performance_test
+ *
+ * Description:
+ *  Run the netowrk performance tests.
+ *
+ * Input Parameters:
+ *   arg - Argument passed to kernel test via CLI
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions/Limitations:
+ *   None
+ *
+ ****************************************************************************/
+void meadow_kt_espcp_network_performance_test(uint32_t arg)
+{
+    syslog(LOGGING_LEVEL, "Testing the network performance\n");
+
+    espcp_test_wait_for_esp_to_be_ready();
+    
+    espcp_test_start_wifi();
+
+    network_test_performance(WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT);
+
+    syslog(LOGGING_LEVEL, "Network performance test completed.\n");
 }
 
 /****************************************************************************
@@ -1334,12 +1396,14 @@ void meadow_kt_espcp_tests(uint32_t arg)
 
     espcp_test_start_wifi();
 
+    network_test_performance(WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT);
+
     //
     //  We can start some actual network tests now we are connected to an 
     //  access point.
     //
     espcp_test_misc_network_functions();
-    network_test_get_web_resource(arg, network_tests_configuration->server_ip, network_tests_configuration->server_port, network_tests_configuration->resource);
+    network_test_get_multiple_web_pages(1, WEB_SERVER_IP_ADDRESS, WEB_SERVER_PORT, SIMPLE_WEB_PAGE);
 
     syslog(LOGGING_LEVEL, "ESP32 tests completed.\n");
 }
