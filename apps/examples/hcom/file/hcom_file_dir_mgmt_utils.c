@@ -624,7 +624,6 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
         {
           hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n",
                     thisFile, __LINE__);
-          free(hostMsg);
           free(fullFileNamePath);
           return -ENOMEM;
         }

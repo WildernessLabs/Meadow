@@ -164,7 +164,7 @@ int hcom_host_process_setup()
   // call will never return.
   ret = hcom_host_process_run_loop();
  
-  // This return should only reached on shutddown.
+  // This return is only reached on shutdown.
   free(_packet_dest_buf);
   free(_decode_dest_buf);
   free(_dnldShared);
