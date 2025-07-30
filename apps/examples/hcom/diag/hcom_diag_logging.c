@@ -406,6 +406,11 @@ void hcom_logging_syslog(int priority, FAR const IPTR char *fmt, ...)
   va_start(args, fmt);
   int stringLen = hcom_diag_logging_build_syslog_string(priority, fmt, args, _f7syslogTextBuf,
             HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
+  if(stringLen == -ENOMEM)
+  {
+    return;
+  }
+
   va_end(args);  
 
   // Depending on the nuttx configuration these messages may go to the
@@ -468,6 +473,10 @@ void hcom_logging_safe_ramlog(int priority, FAR const IPTR char *fmt,
 
   int stringLen = hcom_diag_logging_build_syslog_string(priority, fmt, args, safeRamlogText,
             HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
+  if(stringLen == -ENOMEM)
+  {
+    return;
+  }
 
   // Note: no time stamp to these messages
   if(safeRamlogText[stringLen - 1] == 0x0a || safeRamlogText[stringLen - 1] == 0x0d)
