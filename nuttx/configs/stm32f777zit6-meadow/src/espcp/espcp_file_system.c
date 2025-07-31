@@ -265,7 +265,7 @@ uint8_t *espcp_file_system_read_file(char *name, int16_t *length)
         }
         *length = amountRead;
         MEADOW_TRACE_INFORMATION("espcp_file_system_read_file: Read %d bytes from file '%s'\n", *length, name);
-        espcp_dump_buffer(result, amountRead, DEBUG_BYTES_PER_LINE;
+        espcp_dump_buffer(result, amountRead, DEBUG_BYTES_PER_LINE);
     }
     else
     {
