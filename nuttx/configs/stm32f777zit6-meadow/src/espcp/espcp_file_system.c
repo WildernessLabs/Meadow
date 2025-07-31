@@ -113,6 +113,11 @@ static void espcp_dump_buffer(uint8_t *buffer, uint32_t length, uint32_t bytes_p
         // new line and the final null terminator.
         uint32_t max_length = 12 + (bytes_per_line * 3) + 2;
         char *message = (char *) malloc(max_length);
+        if (message == NULL)
+        {
+            MEADOW_TRACE_ERROR("Failed to allocate memory for message buffer.\n");
+            return;
+        }
         memset(message, 0, max_length);
 
         if (message != NULL)
@@ -254,8 +259,8 @@ uint8_t *espcp_file_system_read_file(char *name, int16_t *length)
                 free(payload);
             }
         }
+        *length = amountRead;
     }
-    *length = amountRead;
 
     MEADOW_TRACE_INFORMATION("espcp_file_system_read_file: Read %d bytes from file '%s'\n", *length, name);
     espcp_dump_buffer(result, amountRead, 16);
