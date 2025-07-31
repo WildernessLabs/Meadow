@@ -78,6 +78,81 @@
  ****************************************************************************/
 
 /****************************************************************************
+ * Name: espcp_dump_buffer
+ *
+ * Description:
+ *  Output the contents of a buffer to syslog if USE_MEADOW_DEBUG_HELPERS is 
+ *  defined.
+ *
+ * Input Parameters:
+ *  buffer - Pointer to the buffer to be dumped.
+ *  length - Length of the buffer to be dumped.
+ *  bytes_per_line - Number of bytes to output per line (default is 16).
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static void espcp_dump_buffer(uint8_t *buffer, uint32_t length, uint32_t bytes_per_line)
+{
+#if defined(USE_MEADOW_DEBUG_HELPERS)
+
+    if (bytes_per_line == 0)
+    {
+        bytes_per_line = 16;
+    }
+
+    if ((buffer != NULL) && (length > 0))
+    {
+        // Line looks something like this:
+        // "0x00000000: 00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f\n\0"
+        // So, 12 for the offset, 3 bytes for each byte and the space plus 2 for 
+        // new line and the final null terminator.
+        uint32_t max_length = 12 + (bytes_per_line * 3) + 2;
+        char *message = (char *) malloc(max_length);
+        memset(message, 0, max_length);
+
+        if (message != NULL)
+        {
+            MEADOW_TRACE_INFORMATION("Dumping %d bytes of data:\n", length);
+            for (uint32_t index = 0; index < length; index++)
+            {
+                if ((index % bytes_per_line) == 0)
+                {
+                    if (index != 0)
+                    {
+                        MEADOW_TRACE_INFORMATION("%s\n", message);
+                        memset(message, 0, max_length);
+                    }
+                    snprintf(message, max_length, "0x%08x: ", index);
+                }
+                char hex[4];
+                snprintf(hex, sizeof(hex), "%02x ", buffer[index]);
+                strcat(message, hex);
+            }
+            if (strlen(message) > 0)
+            {
+                MEADOW_TRACE_INFORMATION("%s\n", message);
+            }
+            free(message);
+        }
+        else
+        {
+            MEADOW_TRACE_INFORMATION("Dumping %d bytes of data: (failed to allocate message buffer)", length);
+        }
+    }
+    else
+    {
+        MEADOW_TRACE_INFORMATION("No data to dump.\n");
+    }
+
+#endif
+ }
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -115,6 +190,8 @@ int espcp_file_system_format(void)
         }
         espcp_delete_message_and_payload(message);
     }
+
+    MEADOW_TRACE_INFORMATION("espcp_file_system_format: %s\n", result == 0 ? "Success" : "Failed");
 
     return(result);
 }
@@ -177,8 +254,12 @@ uint8_t *espcp_file_system_read_file(char *name, int16_t *length)
                 free(payload);
             }
         }
-        *length = amountRead;
     }
+    *length = amountRead;
+
+    MEADOW_TRACE_INFORMATION("espcp_file_system_read_file: Read %d bytes from file '%s'\n", *length, name);
+    espcp_dump_buffer(result, amountRead, 16);
+
     return(result);
 }
 
@@ -230,6 +311,8 @@ int espcp_file_system_write_file(char *name, uint8_t *buffer, int16_t length)
             }
         }
     }
+
+    MEADOW_TRACE_INFORMATION("espcp_file_system_write_file: %s\n", result == 0 ? "Success" : "Failed");
 
     return(result);
 }
@@ -286,6 +369,8 @@ int espcp_file_system_delete_file(char *name)
             espcp_delete_message_and_payload(message);
         }
     }
+
+    MEADOW_TRACE_INFORMATION("espcp_file_system_delete_file: %s\n", result == 0 ? "Success" : "Failed");
 
     return(result);
 }
