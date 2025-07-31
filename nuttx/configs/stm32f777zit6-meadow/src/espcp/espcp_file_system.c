@@ -54,6 +54,9 @@
 
 #include "espcp_file_system.h"
 
+// #define USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
+
 /****************************************************************************
  * Definitions
  ****************************************************************************/
@@ -210,18 +213,21 @@ int espcp_file_system_write_file(char *name, uint8_t *buffer, int16_t length)
         fileDetails.contents_length = length;
         uint32_t payloadLength = espcp_file_name_and_contents_buffer_size(&fileDetails);
         uint8_t *payload = (uint8_t *) malloc(payloadLength);
-        espcp_encode_file_name_and_contents(&fileDetails, payload);
-        message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system,
-                                            espcp_system_function_file_system_write_file, espcp_status_codes_completed_ok,
-                                            espcp_get_next_message_id(), payload, payloadLength);
-
-        if (message != NULL)
+        if (payload != NULL)
         {
-            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+            espcp_encode_file_name_and_contents(&fileDetails, payload);
+            message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system,
+                                                espcp_system_function_file_system_write_file, espcp_status_codes_completed_ok,
+                                                espcp_get_next_message_id(), payload, payloadLength);
+
+            if (message != NULL)
             {
-                result = message->status_code == espcp_status_codes_completed_ok ? 0 : -1;
+                if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+                {
+                    result = message->status_code == espcp_status_codes_completed_ok ? 0 : -1;
+                }
+                espcp_delete_message_and_payload(message);
             }
-            espcp_delete_message_and_payload(message);
         }
     }
 
