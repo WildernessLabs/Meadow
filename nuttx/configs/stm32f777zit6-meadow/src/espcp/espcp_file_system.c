@@ -61,6 +61,11 @@
  * Definitions
  ****************************************************************************/
 
+ /**
+  * @brief How may bytes should be output per line when dumping a buffer.
+  */
+#define DEBUG_BYTES_PER_LINE 16
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -109,20 +114,20 @@ static void espcp_dump_buffer(uint8_t *buffer, uint32_t length, uint32_t bytes_p
     {
         // Line looks something like this:
         // "0x00000000: 00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f\n\0"
-        // So, 12 for the offset, 3 bytes for each byte and the space plus 2 for 
-        // new line and the final null terminator.
+        //      "0x00000000: " - 12 bytes.
+        //      "00 " - 3 bytes per entry on the line.
+        //      "\n\0" - 2 bytes for the new line and null terminator.
+        // Strictly speaking we are going to allocate one extra byte but
+        // this has been left in the code to keep things simple.
         uint32_t max_length = 12 + (bytes_per_line * 3) + 2;
         char *message = (char *) malloc(max_length);
-        if (message == NULL)
-        {
-            MEADOW_TRACE_ERROR("Failed to allocate memory for message buffer.\n");
-            return;
-        }
-        memset(message, 0, max_length);
 
         if (message != NULL)
         {
             MEADOW_TRACE_INFORMATION("Dumping %d bytes of data:\n", length);
+
+            memset(message, 0, max_length);
+            char hex[4];
             for (uint32_t index = 0; index < length; index++)
             {
                 if ((index % bytes_per_line) == 0)
@@ -132,10 +137,9 @@ static void espcp_dump_buffer(uint8_t *buffer, uint32_t length, uint32_t bytes_p
                         MEADOW_TRACE_INFORMATION("%s\n", message);
                         memset(message, 0, max_length);
                     }
-                    snprintf(message, max_length, "0x%08x: ", index);
+                    snprintf(message, max_length, "0x%08x:", index);
                 }
-                char hex[4];
-                snprintf(hex, sizeof(hex), "%02x ", buffer[index]);
+                snprintf(hex, sizeof(hex), " %02x", buffer[index]);
                 strcat(message, hex);
             }
             if (strlen(message) > 0)
@@ -260,10 +264,14 @@ uint8_t *espcp_file_system_read_file(char *name, int16_t *length)
             }
         }
         *length = amountRead;
+        MEADOW_TRACE_INFORMATION("espcp_file_system_read_file: Read %d bytes from file '%s'\n", *length, name);
+        espcp_dump_buffer(result, amountRead, DEBUG_BYTES_PER_LINE;
     }
-
-    MEADOW_TRACE_INFORMATION("espcp_file_system_read_file: Read %d bytes from file '%s'\n", *length, name);
-    espcp_dump_buffer(result, amountRead, 16);
+    else
+    {
+        MEADOW_TRACE_ERROR("espcp_file_system_read_file: Invalid parameters.\n");
+        *length = 0;
+    }
 
     return(result);
 }
@@ -314,6 +322,10 @@ int espcp_file_system_write_file(char *name, uint8_t *buffer, int16_t length)
                 }
                 espcp_delete_message_and_payload(message);
             }
+            else
+            {
+                free(payload);
+            }
         }
     }
 
@@ -349,29 +361,36 @@ int espcp_file_system_delete_file(char *name)
         fileDetails.name = name;
         uint32_t payloadLength = espcp_file_details_buffer_size(&fileDetails);
         uint8_t *payload = (uint8_t *) malloc(payloadLength);
-        espcp_encode_file_details(&fileDetails, payload);
-        message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system,
-                                            espcp_system_function_file_system_delete_file, espcp_status_codes_completed_ok,
-                                            espcp_get_next_message_id(), payload, payloadLength);
-
-        if (message != NULL)
+        if (payload != NULL)
         {
-            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+            espcp_encode_file_details(&fileDetails, payload);
+            message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system,
+                                                espcp_system_function_file_system_delete_file, espcp_status_codes_completed_ok,
+                                                espcp_get_next_message_id(), payload, payloadLength);
+
+            if (message != NULL)
             {
-                switch (message->status_code)
+                if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
                 {
-                    case espcp_status_codes_completed_ok:
-                        result = 0;
-                        break;
-                    case espcp_status_codes_file_not_found:
-                        result = -ENOENT;
-                        break;
-                    default:
-                        result = -1;
-                        break;
+                    switch (message->status_code)
+                    {
+                        case espcp_status_codes_completed_ok:
+                            result = 0;
+                            break;
+                        case espcp_status_codes_file_not_found:
+                            result = -ENOENT;
+                            break;
+                        default:
+                            result = -1;
+                            break;
+                    }
                 }
+                espcp_delete_message_and_payload(message);
             }
-            espcp_delete_message_and_payload(message);
+            else
+            {
+                free(payload);
+            }
         }
     }
 
