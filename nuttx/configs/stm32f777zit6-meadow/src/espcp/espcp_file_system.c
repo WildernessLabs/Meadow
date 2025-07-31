@@ -62,7 +62,7 @@
  ****************************************************************************/
 
  /**
-  * @brief How may bytes should be output per line when dumping a buffer.
+  * @brief How many bytes should be output per line when dumping a buffer.
   */
 #define DEBUG_BYTES_PER_LINE 16
 
