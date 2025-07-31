@@ -270,7 +270,6 @@ uint8_t *espcp_file_system_read_file(char *name, int16_t *length)
     else
     {
         MEADOW_TRACE_ERROR("espcp_file_system_read_file: Invalid parameters.\n");
-        *length = 0;
     }
 
     return(result);
@@ -390,6 +389,7 @@ int espcp_file_system_delete_file(char *name)
             else
             {
                 free(payload);
+                result = -ENOMEM;
             }
         }
     }
