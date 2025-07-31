@@ -8,7 +8,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  *
- * 1. Redistributions of source code must resultain the above copyright
+ * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -54,9 +54,17 @@
 
 #include "espcp_file_system.h"
 
+// #define USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
+
 /****************************************************************************
  * Definitions
  ****************************************************************************/
+
+ /**
+  * @brief How many bytes should be output per line when dumping a buffer.
+  */
+#define DEBUG_BYTES_PER_LINE 16
 
 /****************************************************************************
  * Private Types
@@ -73,6 +81,85 @@
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: espcp_dump_buffer
+ *
+ * Description:
+ *  Output the contents of a buffer to syslog if USE_MEADOW_DEBUG_HELPERS is 
+ *  defined.
+ *
+ * Input Parameters:
+ *  buffer - Pointer to the buffer to be dumped.
+ *  length - Length of the buffer to be dumped.
+ *  bytes_per_line - Number of bytes to output per line (default is 16).
+ *
+ * Returned Value:
+ *  None.
+ *
+ * Assumptions/Limitations:
+ *  None.
+ *
+ ****************************************************************************/
+static void espcp_dump_buffer(uint8_t *buffer, uint32_t length, uint32_t bytes_per_line)
+{
+#if defined(USE_MEADOW_DEBUG_HELPERS)
+
+    if (bytes_per_line == 0)
+    {
+        bytes_per_line = 16;
+    }
+
+    if ((buffer != NULL) && (length > 0))
+    {
+        // Line looks something like this:
+        // "0x00000000: 00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f\n\0"
+        //      "0x00000000: " - 12 bytes.
+        //      "00 " - 3 bytes per entry on the line.
+        //      "\n\0" - 2 bytes for the new line and null terminator.
+        // Strictly speaking we are going to allocate one extra byte but
+        // this has been left in the code to keep things simple.
+        uint32_t max_length = 12 + (bytes_per_line * 3) + 2;
+        char *message = (char *) malloc(max_length);
+
+        if (message != NULL)
+        {
+            MEADOW_TRACE_INFORMATION("Dumping %d bytes of data:\n", length);
+
+            memset(message, 0, max_length);
+            char hex[4];
+            for (uint32_t index = 0; index < length; index++)
+            {
+                if ((index % bytes_per_line) == 0)
+                {
+                    if (index != 0)
+                    {
+                        MEADOW_TRACE_INFORMATION("%s\n", message);
+                        memset(message, 0, max_length);
+                    }
+                    snprintf(message, max_length, "0x%08x:", index);
+                }
+                snprintf(hex, sizeof(hex), " %02x", buffer[index]);
+                strcat(message, hex);
+            }
+            if (strlen(message) > 0)
+            {
+                MEADOW_TRACE_INFORMATION("%s\n", message);
+            }
+            free(message);
+        }
+        else
+        {
+            MEADOW_TRACE_INFORMATION("Dumping %d bytes of data: (failed to allocate message buffer)", length);
+        }
+    }
+    else
+    {
+        MEADOW_TRACE_INFORMATION("No data to dump.\n");
+    }
+
+#endif
+ }
 
 /****************************************************************************
  * Public Functions
@@ -112,6 +199,8 @@ int espcp_file_system_format(void)
         }
         espcp_delete_message_and_payload(message);
     }
+
+    MEADOW_TRACE_INFORMATION("espcp_file_system_format: %s\n", result == 0 ? "Success" : "Failed");
 
     return(result);
 }
@@ -175,7 +264,14 @@ uint8_t *espcp_file_system_read_file(char *name, int16_t *length)
             }
         }
         *length = amountRead;
+        MEADOW_TRACE_INFORMATION("espcp_file_system_read_file: Read %d bytes from file '%s'\n", *length, name);
+        espcp_dump_buffer(result, amountRead, DEBUG_BYTES_PER_LINE);
     }
+    else
+    {
+        MEADOW_TRACE_ERROR("espcp_file_system_read_file: Invalid parameters.\n");
+    }
+
     return(result);
 }
 
@@ -210,20 +306,29 @@ int espcp_file_system_write_file(char *name, uint8_t *buffer, int16_t length)
         fileDetails.contents_length = length;
         uint32_t payloadLength = espcp_file_name_and_contents_buffer_size(&fileDetails);
         uint8_t *payload = (uint8_t *) malloc(payloadLength);
-        espcp_encode_file_name_and_contents(&fileDetails, payload);
-        message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system,
-                                            espcp_system_function_file_system_write_file, espcp_status_codes_completed_ok,
-                                            espcp_get_next_message_id(), payload, payloadLength);
-
-        if (message != NULL)
+        if (payload != NULL)
         {
-            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+            espcp_encode_file_name_and_contents(&fileDetails, payload);
+            message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system,
+                                                espcp_system_function_file_system_write_file, espcp_status_codes_completed_ok,
+                                                espcp_get_next_message_id(), payload, payloadLength);
+
+            if (message != NULL)
             {
-                result = message->status_code == espcp_status_codes_completed_ok ? 0 : -1;
+                if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+                {
+                    result = message->status_code == espcp_status_codes_completed_ok ? 0 : -1;
+                }
+                espcp_delete_message_and_payload(message);
             }
-            espcp_delete_message_and_payload(message);
+            else
+            {
+                free(payload);
+            }
         }
     }
+
+    MEADOW_TRACE_INFORMATION("espcp_file_system_write_file: %s\n", result == 0 ? "Success" : "Failed");
 
     return(result);
 }
@@ -255,31 +360,41 @@ int espcp_file_system_delete_file(char *name)
         fileDetails.name = name;
         uint32_t payloadLength = espcp_file_details_buffer_size(&fileDetails);
         uint8_t *payload = (uint8_t *) malloc(payloadLength);
-        espcp_encode_file_details(&fileDetails, payload);
-        message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system,
-                                            espcp_system_function_file_system_delete_file, espcp_status_codes_completed_ok,
-                                            espcp_get_next_message_id(), payload, payloadLength);
-
-        if (message != NULL)
+        if (payload != NULL)
         {
-            if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
+            espcp_encode_file_details(&fileDetails, payload);
+            message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system,
+                                                espcp_system_function_file_system_delete_file, espcp_status_codes_completed_ok,
+                                                espcp_get_next_message_id(), payload, payloadLength);
+
+            if (message != NULL)
             {
-                switch (message->status_code)
+                if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
                 {
-                    case espcp_status_codes_completed_ok:
-                        result = 0;
-                        break;
-                    case espcp_status_codes_file_not_found:
-                        result = -ENOENT;
-                        break;
-                    default:
-                        result = -1;
-                        break;
+                    switch (message->status_code)
+                    {
+                        case espcp_status_codes_completed_ok:
+                            result = 0;
+                            break;
+                        case espcp_status_codes_file_not_found:
+                            result = -ENOENT;
+                            break;
+                        default:
+                            result = -1;
+                            break;
+                    }
                 }
+                espcp_delete_message_and_payload(message);
             }
-            espcp_delete_message_and_payload(message);
+            else
+            {
+                free(payload);
+                result = -ENOMEM;
+            }
         }
     }
+
+    MEADOW_TRACE_INFORMATION("espcp_file_system_delete_file: %s\n", result == 0 ? "Success" : "Failed");
 
     return(result);
 }

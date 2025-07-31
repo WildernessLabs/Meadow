@@ -4,7 +4,7 @@
  *   Copyright (C) 2021-2022 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  * 
- *   Provide macros and method defintions to assist in debugging
+ *   Provide macros and method definitions to assist in debugging
  *   NuttX and meadow code.
  *
  * Redistribution and use in source and binary forms, with or without
