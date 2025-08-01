@@ -68,7 +68,7 @@ static int _esp32_read_fd;
 static int _esp32_write_fd;
 static sem_t _initalizeWaitSem;    /* Implements event waiting */
 
-static uint8_t *esp32_read_buffer;
+static uint8_t *_esp32_read_buffer;
 static bool _esp_uart_initialized;
 static bool _init_failed;
 
@@ -94,7 +94,7 @@ int hcom_esp32_uart_comms_setup()
   _esp_uart_initialized = false;
   _esp32_write_fd = -1;
   _esp32_read_fd = -1;
-
+  _esp32_read_buffer = NULL;
   return OK;
 }
 
@@ -148,8 +148,11 @@ void hcom_esp32_uart_comms_shutdown()
     _esp32_write_fd = -1;
   }
 
-  if(esp32_read_buffer != NULL)
-     free(esp32_read_buffer);
+  if(_esp32_read_buffer != NULL)
+  {
+     free(_esp32_read_buffer);
+     _esp32_read_buffer = NULL;
+  }
 
   _esp_uart_initialized = false;
   _init_failed = 0;
@@ -187,8 +190,8 @@ int hcom_esp32_uart_lazy_initialization()
 
   _esp_uart_initialized = true;
 
-  esp32_read_buffer = malloc(HCOM_ESP32_FLASH_UART_READ_BUF_SIZE);
-  if(esp32_read_buffer == NULL)
+  _esp32_read_buffer = malloc(HCOM_ESP32_FLASH_UART_READ_BUF_SIZE);
+  if(_esp32_read_buffer == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-mem alloc for esp read buffer. errno:%d\n",
               thisFile, __LINE__, errno);
@@ -345,7 +348,7 @@ int hcom_esp32_uart_comms_read_serial_loop()
   // Read uart
   while (!_shutting_down)
   {
-    readReturn = read(_esp32_read_fd, esp32_read_buffer, HCOM_ESP32_FLASH_UART_READ_BUF_SIZE);
+    readReturn = read(_esp32_read_fd, _esp32_read_buffer, HCOM_ESP32_FLASH_UART_READ_BUF_SIZE);
     if(_shutting_down)
     {
       break;
@@ -366,7 +369,7 @@ int hcom_esp32_uart_comms_read_serial_loop()
     }
     else
     {
-      int ret = hcom_esp32_recv_handle_data(esp32_read_buffer, readReturn);
+      int ret = hcom_esp32_recv_handle_data(_esp32_read_buffer, readReturn);
       if(ret < 0)
       {
         hcom_logging_syslog(LOG_ERR, "%s@%d-ESP32 recvd data not processed:%d\n",
