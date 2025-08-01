@@ -378,7 +378,7 @@ bool hcom_host_recv_received_data()
     // I found that the read call doesn't wait for a large number of bytes to be
     // received. I may be it just returns the number that have already been
     // received, as the first read is usually < 8 bytes. The typical number read
-    // is 64, 128 sometimes 128 and rarely 256.
+    // is 64 or 128, sometimes 256.
     
     // This is a blocking read. read() will return:
     // (1) readReturn > 0 and readReturn is amount of data in buffer
