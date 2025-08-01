@@ -397,7 +397,7 @@ bool hcom_host_recv_received_data()
       // Anywhere near the upper limit of the buffer?
       if((dataBufOffset + HCOM_HOST_RECEIVE_MAX_READ_SIZE) > g_current_hcom_maximum_packet_size)
       {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-dataBuffOffset value is near to array overflow\n",
+        hcom_logging_syslog(LOG_ERR, "%s@%d-dataBufOffset value is near to array overflow\n",
             thisFile, __LINE__);
         return false;
       }
