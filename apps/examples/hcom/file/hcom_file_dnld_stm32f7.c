@@ -361,8 +361,7 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
     {
       snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
           "Download of '%s' succeeded (checksum:0x%08X)",
-          dnldShared->dnldOrigPathName, dnldShared->dnldCalcFileCrc,
-          dnldShared->dnldInitFileCrc);
+          dnldShared->dnldOrigPathName, dnldShared->dnldCalcFileCrc);
 
       msgToSend = hostMsg;
       requestType = HCOM_HOST_REQUEST_TEXT_INFORMATION;

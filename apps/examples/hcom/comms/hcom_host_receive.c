@@ -369,17 +369,17 @@ bool hcom_host_recv_received_data()
       continue;
     }
 #else
-  // I found that the read call doesn't wait for a large number of bytes to be
-  // received. I may be it just returns the number that have already been
-  // received, as the first read is usually < 8 bytes. The typical number read
-  // is 64, 128 sometimes 128 and rarely 256.
-  uint32_t dataBufOffset;
-  dataBufOffset = 0;
+  uint32_t dataBufOffset = 0;
   ssize_t readResult;
 
   // Stay in this loop until the HCOM is shutdown
   while (!_shutting_down)
   {
+    // I found that the read call doesn't wait for a large number of bytes to be
+    // received. I may be it just returns the number that have already been
+    // received, as the first read is usually < 8 bytes. The typical number read
+    // is 64, 128 sometimes 128 and rarely 256.
+    
     // This is a blocking read. read() will return:
     // (1) readReturn > 0 and readReturn is amount of data in buffer
     // (2) readReturn == 0 on end of file
@@ -393,6 +393,14 @@ bool hcom_host_recv_received_data()
         HCOM_PROTOCOL_COBS_DELIMITER, readResult);
 
       dataBufOffset += readResult;    // New end of Buffer offset
+      
+      // Anywhere near the upper limit of the buffer?
+      if((dataBufOffset + HCOM_HOST_RECEIVE_MAX_READ_SIZE) > g_current_hcom_maximum_packet_size)
+      {
+        hcom_logging_syslog(LOG_ERR, "%s@%d-dataBuffOffset value is near to array overflow\n",
+            thisFile, __LINE__);
+        return false;
+      }
 
       if(delim == NULL)
       {
