@@ -33,8 +33,9 @@
  *
  ****************************************************************************/
 
-// This file is mostly about saving undelimited data, buffering it and
-// pulling packetized data and forwarding it to be routed.
+// This file is mostly about saving cobs encoded data, buffering it and
+// providing a way to pull the data in packets that can be forwarded and
+// routed.
 
 /****************************************************************************
  * Included Files
@@ -95,7 +96,7 @@ int hcom_host_enq_deq_setup()
   }
 
   int result = hcom_cirbuf_init(_hcom_cbuf, HCOM_CIRCULAR_BUF_MEM_SIZE,
-          HCOM_PROTOCOL_COBS_ENCODING_DELIMITER_VALUE);
+          HCOM_PROTOCOL_COBS_DELIMITER);
   if (result == HCOM_CIR_BUF_ALLOC_FAILED)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-Buffer allocation failed\n", thisFile, __LINE__);
@@ -133,7 +134,7 @@ bool hcom_host_enq_deq_clear_buffer()
 }
 
 // //====================================================================
-// // Needing more information about why download would stop created this code
+// // Needing more information about why download would stop, created this code
 // // to show the state of the semaphores when the file download timer expired.
 // // Visual Studio is running HcomDiagUi and reports, "The semaphore timeout
 // // has expired"
@@ -152,8 +153,9 @@ bool hcom_host_enq_deq_clear_buffer()
 // }
 
 //=======================================================================
-// Add the received data is put into the circular buffer. It is added as a
-// stream.
+// Add the received data, it's put into the circular buffer. It is added as
+// it is received.
+// Receive calls here when data is available
 int hcom_host_enq_deq_enqueue_rcvd_data(uint8_t recvBuff[], const ssize_t recvByteCnt)
 {
   int result;
@@ -203,7 +205,7 @@ int hcom_host_enq_deq_enqueue_rcvd_data(uint8_t recvBuff[], const ssize_t recvBy
 }
 
 //====================================================================
-// Proc calls here to get the next message.
+// Get the next message
 // Note: during sem_wait a signal will wake up this thread.
 int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf,
           size_t *packetLength)
@@ -241,15 +243,14 @@ int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf,
         {
           return ret;   // May be watchdog timed out
         }
-
-        break;                          // Loop again to check for new message
+        break;          // Loop again to check for new message
 
       case HCOM_CIR_BUF_GET_DELETED_TOO_BIG:
-        // The message was too big and the circular buffer, the bogas message
-        // has removed. So, report error and return.
+        // The message was too big and the bad message removed from the
+        // circular buffer. So, report error and return.
         sem_post(&_lockCirBufSem);      // Release lock on circular buffer
         hcom_logging_syslog(LOG_ERR, "%s@%d-Message too big, deleted, size:%d\n",
-                  thisFile, __LINE__, packetLength);
+                  thisFile, __LINE__, *packetLength);
         break;                          // Try again to get the next message
 
       default:

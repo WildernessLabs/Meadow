@@ -48,8 +48,8 @@
  * Public Functions
  ***************************************************************************/
 // Consistent Overhead Byte Stuffing (COBS) is a scheme to take binary data
-// replace an arbituary byte value, usually 0x00, with an encoding that replaces
-// this value, in a way, that allows the orginal data can be recovered while
+// replace an arbitrary byte value, usually 0x00, with an encoding that replaces
+// this value, in a way, that allows the original data can be recovered while
 // creating frames around the data.
 //
 // The following C# code was ported from a 'C' example licensed under MIT License
@@ -65,7 +65,7 @@
 // Overhead Byte Stuffing), because the overhead is pretty consistent.
 //
 // To used this encoded packet, a delimiter must be added to the end of this encoded
-// message by the caller. Also, while not always needed it can also be preseeded by
+// message by the caller. Also, while not always needed it can also be preceeded by
 // the delimiter.
 
 size_t hcom_host_cobs_encoder(uint8_t source[], size_t startingOffset,
@@ -79,7 +79,7 @@ size_t hcom_host_cobs_encoder(uint8_t source[], size_t startingOffset,
   while (sourceOffset < length + startingOffset)
   {
     // Is source value is the delimiter (0)?
-    if (source[sourceOffset] == HCOM_PROTOCOL_COBS_ENCODING_DELIMITER_VALUE)
+    if (source[sourceOffset] == HCOM_PROTOCOL_COBS_DELIMITER)
     {
       encoded[replaceOffset] = replacement; // Replace '0' value with offset
       replaceOffset = encodedOffset++;      // Update replacement offset and bump encoded offset
@@ -109,6 +109,7 @@ size_t hcom_host_cobs_encoder(uint8_t source[], size_t startingOffset,
 //-------------------------------------------------------------------------
 // This function restores the removed 0x00s, thus returning the packet to it's
 // original content.
+// This function returns '0' if no terminating delimiter.
 size_t hcom_host_cobs_decoder(uint8_t encoded[], size_t length, uint8_t decoded[])
 {
   size_t encodedOffset = 0; // Offset into original (encoded) buffer
@@ -129,7 +130,7 @@ size_t hcom_host_cobs_decoder(uint8_t encoded[], size_t length, uint8_t decoded[
 
     // Sometimes don't need a trailing delimiter added
     if (replacement < 0xff && encodedOffset != length)
-      decoded[decodedOffset++] = HCOM_PROTOCOL_COBS_ENCODING_DELIMITER_VALUE;
+      decoded[decodedOffset++] = HCOM_PROTOCOL_COBS_DELIMITER;
   }
 
   return decodedOffset;

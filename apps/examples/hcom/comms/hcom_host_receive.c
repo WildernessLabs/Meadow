@@ -53,6 +53,13 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+#define USE_ORIGINAL_READ_SCHEME (0)
+
+// It seems the number of bytes requested for the read has little
+// relationship on the number read. A value higher than 256 makes no
+// difference. I assume it was because of the comms bandwidth limit.
+// But I set it higher since the buffer is large enough, so why not?
+#define HCOM_HOST_RECEIVE_MAX_READ_SIZE (1024)
 
 /****************************************************************************
  * Private Data
@@ -332,7 +339,7 @@ void hcom_host_recv_open_connection()
 }
 
 //========================================================================
-// This thread receives all host data and may call transmit to responsed as
+// This thread receives all host data and may call transmit to response as
 // needed. This thread is the only thread receiving via USB serial data.
 bool hcom_host_recv_received_data()
 {
@@ -341,7 +348,7 @@ bool hcom_host_recv_received_data()
             thisFile, __LINE__, HCOM_COMMUNICATIONS_DEVICE_NAME);
 #endif
 
-  // Stay in this loop "forever"
+#if(USE_ORIGINAL_READ_SCHEME > 0)
   while (!_shutting_down)
   {
     // This is a blocking read. read() will return:
@@ -361,7 +368,49 @@ bool hcom_host_recv_received_data()
       }
       continue;
     }
+#else
+  // I found that the read call doesn't wait for a large number of bytes to be
+  // received. I may be it just returns the number that have already been
+  // received, as the first read is usually < 8 bytes. The typical number read
+  // is 64, 128 sometimes 128 and rarely 256.
+  uint32_t dataBufOffset;
+  dataBufOffset = 0;
+  ssize_t readResult;
 
+  // Stay in this loop until the HCOM is shutdown
+  while (!_shutting_down)
+  {
+    // This is a blocking read. read() will return:
+    // (1) readReturn > 0 and readReturn is amount of data in buffer
+    // (2) readReturn == 0 on end of file
+    // (3) readReturn < 0 on a read error or interruption by a signal, value in errno
+    readResult = read(_comms_read_fd, &_recvDataBuffer[dataBufOffset],
+      (size_t)HCOM_HOST_RECEIVE_MAX_READ_SIZE);
+    if (readResult > 0)
+    {
+      // Did we get a delimiter in the last read?
+      char *delim = memchr(_recvDataBuffer + dataBufOffset,
+        HCOM_PROTOCOL_COBS_DELIMITER, readResult);
+
+      dataBufOffset += readResult;    // New end of Buffer offset
+
+      if(delim == NULL)
+      {
+        continue;   // Read more bytes
+      }
+
+      int result = hcom_host_enq_deq_enqueue_rcvd_data(_recvDataBuffer, dataBufOffset);
+      if (result < 0)
+      {
+        hcom_logging_syslog(LOG_WARNING, "%s@%d-received result:%d \n",
+            thisFile, __LINE__, result);
+      }
+
+      dataBufOffset = 0;    // Reset buffer offset
+      continue;
+    }
+
+#endif
     // readResult == 0 (end-of-file). Host PC probably dropped connection
     if (readResult == 0)
     {

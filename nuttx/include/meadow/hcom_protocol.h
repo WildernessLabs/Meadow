@@ -61,7 +61,7 @@
 extern uint16_t g_current_hcom_protocol_version;
 
 // COBS needs a specific delimiter. Zero seems to be traditional.
-#define HCOM_PROTOCOL_COBS_ENCODING_DELIMITER_VALUE (0x00)
+#define HCOM_PROTOCOL_COBS_DELIMITER (0x00)
 
 // What sequence number is used to identify a non-data, command message?
 #define HCOM_PROTOCOL_COMMAND_TYPE_SEQUENCE_NUMBER (0)
@@ -265,12 +265,14 @@ typedef struct HcomProtoBinMsg_s HcomProtoBinMsg_t;
 // This is the maximum length of a message that can fit in a single packet
 #define HCOM_LARGE_HOST_STRING_BUFF_LENGTH  HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN
 
-// Based on the encoding scheme (COTS), after encoding there will usually be
-// 2-3 bytes added for a short message. One that prepends the message and the
-// delimiter of '0'. For messages longer than 254 bytes, another byte may be
-// added every 254 bytes. What would be a safe size for the receive buffer
-// that can hold an encoded message? The COBS encoding can add 2 bytes every
-// 254 bytes. Add a fudge factor of 8 for safety.
+// Based on the encoding scheme (COBS), after encoding there will usually be
+// 2-3 bytes added for a short message. One that prepends (a Meadow
+// requirement) the message and the terminating delimiter. For messages longer
+// than 254 bytes, another byte may be added every 254 bytes. What would be a
+// safe size for the receive buffer that can hold an encoded message?
+// The COBS encoding can add 2 bytes every 254 bytes. Add a fudge factor of 8
+// for safety.
+// Delimiter is defined in HCOM_PROTOCOL_COBS_DELIMITER.
 // Note: The COBS encoded size varies depending on the data type. A file
 // containing all null values (assuming the delimiter is null) will need 3
 // additional bytes, no matter what the file size. A text file will need to
@@ -384,7 +386,7 @@ enum HcomMeadowRequestType
   HCOM_MDOW_REQUEST_DEBUGGING_DEBUGGER_DATA = 0x01 | HCOM_PROTOCOL_HEADER_SIMPLE_BINARY_TYPE,
 
   // >>> Breaking protocol change.
-  // This should be move our of the 0xfx range since it has nothing to do with
+  // This should be moved from our 0xfx range since it has nothing to do with
   // diagnostics
   // Old set developer 4 now used to get file and directory listing. At this
   // time (Oct23) CLIv1 only uses it to find nested temporary files in a fixed
@@ -395,6 +397,10 @@ enum HcomMeadowRequestType
   HCOM_MDOW_REQUEST_QSPI_FLASH_INIT         = 0xf4 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_QSPI_FLASH_WRITE        = 0xf5 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
   HCOM_MDOW_REQUEST_QSPI_FLASH_READ         = 0xf6 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
+  
+  // >>> Breaking protocol change.
+  // This should be moved from our 0xfx range since it has nothing to do with
+  // diagnostics
   HCOM_MDOW_REQUEST_OTA_REGISTER_DEVICE     = 0xf7 | HCOM_PROTOCOL_HEADER_ONLY_TYPE,
 
   // Replacing the old set developer level with new request format.

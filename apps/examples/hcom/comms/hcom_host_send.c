@@ -519,11 +519,11 @@ int hcom_host_send_transmit_to_host(FAR uint8_t xmitBuffer[], size_t xmitLength)
   // To improve the ability of the CLI to detect packet boundaries
   // add an initial delimiter so we can insure there is always at
   // least one delimiter between messages
-  _encodedXmitBuff[0] = HCOM_PROTOCOL_COBS_ENCODING_DELIMITER_VALUE;
+  _encodedXmitBuff[0] = HCOM_PROTOCOL_COBS_DELIMITER;
   encodedLength++;    // Account for leading zero
 
   // Encoded message needs a terminating delimiter for COBS
-  _encodedXmitBuff[encodedLength] = HCOM_PROTOCOL_COBS_ENCODING_DELIMITER_VALUE;
+  _encodedXmitBuff[encodedLength] = HCOM_PROTOCOL_COBS_DELIMITER;
   encodedLength++;
   remainingBytes = encodedLength;
 
