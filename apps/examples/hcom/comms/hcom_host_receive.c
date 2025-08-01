@@ -393,11 +393,11 @@ bool hcom_host_recv_received_data()
         HCOM_PROTOCOL_COBS_DELIMITER, readResult);
 
       dataBufOffset += readResult;    // New end of Buffer offset
-      
+
       // Anywhere near the upper limit of the buffer?
-      if((dataBufOffset + HCOM_HOST_RECEIVE_MAX_READ_SIZE) > g_current_hcom_maximum_packet_size)
+      if((dataBufOffset + HCOM_HOST_RECEIVE_MAX_READ_SIZE) >= HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE)
       {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-dataBuffOffset value is near to array overflow\n",
+        hcom_logging_syslog(LOG_ERR, "%s@%d-dataBufOffset value is near to array overflow\n",
             thisFile, __LINE__);
         return false;
       }
