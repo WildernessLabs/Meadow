@@ -50,6 +50,8 @@
 // #define MEADOW_USE_HCOM_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
+// #pragma GCC optimize("O0")    // Prevent code optimization
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -59,7 +61,7 @@
 // relationship on the number read. A value higher than 256 makes no
 // difference. I assume it was because of the comms bandwidth limit.
 // But I set it higher since the buffer is large enough, so why not?
-#define HCOM_HOST_RECEIVE_MAX_READ_SIZE (1024)
+#define HCOM_HOST_RECEIVE_MAX_READ_SIZE (512)
 
 /****************************************************************************
  * Private Data
@@ -102,7 +104,9 @@ int hcom_host_recv_setup()
   _lowPowerSoon = false;
   _firstTimeToConnect = true;
 
-  _recvDataBuffer = malloc(HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE);  
+  #define HCOM_HOST_RECEIVE_BUFFER_SIZE (HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE + \
+    HCOM_HOST_RECEIVE_MAX_READ_SIZE + 1)
+  _recvDataBuffer = malloc(HCOM_HOST_RECEIVE_BUFFER_SIZE);
   if(_recvDataBuffer == NULL)
   {
     syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
@@ -355,7 +359,8 @@ bool hcom_host_recv_received_data()
     // (1) readReturn > 0 and readReturn is amount of data in buffer
     // (2) readReturn == 0 on end of file
     // (3) readReturn < 0 on a read error or interruption by a signal, value in errno
-    ssize_t readResult = read(_comms_read_fd, _recvDataBuffer, g_current_hcom_maximum_packet_size);
+    ssize_t readResult = read(_comms_read_fd, _recvDataBuffer,
+      HCOM_PROTOCOL_CURRENT_PACKET_MAX_SIZE);
     if (readResult > 0)
     {
       // We've received some data. Next step is to write it into a circular
@@ -371,6 +376,7 @@ bool hcom_host_recv_received_data()
 #else
   uint32_t dataBufOffset = 0;
   ssize_t readResult;
+  size_t maxReadSize = HCOM_HOST_RECEIVE_MAX_READ_SIZE;
 
   // Stay in this loop until the HCOM is shutdown
   while (!_shutting_down)
@@ -385,7 +391,7 @@ bool hcom_host_recv_received_data()
     // (2) readReturn == 0 on end of file
     // (3) readReturn < 0 on a read error or interruption by a signal, value in errno
     readResult = read(_comms_read_fd, &_recvDataBuffer[dataBufOffset],
-      (size_t)HCOM_HOST_RECEIVE_MAX_READ_SIZE);
+      HCOM_HOST_RECEIVE_MAX_READ_SIZE);
     if (readResult > 0)
     {
       // Did we get a delimiter in the last read?
@@ -394,10 +400,11 @@ bool hcom_host_recv_received_data()
 
       dataBufOffset += readResult;    // New end of Buffer offset
 
-      // Anywhere near the upper limit of the buffer?
-      if((dataBufOffset + HCOM_HOST_RECEIVE_MAX_READ_SIZE) >= HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE)
+      // Anywhere close to overflowing the buffer?
+      if((dataBufOffset + HCOM_HOST_RECEIVE_MAX_READ_SIZE) >= \
+          HCOM_HOST_RECEIVE_BUFFER_SIZE)
       {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-dataBufOffset value is near to array overflow\n",
+        hcom_logging_syslog(LOG_ERR, "%s@%d-dataBufOffset may cause buffer overflow\n",
             thisFile, __LINE__);
         return false;
       }

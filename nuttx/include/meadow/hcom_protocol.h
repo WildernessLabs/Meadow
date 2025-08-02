@@ -259,7 +259,7 @@ typedef struct HcomProtoBinMsg_s HcomProtoBinMsg_t;
 
 //--------------------------------------------------------------------
 // What is the amount of space available in a message with only a header?
-#define HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN (g_current_hcom_maximum_packet_size - \
+#define HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN (HCOM_PROTOCOL_CURRENT_PACKET_MAX_SIZE - \
           (HCOM_PROTOCOL_HEADER_MSG_LENGTH))
 
 // This is the maximum length of a message that can fit in a single packet
@@ -277,8 +277,8 @@ typedef struct HcomProtoBinMsg_s HcomProtoBinMsg_t;
 // containing all null values (assuming the delimiter is null) will need 3
 // additional bytes, no matter what the file size. A text file will need to
 // insert the protocol delimiter every 254 bytes plus the 3 bytes.
-#define HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE (g_current_hcom_maximum_packet_size + \
-          (g_current_hcom_maximum_packet_size / 254) + 8)
+#define HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE (HCOM_PROTOCOL_CURRENT_PACKET_MAX_SIZE + \
+          (HCOM_PROTOCOL_CURRENT_PACKET_MAX_SIZE / 254) + 8)
 
 //--------------------------------------------------------------------------
 // HCOM Protocol message type definitions

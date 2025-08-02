@@ -343,10 +343,10 @@ int hcom_host_send_buffered_msg(uint16_t requestType, uint16_t extraData,
   }
 
   int fullMsgLen = msgLen + HCOM_PROTOCOL_HEADER_MSG_LENGTH;
-  if(fullMsgLen > g_current_hcom_maximum_packet_size)
+  if(fullMsgLen > HCOM_PROTOCOL_CURRENT_PACKET_MAX_SIZE)
   {
     // Truncate to fit
-    fullMsgLen = g_current_hcom_maximum_packet_size;
+    fullMsgLen = HCOM_PROTOCOL_CURRENT_PACKET_MAX_SIZE;
   }
 
   // Is this a header only message or a message with a body
