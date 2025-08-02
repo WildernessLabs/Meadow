@@ -425,7 +425,7 @@ int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
   }
 
   // Buffer to hold header + data
-  binMsg = (HcomProtoBinMsg_t *)malloc(g_current_hcom_maximum_packet_size);
+  binMsg = (HcomProtoBinMsg_t *)malloc(HCOM_PROTOCOL_CURRENT_PACKET_MAX_SIZE);
   if(binMsg == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n",

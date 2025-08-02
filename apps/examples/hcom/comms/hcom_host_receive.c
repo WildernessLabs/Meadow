@@ -50,9 +50,18 @@
 // #define MEADOW_USE_HCOM_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
+// #pragma GCC optimize("O0")    // Prevent code optimization
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+#define USE_ORIGINAL_READ_SCHEME (0)
+
+// It seems the number of bytes requested for the read has little
+// relationship on the number read. A value higher than 256 makes no
+// difference. I assume it was because of the comms bandwidth limit.
+// But I set it higher since the buffer is large enough, so why not?
+#define HCOM_HOST_RECEIVE_MAX_READ_SIZE (512)
 
 /****************************************************************************
  * Private Data
@@ -95,7 +104,9 @@ int hcom_host_recv_setup()
   _lowPowerSoon = false;
   _firstTimeToConnect = true;
 
-  _recvDataBuffer = malloc(HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE);  
+  #define HCOM_HOST_RECEIVE_BUFFER_SIZE (HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE + \
+    HCOM_HOST_RECEIVE_MAX_READ_SIZE + 1)
+  _recvDataBuffer = malloc(HCOM_HOST_RECEIVE_BUFFER_SIZE);
   if(_recvDataBuffer == NULL)
   {
     syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
@@ -332,7 +343,7 @@ void hcom_host_recv_open_connection()
 }
 
 //========================================================================
-// This thread receives all host data and may call transmit to responsed as
+// This thread receives all host data and may call transmit to response as
 // needed. This thread is the only thread receiving via USB serial data.
 bool hcom_host_recv_received_data()
 {
@@ -341,14 +352,15 @@ bool hcom_host_recv_received_data()
             thisFile, __LINE__, HCOM_COMMUNICATIONS_DEVICE_NAME);
 #endif
 
-  // Stay in this loop "forever"
+#if(USE_ORIGINAL_READ_SCHEME > 0)
   while (!_shutting_down)
   {
     // This is a blocking read. read() will return:
     // (1) readReturn > 0 and readReturn is amount of data in buffer
     // (2) readReturn == 0 on end of file
     // (3) readReturn < 0 on a read error or interruption by a signal, value in errno
-    ssize_t readResult = read(_comms_read_fd, _recvDataBuffer, g_current_hcom_maximum_packet_size);
+    ssize_t readResult = read(_comms_read_fd, _recvDataBuffer,
+      HCOM_PROTOCOL_CURRENT_PACKET_MAX_SIZE);
     if (readResult > 0)
     {
       // We've received some data. Next step is to write it into a circular
@@ -361,7 +373,59 @@ bool hcom_host_recv_received_data()
       }
       continue;
     }
+#else
+  uint32_t dataBufOffset = 0;
+  ssize_t readResult;
+  size_t maxReadSize = HCOM_HOST_RECEIVE_MAX_READ_SIZE;
 
+  // Stay in this loop until the HCOM is shutdown
+  while (!_shutting_down)
+  {
+    // I found that the read call doesn't wait for a large number of bytes to be
+    // received. I may be it just returns the number that have already been
+    // received, as the first read is usually < 8 bytes. The typical number read
+    // is 64 or 128, sometimes 256.
+    
+    // This is a blocking read. read() will return:
+    // (1) readReturn > 0 and readReturn is amount of data in buffer
+    // (2) readReturn == 0 on end of file
+    // (3) readReturn < 0 on a read error or interruption by a signal, value in errno
+    readResult = read(_comms_read_fd, &_recvDataBuffer[dataBufOffset],
+      HCOM_HOST_RECEIVE_MAX_READ_SIZE);
+    if (readResult > 0)
+    {
+      // Did we get a delimiter in the last read?
+      char *delim = memchr(_recvDataBuffer + dataBufOffset,
+        HCOM_PROTOCOL_COBS_DELIMITER, readResult);
+
+      dataBufOffset += readResult;    // New end of Buffer offset
+
+      // Anywhere close to overflowing the buffer?
+      if((dataBufOffset + HCOM_HOST_RECEIVE_MAX_READ_SIZE) >= \
+          HCOM_HOST_RECEIVE_BUFFER_SIZE)
+      {
+        hcom_logging_syslog(LOG_ERR, "%s@%d-dataBufOffset may cause buffer overflow\n",
+            thisFile, __LINE__);
+        return false;
+      }
+
+      if(delim == NULL)
+      {
+        continue;   // Read more bytes
+      }
+
+      int result = hcom_host_enq_deq_enqueue_rcvd_data(_recvDataBuffer, dataBufOffset);
+      if (result < 0)
+      {
+        hcom_logging_syslog(LOG_WARNING, "%s@%d-received result:%d \n",
+            thisFile, __LINE__, result);
+      }
+
+      dataBufOffset = 0;    // Reset buffer offset
+      continue;
+    }
+
+#endif
     // readResult == 0 (end-of-file). Host PC probably dropped connection
     if (readResult == 0)
     {

@@ -101,8 +101,7 @@ static sem_t _sendCliSem;
  ****************************************************************************/
 int hcom_nx_route_text_to_host_setup()
 {  
-  _sharedMsgBuff = (uint8_t *)malloc(HCOM_PROTOCOL_CURRENT_PACKET_MAX_SIZE - \
-            HCOM_PROTOCOL_HEADER_MSG_LENGTH);
+  _sharedMsgBuff = (uint8_t *)malloc(HCOM_PROTOCOL_COMMAND_MAX_PAYLOAD_LEN);
   if(_sharedMsgBuff == NULL)
   {
     return -ENOMEM;
