@@ -1,4 +1,4 @@
-FROM ubuntu
+FROM ubuntu:22.04
 
 # The following 2 lines are added to avoid hanging the container creation. 
 # See <https://grigorkh.medium.com/fix-tzdata-hangs-docker-image-build-cdb52cc3360d>

@@ -1,0 +1,50 @@
+{
+  "name": "Meadow Development Environment",
+  "build": {
+    "dockerfile": "../DockerFiles/Build/Dockerfile",
+    "context": ".."
+  },
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+  "remoteUser": "dev",
+  "features": {},
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.profiles.linux": {
+          "bash": {
+            "path": "/bin/bash"
+          }
+        }
+      },
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cpptools-extension-pack",
+        "ms-vscode.cmake-tools",
+        "twxs.cmake",
+        "ms-python.python",
+        "ms-python.debugpy",
+        "ms-dotnettools.csharp",
+        "ms-dotnettools.csdevkit",
+        "gitpod.gitpod-theme",
+        "ms-vscode.hexeditor",
+        "marus25.cortex-debug",
+        "dan-c-underwood.arm",
+        "zxh404.vscode-proto3",
+        "ms-vscode.vscode-json"
+      ]
+    }
+  },
+  "mounts": [
+  ],
+  "runArgs": [
+    "--privileged"
+  ],
+  "forwardPorts": [],
+  "postCreateCommand": "sudo chown -R dev:dev /workspace",
+  "remoteEnv": {
+    "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin",
+    "LANG": "en_US.UTF-8"
+  }
+}
