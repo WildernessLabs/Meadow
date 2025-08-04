@@ -25,7 +25,7 @@ sedFriendly() {
 inject_value() {
   KEY=$1
   VALUE=$(eval echo '${'$KEY'}')
-  # REPLACEMENT=$(sedFriendly $VALUE)
+  VALUE=$(sedFriendly $VALUE)
   FILE=$2
   sed -i.bak 's/###'${KEY}'###/'${VALUE}'/g' $FILE
 }
