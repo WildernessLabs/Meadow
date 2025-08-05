@@ -600,7 +600,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       syslog(LOG_ERR, "%s@%d-ERROR:F7 Dnld active, unexpected rqst type:%u\n",
         thisFile, __LINE__, requestType);
       sem_post(&_lockHostMsgSem);
-      return ret;
+      return -EBADRQC;   // Invalid request code
     }
   }
 
