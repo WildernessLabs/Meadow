@@ -70,7 +70,7 @@ enum hcom_download_dir_type_identifier
   HcomDnldDirTypeMmcsd0  = 2,
 };
 
-// This enum is used to catorgize CLI file/directory requests
+// This enum is used to categorize CLI file/directory requests
 enum hcom_file_msg_cat_e
 {
   pathnameNotUsed         = 0xff, // Flag to indicate cleaned
@@ -83,7 +83,7 @@ enum hcom_file_msg_cat_e
 
   // The following 2 path names ('/' and '/text/') where originally thought to
   // be needed, but have been removed. This means that only '/meadow0' and
-  // /sdcard' are accessable to the HCOM user.
+  // /sdcard' are accessible to the HCOM user.
   // e.g. '/' for file list to examine items from the root which are
   // not '/meadow0/ or /sdcard/ (e.g. to find /dev).
   // pathnameSingleSlash     = 6,    // Just '/' for file list to see root

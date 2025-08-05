@@ -57,6 +57,9 @@
  ****************************************************************************/
 #define USE_ORIGINAL_READ_SCHEME (0)
 
+#define HCOM_HOST_RECEIVE_BUFFER_SIZE (HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE + \
+  HCOM_HOST_RECEIVE_MAX_READ_SIZE + 1)
+
 // It seems the number of bytes requested for the read has little
 // relationship on the number read. A value higher than 256 makes no
 // difference. I assume it was because of the comms bandwidth limit.
@@ -104,8 +107,6 @@ int hcom_host_recv_setup()
   _lowPowerSoon = false;
   _firstTimeToConnect = true;
 
-  #define HCOM_HOST_RECEIVE_BUFFER_SIZE (HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE + \
-    HCOM_HOST_RECEIVE_MAX_READ_SIZE + 1)
   _recvDataBuffer = malloc(HCOM_HOST_RECEIVE_BUFFER_SIZE);
   if(_recvDataBuffer == NULL)
   {
@@ -376,7 +377,6 @@ bool hcom_host_recv_received_data()
 #else
   uint32_t dataBufOffset = 0;
   ssize_t readResult;
-  size_t maxReadSize = HCOM_HOST_RECEIVE_MAX_READ_SIZE;
 
   // Stay in this loop until the HCOM is shutdown
   while (!_shutting_down)
