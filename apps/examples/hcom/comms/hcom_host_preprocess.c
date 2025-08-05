@@ -251,6 +251,8 @@ void hcom_host_process_shutdown()
 {
   _shutting_down = true;
 
+  sem_destroy(&_lockHostMsgSem);
+
   free(_decode_dest_buf);
   free(_packet_dest_buf);
 
