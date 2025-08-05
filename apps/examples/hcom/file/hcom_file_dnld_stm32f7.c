@@ -309,7 +309,7 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
   char *msgToSend;
   uint16_t requestType;
 
-  hcom_logging_syslog(LOG_NOTICE, "EOF received from CLI\n");
+  // hcom_logging_syslog(LOG_NOTICE, "EOF received from CLI\n");
 
   if(dnldShared->dnldCurrentState != HcomStm32F7DnldStateFileXfer)
   {

@@ -62,6 +62,7 @@ static bool _shutting_down;
 static hcom_dnld_shared_t *_dnldShared;
 static uint8_t *_packet_dest_buf = NULL;
 static uint8_t *_decode_dest_buf = NULL;
+static sem_t _lockHostMsgSem;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -81,6 +82,10 @@ int hcom_host_process_setup()
 {
   int ret;
   _shutting_down = false;
+
+  // Protects against multiple requests
+  sem_init(&_lockHostMsgSem, 0, 1);
+  sem_setprotocol(&_lockHostMsgSem, SEM_PRIO_NONE);
 
   // These allocation continue throughout the life of Meadow
   _packet_dest_buf = (uint8_t *)malloc(HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE);
@@ -135,7 +140,7 @@ int hcom_host_process_setup()
   // Priority: CONFIG_USERMAIN_PRIORITY with a default of 100. This priority
   // is adjusted in the following code.
   // Stacksize: CONFIG_USERMAIN_STACKSIZE with a default stack size of 2048.
-  // The stack size was set to 65536, I've not changed this value (Peter).
+  // The stack size was set to 65536, don't know by whom.
   // RTOS Features->Stack and heap information->Main thread stack size
   //
   // See /nuttx/sched/init/nx_bringup.c for user main's creation
@@ -164,7 +169,7 @@ int hcom_host_process_setup()
   // call will never return.
   ret = hcom_host_process_run_loop();
  
-  // This return is only reached on shutdown.
+  // This return should only be reached on shutdown.
   free(_packet_dest_buf);
   free(_decode_dest_buf);
   free(_dnldShared);
@@ -246,6 +251,8 @@ void hcom_host_process_shutdown()
 {
   _shutting_down = true;
 
+  sem_destroy(&_lockHostMsgSem);
+
   free(_decode_dest_buf);
   free(_packet_dest_buf);
 
@@ -254,9 +261,9 @@ void hcom_host_process_shutdown()
 }
 
 //==========================================================================
-// Are we involved in some external flash download activity? There are the
-// following states: HcomStm32F7DnldStateNone, HcomStm32F7DnldStateStarting
-// and HcomStm32F7DnldStateFileXfer
+// Are we involved in some external F7 flash download activity? There are the
+// following valid states: HcomStm32F7DnldStateNone,
+// HcomStm32F7DnldStateStarting and HcomStm32F7DnldStateFileXfer
 static bool hcom_host_process_is_stm32f7_dnld_active(hcom_dnld_shared_t *dnldShared)
 {
   return((dnldShared->dnldCurrentState == HcomStm32F7DnldStateStarting) ||
@@ -381,12 +388,12 @@ static int hcom_host_process_init_write_or_del(hcom_dnld_shared_t *dnldShared,
 int hcom_host_process_run_loop()
 {
   int ret;
-  size_t packetLength;
+  size_t dataLength;
 
   while (!_shutting_down)
   {
     // Dequeue the next packet received. Also, checks watchdog timer
-    ret = hcom_host_enq_deq_dequeue_packet(_packet_dest_buf, &packetLength);
+    ret = hcom_host_enq_deq_dequeue_packet(_packet_dest_buf, &dataLength);
     if(ret < 0)
     {
       if(ret == -ETIME)
@@ -406,10 +413,11 @@ int hcom_host_process_run_loop()
       continue;
     }
 
-    // We have a good packet. Drop trailing delimiter via --packetLength,
-    // then decode the packet and route it for processing.
+    // We have data. Drop trailing delimiter via --dataLength, then decode
+    // the packet, if it's a full packet. If not a full packet continue
+    // saving bytes. Once a full message detected route it for processing.
     size_t decodedPacketSize = hcom_host_cobs_decoder(_packet_dest_buf,
-              --packetLength, _decode_dest_buf);
+              --dataLength, _decode_dest_buf);
     if(decodedPacketSize == 0)
       continue;
 
@@ -449,22 +457,43 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
   uint16_t requestType;
   uint32_t userData;
 
-  // All messages contain a sequence number field. The sequence number
-  // determines if the packet is a command or data.
-  HcomProtoDataMsg_t *hcomDataMsg = (HcomProtoDataMsg_t *) decodedPacket;
+// Ensure only one packet processed at a time
+  while(true)
+  {
+    ret = sem_trywait(&_lockHostMsgSem);
+    if(ret == -EINTR)
+    {
+      continue;
+    }
+    else if(ret != OK)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Attempted multiple requests\n",
+                thisFile, __LINE__);
+      return -EAGAIN;   // Busy;
+    }
+
+    break;
+  }
+
+  // We're alone....
 
   // hcom_logging_syslog(LOG_DEBUG, "%s@%d-Data seq:%d, len:%d\n",
   //           thisFile, __LINE__, hcomDataMsg->seqNumber, decodedSize);
 
+  // All messages contain a sequence number field. The sequence number
+  // determines if the packet is a command or data.
+  // Assume data type for determination.
+  HcomProtoDataMsg_t *hcomDataMsg = (HcomProtoDataMsg_t *) decodedPacket;
+
   // Test to determine if this is a data packet or a command
+  // If Command packet sequence number will be 0
   if (hcomDataMsg->seqNumber != HCOM_PROTOCOL_COMMAND_TYPE_SEQUENCE_NUMBER)
   {
-    // This must be a Data packet and not a command message
+    // This is a Data packet, not a command request
 #if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
       hcom_diag_decode_data_packet_type(decodedSize);
       usleep(100 * 1000);
 #endif
-    // Must be a Data Packet (download) because sequence number != 0.
     // What is the current download state? What is active, external flash or
     // ESP32?
     if(hcom_host_process_is_stm32f7_dnld_active(dnldShared))
@@ -475,16 +504,18 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       {
         hcom_logging_syslog(LOG_ERR, "%s@%d-Timer set, ret:%d, errno:%d\n",
                   thisFile, __LINE__, ret, errno);
+        sem_post(&_lockHostMsgSem);
         return ret;
       }
 
-      // We have data to write to file
+      // We have data to write to F7 file system
       ret = hcom_file_dnld_stm32f7_recvd_file_data(hcomDataMsg, decodedSize,
                 dnldShared);
       if(ret < 0)
       {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-Receving data, ret:%d, errno:%d\n",
+        hcom_logging_syslog(LOG_ERR, "%s@%d-Receiving data, ret:%d, errno:%d\n",
                   thisFile, __LINE__, ret, errno);
+        sem_post(&_lockHostMsgSem);
         return ret;
       }
     }
@@ -498,16 +529,18 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       // packet with a sequence number when no download is active.
       hcom_logging_syslog(LOG_DEBUG, "%s@%d-Data received but no active download\n",
                 thisFile, __LINE__);
+      sem_post(&_lockHostMsgSem);
+      return -EBADMSG;
     }
 
     // Finished with preprocessing for this data packet
+    sem_post(&_lockHostMsgSem);
     return OK;
   }
 
   //----------------------------------------------------------------------
-  // Since sequence number is 0, must be a command (non-data packet) message.
-  // And these always have the full HCOM header.
-  // Note: Adding the full header to data packets has been planned for a while.
+  // Since sequence number is '0', must be a command (non-data packet)
+  // message. And these always have the full HCOM header.
   const HcomProtoHdrMsg_t *hdrMsg = (HcomProtoHdrMsg_t *) decodedPacket;
 
 #if HCOM_DIAG_INCLUDE_MESSAGE_DECODING_IN_BUILD > 0
@@ -530,10 +563,10 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
 
     hcom_logging_syslog(LOG_WARNING, "%s\n", hostMsg);
 
-    uint16_t level = HCOM_HOST_REQUEST_TEXT_INFORMATION;
+    uint16_t textRqstType = HCOM_HOST_REQUEST_TEXT_INFORMATION;
     if (hdrMsg->stdHeader.version < HCOM_PROTOCOL_MINIMUM_PROTOCOL_NUMBER)
     {
-      level = HCOM_HOST_REQUEST_TEXT_ERROR;
+      textRqstType = HCOM_HOST_REQUEST_TEXT_ERROR;
     }
     else
     {
@@ -541,21 +574,37 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       g_current_hcom_protocol_version = hdrMsg->stdHeader.version;
     }
 
-    hcom_host_send_simple_string_msg(level, 0, hostMsg, thisFile, __LINE__);
-    if (level == HCOM_HOST_REQUEST_TEXT_ERROR)
+    hcom_host_send_simple_string_msg(textRqstType, 0, hostMsg, thisFile, __LINE__);
+    // If illegal version, exit
+    if (textRqstType == HCOM_HOST_REQUEST_TEXT_ERROR)
     {
       // Caller expects a Concluded message for all messages, even for
       // a wrong CLI protocol version.
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
               "", thisFile, __LINE__);
-
+      
       // Exit if below HCOM_PROTOCOL_MINIMUM_PROTOCOL_NUMBER
+      sem_post(&_lockHostMsgSem);
       return -ENOTSUP;
     }
   }
 
   //------------------------------------------------------------------
   // Received a Command
+  
+  // Ensure if download is active correct command received
+  if(hcom_host_process_is_stm32f7_dnld_active(dnldShared))
+  {
+    if(requestType != HCOM_MDOW_REQUEST_END_FILE_TRANSFER &&
+       requestType != HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END)
+    {
+      syslog(LOG_ERR, "%s@%d-ERROR:F7 Dnld active, unexpected rqst type:%u\n",
+        thisFile, __LINE__, requestType);
+      sem_post(&_lockHostMsgSem);
+      return -EBADRQC;   // Invalid request code
+    }
+  }
+
   // Allow the file list processing to include a subdirectories if the
   // message type supports it.
   if( requestType == HCOM_MDOW_REQUEST_LIST_FILES_SUBDIR ||
@@ -576,6 +625,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
                 thisFile, __LINE__, ret, errno);
 
       hcom_dir_mgmt_free_file_info(dnldShared);
+      sem_post(&_lockHostMsgSem);
       return ret;   // On error exit
     }
 
@@ -596,11 +646,12 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       if(ret < 0)
       {
         syslog(LOG_ERR, "%s@%d-ERROR: Mount failed. ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
+        sem_post(&_lockHostMsgSem);
         return ret;
       }
     }
   }
-  // File Read initialization
+  // File Read initialization?
   else if(requestType == HCOM_MDOW_REQUEST_UPLOAD_FILE_INIT)
   {
     ret = hcom_host_process_init_hcom_dnld_share(dnldShared, hdrMsg,
@@ -611,6 +662,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
                 thisFile, __LINE__, ret, errno);
 
       hcom_dir_mgmt_free_file_info(dnldShared);
+      sem_post(&_lockHostMsgSem);
       return ret;   // On error exit
     }
 
@@ -629,6 +681,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       if(ret < 0)
       {
         syslog(LOG_ERR, "%s@%d-ERROR: Mount failed. ret:%d, errno:%d\n", thisFile, __LINE__, ret, errno);
+        sem_post(&_lockHostMsgSem);
         return ret;
       }
     }
@@ -660,6 +713,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
         "", thisFile, __LINE__);
 
+      sem_post(&_lockHostMsgSem);
       return ret;   // On error exit
     }
   }
@@ -683,6 +737,7 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
                 "", thisFile, __LINE__);
 
+      sem_post(&_lockHostMsgSem);
       return -EOWNERDEAD;
     }
 #endif
@@ -700,14 +755,15 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
   // All command request types are routed here
   //-------------------------------------------------------------------
 
+  // Route the message
   ret = hcom_host_route_request_by_cmd_type(hdrMsg, decodedSize, userData,
             requestType, dnldShared);
   if(ret < 0)
   {
-    // There are a few command type handlers that report errors
+    // Handle the few command types that report errors
     hcom_logging_syslog(LOG_ERR, "%s@%d-Request Type:%u, ret:%d, errno:%d\n",
               thisFile, __LINE__, requestType, ret, errno);
-    // No point exiting now, may need to cleanup first
+    // No point exiting now, just do the cleanup first
   }
 
   //-------------------------------------------------------------------
@@ -750,5 +806,6 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
     hcom_dir_mgmt_free_file_info(dnldShared);
   }
 
+  sem_post(&_lockHostMsgSem);
   return OK;
 }

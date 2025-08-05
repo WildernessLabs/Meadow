@@ -538,8 +538,9 @@ int hcom_host_route_request_by_cmd_type(const HcomProtoHdrMsg_t *hdrMsg,
 
       hcom_logging_syslog(LOG_ERR, "%s@%d-Received unsupported request type:0x%04x\n",
              thisFile, __LINE__, requestType);
+#if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
       hcom_diag_print_buffer((const uint8_t*)hdrMsg, packetSize, LOG_ERR);
-      
+#endif
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_CONCLUDED, 0,
         "", thisFile, __LINE__);
     }
