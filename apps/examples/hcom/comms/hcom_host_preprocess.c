@@ -467,7 +467,6 @@ int hcom_host_preprocess_packet(hcom_dnld_shared_t *dnldShared,
     }
     else if(ret != OK)
     {
-      syslog(1, "Preprocess, sem_trywait returned:%d. Exiting busy\n", ret);
       hcom_logging_syslog(LOG_ERR, "%s@%d-Attempted multiple requests\n",
                 thisFile, __LINE__);
       return -EAGAIN;   // Busy;
