@@ -22,7 +22,7 @@ Binaries of many of some of the build artfiacts can be found on [`Google Drive/E
 
 Mac or Linux is required to build the various pieces of Meadow.
 
-If you want to use Docker, see [Build in a Docker Dev Container](#build-in-a-docker-dev-container)
+If you want to use Docker, see [Build in a Docker Dev Container](#building-in-a-docker-dev-container)
 
 ## Development Build Instructions
 
