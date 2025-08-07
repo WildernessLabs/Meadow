@@ -27,7 +27,7 @@ RUN sudo ln -s /usr/bin/clang-15 /usr/bin/clang
 # Useful when later on packages need to be installed that are missing.
 RUN usermod -aG sudo dev
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN echo 'dev:dev' | chpasswd
+RUN echo "dev:dev" | chpasswd
 
 #
 #   Now for some stuff required by the Mono build system.
