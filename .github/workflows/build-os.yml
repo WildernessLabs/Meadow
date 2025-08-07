@@ -20,4 +20,4 @@ jobs:
       run: docker build -t nuttx-build -f ./DockerFiles/Build/Dockerfile .
 
     - name: Build the OS and RT
-      run: docker run --rm -v {{ github.workspace }}:/project -w /project --user "$(id -u):$(id -g)" nuttx-build ./build.sh --force --clean
+      run: docker run --rm -v $GITHUB_WORKSPACE:/project -w /project --user "$(id -u):$(id -g)" nuttx-build ./build.sh --force --clean
