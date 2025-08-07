@@ -63,8 +63,6 @@
 static char *thisFile = __FILE__;
 static int _syslogMask;
 
-static int _syslogMask;
-
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/

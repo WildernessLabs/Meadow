@@ -153,7 +153,7 @@ int hcom_file_write_to_active_file(hcom_dnld_shared_t *dnldShared,
   {
     // Found that the SD-Card write must be properly aligned or it writes data
     // to the file that is outside of the specified buffers beginning address.
-    // malloc will allocate memory that this 4-byte aligned.
+    // malloc will allocate memory which is 4-byte aligned.
     writeDataBuff = malloc(fileWriteSize);
     if(writeDataBuff == NULL)
     {
@@ -236,6 +236,7 @@ int hcom_file_write_close_active_file(hcom_dnld_shared_t *dnldShared)
   }
 
   dnldShared->dnldFileFD = -1;
+  dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
 
 #if (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   hcom_logging_syslog(LOG_DEBUG, "%s@%d-Closed %s\n", thisFile, __LINE__, dnldShared->dnldFullPathName);
