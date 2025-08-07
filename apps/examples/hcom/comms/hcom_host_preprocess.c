@@ -407,6 +407,23 @@ int hcom_host_process_run_loop()
       continue;
     }
 
+    // Make sure the packet isn't too large
+    if(dataLength < HCOM_PROTOCOL_CURRENT_PACKET_MAX_SIZE)
+    {
+        // Let CLI user know the problem
+        hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
+                "Received oversized packet of %lu bytes. It is ignored",
+                thisFile, __LINE__, dataLength);
+
+        hcom_logging_syslog(LOG_ERR, "%s@%d-Oversized packet received (%lu bytes)\n",
+                  thisFile, __LINE__, dataLength);
+        usleep(20 * 1000);    // Make sure syslog finishes
+        
+        // Don't return because this will kill our processing loop. Just
+        // continue
+      continue;
+    }
+
     // We have data. Drop trailing delimiter (via --dataLength), then decode
     // the packet, if it's a full packet. If not a full packet continue
     // saving bytes. Once a full message detected route it for processing.

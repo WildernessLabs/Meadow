@@ -62,8 +62,9 @@
 #define HCOM_FILE_DNLD_F7_DEBUG_TIMING       (0)
 
 // For no cache behavior, set the 2 following to '0'
-#define HCOM_FILE_DNLD_CREATE_MEMORY_CACHE   (0)   // Cache file then write
+#define HCOM_FILE_DNLD_CREATE_MEMORY_CACHE   (1)   // Cache file then write
 #define HCOM_FILE_DNLD_CACHE_NO_FILE_ACCESS  (0)   // No file write
+#define HCOM_FILE_DNLD_MAX_CACHE_FILE_SIZE   (8 * 1024 * 1024)  // 8MB limit
 
 // This combination is disallowed
 #if(HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 0 &&\
@@ -103,6 +104,19 @@ int hcom_file_dnld_stm32f7_setup()
 {
   _stateErrShown = false;   // In case of data before begin
   return OK;
+}
+
+//==========================================================================
+static void hcom_file_dnld_cleanup_cache_memory(void)
+{
+#if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
+    if (_dnldCacheMemory)
+  {
+    free(_dnldCacheMemory);
+    _dnldCacheMemory = NULL;
+    _dnldCacheOffset = 0;
+  }
+#endif
 }
 
 //==========================================================================
@@ -216,6 +230,15 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
 #endif
 
 #if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
+
+  if (dnldShared->dnldTotalFileSize > HCOM_FILE_DNLD_MAX_CACHE_FILE_SIZE)
+  {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-%d bytes is too large for cache: \n",
+                        thisFile, __LINE__, dnldShared->dnldTotalFileSize);
+      dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+      return -EFBIG;    // File too large
+  }
+
   // Allocate memory for cache
   _dnldCacheMemory = (void *) malloc(dnldShared->dnldTotalFileSize);
   if(_dnldCacheMemory == NULL)
@@ -254,7 +277,7 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
     }
 
 #if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
-    free(_dnldCacheMemory);
+    hcom_file_dnld_cleanup_cache_memory();
 #endif
     dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
     return -ENOTRECOVERABLE;      // State not recoverable
@@ -283,7 +306,7 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
 #if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
-      free(_dnldCacheMemory);
+      hcom_file_dnld_cleanup_cache_memory();
 #endif
       dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
       return -ENOMEM;
@@ -308,7 +331,7 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
     hcom_logging_syslog(LOG_ERR, "%s@%d-binDataLen was out of range:%ld\n",
              thisFile, __LINE__, binDataLen);
 #if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
-      free(_dnldCacheMemory);
+      hcom_file_dnld_cleanup_cache_memory();
 #endif
     dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
     return -EFAULT;   // Bad address
@@ -327,6 +350,13 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
 
 #if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
 
+  if (_dnldCacheOffset + binDataLen > dnldShared->dnldTotalFileSize)
+  {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Cache overflow detected\n", thisFile, __LINE__);
+      hcom_file_dnld_cleanup_cache_memory();
+      dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+      return -EOVERFLOW;
+  }
   // Copy file data to cache memory
   memcpy((_dnldCacheMemory + _dnldCacheOffset), hcomDataMsg->binData, binDataLen);
   _dnldCacheOffset += binDataLen;
@@ -390,7 +420,7 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
     hcom_logging_syslog(LOG_WARNING, "%s@%d-Dnld end, unexpected state:%d\n",
               thisFile, __LINE__, dnldShared->dnldCurrentState);
 #if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
-    free(_dnldCacheMemory);
+    hcom_file_dnld_cleanup_cache_memory();
 #endif
     dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
     return -ENOTRECOVERABLE; // State not recoverable
@@ -406,7 +436,7 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-File %s write failed:%d\n",
               thisFile, __LINE__, dnldShared->dnldOrigPathName, ret);
-    free(_dnldCacheMemory);
+    hcom_file_dnld_cleanup_cache_memory();
     dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
     return -errno;    // Return write error & exit
   }
@@ -439,7 +469,7 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
 #endif
 
 #if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
-    free(_dnldCacheMemory);
+    hcom_file_dnld_cleanup_cache_memory();
 #endif
 
   // Report results to host
