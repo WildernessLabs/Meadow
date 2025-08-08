@@ -406,7 +406,7 @@ int hcom_host_process_run_loop()
       }
       continue;
     }
-    
+
     // We have data. Drop trailing delimiter (via --dataLength), then decode
     // the packet, if it's a full packet. If not a full packet continue
     // saving bytes. Once a full message detected route it for processing.
