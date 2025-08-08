@@ -233,7 +233,7 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
 
   if (dnldShared->dnldTotalFileSize > HCOM_FILE_DNLD_MAX_CACHE_FILE_SIZE)
   {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-%d bytes is too large for cache: \n",
+      hcom_logging_syslog(LOG_ERR, "%s@%d-%d bytes is too large for cache\n",
                         thisFile, __LINE__, dnldShared->dnldTotalFileSize);
       dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
       return -EFBIG;    // File too large

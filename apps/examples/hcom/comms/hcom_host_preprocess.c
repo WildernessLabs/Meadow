@@ -408,7 +408,7 @@ int hcom_host_process_run_loop()
     }
 
     // Make sure the packet isn't too large
-    if(dataLength < HCOM_PROTOCOL_CURRENT_PACKET_MAX_SIZE)
+    if(dataLength > HCOM_PROTOCOL_CURRENT_PACKET_MAX_SIZE)
     {
         // Let CLI user know the problem
         hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
