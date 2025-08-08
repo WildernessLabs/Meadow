@@ -62,7 +62,7 @@
 #define HCOM_FILE_DNLD_F7_DEBUG_TIMING       (0)
 
 // For no cache behavior, set the 2 following to '0'
-#define HCOM_FILE_DNLD_CREATE_MEMORY_CACHE   (1)   // Cache file then write
+#define HCOM_FILE_DNLD_CREATE_MEMORY_CACHE   (0)   // Cache file then write
 #define HCOM_FILE_DNLD_CACHE_NO_FILE_ACCESS  (0)   // No file write
 #define HCOM_FILE_DNLD_MAX_CACHE_FILE_SIZE   (8 * 1024 * 1024)  // 8MB limit
 
@@ -325,7 +325,7 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
     free(hostMsg);
   }
 
-  int32_t binDataLen = packetSize - HCOM_PROTOCOL_DATA_MSG_DATA_INFO_OFF;
+  size_t binDataLen = packetSize - HCOM_PROTOCOL_DATA_MSG_DATA_INFO_OFF;
   if(binDataLen < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-binDataLen was out of range:%ld\n",
@@ -438,7 +438,7 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
               thisFile, __LINE__, dnldShared->dnldOrigPathName, ret);
     hcom_file_dnld_cleanup_cache_memory();
     dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
-    return -errno;    // Return write error & exit
+    return ret;
   }
 #endif
 
