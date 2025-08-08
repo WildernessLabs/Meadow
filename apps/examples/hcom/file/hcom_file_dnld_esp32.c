@@ -60,7 +60,8 @@
 /* Configuration ************************************************************/
 #if defined (CONFIG_HCOM_ESP32_COMMS)
 
-#define HCOM_RECV_DEBUG_TIMING 0          // Enables the display of time spent
+// Display via syslog the time spent
+#define HCOM_FILE_DNLD_ESP32_DEBUG_TIMING 0          // Enables the display of time spent
 
 /****************************************************************************
  * Private Data
@@ -88,11 +89,11 @@ static uint8_t *_nextStorageAddress = NULL;
 //
 static uint8_t *_endAddress = NULL;
 
-#if (HCOM_RECV_DEBUG_TIMING) > 0 || (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
+#if (HCOM_FILE_DNLD_ESP32_DEBUG_TIMING) > 0 || (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
 static int _dbgNumbPacketsRecvd = 0;        // Only used in LOG_INFO & LOG_DEBUG messages
 #endif
 
-#if HCOM_RECV_DEBUG_TIMING > 0
+#if HCOM_FILE_DNLD_ESP32_DEBUG_TIMING > 0
 uint64_t _dbgReceptionBeganAt;
 uint64_t _dbgReceptionEndedAt;
 #endif
@@ -169,7 +170,7 @@ void hcom_file_dnld_esp32_file_begin(const HcomProtoHdrMsg_t *hdrMsg)
   _esp32WaitCount = 0;
   _currentESP32DnldState = HcomEsp32DnldStateStarting;
 
-#if HCOM_RECV_DEBUG_TIMING
+#if HCOM_FILE_DNLD_ESP32_DEBUG_TIMING
   _dbgReceptionBeganAt = hcom_utils_get_current_time64_ns();
 #endif
 
@@ -233,7 +234,7 @@ void hcom_file_dnld_esp32_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg,
 {
   char hostMsg[HCOM_SHORT_HOST_STRING_BUFF_LENGTH];
 
-#if (HCOM_RECV_DEBUG_TIMING) > 0 || (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
+#if (HCOM_FILE_DNLD_ESP32_DEBUG_TIMING) > 0 || (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   _dbgNumbPacketsRecvd++;
 #endif
 
@@ -313,7 +314,7 @@ void hcom_file_dnld_esp32_file_end(uint32_t userData)
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0, hostMsg, _thisFile, __LINE__);
   }
 
-#if HCOM_RECV_DEBUG_TIMING > 0
+#if HCOM_FILE_DNLD_ESP32_DEBUG_TIMING > 0
   _dbgReceptionEndedAt = hcom_utils_get_current_time64_ns();
   hcom_logging_syslog(LOG_INFO, "%s@%d-File transfer %d packets, took %llu mSec\n",
            _thisFile, __LINE__, _dbgNumbPacketsRecvd,

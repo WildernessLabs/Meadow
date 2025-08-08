@@ -58,7 +58,19 @@
 
 /* Configuration ************************************************************/
 
-#define HCOM_RECV_DEBUG_TIMING 0          // Enables the display of time spent
+// Display time spent downloading via syslog
+#define HCOM_FILE_DNLD_F7_DEBUG_TIMING       (0)
+
+// For no cache behavior, set the 2 following to '0'
+#define HCOM_FILE_DNLD_CREATE_MEMORY_CACHE   (0)   // Cache file then write
+#define HCOM_FILE_DNLD_CACHE_NO_FILE_ACCESS  (0)   // No file write
+#define HCOM_FILE_DNLD_MAX_CACHE_FILE_SIZE   (8 * 1024 * 1024)  // 8MB limit
+
+// This combination is disallowed
+#if(HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 0 &&\
+  HCOM_FILE_DNLD_CACHE_NO_FILE_ACCESS == 1)
+#pragma GCC error "Illegal download configuration\n"
+#endif
 
 /****************************************************************************
  * Private Data
@@ -67,13 +79,18 @@ static char *thisFile = __FILE__;
 
 static bool _stateErrShown;
 
-#if (HCOM_RECV_DEBUG_TIMING) > 0 || (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
+#if (HCOM_FILE_DNLD_F7_DEBUG_TIMING) > 0 || (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
 static int _dbgNumbPacketsRecvd = 0;        // Only used in LOG_INFO & LOG_DEBUG messages
 #endif
 
-#if HCOM_RECV_DEBUG_TIMING > 0
+#if HCOM_FILE_DNLD_F7_DEBUG_TIMING > 0
 uint64_t _dbgReceptionBeganAt;
 uint64_t _dbgReceptionEndedAt;
+#endif
+
+#if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
+void *_dnldCacheMemory;
+off_t _dnldCacheOffset;
 #endif
 
 /****************************************************************************
@@ -90,16 +107,32 @@ int hcom_file_dnld_stm32f7_setup()
 }
 
 //==========================================================================
+static void hcom_file_dnld_cleanup_cache_memory(void)
+{
+#if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
+    if (_dnldCacheMemory)
+  {
+    free(_dnldCacheMemory);
+    _dnldCacheMemory = NULL;
+    _dnldCacheOffset = 0;
+  }
+#endif
+}
+
+//==========================================================================
 // Beginning of a file download into the flash file system.
 // Called from hcom_host_route.c. The incomplete file name has been supplied.
 int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
           hcom_dnld_shared_t *dnldShared)
 {
-  int ret = OK;
+#if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
+  _dnldCacheOffset = 0;
+  _dnldCacheMemory = NULL;
+#endif
 
   HcomProtoFileMsg_t *fileMsg = (HcomProtoFileMsg_t *)hdrMsg;
 
-#if (HCOM_RECV_DEBUG_TIMING) > 0 || (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
+#if (HCOM_FILE_DNLD_F7_DEBUG_TIMING) > 0 || (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   _dbgNumbPacketsRecvd = 0;
 #endif
 
@@ -108,34 +141,40 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
   // Prep for download
   _stateErrShown = false;
 
-#if HCOM_RECV_DEBUG_TIMING > 0
+#if HCOM_FILE_DNLD_F7_DEBUG_TIMING > 0
   _dbgReceptionBeganAt = hcom_utils_get_current_time64_ns();
 #endif
 
   // Save checksum & name length
-  dnldShared->dnldInitFileSize = fileMsg->fileInfo.fileSize;
+  dnldShared->dnldTotalFileSize = fileMsg->fileInfo.fileSize;
   dnldShared->dnldInitFileCrc = fileMsg->fileInfo.fileCheckSum;
 
   // Log some diagnostic information
   hcom_logging_syslog(LOG_INFO, "%s@%d-Meadow download begin (FileLen:%d, Crc:0x%08x, Name:%s)\n",
-          thisFile, __LINE__, dnldShared->dnldInitFileSize,
+          thisFile, __LINE__, dnldShared->dnldTotalFileSize,
           dnldShared->dnldInitFileCrc, dnldShared->dnldOrigPathName);
 
-  // Delete was added to address Meadow Issue #855 and O_TRUNC was removed
-  // from the open call. I'd been told that Issue #855 was causing Meadow to
-  // throw an assertion. After this change I modified defconf
-  // CONFIG_BOARD_RESET_ON_ASSERT to be '0' (which) instead of '2'), which
-  // should have prevented Meadow.OS from restarting. But, with this defconfig
-  // change, even after several days of continuous downloading, no assertion
-  // was seen. Did this fix the problem or was the report I received wrong?
-  ret = hcom_file_misc_delete_existing(dnldShared, true);
+#if (HCOM_FILE_DNLD_CACHE_NO_FILE_ACCESS == 0)
+  // We need a file to store the downloaded data
+
+  //----------------------------------------------------------------------
+  // Delete was added here to address Meadow Issue #855. Also, O_TRUNC was
+  // removed from the open call. After this change, even after several hours
+  // of continuous download testing, no assertion was seen. Did this fix
+  // the problem completely? Don't know. It at least reduced it's occurrence.
+  // Plus, it seems like a cleaner way to handle an existing file, delete
+  // then recreate. Also, since LittleFS is designed to not allow a partially 
+  // written files, this change will save LFS some work.
+  int ret = hcom_file_misc_delete_existing(dnldShared, true);
   if (ret < 0)
   {
-    // Error, but not no such file
+    // Because the call passed true, the ENOENT error will return OK. Meaning
+    // that the file doesn't exist.
+    dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
     return ret;
   }
 
-  // Open the file in F7 file system. With Issue #855 the above delete was
+  // Create the file in F7 file system. With Issue #855 the above delete was
   // added meaning that this call will always create a new file.
   ret = hcom_file_write_open_active_file(dnldShared);
   if (ret < 0)
@@ -145,7 +184,9 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
     hostMsg = malloc(HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH);
     if(hostMsg == NULL)
     {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+      hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n",
+        thisFile, __LINE__);
+      dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
       return -ENOMEM;
     }
 
@@ -155,21 +196,21 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
       case -EEXIST: // File already open
       errorCause = "Another file is being processed";
       break;
-      
+
       case -ENAMETOOLONG: // File name too long
       errorCause = "File name too long";
       break;
-      
+
       case -ENOENT: // No such directory
       errorCause = "No such directory";
       break;
-      
+
       case -EMFILE: // Too many files open
       errorCause = "Too many files open";
       break;
 
       default:  // different error
-      snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH, "Unexpected error:%d");
+      snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH, "Unexpected error:%d", ret);
       errorCause = hostMsg;
       break;
     }
@@ -182,27 +223,46 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
           0, hostMsg, thisFile, __LINE__);
 
     free(hostMsg);
+
+    dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+    return ret;    // File open failed return
   }
-  else
+#endif
+
+#if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
+
+  if (dnldShared->dnldTotalFileSize > HCOM_FILE_DNLD_MAX_CACHE_FILE_SIZE)
   {
-    // Set current action
-    dnldShared->dnldCurrentState = HcomStm32F7DnldStateFileXfer;
-
-    // Notify CLI that it's okay to send the file's data now
-    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_OKAY,
-              0, "", thisFile, __LINE__);
-    ret = OK;
+      hcom_logging_syslog(LOG_ERR, "%s@%d-%d bytes is too large for cache\n",
+                        thisFile, __LINE__, dnldShared->dnldTotalFileSize);
+      dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+      return -EFBIG;    // File too large
   }
 
-  return ret;
+  // Allocate memory for cache
+  _dnldCacheMemory = (void *) malloc(dnldShared->dnldTotalFileSize);
+  if(_dnldCacheMemory == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+    return -ENOMEM;
+  }
+#endif
+
+  // Set current action
+  dnldShared->dnldCurrentState = HcomStm32F7DnldStateFileXfer;
+
+  // Notify CLI that it's okay to send the file's data now
+  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_INIT_DOWNLOAD_OKAY,
+            0, "", thisFile, __LINE__);
+  return OK;
 }
 
 //============================================================================
-// Process a data packet
+// Process a file data packet
 int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg,
           const size_t packetSize, hcom_dnld_shared_t *dnldShared)
 {
-  int ret;
   char* hostMsg = NULL;
 
   // Ignore download if it's not expected. Either not begin or an error
@@ -216,10 +276,14 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
       _stateErrShown = true;
     }
 
+#if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
+    hcom_file_dnld_cleanup_cache_memory();
+#endif
+    dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
     return -ENOTRECOVERABLE;      // State not recoverable
   }
 
-#if (HCOM_RECV_DEBUG_TIMING) > 0 || (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
+#if (HCOM_FILE_DNLD_F7_DEBUG_TIMING) > 0 || (HCOM_DIAG_INCLUDE_LOG_DEBUG_IN_BUILD > 0)
   _dbgNumbPacketsRecvd++;
 #endif
 
@@ -229,19 +293,22 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
 #endif
 
   // char seqNumMsg[16];
-// [--] DIAGNOSTIC
   // snprintf_chk(seqNumMsg, 16, "Sequence:%u\r", hcomDataMsg->seqNumber);
   // hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
   //           0, seqNumMsg, thisFile, __LINE__);
 
   // Compare _xferRecvFullFileSize with _xferCalcFullFileSize and send a message to host
-  int percentDone = (dnldShared->dnldCalcFileSize  * 100) / dnldShared->dnldInitFileSize;
+  int percentDone = (dnldShared->dnldRecvdFileSize  * 100) / dnldShared->dnldTotalFileSize;
   if(percentDone / 10 != dnldShared->dnldPercentSent)
   {
     hostMsg = malloc(HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH);
     if(hostMsg == NULL)
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+#if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
+      hcom_file_dnld_cleanup_cache_memory();
+#endif
+      dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
       return -ENOMEM;
     }
 
@@ -252,12 +319,25 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
               "File %d%% downloaded", percentDone);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
               0, hostMsg, thisFile, __LINE__);
+
+    // syslog(1, "%s\n", hostMsg);
+
     free(hostMsg);
   }
 
-  size_t binDataLen = packetSize - (HCOM_PROTOCOL_DATA_MSG_DATA_INFO_OFF);
+  size_t binDataLen = packetSize - HCOM_PROTOCOL_DATA_MSG_DATA_INFO_OFF;
+  if(binDataLen < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-binDataLen was out of range:%ld\n",
+             thisFile, __LINE__, binDataLen);
+#if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
+      hcom_file_dnld_cleanup_cache_memory();
+#endif
+    dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+    return -EFAULT;   // Bad address
+  }
 
-  // Calculate CRC checksum of the payload without sequence number
+  // As received, calculate CRC checksum (without sequence number)
   dnldShared->dnldCalcFileCrc = crc32part(hcomDataMsg->binData, binDataLen,
             dnldShared->dnldCalcFileCrc);
 
@@ -268,8 +348,28 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
   #endif
 #endif
 
-  // Write the data to the file system
-  ret = hcom_file_write_to_active_file(dnldShared, hcomDataMsg->binData,
+#if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
+
+  if (_dnldCacheOffset + binDataLen > dnldShared->dnldTotalFileSize)
+  {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Cache overflow detected\n", thisFile, __LINE__);
+      hcom_file_dnld_cleanup_cache_memory();
+      dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+      return -EOVERFLOW;
+  }
+  // Copy file data to cache memory
+  memcpy((_dnldCacheMemory + _dnldCacheOffset), hcomDataMsg->binData, binDataLen);
+  _dnldCacheOffset += binDataLen;
+
+ #if (HCOM_FILE_DNLD_CACHE_NO_FILE_ACCESS == 1)
+  // Since only writing to cache must manage file size before exiting
+  dnldShared->dnldRecvdFileSize += binDataLen;
+  return OK;
+ #endif
+
+#else //  (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
+  // Write this file fragment to the file system
+  int ret = hcom_file_write_to_active_file(dnldShared, hcomDataMsg->binData,
             binDataLen);
   if (ret < 0)
   {
@@ -278,9 +378,9 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
     if(hostMsg == NULL)
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+      dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
       return -ENOMEM;
     }
-
     uint16_t seqNumb = hcomDataMsg->seqNumber;
 
     hcom_logging_syslog(LOG_ERR, "%s@%d-Write of %s failed:%d seq:%d\n",
@@ -293,10 +393,14 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
             thisFile, __LINE__);
 
     free(hostMsg);
+    dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
     return ret;
   }
+#endif//  (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
 
-  dnldShared->dnldCalcFileSize += binDataLen;
+  dnldShared->dnldRecvdFileSize += binDataLen;
+
+  // Ready for next download packet
   return OK;
 }
 
@@ -315,29 +419,65 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
   {
     hcom_logging_syslog(LOG_WARNING, "%s@%d-Dnld end, unexpected state:%d\n",
               thisFile, __LINE__, dnldShared->dnldCurrentState);
-    // Continue even with error
+#if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
+    hcom_file_dnld_cleanup_cache_memory();
+#endif
+    dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+    return -ENOTRECOVERABLE; // State not recoverable
   }
 
+#if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1 &&\
+     HCOM_FILE_DNLD_CACHE_NO_FILE_ACCESS == 0)
+  // If we have cached the entire file. Write it to the file system in a
+  // single operation.
+  ret = hcom_file_write_to_active_file(dnldShared, _dnldCacheMemory,
+            dnldShared->dnldTotalFileSize);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-File %s write failed:%d\n",
+              thisFile, __LINE__, dnldShared->dnldOrigPathName, ret);
+    hcom_file_dnld_cleanup_cache_memory();
+    dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+    return ret;
+  }
+#endif
+
+  // Calculate the CRC checksum
+  uint32_t actualFileCrc;
+  int detectError = OK; // Required by crc file function
+
+#if (HCOM_FILE_DNLD_CACHE_NO_FILE_ACCESS == 1)
+  // Calculate CRC32 from cache since no file to check
+  actualFileCrc = crc32(_dnldCacheMemory, dnldShared->dnldTotalFileSize);
+#else
+  // Close the file if there is one open
   ret = hcom_file_write_close_active_file(dnldShared);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-File %s close failed:%d\n",
               thisFile, __LINE__, dnldShared->dnldOrigPathName, ret);
-    // Continue even with error
+    // Finish cleaning up even if error
   }
-
+  // Calculate the CRC32
   off_t fileSize;       // Required by function call but not used
   uint32_t blockSizeKB; // Required by function call but not used
-  int detectError = OK;
 
-  uint32_t actualFileCrc = hcom_file_misc_calc_crc_for_file(dnldShared->dnldFullPathName,
+  // Note this call will open the file.
+  actualFileCrc = hcom_file_misc_calc_crc_for_file(dnldShared->dnldFullPathName,
                 &fileSize, &blockSizeKB, &detectError);
+  // Finished with cache memory
+#endif
 
-  // Report to host
+#if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
+    hcom_file_dnld_cleanup_cache_memory();
+#endif
+
+  // Report results to host
   hostMsg = malloc(HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH);
   if(hostMsg == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
     return -ENOMEM;
   }
 
@@ -357,7 +497,7 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
     // Compare results and report to host
     if (dnldShared->dnldCalcFileCrc == dnldShared->dnldInitFileCrc &&
               dnldShared->dnldCalcFileCrc == actualFileCrc &&
-              dnldShared->dnldCalcFileSize == dnldShared->dnldInitFileSize)
+              dnldShared->dnldRecvdFileSize == dnldShared->dnldTotalFileSize)
     {
       snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
           "Download of '%s' succeeded (checksum:0x%08X)",
@@ -382,8 +522,8 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
       {
         snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
                 "Download of '%s' failed due to file size mismatch calculated:%d, sender:%d",
-                dnldShared->dnldOrigPathName, dnldShared->dnldCalcFileSize,
-                dnldShared->dnldInitFileSize);
+                dnldShared->dnldOrigPathName, dnldShared->dnldRecvdFileSize,
+                dnldShared->dnldTotalFileSize);
         msgToSend = hostMsg;
         requestType = HCOM_HOST_REQUEST_TEXT_ERROR;
       }
@@ -397,7 +537,7 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
   hcom_host_send_simple_string_msg(requestType, 0, msgToSend, thisFile, __LINE__);
   free(hostMsg);
 
-#if HCOM_RECV_DEBUG_TIMING > 0
+#if HCOM_FILE_DNLD_F7_DEBUG_TIMING > 0
   _dbgReceptionEndedAt = hcom_utils_get_current_time64_ns();
   hcom_logging_syslog(LOG_INFO, "%s@%d-File transfer %d packets, took %llu mSec, CalcFileCRC:0x%08x\n",
            thisFile, __LINE__, _dbgNumbPacketsRecvd, ((_dbgReceptionEndedAt - _dbgReceptionBeganAt) / 1000000),

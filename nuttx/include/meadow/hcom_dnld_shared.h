@@ -102,8 +102,8 @@ struct hcom_dnld_shared_s
   // These are completely managed by file handling code
   uint32_t dnldInitFileCrc;             // CRC that was received from CLI
   uint32_t dnldCalcFileCrc;             // CRC calculated over while receiving
-  uint32_t dnldInitFileSize;            // File size based on received CLI data
-  uint32_t dnldCalcFileSize;            // This size calculated while receiving
+  uint32_t dnldTotalFileSize;           // File size based on received CLI data
+  uint32_t dnldRecvdFileSize;           // This size calculated while receiving
   uint32_t dnldPathNameEleCount;        // Number of elements in pathname
   enum hcom_file_msg_cat_e dnldRqstCat; // Category of file rqst did CLI make?
   int dnldFileFD;                       // For persisting fd
