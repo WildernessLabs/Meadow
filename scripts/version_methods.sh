@@ -25,7 +25,7 @@ sedFriendly() {
 inject_value() {
   KEY=$1
   VALUE=$(eval echo '${'$KEY'}')
-  VALUE=$(sedFriendly $VALUE)
+  # REPLACEMENT=$(sedFriendly $VALUE)
   FILE=$2
   sed -i.bak 's/###'${KEY}'###/'${VALUE}'/g' $FILE
 }
@@ -141,3 +141,4 @@ restore_versioned_files() {
   rm $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld.bak
   rm $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h.bak
 }
+
