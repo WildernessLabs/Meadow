@@ -354,7 +354,7 @@ VSCode will automatically detect the dev container and prompt you to open it. To
 you can use the followign commands:
 
 * `npm install -g @devcontainers/cli` - Install the devcontainers CLI application
-* `devcontainer up --workspace-folder .` - Start the dev container (assuming running from the Meadow folder)
+* `devcontainer up --workspace-folder . --remove-existing-container` - Start the dev container (assuming running from the Meadow folder)
 * `devcontainer exec --workspace-folder . -- ./build.sh ` - Build the Meadow firmware
 * `devcontainer exec --workspace-folder . -- ./build.sh --wlclean --force` - Build the Meadow firmware with clean build and force
 
