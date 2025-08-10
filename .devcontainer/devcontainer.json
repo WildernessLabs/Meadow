@@ -6,7 +6,7 @@
   },
   "workspaceFolder": "/workspace",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
-  "remoteUser": "dev",
+  "remoteUser": "root",
   "features": {},
   "customizations": {
     "vscode": {
@@ -42,7 +42,6 @@
     "--privileged"
   ],
   "forwardPorts": [],
-  "postCreateCommand": "sudo chown -R dev:dev /workspace",
   "remoteEnv": {
     "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin",
     "LANG": "en_US.UTF-8"

@@ -16,18 +16,7 @@ RUN apt-get update && apt-get install -y \
     python3.10 python3-distutils python3-pip python3-apt \
     xxd srecord sed clang-15 zip
 
-RUN groupadd -g 1000 dev \
-        && useradd -u 1000 -g dev -d /home/dev dev \
-        && mkdir /home/dev \
-        && chown -R dev:dev /home/dev
-
 RUN sudo ln -s /usr/bin/clang-15 /usr/bin/clang
-
-# The following 3 lines allow the 'dev' user to run sudo (password is "dev"). 
-# Useful when later on packages need to be installed that are missing.
-RUN usermod -aG sudo dev
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN echo "dev:dev" | chpasswd
 
 #
 #   Now for some stuff required by the Mono build system.
@@ -48,6 +37,4 @@ RUN locale-gen en_US.UTF-8
 
 ENV LANG en_US.UTF-8
 
-USER dev
-
-WORKDIR /home/dev
+WORKDIR /root
