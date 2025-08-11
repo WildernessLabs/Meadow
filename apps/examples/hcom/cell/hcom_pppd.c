@@ -171,9 +171,11 @@ static int hcom_pppd_create_connect_scripts(cell_settings_t *cell_settings, char
     
     case CELL_BG95M3_MODULE:
       snprintf_chk(*connect_script, CONNECT_SCRIPT_MAX_SIZE, 
-        "ECHO ON " 
+        "ECHO ON "
         "TIMEOUT %s "
-        "\"\" AT+CMEE=2 "
+        "\"\" AT+CFUN=1,1 "
+        "PAUSE 15 "
+        "OK AT+CMEE=2 "
         "PAUSE 3 "
         "OK AT+GSN "
         "PAUSE 3 "
@@ -193,8 +195,8 @@ static int hcom_pppd_create_connect_scripts(cell_settings_t *cell_settings, char
     break;
 
     case CELL_EG21GL_MODULE:
-      snprintf_chk(*connect_script, CONNECT_SCRIPT_MAX_SIZE, 
-        "ECHO ON " 
+      snprintf_chk(*connect_script, CONNECT_SCRIPT_MAX_SIZE,
+        "ECHO ON "
         "TIMEOUT %s "
         "\"\" AT+CMEE=2 "
         "PAUSE 3 "
@@ -224,7 +226,9 @@ static int hcom_pppd_create_connect_scripts(cell_settings_t *cell_settings, char
   }
 
   snprintf_chk(*disconnect_script, DISCONNECT_SCRIPT_MAX_SIZE,
-    "\"\" ATZ "
+    "AT+CFUN=1,1 "
+    "PAUSE 10 "
+    "OK " "\"\" ATZ "
     "OK \\c"
   );
 
