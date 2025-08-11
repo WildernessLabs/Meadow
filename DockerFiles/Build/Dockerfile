@@ -37,4 +37,8 @@ RUN locale-gen en_US.UTF-8
 
 ENV LANG=en_US.UTF-8
 
+# Required so the container can run git operations on OSX hosts. Without this, dubious owner 
+# errors will occur.
+RUN git config --global --add safe.directory '*'
+
 WORKDIR /root
