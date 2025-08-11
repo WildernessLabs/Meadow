@@ -261,7 +261,13 @@ void ppp_reconnect(FAR struct ppp_context_s *ctx)
             {
 #ifdef HCOM_CELL_DEBUG_LOGS
               hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                "Cell connect script failed, retrying...", thisFile, __LINE__);
+                "Cell connect script failed, retrying... Script:\n", thisFile, __LINE__);
+              hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                pppd_settings->connect_script, thisFile, __LINE__);
+               hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                "Response:\n", thisFile, __LINE__);
+              hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                pppd_settings->cell_at_cmds_output, thisFile, __LINE__);
 #endif
               debug_printf("ppp: connect script failed\n");
               --retry;
