@@ -18,10 +18,12 @@ Binaries of many of some of the build artfiacts can be found on [`Google Drive/E
 | [STLink](https://github.com/WildernessLabs/stlink/tree/meadow) | Meadow   | Has our semi-hosting work. |
 | [MbedTLS](https://github.com/WildernessLabs/mbedtls) | meadow-develop | |
 
-
 ## Development Environment Requirements
 
 Mac or Linux is required to build the various pieces of Meadow.
+
+If you want to use Docker, see [Build in a Docker Dev Container](#building-in-a-docker-dev-container)
+
 
 ## Development Build Instructions
 
@@ -57,7 +59,7 @@ Nearly any [ST-Link V2 adapter](https://www.amazon.com/s/ref=nb_sb_noss_2?url=se
 Roughly speaking; semi-hosting allows us to connect the host development computer to the Meadow device as if it were part of it. Specifically, we use it right now to connect the file system and execute our Mono/Meadow applications from the `/tmp` directory. We also use it to pipe the `STDIO` (`Console.WriteLine`) out to the host computer over JTAG.
 
 Run the Meadow OS `build-tools.sh` script:
- 
+
 ```bash
 ./build-tools.sh
 ```
@@ -77,7 +79,7 @@ The script also checks and skips re-configuration of NuttX and Mono. If you want
 ### Step 4: Configure JTAG
 
   See [Connect your Meadow F7 debug board to the ST-Link V2](http://beta-developer.wildernesslabs.co/guides/Getting_Started/Setup/stlink/index.html).
-  
+
   Alternatively, check the following instructions:
 
  1. Wire the following STLink V2 pins to the JTAG connector on the board:
@@ -98,11 +100,11 @@ The script also checks and skips re-configuration of NuttX and Mono. If you want
   The JTAG pinout is as follows, where pin one is to the left of the connector cutout, on the nearest row:
 
   ![](Support_Files/Current_JTAG_Pinout.png)
-   
+
   The end result should look similar to the following:
 
   ![](Support_Files/Current_JTAG.jpg)
-  
+
   Note that your ST-Link adapter pinout may not match the one in the photo.
 
  2. Plug the ST-Link directly into your computer (or at least a powered USB hub). The ST-Link likely won't work in an unpowered hub. The ST-Link should blink red two or three times and then glow a steady red (maybe).
@@ -134,7 +136,7 @@ st-util 1.4.0
 
 The most important thing there is that it gets to `Listening at *:4242`. If it says `invalid chip ID` or other issue, see troubleshooting below. Likely it's not wired correctly.
 
-Also, the ST-Link LED should change to green or blue or somesuch. 
+Also, the ST-Link LED should change to green or blue or somesuch.
 
 If all is good, close ST-Util by pressing `ctrl-c`, to release ST-Util for VS Code to use.
 
@@ -164,7 +166,7 @@ VS Code can be installed from [here](https://code.visualstudio.com/).
  2. Deploy the app via `Command + Shift + B`.
  3. Wait for it to finish flashing.
  4. Switch to terminal and launch the custom ST-Util:
-  
+
   ```
 stlink/build/Release/src/gdbserver/st-util --semihosting -v -m
 ```
@@ -174,7 +176,7 @@ stlink/build/Release/src/gdbserver/st-util --semihosting -v -m
 
 The Meadow OS stack is currently configured to use semi-hosting to run a mono app that is hosted in the `/tmp` directory on the host computer. The app must be named `App.exe`, and a copy of the `mscorlib.dll` built from mono master should also be in there.
 
-You can either build mscorlib manually, or use the binary [here](https://drive.google.com/drive/u/0/folders/1qAgv49SRB585jm14eg7LBkMCPg_XJzNC). If you want to build it yourself, see the _Building Mono from Master_ 
+You can either build mscorlib manually, or use the binary [here](https://drive.google.com/drive/u/0/folders/1qAgv49SRB585jm14eg7LBkMCPg_XJzNC). If you want to build it yourself, see the _Building Mono from Master_
 s below.
 
 # Appendix
@@ -197,7 +199,7 @@ If you have more than one DFU capabable device connected, you can specify the se
 dfu-util -a 0 -S DEVICE_SERIAL -D Meadow.OS.bin -s 0x08000000
 ```
 
-## Deploy Mono runtime 
+## Deploy Mono runtime
 
 For B0.4.0 and later, the mono runtime is deployed as a seperate binary and needs to be copied to Meadow after the OS has been updated.
 
@@ -209,13 +211,13 @@ Using a local build of the Meadow CLI command line tool:
  3. Upload new Mono Runtime
   `mono ./Meadow.CLI/Meadow.CLI.exe --WriteFile Meadow.OS.Runtime.bin --KeepAlive`
    After "Download success," hit space again.
- 4. Move the runtime into it's special home on the 2MB partition 
+ 4. Move the runtime into it's special home on the 2MB partition
   `mono ./Meadow.CLI/Meadow.CLI.exe --MonoFlash --KeepAlive`
    After "Mono runtime successfully flashed," hit space to exit.
  5. Reset F7
- 
+
  Using an installed build of the Meadow CLI command line tool:
- 
+
  0. Update Meadow CLI `dotnet tool update WildernessLabs.Meadow.CLI --global`
  1. Find your device serial `ls /dev/tty.*`
  2. Disable mono (may need to run twice if you get an exception the first time)
@@ -223,11 +225,11 @@ Using a local build of the Meadow CLI command line tool:
  3. Upload new Mono Runtime
   `meadow --WriteFile Meadow.OS.Runtime.bin`
    After "Download success," hit space again.
- 4. Move the runtime into it's special home on the 2MB partition 
+ 4. Move the runtime into it's special home on the 2MB partition
   `meadow --MonoFlash`
    After "Mono runtime successfully flashed," hit space to exit.
  5. Reset F7
- 
+
 
 ## Deploy ESP32 binaries
 
@@ -300,7 +302,7 @@ brew install minicom
 Meadow settings: 115200 8N1
 
 ```
-sudo minicom -s 
+sudo minicom -s
 ```
 
 [Click here for more info on Minicom](https://help.ubuntu.com/community/Minicom)
@@ -330,7 +332,6 @@ The `--cube` option causes the `flash.sh` script to perform the following steps:
 * The environment variable `MEADOW_CLI_APP` is set and points to the `Meadow.CLI.exe`
 * The environment variable `CUBE_APP` is set to the location of the STM32CubeProgrammer CLI application (on a Mac this is `/Applications/STMicroelectronics/STM32CubeProgrammer.app/Contents/MacOs/bin/STM32_Programmer_CLI`)
 
-
 ### Usage
 
 Two command line options have been added to the `flash.sh` script:
@@ -341,6 +342,21 @@ Two command line options have been added to the `flash.sh` script:
 The `--cube` options instructs the `flash.sh` script to use the STM32CubeProgrammer to program the STM32.
 
 The `--osonly` option is only applicable it the `--cube` option is used.  This tells the script to flash the OS only and not to process the runtime library.  This omits the last two steps listed above.
+
+## Building In A Docker Dev Container
+
+Instead of building directly on the host machine, you can build in a Docker container. This is useful if you don't have
+the necessary tools installed or if you want to ensure a consistent build environment. The easiest way to do this is to
+utilize [dev containers](https://containers.dev/). The meadow dev container utilizes the Dockerfile in the `DockerFiles` folder
+for the build and runtime environment.
+
+VSCode will automatically detect the dev container and prompt you to open it. To use the dev containers outside of VSCode
+you can use the followign commands:
+
+* `npm install -g @devcontainers/cli` - Install the devcontainers CLI application
+* `devcontainer up --workspace-folder . --remove-existing-container` - Start the dev container (assuming running from the Meadow folder)
+* `devcontainer exec --workspace-folder . -- ./build.sh ` - Build the Meadow firmware
+* `devcontainer exec --workspace-folder . -- ./build.sh --wlclean --force` - Build the Meadow firmware with clean build and force
 
 # Troubleshooting
 
