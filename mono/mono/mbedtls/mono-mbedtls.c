@@ -63,9 +63,8 @@ mbedtls_ctr_drbg_context ctr_drbg;
 mbedtls_ssl_config conf;
 mbedtls_x509_crt cacert;
 
-#include "root-ca.h"
+#include "root-ca-der.h"
 
-int root_ca_pems_len = sizeof(root_ca_pems);
 int is_clear = 0;
 
 #define DEV_URANDOM_THRESHOLD       32
@@ -190,10 +189,16 @@ int mono_mbedtls_init (void)
         goto error;
     }
 
-    if ( ( ret = mbedtls_x509_crt_parse (&cacert, root_ca_pems, root_ca_pems_len) ) != 0)
     {
-        MBEDTLS_PRINTF ("mono-mbedtls: failed parsing the root CA PEMs\n");
-        goto error;
+        for (size_t i = 0; i < ROOT_CA_DER_COUNT; ++i)
+        {
+            ret = mbedtls_x509_crt_parse_der_nocopy(&cacert, ROOT_CA_DER_LIST[i], ROOT_CA_DER_LEN[i]);
+            if (ret != 0)
+            {
+                MBEDTLS_PRINTF("mono-mbedtls: failed parsing DER root CA %u, ret=%d\n", (unsigned)i, ret);
+                goto error;
+            }
+        }
     }
     mbedtls_ssl_conf_ca_chain( &conf, &cacert, NULL );
 
