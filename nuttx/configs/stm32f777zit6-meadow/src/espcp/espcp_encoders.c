@@ -3291,7 +3291,7 @@ espcp_core_dump_information_response_t *espcp_extract_core_dump_information_resp
         return NULL;
     }
 
-    infomation->is_valid = *buffer;
+    infomation->is_valid = (*buffer != 0);
     buffer += 1;
     infomation->core_dump_size = espcp_extract_uint32(buffer);
     buffer += 4;
