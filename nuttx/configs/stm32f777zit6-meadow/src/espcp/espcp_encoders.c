@@ -3266,3 +3266,115 @@ espcp_got_ip_event_data_t *espcp_extract_got_ip_event_data(uint8_t *buffer)
     got_ip_event_data->dns_address = espcp_extract_uint32(buffer);
     return got_ip_event_data;
 }
+
+/****************************************************************************
+* Name: espcp_extract_core_dump_information_response
+*
+* Description:
+*   Extract the espcp_core_dump_information_response_t object from the buffer.
+*
+* Input Parameters:
+*   buffer - pointer to the buffer containing the encoded object.
+*
+* Returned Value:
+*   Pointer to the extracted espcp_core_dump_information_response_t object.
+*
+* Assumptions/Limitations:
+*   The returned pointer must be freed by the caller.
+*
+****************************************************************************/
+espcp_core_dump_information_response_t *espcp_extract_core_dump_information_response(uint8_t *buffer)
+{
+    espcp_core_dump_information_response_t *infomation = (espcp_core_dump_information_response_t *) malloc(sizeof(espcp_core_dump_information_response_t));
+    if (infomation == NULL)
+    {
+        return NULL;
+    }
+
+    infomation->is_valid = *buffer;
+    buffer += 1;
+    infomation->core_dump_size = espcp_extract_uint32(buffer);
+    buffer += 4;
+    infomation->partition_size = espcp_extract_uint32(buffer);
+
+    return infomation;
+}
+
+/****************************************************************************
+* Name: espcp_extract_core_dump_fragment_request
+*
+* Description:
+*   Extract the espcp_core_dump_fragment_request_t object from the buffer.
+*
+* Input Parameters:
+*   buffer - pointer to the buffer containing the encoded object.
+*
+* Returned Value:
+*   Pointer to the extracted espcp_core_dump_fragment_request_t object.
+*
+* Assumptions/Limitations:
+*   The returned pointer must be freed by the caller.
+*
+****************************************************************************/
+espcp_core_dump_fragment_request_t *espcp_extract_core_dump_fragment_request(uint8_t *buffer)
+{
+    espcp_core_dump_fragment_request_t *fragment = (espcp_core_dump_fragment_request_t *) malloc(sizeof(espcp_core_dump_fragment_request_t));
+    if (fragment == NULL)
+    {
+        return NULL;
+    }
+
+    fragment->offset = espcp_extract_uint32(buffer);
+    buffer += 4;
+    fragment->size = espcp_extract_uint32(buffer);
+
+    return(fragment);
+}
+
+/****************************************************************************
+* Name: espcp_encoded_core_dump_fragment_request_buffer_size
+*
+* Description:
+*  Calculate the buffer size needed to encode a core dump fragment request.
+*
+* Input Parameters:
+*  fragment - pointer to the fragment request object.
+*
+* Returned Value:
+*  Number of bytes required to encode the object.
+*
+* Assumptions/Limitations:
+*  None
+*
+****************************************************************************/
+int espcp_encoded_core_dump_fragment_request_buffer_size(espcp_core_dump_fragment_request_t *fragment)
+{
+    return(8);
+}
+
+/****************************************************************************
+* Name: espcp_encode_core_dump_fragment_request
+*
+* Description:
+*   Encode the espcp_core_dump_fragment_request_t object into a buffer.
+*
+* Input Parameters:
+*   fragment - pointer to the fragment request object.
+*   buffer   - pointer to the buffer to encode into.
+*
+* Returned Value:
+*   None
+*
+* Assumptions/Limitations:
+*   None
+*
+****************************************************************************/
+void espcp_encode_core_dump_fragment_request(espcp_core_dump_fragment_request_t *fragment, uint8_t *buffer)
+{
+    if ((fragment != NULL) && (buffer != NULL))
+    {
+        espcp_encode_uint32(fragment->offset, buffer);
+        buffer += 4;
+        espcp_encode_uint32(fragment->size, buffer);
+    }
+}
