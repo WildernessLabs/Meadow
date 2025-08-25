@@ -123,6 +123,11 @@ enum espcp_status_codes
      * @brief Reset over SDIO.
      */
     espcp_status_codes_esp_reset_sdio = 60,
+
+    /**
+     * @brief Invalid request.
+     */
+    espcp_status_codes_invalid_request = 61,
 };
 typedef enum espcp_status_codes espcp_status_codes_t;
 
@@ -161,6 +166,21 @@ enum espcp_system_function
     espcp_system_function_os_exception = 12,
     espcp_system_function_logging_configuration = 13,
     espcp_system_function_log_message = 14,
+
+    /**
+     * @brief Get core dump information.
+     */
+    espcp_system_function_get_core_dump_information = 15,
+
+    /**
+     * @brief Get core dump fragment.
+     */
+    espcp_system_function_core_dump_fragment = 16,
+
+    /**
+     * @brief Erase core dump.
+     */
+    espcp_system_function_core_dump_erase = 17,
 };
 typedef enum espcp_system_function espcp_system_function_t;
 
