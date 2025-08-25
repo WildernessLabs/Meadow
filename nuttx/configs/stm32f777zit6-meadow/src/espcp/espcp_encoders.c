@@ -3243,6 +3243,23 @@ void espcp_encode_log_message(espcp_log_message_t *log_message, uint8_t *buffer)
     espcp_encode_string(log_message->message, buffer);
 }
 
+/****************************************************************************
+ * Name: espcp_extract_got_ip_event_data
+ *
+ * Description:
+ * Convert the espcp_got_ip_event_data_t object into a byte stream that can
+ * be sent to the ESP32.
+ * 
+ * Input Parameters:
+ *   buffer - pointer to the byte stream containing the encoded data.
+ *
+ * Returned Value
+ *   Pointer to the extracted espcp_got_ip_event_data_t object.
+ *
+ * Assumptions/Limitations:
+ *   None
+ * 
+ * ****************************************************************************/
 espcp_got_ip_event_data_t *espcp_extract_got_ip_event_data(uint8_t *buffer)
 {
     espcp_got_ip_event_data_t *got_ip_event_data = (espcp_got_ip_event_data_t*)malloc(sizeof(espcp_got_ip_event_data_t));
