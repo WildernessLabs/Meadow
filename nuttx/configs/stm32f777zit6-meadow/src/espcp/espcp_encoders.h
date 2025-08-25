@@ -554,7 +554,7 @@ struct espcp_core_dump_information_response_s
     /**
      * @brief Indicates if the core dump information is valid.
      */
-    uint8_t is_valid;
+    bool is_valid;
 
     /**
      * @brief Total size of the core dump.
