@@ -446,7 +446,6 @@ void hcom_nx_config_map_cell_network_mode(meadow_configuration_t *config)
         }
         break;
 
-
     default:
         syslog(LOG_INFO, "Failed to map cell network mode name to the equivalent integer");
         strcpy(config->default_cell_settings->mode, "");
@@ -1957,6 +1956,7 @@ static meadow_configuration_t *hcom_nx_config_process_meadow_config_file(void)
                     meadow_configuration->automatically_start_network = hcom_nx_config_parse_boolean(configuration->coprocessor->automatically_start_network, false);
                     meadow_configuration->maximum_retry_count = hcom_nx_config_parse_unsigned_integer(configuration->coprocessor->maximum_retry_count, 3);
                     meadow_configuration->esp_log_destination = hcom_nx_config_esp_log_destination(configuration->coprocessor->log_destination);
+                    meadow_configuration->esp_retrieve_core_dump = hcom_nx_config_parse_boolean(configuration->coprocessor->retrieve_core_dump, false);
                     if (configuration->coprocessor->log_components != NULL)
                     {
                         if (hcom_nx_validate_esp_log_components(configuration->coprocessor->log_components) == NULL)
