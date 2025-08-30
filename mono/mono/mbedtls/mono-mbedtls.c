@@ -1,3 +1,8 @@
+#include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/socket.h>
+
 #include <string.h>
 #include <stdbool.h>
 #include "eglib/glib.h"
@@ -243,6 +248,12 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
     mbedtls_net_init( server_fd );
     server_fd->fd = mono_fd;
 
+    // Set socket to non-blocking mode
+    int flags = fcntl(server_fd->fd, F_GETFL, 0);
+    if (flags != -1) {
+        fcntl(server_fd->fd, F_SETFL, flags | O_NONBLOCK);
+    }
+
     ssl = g_malloc (sizeof(mbedtls_ssl_context));
     if (ssl == NULL)
     {
@@ -279,8 +290,9 @@ intptr_t mono_mbedtls_connect (intptr_t mono_fd, intptr_t readbuf, intptr_t writ
         } 
     }
 
-    // Link the socket wrapper to the TLS session structure
-    mbedtls_ssl_set_bio( ssl, server_fd, mbedtls_net_send, mbedtls_net_recv, NULL );
+
+    // Link the socket wrapper to the TLS session structure with custom non-blocking send/recv
+    mbedtls_ssl_set_bio( ssl, server_fd, mbedtls_net_send, NULL, mbedtls_net_recv_timeout );
 
     MonoMbedTlsContext *new_ctx = g_malloc (sizeof(MonoMbedTlsContext));
     if (new_ctx == NULL)
@@ -315,7 +327,15 @@ int mono_mbedtls_handshake(MonoMbedTlsContext *ctx)
     if (ctx->mbedtls_ctx != NULL)
     {
         // Perform the TLS handshake
-        ret = mbedtls_ssl_handshake(ctx->mbedtls_ctx);
+        while( ( ret = mbedtls_ssl_handshake( ctx->mbedtls_ctx ) ) != 0 )
+        {
+            if( ret != MBEDTLS_ERR_SSL_WANT_READ &&
+                ret != MBEDTLS_ERR_SSL_WANT_WRITE &&
+                ret != MBEDTLS_ERR_SSL_CRYPTO_IN_PROGRESS )
+            {
+                return ret;
+            }
+        }
     }
     return ret;
 }
