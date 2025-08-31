@@ -3301,32 +3301,38 @@ espcp_core_dump_information_response_t *espcp_extract_core_dump_information_resp
 }
 
 /****************************************************************************
-* Name: espcp_extract_core_dump_fragment_request
+* Name: espcp_extract_core_dump_fragment_response
 *
 * Description:
-*   Extract the espcp_core_dump_fragment_request_t object from the buffer.
+*   Extract the espcp_core_dump_fragment_response_t object from the buffer.
 *
 * Input Parameters:
 *   buffer - pointer to the buffer containing the encoded object.
 *
 * Returned Value:
-*   Pointer to the extracted espcp_core_dump_fragment_request_t object.
+*   Pointer to the extracted espcp_core_dump_fragment_response_t object.
 *
 * Assumptions/Limitations:
 *   The returned pointer must be freed by the caller.
 *
 ****************************************************************************/
-espcp_core_dump_fragment_request_t *espcp_extract_core_dump_fragment_request(uint8_t *buffer)
+espcp_core_dump_fragment_response_t *espcp_extract_core_dump_fragment_response(uint8_t *buffer)
 {
-    espcp_core_dump_fragment_request_t *fragment = (espcp_core_dump_fragment_request_t *) malloc(sizeof(espcp_core_dump_fragment_request_t));
+    espcp_core_dump_fragment_response_t *fragment = (espcp_core_dump_fragment_response_t *) malloc(sizeof(espcp_core_dump_fragment_response_t));
     if (fragment == NULL)
     {
         return NULL;
     }
 
-    fragment->offset = espcp_extract_uint32(buffer);
-    buffer += 4;
     fragment->size = espcp_extract_uint32(buffer);
+    buffer += 4;
+    fragment->data = (uint8_t *) malloc(fragment->size);
+    if (fragment->data == NULL)
+    {
+        free(fragment);
+        return NULL;
+    }
+    memcpy(fragment->data, buffer, fragment->size);
 
     return(fragment);
 }

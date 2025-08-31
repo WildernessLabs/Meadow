@@ -723,7 +723,7 @@ espcp_got_ip_event_data_t *espcp_extract_got_ip_event_data(uint8_t *);
 void espcp_encode_access_point_information(espcp_access_point_information_t *access_point_information, uint8_t *buffer);
 int espcp_access_point_information_buffer_size(espcp_access_point_information_t *access_point_information);
 espcp_core_dump_information_response_t *espcp_extract_core_dump_information_response(uint8_t *buffer);
-espcp_core_dump_fragment_request_t *espcp_extract_core_dump_fragment_request(uint8_t *buffer);
+espcp_core_dump_fragment_response_t *espcp_extract_core_dump_fragment_response(uint8_t *buffer);
 int espcp_encoded_core_dump_fragment_request_buffer_size(espcp_core_dump_fragment_request_t *fragment);
 void espcp_encode_core_dump_fragment_request(espcp_core_dump_fragment_request_t *fragment, uint8_t *buffer);
 

@@ -1,8 +1,8 @@
 /****************************************************************************
- * \include\meadow\hcom_nuttx_shared.h
- * 
- *   Copyright (C) 2019 - 2020 Wilderness Labs. All rights reserved.
- *   Author:  Wilderness Labs
+ * espcp_core_dump.h
+ *
+ *   Copyright (C) 2025 Wilderness Labs. All rights reserved.
+ *   Author: Mark Stevens
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,39 +32,19 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
-#ifndef __INCLUDE_HCOM_NUTTX_SHARED__H
-#define __INCLUDE_HCOM_NUTTX_SHARED__H
 
-#include <meadow/hcom_shared_common.h>
+#ifndef _ESPCP_CORE_DUMP_H
+#define _ESPCP_CORE_DUMP_H
 
-// This file is for item that need to be available to Hcom and Nuttx
+ #include <stdint.h>
+#include <stdbool.h>
 
-// Update the following for each release build
-#define HCOM_DEVICE_INFO_PRODUCT "Meadow"
-#define HCOM_DEVICE_INFO_MODEL "F7Micro"
-#define HCOM_DEVICE_INFO_MAJOR 2
-#define HCOM_DEVICE_INFO_MINOR 4
-#define HCOM_DEVICE_INFO_REVISION 1
-#define HCOM_DEVICE_INFO_BUILD 7
-#define HCOM_DEVICE_INFO_BUILD_DAY 31
-#define HCOM_DEVICE_INFO_BUILD_MONTH 8
-#define HCOM_DEVICE_INFO_BUILD_MONTH_NAME "Aug"
-#define HCOM_DEVICE_INFO_BUILD_YEAR 25
-#define HCOM_DEVICE_INFO_BUILD_HOUR 8
-#define HCOM_DEVICE_INFO_BUILD_MINUTE 29
-#define HCOM_DEVICE_INFO_BUILD_SECOND 39
-#define HCOM_DEVICE_INFO_BUILD_HASH_STRING "82cf5e20"
-#define HCOM_DEVICE_INFO_BUILD_HASH_NUMBER 0x82cf5e20
-#define HCOM_DEVICE_INFO_BUILD_EPOCH_TIME 1756628979
-#define HCOM_DEVICE_INFO_GIT_REF "AddESPCoreDumpRetrieval"
-#define HCOM_DEVICE_INFO_DATE_FORMAT "%02d %s 20%02d %02d:%02d:%02d UTC"
-#define HCOM_VERSION_FORMAT_STRING "%d.%d.%d.%d, built " HCOM_DEVICE_INFO_DATE_FORMAT " (%08x/%s)"
-#define HCOM_DEVICE_INFO_PROCESSOR_TYPE "STM32F777IIK6"
-#define HCOM_DEVICE_INFO_COPROCESSOR_TYPE "ESP32"
+#include "espcp_message.h"
 
-#define MEADOW_ENTER_DFU_MODE_MEMORY_ADDR (0x2004FFF0)
-#define MEADOW_ENTER_DFU_MODE_MAGIC_NUMB (0x1c0ffee2)
+/****************************************************************************
+ * Public Function Prototypes
+ ****************************************************************************/
 
-int hcom_nx_common_utils_calculate_serial_numb(uint8_t mcu6ByteSerialNumb[], char mcu12CharSerialNumb[]);
+void espcp_get_core_dump(void);
 
-#endif  // __INCLUDE_HCOM_NUTTX_SHARED__H
+#endif /* _ESPCP_CORE_DUMP_H */

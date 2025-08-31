@@ -42,6 +42,8 @@
 #include "espcp_event_handlers.h"
 #include "../espcp/espcp_system.h"
 #include "espcp_coprocessor.h"
+#include "espcp_message_dispatcher.h"
+#include "espcp_core_dump.h"
 #include "generic_list.h"
 #include "../ntpclient/ntpclient.h"
 #include "../ethernet/meadow_ethnet_local.h"
@@ -495,6 +497,8 @@ void espcp_system_get_configuration_event_handler(espcp_message_t *message)
         }
     }
     espcp_delete_message_and_payload(message);
+
+    // espcp_get_core_dump();
 
     int ret = meadow_client_cert_initialize();
     if (ret < 0)
