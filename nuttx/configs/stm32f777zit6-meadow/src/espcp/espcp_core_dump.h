@@ -36,15 +36,24 @@
 #ifndef _ESPCP_CORE_DUMP_H
 #define _ESPCP_CORE_DUMP_H
 
- #include <stdint.h>
+#include <stdint.h>
 #include <stdbool.h>
 
 #include "espcp_message.h"
 
 /****************************************************************************
+ * External definitions.
+ ****************************************************************************/
+
+/**
+ * @brief Core dump work structure needed for NuttX work queues.
+ */
+extern struct work_s g_core_dump_work_struct;
+
+/****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
 
-void espcp_get_core_dump(void);
+void espcp_get_core_dump(void *argument);
 
 #endif /* _ESPCP_CORE_DUMP_H */

@@ -45,6 +45,7 @@
 #include <nuttx/fs/fs.h>
 #include <nuttx/mm/mm.h>
 #include <nuttx/kstring.h>
+#include <nuttx/wqueue.h>
 
 #include "espcp_shared_enums.h"
 #include "espcp_encoders.h"
@@ -55,7 +56,7 @@
 /****************************************************************************
  * Uncomment the #define below to turn on debug help macros.
  ****************************************************************************/
-#define USE_MEADOW_DEBUG_HELPERS
+// #define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
 
 /****************************************************************************
@@ -71,6 +72,16 @@
   * @brief Root file name for the ESP32 core dump.
   */
  #define ESP_CORE_DUMP_ROOT_FILE_NAME "esp-coredump-"
+
+
+/****************************************************************************
+ * Global variables.
+ ****************************************************************************/
+ 
+ /**
+ * @brief Core dump work structure needed for NuttX work queues.
+ */
+struct work_s g_core_dump_work_struct = {};
 
 /****************************************************************************
  * Private Functions
@@ -238,7 +249,7 @@ static uint8_t *espcp_get_core_dump_from_esp32(uint32_t size)
  *  None.
  *
  ****************************************************************************/
-void espcp_get_core_dump(void)
+void espcp_get_core_dump(void *argument)
 {
     MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
 
@@ -273,51 +284,33 @@ void espcp_get_core_dump(void)
         if (core_dump != NULL)
         {
             MEADOW_TRACE_INFORMATION("Core dump retrieved successfully, writing to file %s\n", file_name);
-            // if (access(file_name, F_OK) == 0)
-            // {
-            //     if (unlink(file_name) != 0)
-            //     {
-            //         MEADOW_TRACE_ERROR("Failed to delete existing core dump file %s\n", file_name);
-            //         free(core_dump);
-            //         return;
-            //     }
-            // }
+            if (unlink(file_name) != 0)
+            {
+                MEADOW_TRACE_ERROR("Failed to delete existing core dump file %s (%s)\n", file_name, strerror(errno));
+                if (errno != ENOENT)
+                {
+                    free(core_dump);
+                    free(information);
+                    return;
+                }
+            }
 
-            // int fd = open(file_name, O_WRONLY | O_CREAT, 0644);
-            // if (fd < 0)
-            // {
-            //     MEADOW_TRACE_ERROR("Failed to open core dump file %s for writing\n", file_name);
-            //     free(core_dump);
-            //     return;
-            // }
-
-            // ssize_t bytes_written = write(fd, core_dump, information->core_dump_size);
-            // close(fd);
-            // if (bytes_written != information->core_dump_size)
-            // {
-            //     MEADOW_TRACE_ERROR("Failed to write complete core dump to file %s\n", file_name);
-            // }
-            // else
-            // {
-            //     MEADOW_TRACE_INFORMATION("Core dump written successfully to file %s\n", file_name);
-            // }
-
-            // MEADOW_TRACE_INFORMATION("Core dump retrieved successfully, writing to file %s\n", file_name);
-            // FILE *file = fopen(file_name, "w");
-            // if (file != NULL)
-            // {
-            //     int bytes_written = fwrite(core_dump, 1, information->core_dump_size, file);
-            //     fflush(file);
-            //     fclose(file);
-            //     if (bytes_written != information->core_dump_size)
-            //     {
-            //         MEADOW_TRACE_ERROR("Failed to write complete core dump to file %s\n", file_name);
-            //     }
-            // }
-            // else
-            // {
-            //     MEADOW_TRACE_ERROR("Failed to open core dump file %s for writing\n", file_name);
-            // }
+            MEADOW_TRACE_INFORMATION("Core dump retrieved successfully, writing to file %s\n", file_name);
+            FILE *file = fopen(file_name, "w");
+            if (file != NULL)
+            {
+                int bytes_written = fwrite(core_dump, 1, information->core_dump_size, file);
+                fflush(file);
+                fclose(file);
+                if (bytes_written != information->core_dump_size)
+                {
+                    MEADOW_TRACE_ERROR("Failed to write complete core dump to file %s\n", file_name);
+                }
+            }
+            else
+            {
+                MEADOW_TRACE_ERROR("Failed to open core dump file %s for writing\n", file_name);
+            }
             free(core_dump);
         }
         free(information);
