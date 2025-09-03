@@ -233,20 +233,21 @@ static uint8_t *espcp_get_core_dump_from_esp32(uint32_t size)
  ****************************************************************************/
 
 /****************************************************************************
- * Name: espcp_get_core_dump_file
+ * Name: espcp_get_core_dump
  *
  * Description:
  *  Get the core dump file from the ESP32 and write this to the crash report
  *  directory.
  *
  * Input Parameters:
- *  version - Pointer to a string holding the version information.
+ *  argument - Work queue argument pointer (this should be NULL as it is not
+ *             used).
  *
  * Returned Value:
  *  None.
  *
  * Assumptions/Limitations:
- *  None.
+ *  This method will be called from a NuttX work queue
  *
  ****************************************************************************/
 void espcp_get_core_dump(void *argument)
