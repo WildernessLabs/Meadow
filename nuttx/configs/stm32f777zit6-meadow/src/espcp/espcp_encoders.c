@@ -3285,19 +3285,19 @@ espcp_got_ip_event_data_t *espcp_extract_got_ip_event_data(uint8_t *buffer)
 ****************************************************************************/
 espcp_core_dump_information_response_t *espcp_extract_core_dump_information_response(uint8_t *buffer)
 {
-    espcp_core_dump_information_response_t *infomation = (espcp_core_dump_information_response_t *) malloc(sizeof(espcp_core_dump_information_response_t));
-    if (infomation == NULL)
+    espcp_core_dump_information_response_t *information = (espcp_core_dump_information_response_t *) malloc(sizeof(espcp_core_dump_information_response_t));
+    if (information == NULL)
     {
         return NULL;
     }
 
-    infomation->is_valid = (*buffer != 0);
+    information->is_valid = (*buffer != 0);
     buffer += 1;
-    infomation->core_dump_size = espcp_extract_uint32(buffer);
+    information->core_dump_size = espcp_extract_uint32(buffer);
     buffer += 4;
-    infomation->partition_size = espcp_extract_uint32(buffer);
+    information->partition_size = espcp_extract_uint32(buffer);
 
-    return infomation;
+    return information;
 }
 
 /****************************************************************************

@@ -281,7 +281,6 @@ int espcp_generate_core_dump_file(char *version)
             }
         }
 
-        MEADOW_TRACE_INFORMATION("Core dump retrieved successfully, writing to file %s\n", file_name);
         FILE *file = fopen(file_name, "w");
         if (file != NULL)
         {
