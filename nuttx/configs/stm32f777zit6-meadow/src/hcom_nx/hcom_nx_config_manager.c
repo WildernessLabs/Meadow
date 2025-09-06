@@ -206,6 +206,7 @@ static char *esp_log_component_names[] = {
     "spi",
     "messages",             // Messages between the STM32 and ESP32
     "buffers",              // Contents of buffers on the ESP32 (e.g. sendto buffer)
+    "coredump",             // Core dump information
 };
 
 /****************************************************************************
@@ -1849,11 +1850,13 @@ static char *hcom_nx_validate_esp_log_components(char *components)
         }
         else
         {
+            MEADOW_TRACE_INFORMATION("Validating ESP log components: %s\n", components);
             char *residual;
             char *duplicate = kmm_strdup(components);
             char *component = strtok_r(duplicate, ";", &residual);
             while (component != NULL)
             {
+                MEADOW_TRACE_INFORMATION("Checking component: %s\n", component);
                 bool found = false;
                 for (int index = 0; index < sizeof(esp_log_component_names) / sizeof(char *); index++)
                 {
@@ -1866,6 +1869,7 @@ static char *hcom_nx_validate_esp_log_components(char *components)
                 }
                 if (!found)
                 {
+                    MEADOW_TRACE_INFORMATION("Invalid ESP log component: %s\n", component);
                     kmm_free(duplicate);
                     meadow_logging_write(mfl_error, "Info: Unknown ESP log component, logging is turned off.");
                     meadow_os_raise_simple_exception(espcp_status_codes_invalid_configuration_file);
