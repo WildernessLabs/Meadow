@@ -387,8 +387,17 @@ void espcp_get_core_dump(void *argument)
 
     if (retrieve_core_dump)
     {
-        espcp_generate_core_dump_file(version);
-        // espcp_erase_core_dump_partition();
+        if (espcp_generate_core_dump_file(version) != 0)
+        {
+            MEADOW_TRACE_INFORMATION("%s: Failed to generate core dump file\n", __func__);
+        }
+        //
+        //  TODO: Decide if we are going to erase the coredump on the ESP.
+        //
+        // else
+        // {
+        //     espcp_erase_core_dump_partition();
+        // }
     }
     kmm_free(version);
 
