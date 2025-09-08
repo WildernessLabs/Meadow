@@ -761,6 +761,11 @@ struct meadow_configuration_s
   uint32_t esp_log_udp_port;
 
   /**
+   * @brief Should the core dump be retrieved from the ESP32?
+   */
+  bool esp_retrieve_core_dump;
+
+  /**
    * @brief MAC address of the board. 
    */
   uint8_t board_mac_address[MAC_ADDRESS_LENGTH];

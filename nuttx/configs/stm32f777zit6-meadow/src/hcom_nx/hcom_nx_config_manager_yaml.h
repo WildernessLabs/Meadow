@@ -142,6 +142,11 @@ struct yaml_coprocessor_s
      * @brief UDP port to use for log messages.
      */
     char *log_udp_port;
+
+    /**
+     * @brief Should the core dump be retrieved from the ESP32?
+     */
+    char *retrieve_core_dump;
 };
 typedef struct yaml_coprocessor_s yaml_coprocessor_t;
 
@@ -159,6 +164,7 @@ static const cyaml_schema_field_t configuration_coprocessor_section_schema[] =
     CYAML_FIELD_STRING_PTR("LogComponents", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, log_components, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("LogDestination", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, log_destination, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("LogUdpPort", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, log_udp_port, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("RetrieveCoreDump", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_coprocessor_t, retrieve_core_dump, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
 

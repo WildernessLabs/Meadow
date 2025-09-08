@@ -145,7 +145,8 @@ CSRCS += espcp/espcp_thread.c \
 		 espcp/espcp_usrsock_sockif.c \
 		 espcp/espcp_event_handlers.c \
 		 espcp/espcp_file_system.c \
-         espcp/espcp_uart_monitor.c
+         espcp/espcp_uart_monitor.c \
+		 espcp/espcp_core_dump.c
 endif
 
 CSRCS += kerneltests/espcp_tests.c \

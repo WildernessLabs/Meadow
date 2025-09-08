@@ -206,6 +206,7 @@ static char *esp_log_component_names[] = {
     "spi",
     "messages",             // Messages between the STM32 and ESP32
     "buffers",              // Contents of buffers on the ESP32 (e.g. sendto buffer)
+    "coredump",             // Core dump information
 };
 
 /****************************************************************************
@@ -445,7 +446,6 @@ void hcom_nx_config_map_cell_network_mode(meadow_configuration_t *config)
             break;
         }
         break;
-
 
     default:
         syslog(LOG_INFO, "Failed to map cell network mode name to the equivalent integer");
@@ -1850,11 +1850,13 @@ static char *hcom_nx_validate_esp_log_components(char *components)
         }
         else
         {
+            MEADOW_TRACE_INFORMATION("Validating ESP log components: %s\n", components);
             char *residual;
             char *duplicate = kmm_strdup(components);
             char *component = strtok_r(duplicate, ";", &residual);
             while (component != NULL)
             {
+                MEADOW_TRACE_INFORMATION("Checking component: %s\n", component);
                 bool found = false;
                 for (int index = 0; index < sizeof(esp_log_component_names) / sizeof(char *); index++)
                 {
@@ -1867,6 +1869,7 @@ static char *hcom_nx_validate_esp_log_components(char *components)
                 }
                 if (!found)
                 {
+                    MEADOW_TRACE_INFORMATION("Invalid ESP log component: %s\n", component);
                     kmm_free(duplicate);
                     meadow_logging_write(mfl_error, "Info: Unknown ESP log component, logging is turned off.");
                     meadow_os_raise_simple_exception(espcp_status_codes_invalid_configuration_file);
@@ -1957,6 +1960,7 @@ static meadow_configuration_t *hcom_nx_config_process_meadow_config_file(void)
                     meadow_configuration->automatically_start_network = hcom_nx_config_parse_boolean(configuration->coprocessor->automatically_start_network, false);
                     meadow_configuration->maximum_retry_count = hcom_nx_config_parse_unsigned_integer(configuration->coprocessor->maximum_retry_count, 3);
                     meadow_configuration->esp_log_destination = hcom_nx_config_esp_log_destination(configuration->coprocessor->log_destination);
+                    meadow_configuration->esp_retrieve_core_dump = hcom_nx_config_parse_boolean(configuration->coprocessor->retrieve_core_dump, false);
                     if (configuration->coprocessor->log_components != NULL)
                     {
                         if (hcom_nx_validate_esp_log_components(configuration->coprocessor->log_components) == NULL)

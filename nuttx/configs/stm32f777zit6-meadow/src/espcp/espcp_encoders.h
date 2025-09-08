@@ -542,6 +542,66 @@ struct espcp_log_message_s
 };
 typedef struct espcp_log_message_s espcp_log_message_t;
 
+/**
+ * @brief Core dump information.
+ */
+
+/**
+ * @brief Core dump information response.
+ */
+struct espcp_core_dump_information_response_s
+{
+    /**
+     * @brief Indicates if the core dump information is valid.
+     */
+    bool is_valid;
+
+    /**
+     * @brief Total size of the core dump.
+     */
+    uint32_t core_dump_size;
+
+    /**
+     * @brief Size of the partition containing the core dump.
+     */
+    uint32_t partition_size;
+};
+typedef struct espcp_core_dump_information_response_s espcp_core_dump_information_response_t;
+
+/**
+ * @brief Request for a fragment of the core dump.
+ */
+struct espcp_core_dump_fragment_request_s
+{
+    /**
+     * @brief Offset within the core dump from which to start the fragment.
+     */
+    uint32_t offset;
+
+    /**
+     * @brief Size of the fragment to retrieve.
+     */
+    uint32_t size;
+};
+typedef struct espcp_core_dump_fragment_request_s espcp_core_dump_fragment_request_t;
+
+/**
+ * @brief Fragment of the core dump.
+ */
+struct espcp_core_dump_fragment_response_s
+{
+    /**
+     * @brief Size of the fragment.
+     */
+    uint32_t size;
+
+    /**
+     * @brief Pointer to the fragment data.
+     */
+    uint8_t *data;
+};
+typedef struct espcp_core_dump_fragment_response_s espcp_core_dump_fragment_response_t;
+
 /*
  *      Encoding methods for the ESP32 SPI communications layer.
  *
@@ -662,5 +722,9 @@ void espcp_encode_log_message(espcp_log_message_t *, uint8_t *);
 espcp_got_ip_event_data_t *espcp_extract_got_ip_event_data(uint8_t *);
 void espcp_encode_access_point_information(espcp_access_point_information_t *access_point_information, uint8_t *buffer);
 int espcp_access_point_information_buffer_size(espcp_access_point_information_t *access_point_information);
+espcp_core_dump_information_response_t *espcp_extract_core_dump_information_response(uint8_t *buffer);
+espcp_core_dump_fragment_response_t *espcp_extract_core_dump_fragment_response(uint8_t *buffer);
+int espcp_encoded_core_dump_fragment_request_buffer_size(espcp_core_dump_fragment_request_t *fragment);
+void espcp_encode_core_dump_fragment_request(espcp_core_dump_fragment_request_t *fragment, uint8_t *buffer);
 
 #endif /* _ESPCP_ENCODERS_H */
