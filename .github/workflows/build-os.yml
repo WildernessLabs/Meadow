@@ -15,9 +15,12 @@ jobs:
     steps:
     - name: Checkout source code
       uses: actions/checkout@v3
+      with:
+        submodules: recursive
+        token: ${{ secrets.GIT_REPO_CHECKOUT_PAT }}
 
     - name: Build Docker image for the OS build.
       run: docker build -t nuttx-build -f ./DockerFiles/Build/Dockerfile .
 
     - name: Build the OS and RT
-      run: docker run --rm -v $PWD:/project -w /project --user "$(id -u):$(id -g)" nuttx-build ./build.sh --force --clean
+      run: docker run --rm -v $GITHUB_WORKSPACE:/project -w /project --user "root:root" nuttx-build ./build.sh --force --clean
