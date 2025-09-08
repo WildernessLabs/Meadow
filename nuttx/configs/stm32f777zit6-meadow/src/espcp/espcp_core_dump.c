@@ -394,10 +394,10 @@ void espcp_get_core_dump(void *argument)
         //
         //  TODO: Decide if we are going to erase the coredump on the ESP.
         //
-        // else
-        // {
-        //     espcp_erase_core_dump_partition();
-        // }
+        else
+        {
+            espcp_erase_core_dump_partition();
+        }
     }
     kmm_free(version);
 
