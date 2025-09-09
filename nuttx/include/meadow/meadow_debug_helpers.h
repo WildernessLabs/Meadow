@@ -60,7 +60,7 @@
 #endif
 
 /**
- *  Define USE_MEADOW_DEBUG_HELPERS in your source file and then include this file to use these defintions.
+ *  Define USE_MEADOW_DEBUG_HELPERS in your source file and then include this file to use these definitions.
  */
 #if defined(USE_MEADOW_DEBUG_HELPERS) || defined(MEADOW_USE_HCOM_DEBUG_HELPERS)
 

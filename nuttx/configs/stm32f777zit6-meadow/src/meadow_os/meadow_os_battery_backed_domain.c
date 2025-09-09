@@ -83,7 +83,7 @@
 #define MEADOW_OS_BBR_MAXIMUM_ADDRESS               (MEADOW_OS_BBR_BASE_ADDRESS + (MEADOW_OS_BBD_REGISTER_NUMBER_MAX * 4))
 
 /****************************************************************************
- * Local type defintions.
+ * Local type definitions.
  ****************************************************************************/
 
 /****************************************************************************

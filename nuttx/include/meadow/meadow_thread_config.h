@@ -40,7 +40,7 @@
 
 /**
  * This file contains the definitions for the threads as used by Meadow OS.  It
- * contains the defintions of the following parameters:
+ * contains the definitions of the following parameters:
  * 
  *      1. Thread priority
  *      2. Thread name
