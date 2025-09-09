@@ -506,7 +506,7 @@ void espcp_system_get_configuration_event_handler(espcp_message_t *message)
     espcp_delete_message_and_payload(message);
 
     memset(&g_core_dump_work_struct, 0, sizeof(g_core_dump_work_struct));
-    int result = work_queue(USRWORK, &g_core_dump_work_struct, espcp_get_core_dump, NULL, 0);
+    int __attribute__((unused)) result = work_queue(USRWORK, &g_core_dump_work_struct, espcp_get_core_dump, NULL, 0);
     MEADOW_TRACE_INFORMATION("work_queue result: %d\n", result);
 
     int ret = meadow_client_cert_initialize();
