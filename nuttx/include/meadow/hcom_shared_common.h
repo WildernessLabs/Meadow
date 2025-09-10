@@ -117,7 +117,7 @@
 #define MEADOW_CONFIG_DEFAULT_DEVICE_NAME "MeadowF7"
 
 //==================================================
-// Meadow file logging defintions.
+// Meadow file logging definitions.
 #define MEADOW_LOGGING_OS_FILE_NAME    "/meadow0/meadow.log"
 
 #define HCOM_NX_FS_NUTTX_UPDATE_FILENAME "Meadow.OS.Update.bin"

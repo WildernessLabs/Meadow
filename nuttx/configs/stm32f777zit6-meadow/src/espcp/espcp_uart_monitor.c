@@ -89,7 +89,7 @@ static void espcp_process_message_waiting_control_signal(const char *);
 static void espcp_process_spi_ready_control_signal(const char *);
 
 /****************************************************************************
- * Local type defintions.
+ * Local type definitions.
  ****************************************************************************/
 
 /**
