@@ -8,22 +8,22 @@
  * Name: espcp_calculate_spi_buffer_size
  *
  * Description:
-*Calculate the amount of memory that should be allocated for
-*the receive buffer.
+ *  Calculate the amount of memory that should be allocated for
+ *  the receive buffer.
  *
-*SPI reception on the ESP32 should be on a 32-bit boundary and
-*also a multiple of 4 bytes long (See the article linked below).
+ *  SPI reception on the ESP32 should be on a 32-bit boundary and
+ *  also a multiple of 4 bytes long (See the article linked below).
  *
-*https://docs.espressif.com/projects/esp-idf/en/latest/api-reference/peripherals/spi_slave.html#restrictions-and-known-issues
+ *  https://docs.espressif.com/projects/esp-idf/en/latest/api-reference/peripherals/spi_slave.html#restrictions-and-known-issues
  *
  * Input Parameters:
-*requestedSize - Actual amount of data requested / to be received.
+ *  requestedSize - Actual amount of data requested / to be received.
  *
  * Returned Value:
-*Number of bytes that should be allocated.
+ *  Number of bytes that should be allocated.
  *
  * Assumptions/Limitations:
-*None
+ *  None
  *
  ****************************************************************************/
 uint32_t espcp_calculate_spi_buffer_size(uint32_t requestedSize)
@@ -54,13 +54,13 @@ uint32_t espcp_calculate_spi_buffer_size(uint32_t requestedSize)
  * Name: espcp_message_buffer_size
  *
  * Description:
-*Get the amount of memory needed to store an encoded message.
+ *  Get the amount of memory needed to store an encoded message.
  *
  * Input Parameters:
-* message - Message to be encoded.
-* header_only - Are we encoding the fill packet or just the header?
+ *  message - Message to be encoded.
+ *  header_only - Are we encoding the fill packet or just the header?
  *
-* headerOnly - Will the buffer hold the full message or just the header?
+ *  headerOnly - Will the buffer hold the full message or just the header?
  *
  ****************************************************************************/
 uint32_t espcp_encoded_packet_size(espcp_message_t *message, bool header_only)
@@ -77,20 +77,20 @@ uint32_t espcp_encoded_packet_size(espcp_message_t *message, bool header_only)
  * Name: espcp_extract_uint16
  *
  * Description:
-*Take the first two bytes from the buffer and encode them as a 16 bit
-*integer.
+ *  Take the first two bytes from the buffer and encode them as a 16 bit
+ *  integer.
  *
-*Note that the data should be encoded as LSB first.
+ *  Note that the data should be encoded as LSB first.
  *
  * Input Parameters:
-*buffer -  Pointer to the buffer holding the data that should be used 
-*to created the 16-bit unsigned integer.
+ *  buffer -  Pointer to the buffer holding the data that should be used
+ *            to created the 16-bit unsigned integer.
  *
  * Returned Value:
-*16-bit unsigned integer value from the first two byte in the buffer.
+ *  16-bit unsigned integer value from the first two byte in the buffer.
  *
  * Assumptions/Limitations:
-*None
+ *  None
  *
  ****************************************************************************/
 uint16_t espcp_extract_uint16(uint8_t *buffer)
@@ -106,18 +106,18 @@ uint16_t espcp_extract_uint16(uint8_t *buffer)
  * Name: espcp_encode_uint16
  *
  * Description:
-*Extract the message that is encoded in the byte buffer..
+ *  Extract the message that is encoded in the byte buffer.
  *
  * Input Parameters:
-*value - 16-bit value to encode in the first two bytes of the buffer.
-*buffer - Pointer to the buffer where the two bytes will be inserted
-*         from the 16-bit unsigned integer (LSB first).
+ *  value - 16-bit value to encode in the first two bytes of the buffer.
+ *  buffer - Pointer to the buffer where the two bytes will be inserted
+ *           from the 16-bit unsigned integer (LSB first).
  *
  * Returned Value:
-*None
+ *  None
  *
  * Assumptions/Limitations:
-*None
+ *  None
  *
  ****************************************************************************/
 void espcp_encode_uint16(uint16_t value, uint8_t *buffer)
@@ -130,20 +130,20 @@ void espcp_encode_uint16(uint16_t value, uint8_t *buffer)
  * Name: espcp_extract_uint32
  *
  * Description:
-*Take the first four bytes from the buffer and encode them as a 32 bit 
-*unsigned integer.
+ *  Take the first four bytes from the buffer and encode them as a 32 bit
+ *  unsigned integer.
  *
-*Note that the data should be encoded as LSB first.
+ *  Note that the data should be encoded as LSB first.
  *
  * Input Parameters:
-*buffer - Pointer to the buffer where the next four bytes should be
-*extracted and a 32-bit unsigned integer created (LSB first).
+ *  buffer - Pointer to the buffer where the next four bytes should be
+ *           extracted and a 32-bit unsigned integer created (LSB first).
  *
  * Returned Value:
-*32-bit unsigned integer extracted from the first 4 bytes in the buffer.
+ *  32-bit unsigned integer extracted from the first 4 bytes in the buffer.
  *
  * Assumptions/Limitations:
-*None
+ *  None
  *
  ****************************************************************************/
 uint32_t espcp_extract_uint32(uint8_t *buffer)
@@ -161,20 +161,20 @@ uint32_t espcp_extract_uint32(uint8_t *buffer)
  * Name: espcp_encode_uint32
  *
  * Description:
-*Encode a 32-bit unsigned integer as four bytes in the buffer.
+ *  Encode a 32-bit unsigned integer as four bytes in the buffer.
  *
-*Note that the data will be encoded LSB first.
+ *  Note that the data will be encoded LSB first.
  *
  * Input Parameters:
-*value - Unsigned 32-bit integer value to write into the buffer.
-*buffer -  Pointer to the buffer where 4 bytes will be replaced with 
-*          the four bytes representing unsigned integer (LSB first).
+ *  value - Unsigned 32-bit integer value to write into the buffer.
+ *  buffer - Pointer to the buffer where 4 bytes will be replaced with
+ *           the four bytes representing unsigned integer (LSB first).
  *
  * Returned Value:
-*None
+ *  None
  *
  * Assumptions/Limitations:
-*None
+ *  None
  *
  ****************************************************************************/
 void espcp_encode_uint32(uint32_t value, uint8_t *buffer)
@@ -189,20 +189,20 @@ void espcp_encode_uint32(uint32_t value, uint8_t *buffer)
  * Name: espcp_extract_int32
  *
  * Description:
-*Take the first four bytes from the buffer and encode them as a 32 bit
-*integer.
+ *  Take the first four bytes from the buffer and encode them as a 32 bit
+ *  integer.
  *
-*Note that the data should be encoded as LSB first.
+ *  Note that the data should be encoded as LSB first.
  *
  * Input Parameters:
-*buffer -  Pointer to the buffer where the next four bytes should be
-*          extracted and a 32-bit unsigned integer created (LSB first).
+ *  buffer -  Pointer to the buffer where the next four bytes should be
+ *            extracted and a 32-bit unsigned integer created (LSB first).
  *
  * Returned Value:
-*32-bit unsigned integer extracted from the first 4 bytes in the buffer.
+ *  32-bit unsigned integer extracted from the first 4 bytes in the buffer.
  *
  * Assumptions/Limitations:
-*None
+ *  None
  *
  ****************************************************************************/
 int32_t espcp_extract_int32(uint8_t *buffer)
@@ -220,19 +220,20 @@ int32_t espcp_extract_int32(uint8_t *buffer)
  * Name: espcp_extract_message
  *
  * Description:
-*Encode a 32-bit integer as four bytes in the buffer.
+ *  Take the first four bytes from the buffer and encode them as a 32 bit
+ *  integer.
  *
-*Note that the data will be encoded LSB first.
+ *  Note that the data should be encoded as LSB first.
  *
  * Input Parameters:
-*value - Unsigned 32-bit integer value to write into the buffer.
-*buffer - Pointer to the buffer where 4 bytes will be replaced with the
-*         four bytes representing unsigned integer (LSB first).
+ *  value - Unsigned 32-bit integer value to write into the buffer.
+ *  buffer - Pointer to the buffer where 4 bytes will be replaced with the
+ *           four bytes representing unsigned integer (LSB first).
  * Returned Value:
-*None.
+ *  None.
  *
  * Assumptions/Limitations:
-*None
+ *  None
  *
  ****************************************************************************/
 void espcp_encode_int32(int32_t value, uint8_t *buffer)
@@ -247,16 +248,16 @@ void espcp_encode_int32(int32_t value, uint8_t *buffer)
  * Name: espcp_extract_string
  *
  * Description:
-*Extract a string (terminated by 0) from a block of memory.
+ *  Extract a string (terminated by 0) from a block of memory.
  *
  * Input Parameters:
-*buffer - Pointer to the block of memory containing the string.
+ *  buffer - Pointer to the block of memory containing the string.
  *
  * Returned Value:
-*Pointer to the extracted string.
+ *  Pointer to the extracted string.
  *
  * Assumptions/Limitations:
-*None
+ *  None
  *
  ****************************************************************************/
 char *espcp_extract_string(uint8_t *buffer)
@@ -289,17 +290,17 @@ char *espcp_extract_string(uint8_t *buffer)
  * Name: espcp_encode_string
  *
  * Description:
-*Copy the string into the buffer.
+ *  Copy the string into the buffer.
  *
  * Input Parameters:
-*source - Block of memory containing the string.
-*buffer - Pointer to a block of memory to take the string.
+ *  source - Block of memory containing the string.
+ *  buffer - Pointer to a block of memory to take the string.
  *
  * Returned Value:
-*None.
+ *  None.
  *
  * Assumptions/Limitations:
-*None
+ *  None
  *
  ****************************************************************************/
 void espcp_encode_string(char *source, uint8_t *buffer)
@@ -318,17 +319,17 @@ void espcp_encode_string(char *source, uint8_t *buffer)
  * Name: espcp_string_length
  *
  * Description:
-*Get the length of a string taking into account that the string pointer
-*may be NULL.
+ *  Get the length of a string taking into account that the string pointer
+ *  may be NULL.
  *
  * Input Parameters:
-*string - Block of memory containing the string.
+ *  string - Block of memory containing the string.
  *
  * Returned Value:
-*None.
+ *  None.
  *
  * Assumptions/Limitations:
-*None
+ *  None
  *
  ****************************************************************************/
 uint32_t espcp_string_length(char *string)
@@ -346,20 +347,20 @@ uint32_t espcp_string_length(char *string)
  * Name: espcp_crc8
  *
  * Description:
-*Calculate the 8-bit CRC value for the specified data buffer.
+ *  Calculate the 8-bit CRC value for the specified data buffer.
  *
-*This algorithm is loosely based upon the Dallas 1-Wire algorithm.
+ *  This algorithm is loosely based upon the Dallas 1-Wire algorithm.
  *
  * Input Parameters:
-*data - Pointer to the buffer containing the data for which the CRC should
-*       be calculated.
-*len - Number of bytes in the data buffer.
+ *  data - Pointer to the buffer containing the data for which the CRC should
+ *         be calculated.
+ *  len - Number of bytes in the data buffer.
  *
  * Returned Value:
-*8-bit checksum of the bytes in the buffer.
+ *  8-bit checksum of the bytes in the buffer.
  *
  * Assumptions/Limitations:
-*None
+ *  None
  *
  ****************************************************************************/
 uint8_t espcp_crc8(const uint8_t *data, uint16_t len)
@@ -387,18 +388,18 @@ uint8_t espcp_crc8(const uint8_t *data, uint16_t len)
  * Name: espcp_crc32
  *
  * Description:
-*Calculate the 32-bit CRC value for the specified data buffer.
+ *  Calculate the 32-bit CRC value for the specified data buffer.
  *
  * Input Parameters:
-*data - Pointer to the buffer containing the data for which the CRC should
-*       be calculated.
-*len - Number of bytes in the data buffer.
+ *  data - Pointer to the buffer containing the data for which the CRC should
+ *         be calculated.
+ *  len - Number of bytes in the data buffer.
  *
  * Returned Value:
-*32-bit checksum of the bytes in the buffer.
+ *  32-bit checksum of the bytes in the buffer.
  *
  * Assumptions/Limitations:
-*None
+ *  None
  *
  ****************************************************************************/
 uint32_t espcp_crc32(const uint8_t *data, uint16_t len)
@@ -416,17 +417,17 @@ uint32_t espcp_crc32(const uint8_t *data, uint16_t len)
  * Name: espcp_progressive_crc32
  *
  * Description:
-*Calculate the CRC32 value change for the specified byte.
+ *  Calculate the CRC32 value change for the specified byte.
  *
  * Input Parameters:
-*byte - Next byte to use in the checksum calculation.
-*currentChecksum - Current value of the checksum.
+ *  byte - Next byte to use in the checksum calculation.
+ *  currentChecksum - Current value of the checksum.
  *
  * Returned Value:
-*Next checksum value.
+ *  Next checksum value.
  *
  * Assumptions/Limitations:
-*None
+ *  None
  *
  ****************************************************************************/
 uint32_t espcp_progressive_crc32(uint32_t currentChecksum, uint8_t byte)
@@ -445,32 +446,32 @@ uint32_t espcp_progressive_crc32(uint32_t currentChecksum, uint8_t byte)
  * Name: espcp_extract_message
  *
  * Description:
-*Extract the message that is encoded in the byte buffer.
- * 
-*Note:
-*There are four bytes at the end of the message that may be corrupted so
-*we will pad out the message with four additional bytes and ignore these
-*four bytes when calculating CRCs (we do not know what they will contain
-*post transmission).
+ *  Extract the message that is encoded in the byte buffer.
+ *
+ * Note:
+ *  There are four bytes at the end of the message that may be corrupted so
+ *  we will pad out the message with four additional bytes and ignore these
+ *  four bytes when calculating CRCs (we do not know what they will contain
+ *  post transmission).
  *
  * Input Parameters:
-*buffer - uint8_t array of bytes containing the encoded message.
-*buffer_length - size of the buffer holding the data to be decoded.
-*header_only - if true then the header will be extracted but not the
-*    payload.
+ *  buffer - uint8_t array of bytes containing the encoded message.
+ *  buffer_length - size of the buffer holding the data to be decoded.
+ *  header_only - if true then the header will be extracted but not the
+ *                payload.
  *
  * Returned Value:
-*Pointer to the decoded message.
+ *  Pointer to the decoded message.
  *
  * Assumptions/Limitations:
-*None
+ *  None
  *
  ****************************************************************************/
 espcp_message_t *espcp_extract_message(uint8_t *buffer, uint32_t bufferLength, bool headerOnly)
 {
     uint32_t crc = espcp_extract_uint32(buffer + ESPCP_MESSAGE_CRC_OFFSET);
     espcp_encode_uint32(0, buffer + ESPCP_MESSAGE_CRC_OFFSET);
-    
+
     espcp_message_t *message = NULL;
     if (crc == espcp_crc32(buffer, bufferLength - 4))   // See note in comment above.
     {
@@ -515,22 +516,22 @@ espcp_message_t *espcp_extract_message(uint8_t *buffer, uint32_t bufferLength, b
  * Name: espcp_encode_message
  *
  * Description:
-*Encode a message in a byte buffer.
+ *  Encode a message in a byte buffer.
  *
  * Input Parameters:
-*message - Message to be encoded.
-*buffer - Pointer to a buffer to take the encoded message.
-*buffer_length - Pointer to a uint32_t object that the contain the size of the
-*    buffer that contains the encoded message.  This is a return
-*    value from the method.
-*header_only - if true then the header will be encoded but not the
-*    payload.
+ *  message - Message to be encoded.
+ *  buffer - Pointer to a buffer to take the encoded message.
+ *  buffer_length - Pointer to a uint32_t object that the contain the size of the
+ *                  buffer that contains the encoded message.  This is a return
+ *                  value from the method.
+ *  header_only - if true then the header will be encoded but not the
+ *                payload.
  *
  * Returned Value:
-*Pointer to the block of memory containing the encoded message.
+ *  Pointer to the block of memory containing the encoded message.
  *
  * Assumptions/Limitations:
-*None
+ *  None
  *
  ****************************************************************************/
 void espcp_encode_message(espcp_message_t *message, uint8_t *buffer, uint32_t *buffer_length, bool header_only)
@@ -583,10 +584,10 @@ void espcp_encode_message(espcp_message_t *message, uint8_t *buffer, uint32_t *b
 * Description:
 *  Extract the espcp_system_configuration_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  system_configuration - pointer to the buffer containing the encoded
 *  espcp_system_configuration_t object.
@@ -650,7 +651,7 @@ espcp_system_configuration_t *espcp_extract_system_configuration(uint8_t *buffer
 * Name: espcp_encode_configuration_value
 *
 * Description:
-*  Convert the espcp_configuration_value_t object into a byte stream that can 
+*  Convert the espcp_configuration_value_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -705,10 +706,10 @@ int espcp_configuration_value_buffer_size(espcp_configuration_value_t *configura
 * Description:
 *  Extract the espcp_configuration_value_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  configuration_value - pointer to the buffer containing the encoded
 *  espcp_configuration_value_t object.
@@ -747,10 +748,10 @@ espcp_configuration_value_t *espcp_extract_configuration_value(uint8_t *buffer)
 * Description:
 *  Extract the espcp_error_event_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  error_event - pointer to the buffer containing the encoded
 *  espcp_error_event_t object.
@@ -791,10 +792,10 @@ espcp_error_event_t *espcp_extract_error_event(uint8_t *buffer)
 * Description:
 *  Extract the espcp_access_point_information_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  access_point_information - pointer to the buffer containing the encoded
 *  espcp_access_point_information_t object.
@@ -832,7 +833,7 @@ espcp_access_point_information_t *espcp_extract_access_point_information(uint8_t
 * Name: espcp_encode_access_point_information
 *
 * Description:
-*  Convert the espcp_access_point_information_t object into a byte stream that can 
+*  Convert the espcp_access_point_information_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -893,7 +894,7 @@ int espcp_access_point_information_buffer_size(espcp_access_point_information_t 
 * Name: espcp_encode_connect_event_data
 *
 * Description:
-*  Convert the espcp_connect_event_data_t object into a byte stream that can 
+*  Convert the espcp_connect_event_data_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -949,14 +950,14 @@ int espcp_connect_event_data_buffer_size(espcp_connect_event_data_t *connect_eve
 
 /****************************************************************************
 * Name: espcp_extract_connect_event_data
-*  
+*
 * Description:
 *  Extract the espcp_connect_event_data_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  connect_event_data - pointer to the buffer containing the encoded
 *  espcp_connect_event_data_t object.
@@ -996,10 +997,10 @@ espcp_connect_event_data_t *espcp_extract_connect_event_data(uint8_t *buffer)
 * Description:
 *  Extract the espcp_disconnect_event_data_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  disconnect_event_data - pointer to the buffer containing the encoded
 *  espcp_disconnect_event_data_t object.
@@ -1029,10 +1030,10 @@ espcp_disconnect_event_data_t *espcp_extract_disconnect_event_data(uint8_t *buff
 * Description:
 *  Extract the espcp_access_point_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  access_point - pointer to the buffer containing the encoded
 *  espcp_access_point_t object.
@@ -1070,10 +1071,10 @@ espcp_access_point_t *espcp_extract_access_point(uint8_t *buffer)
 * Description:
 *  Extract the espcp_access_point_list_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  access_point_list - pointer to the buffer containing the encoded
 *  espcp_access_point_list_t object.
@@ -1110,7 +1111,7 @@ espcp_access_point_list_t *espcp_extract_access_point_list(uint8_t *buffer)
 * Name: espcp_encode_sock_addr
 *
 * Description:
-*  Convert the espcp_sock_addr_t object into a byte stream that can 
+*  Convert the espcp_sock_addr_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -1166,10 +1167,10 @@ int espcp_sock_addr_buffer_size(espcp_sock_addr_t *sock_addr)
 * Description:
 *  Extract the espcp_sock_addr_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  sock_addr - pointer to the buffer containing the encoded
 *  espcp_sock_addr_t object.
@@ -1205,10 +1206,10 @@ espcp_sock_addr_t *espcp_extract_sock_addr(uint8_t *buffer)
 * Description:
 *  Extract the espcp_addr_info_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  addr_info - pointer to the buffer containing the encoded
 *  espcp_addr_info_t object.
@@ -1258,7 +1259,7 @@ espcp_addr_info_t *espcp_extract_addr_info(uint8_t *buffer)
 * Name: espcp_encode_get_addr_info_request
 *
 * Description:
-*  Convert the espcp_get_addr_info_request_t object into a byte stream that can 
+*  Convert the espcp_get_addr_info_request_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -1317,10 +1318,10 @@ int espcp_get_addr_info_request_buffer_size(espcp_get_addr_info_request_t *get_a
 * Description:
 *  Extract the espcp_get_addr_info_response_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  get_addr_info_response - pointer to the buffer containing the encoded
 *  espcp_get_addr_info_response_t object.
@@ -1357,7 +1358,7 @@ espcp_get_addr_info_response_t *espcp_extract_get_addr_info_response(uint8_t *bu
 * Name: espcp_encode_socket_request
 *
 * Description:
-*  Convert the espcp_socket_request_t object into a byte stream that can 
+*  Convert the espcp_socket_request_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -1409,10 +1410,10 @@ int espcp_socket_request_buffer_size(espcp_socket_request_t *socket_request)
 * Description:
 *  Extract the espcp_integer_response_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  integer_response - pointer to the buffer containing the encoded
 *  espcp_integer_response_t object.
@@ -1438,10 +1439,10 @@ espcp_integer_response_t *espcp_extract_integer_response(uint8_t *buffer)
 * Description:
 *  Extract the espcp_integer_and_errno_response_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  integer_and_errno_response - pointer to the buffer containing the encoded
 *  espcp_integer_and_errno_response_t object.
@@ -1467,7 +1468,7 @@ espcp_integer_and_errno_response_t *espcp_extract_integer_and_errno_response(uin
 * Name: espcp_encode_connect_request
 *
 * Description:
-*  Convert the espcp_connect_request_t object into a byte stream that can 
+*  Convert the espcp_connect_request_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -1520,7 +1521,7 @@ int espcp_connect_request_buffer_size(espcp_connect_request_t *connect_request)
 * Name: espcp_encode_free_addr_info_request
 *
 * Description:
-*  Convert the espcp_free_addr_info_request_t object into a byte stream that can 
+*  Convert the espcp_free_addr_info_request_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -1564,7 +1565,7 @@ int espcp_free_addr_info_request_buffer_size(espcp_free_addr_info_request_t *fre
 * Name: espcp_encode_time_val
 *
 * Description:
-*  Convert the espcp_time_val_t object into a byte stream that can 
+*  Convert the espcp_time_val_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -1612,10 +1613,10 @@ int espcp_time_val_buffer_size(espcp_time_val_t *time_val)
 * Description:
 *  Extract the espcp_time_val_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  time_val - pointer to the buffer containing the encoded
 *  espcp_time_val_t object.
@@ -1641,7 +1642,7 @@ espcp_time_val_t *espcp_extract_time_val(uint8_t *buffer)
 * Name: espcp_encode_set_sock_opt_request
 *
 * Description:
-*  Convert the espcp_set_sock_opt_request_t object into a byte stream that can 
+*  Convert the espcp_set_sock_opt_request_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -1700,7 +1701,7 @@ int espcp_set_sock_opt_request_buffer_size(espcp_set_sock_opt_request_t *set_soc
 * Name: espcp_encode_get_sock_opt_request
 *
 * Description:
-*  Convert the espcp_get_sock_opt_request_t object into a byte stream that can 
+*  Convert the espcp_get_sock_opt_request_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -1750,10 +1751,10 @@ int espcp_get_sock_opt_request_buffer_size(espcp_get_sock_opt_request_t *get_soc
 * Description:
 *  Extract the espcp_get_sock_opt_response_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  get_sock_opt_response - pointer to the buffer containing the encoded
 *  espcp_get_sock_opt_response_t object.
@@ -1793,7 +1794,7 @@ espcp_get_sock_opt_response_t *espcp_extract_get_sock_opt_response(uint8_t *buff
 * Name: espcp_encode_linger
 *
 * Description:
-*  Convert the espcp_linger_t object into a byte stream that can 
+*  Convert the espcp_linger_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -1841,10 +1842,10 @@ int espcp_linger_buffer_size(espcp_linger_t *linger)
 * Description:
 *  Extract the espcp_linger_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  linger - pointer to the buffer containing the encoded
 *  espcp_linger_t object.
@@ -1870,7 +1871,7 @@ espcp_linger_t *espcp_extract_linger(uint8_t *buffer)
 * Name: espcp_encode_write_request
 *
 * Description:
-*  Convert the espcp_write_request_t object into a byte stream that can 
+*  Convert the espcp_write_request_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -1925,7 +1926,7 @@ int espcp_write_request_buffer_size(espcp_write_request_t *write_request)
 * Name: espcp_encode_read_request
 *
 * Description:
-*  Convert the espcp_read_request_t object into a byte stream that can 
+*  Convert the espcp_read_request_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -1973,10 +1974,10 @@ int espcp_read_request_buffer_size(espcp_read_request_t *read_request)
 * Description:
 *  Extract the espcp_read_response_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  read_response - pointer to the buffer containing the encoded
 *  espcp_read_response_t object.
@@ -2014,7 +2015,7 @@ espcp_read_response_t *espcp_extract_read_response(uint8_t *buffer)
 * Name: espcp_encode_close_request
 *
 * Description:
-*  Convert the espcp_close_request_t object into a byte stream that can 
+*  Convert the espcp_close_request_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -2060,10 +2061,10 @@ int espcp_close_request_buffer_size(espcp_close_request_t *close_request)
 * Description:
 *  Extract the espcp_get_battery_charge_level_response_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  get_battery_charge_level_response - pointer to the buffer containing the encoded
 *  espcp_get_battery_charge_level_response_t object.
@@ -2087,7 +2088,7 @@ espcp_get_battery_charge_level_response_t *espcp_extract_get_battery_charge_leve
 * Name: espcp_encode_send_to_request
 *
 * Description:
-*  Convert the espcp_send_to_request_t object into a byte stream that can 
+*  Convert the espcp_send_to_request_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -2152,7 +2153,7 @@ int espcp_send_to_request_buffer_size(espcp_send_to_request_t *send_to_request)
 * Name: espcp_encode_recv_from_request
 *
 * Description:
-*  Convert the espcp_recv_from_request_t object into a byte stream that can 
+*  Convert the espcp_recv_from_request_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -2204,10 +2205,10 @@ int espcp_recv_from_request_buffer_size(espcp_recv_from_request_t *recv_from_req
 * Description:
 *  Extract the espcp_recv_from_response_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  recv_from_response - pointer to the buffer containing the encoded
 *  espcp_recv_from_response_t object.
@@ -2259,7 +2260,7 @@ espcp_recv_from_response_t *espcp_extract_recv_from_response(uint8_t *buffer)
 * Name: espcp_encode_poll_request
 *
 * Description:
-*  Convert the espcp_poll_request_t object into a byte stream that can 
+*  Convert the espcp_poll_request_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -2313,10 +2314,10 @@ int espcp_poll_request_buffer_size(espcp_poll_request_t *poll_request)
 * Description:
 *  Extract the espcp_poll_response_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  poll_response - pointer to the buffer containing the encoded
 *  espcp_poll_response_t object.
@@ -2346,10 +2347,10 @@ espcp_poll_response_t *espcp_extract_poll_response(uint8_t *buffer)
 * Description:
 *  Extract the espcp_interrupt_poll_response_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  interrupt_poll_response - pointer to the buffer containing the encoded
 *  espcp_interrupt_poll_response_t object.
@@ -2381,7 +2382,7 @@ espcp_interrupt_poll_response_t *espcp_extract_interrupt_poll_response(uint8_t *
 * Name: espcp_encode_listen_request
 *
 * Description:
-*  Convert the espcp_listen_request_t object into a byte stream that can 
+*  Convert the espcp_listen_request_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -2427,7 +2428,7 @@ int espcp_listen_request_buffer_size(espcp_listen_request_t *listen_request)
 * Name: espcp_encode_bind_request
 *
 * Description:
-*  Convert the espcp_bind_request_t object into a byte stream that can 
+*  Convert the espcp_bind_request_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -2480,7 +2481,7 @@ int espcp_bind_request_buffer_size(espcp_bind_request_t *bind_request)
 * Name: espcp_encode_accept_request
 *
 * Description:
-*  Convert the espcp_accept_request_t object into a byte stream that can 
+*  Convert the espcp_accept_request_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -2526,10 +2527,10 @@ int espcp_accept_request_buffer_size(espcp_accept_request_t *accept_request)
 * Description:
 *  Extract the espcp_accept_response_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  accept_response - pointer to the buffer containing the encoded
 *  espcp_accept_response_t object.
@@ -2567,7 +2568,7 @@ espcp_accept_response_t *espcp_extract_accept_response(uint8_t *buffer)
 * Name: espcp_encode_ioctl_request
 *
 * Description:
-*  Convert the espcp_ioctl_request_t object into a byte stream that can 
+*  Convert the espcp_ioctl_request_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -2613,10 +2614,10 @@ int espcp_ioctl_request_buffer_size(espcp_ioctl_request_t *ioctl_request)
 * Description:
 *  Extract the espcp_ioctl_response_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  ioctl_response - pointer to the buffer containing the encoded
 *  espcp_ioctl_response_t object.
@@ -2656,7 +2657,7 @@ espcp_ioctl_response_t *espcp_extract_ioctl_response(uint8_t *buffer)
 * Name: espcp_encode_get_sock_peer_name_request
 *
 * Description:
-*  Convert the espcp_get_sock_peer_name_request_t object into a byte stream that can 
+*  Convert the espcp_get_sock_peer_name_request_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -2702,10 +2703,10 @@ int espcp_get_sock_peer_name_request_buffer_size(espcp_get_sock_peer_name_reques
 * Description:
 *  Extract the espcp_get_sock_peer_name_response_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  get_sock_peer_name_response - pointer to the buffer containing the encoded
 *  espcp_get_sock_peer_name_response_t object.
@@ -2743,7 +2744,7 @@ espcp_get_sock_peer_name_response_t *espcp_extract_get_sock_peer_name_response(u
 * Name: espcp_encode_event_data
 *
 * Description:
-*  Convert the espcp_event_data_t object into a byte stream that can 
+*  Convert the espcp_event_data_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -2795,10 +2796,10 @@ int espcp_event_data_buffer_size(espcp_event_data_t *event_data)
 * Description:
 *  Extract the espcp_event_data_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  event_data - pointer to the buffer containing the encoded
 *  espcp_event_data_t object.
@@ -2830,10 +2831,10 @@ espcp_event_data_t *espcp_extract_event_data(uint8_t *buffer)
 * Description:
 *  Extract the espcp_event_data_payload_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  event_data_payload - pointer to the buffer containing the encoded
 *  espcp_event_data_payload_t object.
@@ -2870,7 +2871,7 @@ espcp_event_data_payload_t *espcp_extract_event_data_payload(uint8_t *buffer)
 * Name: espcp_encode_file_details
 *
 * Description:
-*  Convert the espcp_file_details_t object into a byte stream that can 
+*  Convert the espcp_file_details_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -2920,10 +2921,10 @@ int espcp_file_details_buffer_size(espcp_file_details_t *file_details)
 * Description:
 *  Extract the espcp_file_details_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  file_details - pointer to the buffer containing the encoded
 *  espcp_file_details_t object.
@@ -2949,7 +2950,7 @@ espcp_file_details_t *espcp_extract_file_details(uint8_t *buffer)
 * Name: espcp_encode_file_name_and_contents
 *
 * Description:
-*  Convert the espcp_file_name_and_contents_t object into a byte stream that can 
+*  Convert the espcp_file_name_and_contents_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -3005,10 +3006,10 @@ int espcp_file_name_and_contents_buffer_size(espcp_file_name_and_contents_t *fil
 * Description:
 *  Extract the espcp_file_name_and_contents_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  file_name_and_contents - pointer to the buffer containing the encoded
 *  espcp_file_name_and_contents_t object.
@@ -3045,7 +3046,7 @@ espcp_file_name_and_contents_t *espcp_extract_file_name_and_contents(uint8_t *bu
 * Name: espcp_encode_file_name_list
 *
 * Description:
-*  Convert the espcp_file_name_list_t object into a byte stream that can 
+*  Convert the espcp_file_name_list_t object into a byte stream that can
 *  be sent to the ESP32.
 *
 * Input Parameters:
@@ -3100,10 +3101,10 @@ int espcp_file_name_list_buffer_size(espcp_file_name_list_t *file_name_list)
 * Description:
 *  Extract the espcp_file_name_list_ object that is
 *  encoded in the given buffer.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  file_name_list - pointer to the buffer containing the encoded
 *  espcp_file_name_list_t object.
@@ -3142,10 +3143,10 @@ espcp_file_name_list_t *espcp_extract_file_name_list(uint8_t *buffer)
 * Description:
 *  Work out how much storage is needed to hold the encoded version of the
 *  espcp_logging_configuration_t object.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  logging_configuration - pointer to the logging configuration.
 *
@@ -3173,16 +3174,16 @@ int espcp_encoded_logging_configuration_buffer_size(espcp_logging_configuration_
  * Description:
  * Convert the espcp_logging_configuration_t object into a byte stream that can
  * be sent to the ESP32.
- * 
+ *
  * Input Parameters:
  *   logging_configuration - object to be encoded.
- * 
+ *
  * Returned Value
  *  None
  *
  * Assumptions/Limitations:
  *   None
- * 
+ *
  * ****************************************************************************/
 void espcp_encode_logging_configuration(espcp_logging_configuration_t *logging_configuration, uint8_t *buffer)
 {
@@ -3199,10 +3200,10 @@ void espcp_encode_logging_configuration(espcp_logging_configuration_t *logging_c
 * Description:
 *  Work out how much storage is needed to hold the encoded version of the
 *  espcp_log_message_t object.
-*  
+*
 *  Note that the returned pointer points to a block of memory on the heap and
 *  this should eventually be released calling free(...).
-*  
+*
 * Input Parameters:
 *  log_message - pointer to the log_message object.
 *
@@ -3225,16 +3226,16 @@ int espcp_encoded_log_message_buffer_size(espcp_log_message_t *log_message)
  * Description:
  * Convert the espcp_log_message_t object into a byte stream that can
  * be sent to the ESP32.
- * 
+ *
  * Input Parameters:
  *   log_message - object to be encoded.
- * 
+ *
  * Returned Value
  *  None
  *
  * Assumptions/Limitations:
  *   None
- * 
+ *
  * ****************************************************************************/
 void espcp_encode_log_message(espcp_log_message_t *log_message, uint8_t *buffer)
 {
@@ -3249,7 +3250,7 @@ void espcp_encode_log_message(espcp_log_message_t *log_message, uint8_t *buffer)
  * Description:
  * Convert the espcp_got_ip_event_data_t object into a byte stream that can
  * be sent to the ESP32.
- * 
+ *
  * Input Parameters:
  *   buffer - pointer to the byte stream containing the encoded data.
  *
@@ -3258,7 +3259,7 @@ void espcp_encode_log_message(espcp_log_message_t *log_message, uint8_t *buffer)
  *
  * Assumptions/Limitations:
  *   None
- * 
+ *
  * ****************************************************************************/
 espcp_got_ip_event_data_t *espcp_extract_got_ip_event_data(uint8_t *buffer)
 {
