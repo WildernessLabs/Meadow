@@ -38,6 +38,12 @@
  #include "espcp_encoders.h"
 
 /****************************************************************************
+ * Uncomment the #define below to turn on debug help macros.
+ ****************************************************************************/
+// #define USE_MEADOW_DEBUG_HELPERS
+#include <meadow/meadow_debug_helpers.h>
+
+/****************************************************************************
  * Name: espcp_calculate_spi_buffer_size
  *
  * Description:
@@ -313,6 +319,7 @@ char *espcp_extract_string(uint8_t *buffer)
         ptr = (uint8_t *) malloc(length + 1);
         if (ptr == NULL)
         {
+            MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for string\n", __func__, __LINE__, length + 1);
             return NULL;
         }
         strcpy((char *) ptr, (char *) buffer);
@@ -512,6 +519,7 @@ espcp_message_t *espcp_extract_message(uint8_t *buffer, uint32_t bufferLength, b
         message = (espcp_message_t *) malloc(sizeof(espcp_message_t));
         if (message == NULL)
         {
+            MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for message\n", __func__, __LINE__, (int) sizeof(espcp_message_t));
             return NULL;
         }
 
@@ -538,6 +546,7 @@ espcp_message_t *espcp_extract_message(uint8_t *buffer, uint32_t bufferLength, b
             message->payload = (uint8_t *) malloc(message->packet_length);
             if (message->payload == NULL)
             {
+                MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for message->payload\n", __func__, __LINE__, (int) message->packet_length);
                 free(message);
                 return NULL;
             }
@@ -647,6 +656,7 @@ espcp_system_configuration_t *espcp_extract_system_configuration(uint8_t *buffer
     espcp_system_configuration_t *system_configuration = (espcp_system_configuration_t *) malloc(sizeof(espcp_system_configuration_t));
     if (system_configuration == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for system_configuration\n", __func__, __LINE__, (int) sizeof(espcp_system_configuration_t));
         return NULL;
     }
 
@@ -773,6 +783,7 @@ espcp_configuration_value_t *espcp_extract_configuration_value(uint8_t *buffer)
     espcp_configuration_value_t *configuration_value = (espcp_configuration_value_t *) malloc(sizeof(espcp_configuration_value_t));
     if (configuration_value == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for configuration_value\n", __func__, __LINE__, (int) sizeof(espcp_configuration_value_t));
         return NULL;
     }
 
@@ -785,6 +796,7 @@ espcp_configuration_value_t *espcp_extract_configuration_value(uint8_t *buffer)
         configuration_value->value = (uint8_t *) malloc(configuration_value->value_length);
         if (configuration_value->value == NULL)
         {
+            MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for configuration_value->value\n", __func__, __LINE__, (int) configuration_value->value_length);
             free(configuration_value);
             return NULL;
         }
@@ -824,6 +836,7 @@ espcp_error_event_t *espcp_extract_error_event(uint8_t *buffer)
     espcp_error_event_t *error_event = (espcp_error_event_t *) malloc(sizeof(espcp_error_event_t));
     if (error_event == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for error_event\n", __func__, __LINE__, (int) sizeof(espcp_error_event_t));
         return NULL;
     }
 
@@ -838,6 +851,7 @@ espcp_error_event_t *espcp_extract_error_event(uint8_t *buffer)
         error_event->error_data = (uint8_t *) malloc(error_event->error_data_length);
         if (error_event->error_data == NULL)
         {
+            MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for error_event->error_data\n", __func__, __LINE__, (int)error_event->error_data_length);
             free(error_event);
             return NULL;
         }
@@ -877,6 +891,7 @@ espcp_access_point_information_t *espcp_extract_access_point_information(uint8_t
     espcp_access_point_information_t *access_point_information = (espcp_access_point_information_t *) malloc(sizeof(espcp_access_point_information_t));
     if (access_point_information == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for access_point_information\n", __func__, __LINE__, (int) sizeof(espcp_access_point_information_t));
         return NULL;
     }
 
@@ -1043,6 +1058,7 @@ espcp_connect_event_data_t *espcp_extract_connect_event_data(uint8_t *buffer)
     espcp_connect_event_data_t *connect_event_data = (espcp_connect_event_data_t *) malloc(sizeof(espcp_connect_event_data_t));
     if (connect_event_data == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for connect_event_data\n", __func__, __LINE__, (int) sizeof(espcp_connect_event_data_t));
         return NULL;
     }
 
@@ -1090,6 +1106,7 @@ espcp_disconnect_event_data_t *espcp_extract_disconnect_event_data(uint8_t *buff
     espcp_disconnect_event_data_t *disconnect_event_data = (espcp_disconnect_event_data_t *) malloc(sizeof(espcp_disconnect_event_data_t));
     if (disconnect_event_data == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for disconnect_event_data\n", __func__, __LINE__, (int) sizeof(espcp_disconnect_event_data_t));
         return NULL;
     }
 
@@ -1127,6 +1144,7 @@ espcp_access_point_t *espcp_extract_access_point(uint8_t *buffer)
     espcp_access_point_t *access_point = (espcp_access_point_t *) malloc(sizeof(espcp_access_point_t));
     if (access_point == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for access_point\n", __func__, __LINE__, (int) sizeof(espcp_access_point_t));
         return NULL;
     }
 
@@ -1172,6 +1190,7 @@ espcp_access_point_list_t *espcp_extract_access_point_list(uint8_t *buffer)
     espcp_access_point_list_t *access_point_list = (espcp_access_point_list_t *) malloc(sizeof(espcp_access_point_list_t));
     if (access_point_list == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for access_point_list\n", __func__, __LINE__, (int) sizeof(espcp_access_point_list_t));
         return NULL;
     }
 
@@ -1184,6 +1203,7 @@ espcp_access_point_list_t *espcp_extract_access_point_list(uint8_t *buffer)
         access_point_list->access_points = (uint8_t *) malloc(access_point_list->access_points_length);
         if (access_point_list->access_points == NULL)
         {
+            MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for access_points\n", __func__, __LINE__, (int) access_point_list->access_points_length);
             free(access_point_list);
             return NULL;
         }
@@ -1277,6 +1297,7 @@ espcp_sock_addr_t *espcp_extract_sock_addr(uint8_t *buffer)
     espcp_sock_addr_t *sock_addr = (espcp_sock_addr_t *) malloc(sizeof(espcp_sock_addr_t));
     if (sock_addr == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for sock_addr\n", __func__, __LINE__, (int)sizeof(espcp_sock_addr_t));
         return NULL;
     }
 
@@ -1320,6 +1341,7 @@ espcp_addr_info_t *espcp_extract_addr_info(uint8_t *buffer)
     espcp_addr_info_t *addr_info = (espcp_addr_info_t *) malloc(sizeof(espcp_addr_info_t));
     if (addr_info == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for addr_info\n", __func__, __LINE__, (int)sizeof(espcp_addr_info_t));
         return NULL;
     }
 
@@ -1342,6 +1364,7 @@ espcp_addr_info_t *espcp_extract_addr_info(uint8_t *buffer)
         addr_info->addr = (uint8_t *) malloc(addr_info->addr_length);
         if (addr_info->addr == NULL)
         {
+            MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for addr_info->addr\n", __func__, __LINE__, (int)addr_info->addr_length);
             free(addr_info);
             return NULL;
         }
@@ -1441,6 +1464,7 @@ espcp_get_addr_info_response_t *espcp_extract_get_addr_info_response(uint8_t *bu
     espcp_get_addr_info_response_t *get_addr_info_response = (espcp_get_addr_info_response_t *) malloc(sizeof(espcp_get_addr_info_response_t));
     if (get_addr_info_response == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for get_addr_info_response\n", __func__, __LINE__, (int)sizeof(espcp_get_addr_info_response_t));
         return NULL;
     }
 
@@ -1453,6 +1477,7 @@ espcp_get_addr_info_response_t *espcp_extract_get_addr_info_response(uint8_t *bu
         get_addr_info_response->res = (uint8_t *) malloc(get_addr_info_response->res_length);
         if (get_addr_info_response->res == NULL)
         {
+            MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for get_addr_info_response->res\n", __func__, __LINE__, (int)get_addr_info_response->res_length);
             free(get_addr_info_response);
             return NULL;
         }
@@ -1542,6 +1567,7 @@ espcp_integer_response_t *espcp_extract_integer_response(uint8_t *buffer)
     espcp_integer_response_t *integer_response = (espcp_integer_response_t *) malloc(sizeof(espcp_integer_response_t));
     if (integer_response == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for integer_response\n", __func__, __LINE__, (int)sizeof(espcp_integer_response_t));
         return NULL;
     }
 
@@ -1575,6 +1601,7 @@ espcp_integer_and_errno_response_t *espcp_extract_integer_and_errno_response(uin
     espcp_integer_and_errno_response_t *integer_and_errno_response = (espcp_integer_and_errno_response_t *) malloc(sizeof(espcp_integer_and_errno_response_t));
     if (integer_and_errno_response == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for integer_and_errno_response\n", __func__, __LINE__, (int) sizeof(espcp_integer_and_errno_response_t));
         return NULL;
     }
 
@@ -1753,6 +1780,7 @@ espcp_time_val_t *espcp_extract_time_val(uint8_t *buffer)
     espcp_time_val_t *time_val = (espcp_time_val_t *) malloc(sizeof(espcp_time_val_t));
     if (time_val == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for time_val\n", __func__, __LINE__, (int)sizeof(espcp_time_val_t));
         return NULL;
     }
 
@@ -1895,6 +1923,7 @@ espcp_get_sock_opt_response_t *espcp_extract_get_sock_opt_response(uint8_t *buff
     espcp_get_sock_opt_response_t *get_sock_opt_response = (espcp_get_sock_opt_response_t *) malloc(sizeof(espcp_get_sock_opt_response_t));
     if (get_sock_opt_response == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for get_sock_opt_response\n", __func__, __LINE__, (int) sizeof(espcp_get_sock_opt_response_t));
         return NULL;
     }
 
@@ -1909,6 +1938,7 @@ espcp_get_sock_opt_response_t *espcp_extract_get_sock_opt_response(uint8_t *buff
         get_sock_opt_response->option_value = (uint8_t *) malloc(get_sock_opt_response->option_value_length);
         if (get_sock_opt_response->option_value == NULL)
         {
+            MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for get_sock_opt_response->option_value\n", __func__, __LINE__, (int) get_sock_opt_response->option_value_length);
             free(get_sock_opt_response);
             return NULL;
         }
@@ -1995,6 +2025,7 @@ espcp_linger_t *espcp_extract_linger(uint8_t *buffer)
     espcp_linger_t *linger = (espcp_linger_t *) malloc(sizeof(espcp_linger_t));
     if (linger == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for linger\n", __func__, __LINE__, (int)sizeof(espcp_linger_t));
         return NULL;
     }
 
@@ -2131,6 +2162,7 @@ espcp_read_response_t *espcp_extract_read_response(uint8_t *buffer)
     espcp_read_response_t *read_response = (espcp_read_response_t *) malloc(sizeof(espcp_read_response_t));
     if (read_response == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for read_response\n", __func__, __LINE__, (int)sizeof(espcp_read_response_t));
         return NULL;
     }
 
@@ -2141,6 +2173,7 @@ espcp_read_response_t *espcp_extract_read_response(uint8_t *buffer)
         read_response->buffer = (uint8_t *) malloc(read_response->buffer_length);
         if (read_response->buffer == NULL)
         {
+            MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for read_response->buffer\n", __func__, __LINE__, (int) read_response->buffer_length);
             free(read_response);
             return NULL;
         }
@@ -2227,6 +2260,7 @@ espcp_get_battery_charge_level_response_t *espcp_extract_get_battery_charge_leve
     espcp_get_battery_charge_level_response_t *get_battery_charge_level_response = (espcp_get_battery_charge_level_response_t *) malloc(sizeof(espcp_get_battery_charge_level_response_t));
     if (get_battery_charge_level_response == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for get_battery_charge_level_response\n", __func__, __LINE__, (int)sizeof(espcp_get_battery_charge_level_response_t));
         return NULL;
     }
 
@@ -2375,6 +2409,7 @@ espcp_recv_from_response_t *espcp_extract_recv_from_response(uint8_t *buffer)
     espcp_recv_from_response_t *recv_from_response = (espcp_recv_from_response_t *) malloc(sizeof(espcp_recv_from_response_t));
     if (recv_from_response == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for recv_from_response\n", __func__, __LINE__, (int) sizeof(espcp_recv_from_response_t));
         return NULL;
     }
 
@@ -2385,6 +2420,7 @@ espcp_recv_from_response_t *espcp_extract_recv_from_response(uint8_t *buffer)
         recv_from_response->buffer = (uint8_t *) malloc(recv_from_response->buffer_length);
         if (recv_from_response->buffer == NULL)
         {
+            MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for recv_from_response->buffer\n", __func__, __LINE__, (int) recv_from_response->buffer_length);
             free(recv_from_response);
             return NULL;
         }
@@ -2406,6 +2442,7 @@ espcp_recv_from_response_t *espcp_extract_recv_from_response(uint8_t *buffer)
         recv_from_response->source_address = (uint8_t *) malloc(recv_from_response->source_address_length);
         if (recv_from_response->source_address == NULL)
         {
+            MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for recv_from_response->source_address\n", __func__, __LINE__, (int) recv_from_response->source_address_length);
             if (recv_from_response->buffer != NULL)
             {
                 free(recv_from_response->buffer);
@@ -2502,6 +2539,7 @@ espcp_poll_response_t *espcp_extract_poll_response(uint8_t *buffer)
     espcp_poll_response_t *poll_response = (espcp_poll_response_t *) malloc(sizeof(espcp_poll_response_t));
     if (poll_response == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for poll_response\n", __func__, __LINE__, (int)sizeof(espcp_poll_response_t));
         return NULL;
     }
 
@@ -2539,6 +2577,7 @@ espcp_interrupt_poll_response_t *espcp_extract_interrupt_poll_response(uint8_t *
     espcp_interrupt_poll_response_t *interrupt_poll_response = (espcp_interrupt_poll_response_t *) malloc(sizeof(espcp_interrupt_poll_response_t));
     if (interrupt_poll_response == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for interrupt_poll_response\n", __func__, __LINE__, (int) sizeof(espcp_interrupt_poll_response_t));
         return NULL;
     }
 
@@ -2723,6 +2762,7 @@ espcp_accept_response_t *espcp_extract_accept_response(uint8_t *buffer)
     espcp_accept_response_t *accept_response = (espcp_accept_response_t *) malloc(sizeof(espcp_accept_response_t));
     if (accept_response == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for accept_response\n", __func__, __LINE__, (int)sizeof(espcp_accept_response_t));
         return NULL;
     }
 
@@ -2733,6 +2773,7 @@ espcp_accept_response_t *espcp_extract_accept_response(uint8_t *buffer)
         accept_response->addr = (uint8_t *) malloc(accept_response->addr_length);
         if (accept_response->addr == NULL)
         {
+            MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for accept_response->addr\n", __func__, __LINE__, (int)accept_response->addr_length);
             free(accept_response);
             return NULL;
         }
@@ -2819,6 +2860,7 @@ espcp_ioctl_response_t *espcp_extract_ioctl_response(uint8_t *buffer)
     espcp_ioctl_response_t *ioctl_response = (espcp_ioctl_response_t *) malloc(sizeof(espcp_ioctl_response_t));
     if (ioctl_response == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for ioctl_response\n", __func__, __LINE__, (int) sizeof(espcp_ioctl_response_t));
         return NULL;
     }
 
@@ -2829,6 +2871,7 @@ espcp_ioctl_response_t *espcp_extract_ioctl_response(uint8_t *buffer)
         ioctl_response->addr = (uint8_t *) malloc(ioctl_response->addr_length);
         if (ioctl_response->addr == NULL)
         {
+            MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for ioctl_response->addr\n", __func__, __LINE__, (int)ioctl_response->addr_length);
             free(ioctl_response);
             return NULL;
         }
@@ -2917,6 +2960,7 @@ espcp_get_sock_peer_name_response_t *espcp_extract_get_sock_peer_name_response(u
     espcp_get_sock_peer_name_response_t *get_sock_peer_name_response = (espcp_get_sock_peer_name_response_t *) malloc(sizeof(espcp_get_sock_peer_name_response_t));
     if (get_sock_peer_name_response == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for get_sock_peer_name_response\n", __func__, __LINE__, (int)sizeof(espcp_get_sock_peer_name_response_t));
         return NULL;
     }
 
@@ -2927,6 +2971,7 @@ espcp_get_sock_peer_name_response_t *espcp_extract_get_sock_peer_name_response(u
         get_sock_peer_name_response->addr = (uint8_t *) malloc(get_sock_peer_name_response->addr_length);
         if (get_sock_peer_name_response->addr == NULL)
         {
+            MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for get_sock_peer_name_response->addr\n", __func__, __LINE__, (int) get_sock_peer_name_response->addr_length);
             free(get_sock_peer_name_response);
             return NULL;
         }
@@ -3019,6 +3064,7 @@ espcp_event_data_t *espcp_extract_event_data(uint8_t *buffer)
     espcp_event_data_t *event_data = (espcp_event_data_t *) malloc(sizeof(espcp_event_data_t));
     if (event_data == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for event_data\n", __func__, __LINE__, (int)sizeof(espcp_event_data_t));
         return NULL;
     }
 
@@ -3058,6 +3104,7 @@ espcp_event_data_payload_t *espcp_extract_event_data_payload(uint8_t *buffer)
     espcp_event_data_payload_t *event_data_payload = (espcp_event_data_payload_t *) malloc(sizeof(espcp_event_data_payload_t));
     if (event_data_payload == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for event_data_payload\n", __func__, __LINE__, (int)sizeof(espcp_event_data_payload_t));
         return NULL;
     }
 
@@ -3070,6 +3117,7 @@ espcp_event_data_payload_t *espcp_extract_event_data_payload(uint8_t *buffer)
         event_data_payload->payload = (uint8_t *) malloc(event_data_payload->payload_length);
         if (event_data_payload->payload == NULL)
         {
+            MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for event_data_payload->payload\n", __func__, __LINE__, (int) event_data_payload->payload_length);
             free(event_data_payload);
             return NULL;
         }
@@ -3157,6 +3205,7 @@ espcp_file_details_t *espcp_extract_file_details(uint8_t *buffer)
     espcp_file_details_t *file_details = (espcp_file_details_t *) malloc(sizeof(espcp_file_details_t));
     if (file_details == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for file_details\n", __func__, __LINE__, (int)sizeof(espcp_file_details_t));
         return NULL;
     }
 
@@ -3246,6 +3295,7 @@ espcp_file_name_and_contents_t *espcp_extract_file_name_and_contents(uint8_t *bu
     espcp_file_name_and_contents_t *file_name_and_contents = (espcp_file_name_and_contents_t *) malloc(sizeof(espcp_file_name_and_contents_t));
     if (file_name_and_contents == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for file_name_and_contents\n", __func__, __LINE__, (int)sizeof(espcp_file_name_and_contents_t));
         return NULL;
     }
 
@@ -3258,6 +3308,7 @@ espcp_file_name_and_contents_t *espcp_extract_file_name_and_contents(uint8_t *bu
         file_name_and_contents->contents = (uint8_t *) malloc(file_name_and_contents->contents_length);
         if (file_name_and_contents->contents == NULL)
         {
+            MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for file_name_and_contents->contents\n", __func__, __LINE__, (int)file_name_and_contents->contents_length);
             free(file_name_and_contents);
             return NULL;
         }
@@ -3350,6 +3401,7 @@ espcp_file_name_list_t *espcp_extract_file_name_list(uint8_t *buffer)
     espcp_file_name_list_t *file_name_list = (espcp_file_name_list_t *) malloc(sizeof(espcp_file_name_list_t));
     if (file_name_list == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for file_name_list\n", __func__, __LINE__, (int) sizeof(espcp_file_name_list_t));
         return NULL;
     }
 
@@ -3362,6 +3414,7 @@ espcp_file_name_list_t *espcp_extract_file_name_list(uint8_t *buffer)
         file_name_list->file_details = (uint8_t *) malloc(file_name_list->file_details_length);
         if (file_name_list->file_details == NULL)
         {
+            MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for file_name_list->file_details\n", __func__, __LINE__, (int)file_name_list->file_details_length);
             free(file_name_list);
             return NULL;
         }
@@ -3501,9 +3554,10 @@ void espcp_encode_log_message(espcp_log_message_t *log_message, uint8_t *buffer)
  * ****************************************************************************/
 espcp_got_ip_event_data_t *espcp_extract_got_ip_event_data(uint8_t *buffer)
 {
-    espcp_got_ip_event_data_t *got_ip_event_data = (espcp_got_ip_event_data_t*) malloc(sizeof(espcp_got_ip_event_data_t));
+    espcp_got_ip_event_data_t *got_ip_event_data = (espcp_got_ip_event_data_t *) malloc(sizeof(espcp_got_ip_event_data_t));
     if (got_ip_event_data == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for got_ip_event_data\n", __func__, __LINE__, (int)sizeof(espcp_got_ip_event_data_t));
         return NULL;
     }
 
@@ -3532,6 +3586,7 @@ espcp_core_dump_information_response_t *espcp_extract_core_dump_information_resp
     espcp_core_dump_information_response_t *information = (espcp_core_dump_information_response_t *) malloc(sizeof(espcp_core_dump_information_response_t));
     if (information == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for information\n", __func__, __LINE__, (int) sizeof(espcp_core_dump_information_response_t));
         return NULL;
     }
 
@@ -3565,6 +3620,7 @@ espcp_core_dump_fragment_response_t *espcp_extract_core_dump_fragment_response(u
     espcp_core_dump_fragment_response_t *fragment = (espcp_core_dump_fragment_response_t *) malloc(sizeof(espcp_core_dump_fragment_response_t));
     if (fragment == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for fragment\n", __func__, __LINE__, (int)sizeof(espcp_core_dump_fragment_response_t));
         return NULL;
     }
 
@@ -3573,6 +3629,7 @@ espcp_core_dump_fragment_response_t *espcp_extract_core_dump_fragment_response(u
     fragment->data = (uint8_t *) malloc(fragment->size);
     if (fragment->data == NULL)
     {
+        MEADOW_TRACE_INFORMATION("%s:%d Failed to allocate %d bytes for fragment->data\n", __func__, __LINE__, (int) fragment->size);
         free(fragment);
         return NULL;
     }
