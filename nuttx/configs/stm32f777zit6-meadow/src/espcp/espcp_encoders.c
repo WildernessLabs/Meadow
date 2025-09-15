@@ -1,8 +1,41 @@
+/****************************************************************************
+ * espcp_encoders.c
+ *
+ *   Copyright (C) 2019 - 2025 Wilderness Labs. All rights reserved.
+ *   Author: Mark Stevens
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ * 3. Neither the name NuttX nor the names of its contributors may be
+ *    used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ ****************************************************************************/
 
-#include "espcp_encoders.h"
+ #include <nuttx/config.h>
 
-
-#include "espcp_encoders.h"
+ #include "espcp_encoders.h"
 
 /****************************************************************************
  * Name: espcp_calculate_spi_buffer_size
@@ -278,10 +311,11 @@ char *espcp_extract_string(uint8_t *buffer)
     else
     {
         ptr = (uint8_t *) malloc(length + 1);
-        if (ptr != NULL)
+        if (ptr == NULL)
         {
-            strcpy((char *) ptr, (char *) buffer);
+            return NULL;
         }
+        strcpy((char *) ptr, (char *) buffer);
     }
     return((char *) ptr);
 }
@@ -476,6 +510,10 @@ espcp_message_t *espcp_extract_message(uint8_t *buffer, uint32_t bufferLength, b
     if (crc == espcp_crc32(buffer, bufferLength - 4))   // See note in comment above.
     {
         message = (espcp_message_t *) malloc(sizeof(espcp_message_t));
+        if (message == NULL)
+        {
+            return NULL;
+        }
 
         memset((void *) message, 0, sizeof(espcp_message_t));
         buffer += 5;                                        // Skip the protocol and CRC.
@@ -498,6 +536,11 @@ espcp_message_t *espcp_extract_message(uint8_t *buffer, uint32_t bufferLength, b
         if (!headerOnly && (message->packet_length > 0))
         {
             message->payload = (uint8_t *) malloc(message->packet_length);
+            if (message->payload == NULL)
+            {
+                free(message);
+                return NULL;
+            }
             memcpy(message->payload, buffer, message->packet_length);
         }
         else
@@ -602,6 +645,10 @@ void espcp_encode_message(espcp_message_t *message, uint8_t *buffer, uint32_t *b
 espcp_system_configuration_t *espcp_extract_system_configuration(uint8_t *buffer)
 {
     espcp_system_configuration_t *system_configuration = (espcp_system_configuration_t *) malloc(sizeof(espcp_system_configuration_t));
+    if (system_configuration == NULL)
+    {
+        return NULL;
+    }
 
     system_configuration->maximum_message_queue_length = *buffer;
     buffer += 1;
@@ -724,6 +771,10 @@ int espcp_configuration_value_buffer_size(espcp_configuration_value_t *configura
 espcp_configuration_value_t *espcp_extract_configuration_value(uint8_t *buffer)
 {
     espcp_configuration_value_t *configuration_value = (espcp_configuration_value_t *) malloc(sizeof(espcp_configuration_value_t));
+    if (configuration_value == NULL)
+    {
+        return NULL;
+    }
 
     configuration_value->item = espcp_extract_uint32(buffer);
     buffer += 4;
@@ -732,6 +783,11 @@ espcp_configuration_value_t *espcp_extract_configuration_value(uint8_t *buffer)
     if (configuration_value->value_length > 0)
     {
         configuration_value->value = (uint8_t *) malloc(configuration_value->value_length);
+        if (configuration_value->value == NULL)
+        {
+            free(configuration_value);
+            return NULL;
+        }
         memcpy(configuration_value->value, buffer, configuration_value->value_length);
         buffer += configuration_value->value_length;
     }
@@ -766,6 +822,10 @@ espcp_configuration_value_t *espcp_extract_configuration_value(uint8_t *buffer)
 espcp_error_event_t *espcp_extract_error_event(uint8_t *buffer)
 {
     espcp_error_event_t *error_event = (espcp_error_event_t *) malloc(sizeof(espcp_error_event_t));
+    if (error_event == NULL)
+    {
+        return NULL;
+    }
 
     error_event->error_code = espcp_extract_uint32(buffer);
     buffer += 4;
@@ -776,6 +836,11 @@ espcp_error_event_t *espcp_extract_error_event(uint8_t *buffer)
     if (error_event->error_data_length > 0)
     {
         error_event->error_data = (uint8_t *) malloc(error_event->error_data_length);
+        if (error_event->error_data == NULL)
+        {
+            free(error_event);
+            return NULL;
+        }
         memcpy(error_event->error_data, buffer, error_event->error_data_length);
         buffer += error_event->error_data_length;
     }
@@ -810,6 +875,10 @@ espcp_error_event_t *espcp_extract_error_event(uint8_t *buffer)
 espcp_access_point_information_t *espcp_extract_access_point_information(uint8_t *buffer)
 {
     espcp_access_point_information_t *access_point_information = (espcp_access_point_information_t *) malloc(sizeof(espcp_access_point_information_t));
+    if (access_point_information == NULL)
+    {
+        return NULL;
+    }
 
     access_point_information->network_name = espcp_extract_string(buffer);
     buffer += espcp_string_length(access_point_information->network_name) + 1;
@@ -972,6 +1041,10 @@ int espcp_connect_event_data_buffer_size(espcp_connect_event_data_t *connect_eve
 espcp_connect_event_data_t *espcp_extract_connect_event_data(uint8_t *buffer)
 {
     espcp_connect_event_data_t *connect_event_data = (espcp_connect_event_data_t *) malloc(sizeof(espcp_connect_event_data_t));
+    if (connect_event_data == NULL)
+    {
+        return NULL;
+    }
 
     connect_event_data->ip_address = espcp_extract_uint32(buffer);
     buffer += 4;
@@ -1015,6 +1088,10 @@ espcp_connect_event_data_t *espcp_extract_connect_event_data(uint8_t *buffer)
 espcp_disconnect_event_data_t *espcp_extract_disconnect_event_data(uint8_t *buffer)
 {
     espcp_disconnect_event_data_t *disconnect_event_data = (espcp_disconnect_event_data_t *) malloc(sizeof(espcp_disconnect_event_data_t));
+    if (disconnect_event_data == NULL)
+    {
+        return NULL;
+    }
 
     disconnect_event_data->retrying = *buffer;
     buffer += 1;
@@ -1048,6 +1125,10 @@ espcp_disconnect_event_data_t *espcp_extract_disconnect_event_data(uint8_t *buff
 espcp_access_point_t *espcp_extract_access_point(uint8_t *buffer)
 {
     espcp_access_point_t *access_point = (espcp_access_point_t *) malloc(sizeof(espcp_access_point_t));
+    if (access_point == NULL)
+    {
+        return NULL;
+    }
 
     memcpy((void *) access_point->ssid, (void *) buffer, 33);
     buffer += 33;
@@ -1089,6 +1170,10 @@ espcp_access_point_t *espcp_extract_access_point(uint8_t *buffer)
 espcp_access_point_list_t *espcp_extract_access_point_list(uint8_t *buffer)
 {
     espcp_access_point_list_t *access_point_list = (espcp_access_point_list_t *) malloc(sizeof(espcp_access_point_list_t));
+    if (access_point_list == NULL)
+    {
+        return NULL;
+    }
 
     access_point_list->number_of_access_points = espcp_extract_uint32(buffer);
     buffer += 4;
@@ -1097,6 +1182,11 @@ espcp_access_point_list_t *espcp_extract_access_point_list(uint8_t *buffer)
     if (access_point_list->access_points_length > 0)
     {
         access_point_list->access_points = (uint8_t *) malloc(access_point_list->access_points_length);
+        if (access_point_list->access_points == NULL)
+        {
+            free(access_point_list);
+            return NULL;
+        }
         memcpy(access_point_list->access_points, buffer, access_point_list->access_points_length);
         buffer += access_point_list->access_points_length;
     }
@@ -1185,6 +1275,10 @@ int espcp_sock_addr_buffer_size(espcp_sock_addr_t *sock_addr)
 espcp_sock_addr_t *espcp_extract_sock_addr(uint8_t *buffer)
 {
     espcp_sock_addr_t *sock_addr = (espcp_sock_addr_t *) malloc(sizeof(espcp_sock_addr_t));
+    if (sock_addr == NULL)
+    {
+        return NULL;
+    }
 
     sock_addr->family = *buffer;
     buffer += 1;
@@ -1224,6 +1318,10 @@ espcp_sock_addr_t *espcp_extract_sock_addr(uint8_t *buffer)
 espcp_addr_info_t *espcp_extract_addr_info(uint8_t *buffer)
 {
     espcp_addr_info_t *addr_info = (espcp_addr_info_t *) malloc(sizeof(espcp_addr_info_t));
+    if (addr_info == NULL)
+    {
+        return NULL;
+    }
 
     addr_info->my_heap_address = espcp_extract_uint32(buffer);
     buffer += 4;
@@ -1242,6 +1340,11 @@ espcp_addr_info_t *espcp_extract_addr_info(uint8_t *buffer)
     if (addr_info->addr_length > 0)
     {
         addr_info->addr = (uint8_t *) malloc(addr_info->addr_length);
+        if (addr_info->addr == NULL)
+        {
+            free(addr_info);
+            return NULL;
+        }
         memcpy(addr_info->addr, buffer, addr_info->addr_length);
         buffer += addr_info->addr_length;
     }
@@ -1336,6 +1439,10 @@ int espcp_get_addr_info_request_buffer_size(espcp_get_addr_info_request_t *get_a
 espcp_get_addr_info_response_t *espcp_extract_get_addr_info_response(uint8_t *buffer)
 {
     espcp_get_addr_info_response_t *get_addr_info_response = (espcp_get_addr_info_response_t *) malloc(sizeof(espcp_get_addr_info_response_t));
+    if (get_addr_info_response == NULL)
+    {
+        return NULL;
+    }
 
     get_addr_info_response->addr_info_response_errno = espcp_extract_int32(buffer);
     buffer += 4;
@@ -1344,6 +1451,11 @@ espcp_get_addr_info_response_t *espcp_extract_get_addr_info_response(uint8_t *bu
     if (get_addr_info_response->res_length > 0)
     {
         get_addr_info_response->res = (uint8_t *) malloc(get_addr_info_response->res_length);
+        if (get_addr_info_response->res == NULL)
+        {
+            free(get_addr_info_response);
+            return NULL;
+        }
         memcpy(get_addr_info_response->res, buffer, get_addr_info_response->res_length);
         buffer += get_addr_info_response->res_length;
     }
@@ -1428,6 +1540,10 @@ int espcp_socket_request_buffer_size(espcp_socket_request_t *socket_request)
 espcp_integer_response_t *espcp_extract_integer_response(uint8_t *buffer)
 {
     espcp_integer_response_t *integer_response = (espcp_integer_response_t *) malloc(sizeof(espcp_integer_response_t));
+    if (integer_response == NULL)
+    {
+        return NULL;
+    }
 
     integer_response->result = espcp_extract_int32(buffer);
     return(integer_response);
@@ -1457,6 +1573,10 @@ espcp_integer_response_t *espcp_extract_integer_response(uint8_t *buffer)
 espcp_integer_and_errno_response_t *espcp_extract_integer_and_errno_response(uint8_t *buffer)
 {
     espcp_integer_and_errno_response_t *integer_and_errno_response = (espcp_integer_and_errno_response_t *) malloc(sizeof(espcp_integer_and_errno_response_t));
+    if (integer_and_errno_response == NULL)
+    {
+        return NULL;
+    }
 
     integer_and_errno_response->result = espcp_extract_int32(buffer);
     buffer += 4;
@@ -1631,6 +1751,10 @@ int espcp_time_val_buffer_size(espcp_time_val_t *time_val)
 espcp_time_val_t *espcp_extract_time_val(uint8_t *buffer)
 {
     espcp_time_val_t *time_val = (espcp_time_val_t *) malloc(sizeof(espcp_time_val_t));
+    if (time_val == NULL)
+    {
+        return NULL;
+    }
 
     time_val->tv_sec = espcp_extract_uint32(buffer);
     buffer += 4;
@@ -1769,6 +1893,10 @@ int espcp_get_sock_opt_request_buffer_size(espcp_get_sock_opt_request_t *get_soc
 espcp_get_sock_opt_response_t *espcp_extract_get_sock_opt_response(uint8_t *buffer)
 {
     espcp_get_sock_opt_response_t *get_sock_opt_response = (espcp_get_sock_opt_response_t *) malloc(sizeof(espcp_get_sock_opt_response_t));
+    if (get_sock_opt_response == NULL)
+    {
+        return NULL;
+    }
 
     get_sock_opt_response->result = espcp_extract_int32(buffer);
     buffer += 4;
@@ -1779,6 +1907,11 @@ espcp_get_sock_opt_response_t *espcp_extract_get_sock_opt_response(uint8_t *buff
     if (get_sock_opt_response->option_value_length > 0)
     {
         get_sock_opt_response->option_value = (uint8_t *) malloc(get_sock_opt_response->option_value_length);
+        if (get_sock_opt_response->option_value == NULL)
+        {
+            free(get_sock_opt_response);
+            return NULL;
+        }
         memcpy(get_sock_opt_response->option_value, buffer, get_sock_opt_response->option_value_length);
         buffer += get_sock_opt_response->option_value_length;
     }
@@ -1860,6 +1993,10 @@ int espcp_linger_buffer_size(espcp_linger_t *linger)
 espcp_linger_t *espcp_extract_linger(uint8_t *buffer)
 {
     espcp_linger_t *linger = (espcp_linger_t *) malloc(sizeof(espcp_linger_t));
+    if (linger == NULL)
+    {
+        return NULL;
+    }
 
     linger->l_on_off = espcp_extract_int32(buffer);
     buffer += 4;
@@ -1992,12 +2129,21 @@ int espcp_read_request_buffer_size(espcp_read_request_t *read_request)
 espcp_read_response_t *espcp_extract_read_response(uint8_t *buffer)
 {
     espcp_read_response_t *read_response = (espcp_read_response_t *) malloc(sizeof(espcp_read_response_t));
+    if (read_response == NULL)
+    {
+        return NULL;
+    }
 
     read_response->buffer_length = espcp_extract_uint32(buffer);
     buffer += 4;
     if (read_response->buffer_length > 0)
     {
         read_response->buffer = (uint8_t *) malloc(read_response->buffer_length);
+        if (read_response->buffer == NULL)
+        {
+            free(read_response);
+            return NULL;
+        }
         memcpy(read_response->buffer, buffer, read_response->buffer_length);
         buffer += read_response->buffer_length;
     }
@@ -2079,6 +2225,10 @@ int espcp_close_request_buffer_size(espcp_close_request_t *close_request)
 espcp_get_battery_charge_level_response_t *espcp_extract_get_battery_charge_level_response(uint8_t *buffer)
 {
     espcp_get_battery_charge_level_response_t *get_battery_charge_level_response = (espcp_get_battery_charge_level_response_t *) malloc(sizeof(espcp_get_battery_charge_level_response_t));
+    if (get_battery_charge_level_response == NULL)
+    {
+        return NULL;
+    }
 
     get_battery_charge_level_response->level = espcp_extract_uint32(buffer);
     return(get_battery_charge_level_response);
@@ -2223,12 +2373,21 @@ int espcp_recv_from_request_buffer_size(espcp_recv_from_request_t *recv_from_req
 espcp_recv_from_response_t *espcp_extract_recv_from_response(uint8_t *buffer)
 {
     espcp_recv_from_response_t *recv_from_response = (espcp_recv_from_response_t *) malloc(sizeof(espcp_recv_from_response_t));
+    if (recv_from_response == NULL)
+    {
+        return NULL;
+    }
 
     recv_from_response->buffer_length = espcp_extract_uint32(buffer);
     buffer += 4;
     if (recv_from_response->buffer_length > 0)
     {
         recv_from_response->buffer = (uint8_t *) malloc(recv_from_response->buffer_length);
+        if (recv_from_response->buffer == NULL)
+        {
+            free(recv_from_response);
+            return NULL;
+        }
         memcpy(recv_from_response->buffer, buffer, recv_from_response->buffer_length);
         buffer += recv_from_response->buffer_length;
     }
@@ -2245,6 +2404,15 @@ espcp_recv_from_response_t *espcp_extract_recv_from_response(uint8_t *buffer)
     if (recv_from_response->source_address_length > 0)
     {
         recv_from_response->source_address = (uint8_t *) malloc(recv_from_response->source_address_length);
+        if (recv_from_response->source_address == NULL)
+        {
+            if (recv_from_response->buffer != NULL)
+            {
+                free(recv_from_response->buffer);
+            }
+            free(recv_from_response);
+            return NULL;
+        }
         memcpy(recv_from_response->source_address, buffer, recv_from_response->source_address_length);
         buffer += recv_from_response->source_address_length;
     }
@@ -2332,6 +2500,10 @@ int espcp_poll_request_buffer_size(espcp_poll_request_t *poll_request)
 espcp_poll_response_t *espcp_extract_poll_response(uint8_t *buffer)
 {
     espcp_poll_response_t *poll_response = (espcp_poll_response_t *) malloc(sizeof(espcp_poll_response_t));
+    if (poll_response == NULL)
+    {
+        return NULL;
+    }
 
     poll_response->returned_events = espcp_extract_uint16(buffer);
     buffer += 2;
@@ -2365,6 +2537,10 @@ espcp_poll_response_t *espcp_extract_poll_response(uint8_t *buffer)
 espcp_interrupt_poll_response_t *espcp_extract_interrupt_poll_response(uint8_t *buffer)
 {
     espcp_interrupt_poll_response_t *interrupt_poll_response = (espcp_interrupt_poll_response_t *) malloc(sizeof(espcp_interrupt_poll_response_t));
+    if (interrupt_poll_response == NULL)
+    {
+        return NULL;
+    }
 
     interrupt_poll_response->socket_handle = espcp_extract_int32(buffer);
     buffer += 4;
@@ -2545,12 +2721,21 @@ int espcp_accept_request_buffer_size(espcp_accept_request_t *accept_request)
 espcp_accept_response_t *espcp_extract_accept_response(uint8_t *buffer)
 {
     espcp_accept_response_t *accept_response = (espcp_accept_response_t *) malloc(sizeof(espcp_accept_response_t));
+    if (accept_response == NULL)
+    {
+        return NULL;
+    }
 
     accept_response->addr_length = espcp_extract_uint32(buffer);
     buffer += 4;
     if (accept_response->addr_length > 0)
     {
         accept_response->addr = (uint8_t *) malloc(accept_response->addr_length);
+        if (accept_response->addr == NULL)
+        {
+            free(accept_response);
+            return NULL;
+        }
         memcpy(accept_response->addr, buffer, accept_response->addr_length);
         buffer += accept_response->addr_length;
     }
@@ -2632,12 +2817,21 @@ int espcp_ioctl_request_buffer_size(espcp_ioctl_request_t *ioctl_request)
 espcp_ioctl_response_t *espcp_extract_ioctl_response(uint8_t *buffer)
 {
     espcp_ioctl_response_t *ioctl_response = (espcp_ioctl_response_t *) malloc(sizeof(espcp_ioctl_response_t));
+    if (ioctl_response == NULL)
+    {
+        return NULL;
+    }
 
     ioctl_response->addr_length = espcp_extract_uint32(buffer);
     buffer += 4;
     if (ioctl_response->addr_length > 0)
     {
         ioctl_response->addr = (uint8_t *) malloc(ioctl_response->addr_length);
+        if (ioctl_response->addr == NULL)
+        {
+            free(ioctl_response);
+            return NULL;
+        }
         memcpy(ioctl_response->addr, buffer, ioctl_response->addr_length);
         buffer += ioctl_response->addr_length;
     }
@@ -2721,12 +2915,21 @@ int espcp_get_sock_peer_name_request_buffer_size(espcp_get_sock_peer_name_reques
 espcp_get_sock_peer_name_response_t *espcp_extract_get_sock_peer_name_response(uint8_t *buffer)
 {
     espcp_get_sock_peer_name_response_t *get_sock_peer_name_response = (espcp_get_sock_peer_name_response_t *) malloc(sizeof(espcp_get_sock_peer_name_response_t));
+    if (get_sock_peer_name_response == NULL)
+    {
+        return NULL;
+    }
 
     get_sock_peer_name_response->addr_length = espcp_extract_uint32(buffer);
     buffer += 4;
     if (get_sock_peer_name_response->addr_length > 0)
     {
         get_sock_peer_name_response->addr = (uint8_t *) malloc(get_sock_peer_name_response->addr_length);
+        if (get_sock_peer_name_response->addr == NULL)
+        {
+            free(get_sock_peer_name_response);
+            return NULL;
+        }
         memcpy(get_sock_peer_name_response->addr, buffer, get_sock_peer_name_response->addr_length);
         buffer += get_sock_peer_name_response->addr_length;
     }
@@ -2814,6 +3017,10 @@ int espcp_event_data_buffer_size(espcp_event_data_t *event_data)
 espcp_event_data_t *espcp_extract_event_data(uint8_t *buffer)
 {
     espcp_event_data_t *event_data = (espcp_event_data_t *) malloc(sizeof(espcp_event_data_t));
+    if (event_data == NULL)
+    {
+        return NULL;
+    }
 
     event_data->interface = *buffer;
     buffer += 1;
@@ -2849,6 +3056,10 @@ espcp_event_data_t *espcp_extract_event_data(uint8_t *buffer)
 espcp_event_data_payload_t *espcp_extract_event_data_payload(uint8_t *buffer)
 {
     espcp_event_data_payload_t *event_data_payload = (espcp_event_data_payload_t *) malloc(sizeof(espcp_event_data_payload_t));
+    if (event_data_payload == NULL)
+    {
+        return NULL;
+    }
 
     event_data_payload->message_id = espcp_extract_uint32(buffer);
     buffer += 4;
@@ -2857,6 +3068,11 @@ espcp_event_data_payload_t *espcp_extract_event_data_payload(uint8_t *buffer)
     if (event_data_payload->payload_length > 0)
     {
         event_data_payload->payload = (uint8_t *) malloc(event_data_payload->payload_length);
+        if (event_data_payload->payload == NULL)
+        {
+            free(event_data_payload);
+            return NULL;
+        }
         memcpy(event_data_payload->payload, buffer, event_data_payload->payload_length);
         buffer += event_data_payload->payload_length;
     }
@@ -2939,6 +3155,10 @@ int espcp_file_details_buffer_size(espcp_file_details_t *file_details)
 espcp_file_details_t *espcp_extract_file_details(uint8_t *buffer)
 {
     espcp_file_details_t *file_details = (espcp_file_details_t *) malloc(sizeof(espcp_file_details_t));
+    if (file_details == NULL)
+    {
+        return NULL;
+    }
 
     file_details->name = espcp_extract_string(buffer);
     buffer += espcp_string_length(file_details->name) + 1;
@@ -3024,6 +3244,10 @@ int espcp_file_name_and_contents_buffer_size(espcp_file_name_and_contents_t *fil
 espcp_file_name_and_contents_t *espcp_extract_file_name_and_contents(uint8_t *buffer)
 {
     espcp_file_name_and_contents_t *file_name_and_contents = (espcp_file_name_and_contents_t *) malloc(sizeof(espcp_file_name_and_contents_t));
+    if (file_name_and_contents == NULL)
+    {
+        return NULL;
+    }
 
     file_name_and_contents->name = espcp_extract_string(buffer);
     buffer += espcp_string_length(file_name_and_contents->name) + 1;
@@ -3032,6 +3256,11 @@ espcp_file_name_and_contents_t *espcp_extract_file_name_and_contents(uint8_t *bu
     if (file_name_and_contents->contents_length > 0)
     {
         file_name_and_contents->contents = (uint8_t *) malloc(file_name_and_contents->contents_length);
+        if (file_name_and_contents->contents == NULL)
+        {
+            free(file_name_and_contents);
+            return NULL;
+        }
         memcpy(file_name_and_contents->contents, buffer, file_name_and_contents->contents_length);
         buffer += file_name_and_contents->contents_length;
     }
@@ -3119,6 +3348,10 @@ int espcp_file_name_list_buffer_size(espcp_file_name_list_t *file_name_list)
 espcp_file_name_list_t *espcp_extract_file_name_list(uint8_t *buffer)
 {
     espcp_file_name_list_t *file_name_list = (espcp_file_name_list_t *) malloc(sizeof(espcp_file_name_list_t));
+    if (file_name_list == NULL)
+    {
+        return NULL;
+    }
 
     file_name_list->number_of_files = espcp_extract_uint16(buffer);
     buffer += 2;
@@ -3127,6 +3360,11 @@ espcp_file_name_list_t *espcp_extract_file_name_list(uint8_t *buffer)
     if (file_name_list->file_details_length > 0)
     {
         file_name_list->file_details = (uint8_t *) malloc(file_name_list->file_details_length);
+        if (file_name_list->file_details == NULL)
+        {
+            free(file_name_list);
+            return NULL;
+        }
         memcpy(file_name_list->file_details, buffer, file_name_list->file_details_length);
         buffer += file_name_list->file_details_length;
     }
@@ -3263,7 +3501,12 @@ void espcp_encode_log_message(espcp_log_message_t *log_message, uint8_t *buffer)
  * ****************************************************************************/
 espcp_got_ip_event_data_t *espcp_extract_got_ip_event_data(uint8_t *buffer)
 {
-    espcp_got_ip_event_data_t *got_ip_event_data = (espcp_got_ip_event_data_t*)malloc(sizeof(espcp_got_ip_event_data_t));
+    espcp_got_ip_event_data_t *got_ip_event_data = (espcp_got_ip_event_data_t*) malloc(sizeof(espcp_got_ip_event_data_t));
+    if (got_ip_event_data == NULL)
+    {
+        return NULL;
+    }
+
     got_ip_event_data->dns_address = espcp_extract_uint32(buffer);
     return got_ip_event_data;
 }
