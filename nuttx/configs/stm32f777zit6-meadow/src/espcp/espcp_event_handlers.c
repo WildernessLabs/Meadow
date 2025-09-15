@@ -32,9 +32,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  ****************************************************************************/
+
 #include <nuttx/config.h>
 
 #include <sys/types.h>
+
+#include "espcp_encoders.h"
+#include "espcp_common.h"
 
 #include <nuttx/kthread.h>
 #include <nuttx/wqueue.h>
@@ -42,12 +46,8 @@
 #include "../hcom_nx/hcom_nx_config_manager.h"
 #include "espcp_event_handlers.h"
 #include "../espcp/espcp_system.h"
-#include "espcp_coprocessor.h"
-#include "espcp_message_dispatcher.h"
 #include "espcp_core_dump.h"
-#include "generic_list.h"
 #include "../ntpclient/ntpclient.h"
-#include "../ethernet/meadow_ethnet_local.h"
 #include "../hcom_nx/hcom_nx_common.h"
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/meadow_thread_config.h>
@@ -86,7 +86,7 @@ static void espcp_system_error_event_handler(espcp_message_t *);
 /**
  *  Table of event handlers for the WiFi and socket handlers.
  */
-static espcp_event_handlers_t _wifi_handlers[] = 
+static espcp_event_handlers_t _wifi_handlers[] =
 {
     { espcp_wi_fi_function_interrupt_poll_response, espcp_usrsock_poll_interrupt_handler },
     { espcp_wi_fi_function_network_connected_event, espcp_network_connected_event_handler },
@@ -98,7 +98,7 @@ static espcp_event_handlers_t _wifi_handlers[] =
 /**
  *  Table of event handlers for the system interface.
  */
-static espcp_event_handlers_t _system_handlers[] = 
+static espcp_event_handlers_t _system_handlers[] =
 {
     { espcp_system_function_get_configuration, espcp_system_get_configuration_event_handler },
     { espcp_system_function_error_event, espcp_system_error_event_handler },
@@ -108,7 +108,7 @@ static espcp_event_handlers_t _system_handlers[] =
 /**
  *  Table of event handlers for the bluetooth interface.
  */
-static espcp_event_handlers_t _bluetooth_handlers[] = 
+static espcp_event_handlers_t _bluetooth_handlers[] =
 {
     { END_OF_HANDLERS_VALUE, NULL }
 };
@@ -299,7 +299,7 @@ void espcp_event_handlers_init(void)
  *
  * Description:
  *  Compare the specified event ID with the one in the pointer to a message.
- * 
+ *
  *  This method is used by the generic linked list code.
  *
  * Input Parameters:
@@ -329,7 +329,7 @@ static bool espcp_compare_event_ids(uint32_t event_id, void *event_data)
  * Description:
  *  Find the event data in the list of events with payloads.  Remove the event
  *  from the list and return a pointer to the event data.
- * 
+ *
  *  There can be a small time delay between the managed code requesting the
  *  event data and it being available.  The retry loop below takes this into
  *  consideration and pauses for a short time before retrying.
@@ -462,7 +462,7 @@ void espcp_system_get_configuration_event_handler(espcp_message_t *message)
                 hcom_nx_config_process_wifi_credentials_file();
                 hcom_nx_config_lock();
                 config = hcom_nx_config_get_pointer();
-                syslog(LOG_INFO, "ESP32 Coprocessor ready, firmware version %s\n", config->esp_version.long_string); 
+                syslog(LOG_INFO, "ESP32 Coprocessor ready, firmware version %s\n", config->esp_version.long_string);
                 hcom_nx_config_unlock();
             }
             //
@@ -571,10 +571,13 @@ static void espcp_network_connected_event_handler(espcp_message_t *message)
         if (message->payload != NULL)
         {
             espcp_connect_event_data_t *connect_data = espcp_extract_connect_event_data(message->payload);
-            hcom_nx_config_add_default_gateway_dns_file(config, connect_data->gateway);
-            hcom_nx_config_update_network_interface(config, connect_data->ip_address,
-                                                    connect_data->gateway,
-                                                    connect_data->subnet_mask);
+            if (connect_data != NULL)
+            {
+                hcom_nx_config_add_default_gateway_dns_file(config, connect_data->gateway);
+                hcom_nx_config_update_network_interface(config, connect_data->ip_address,
+                                                        connect_data->gateway,
+                                                        connect_data->subnet_mask);
+            }
         }
         hcom_nx_config_unlock();
 
@@ -705,6 +708,7 @@ void espcp_pass_to_managed_event_handler(espcp_message_t *message)
     {
         espcp_delete_message_and_payload(message);
     }
+
     MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }
 
@@ -721,6 +725,7 @@ void espcp_pass_to_managed_event_handler(espcp_message_t *message)
 static void espcp_network_got_ip_event_handler(espcp_message_t *message)
 {
     MEADOW_TRACE_INFORMATION("%s: Enter\n", __func__);
+
     if (message->status_code == espcp_status_codes_completed_ok)
     {
         hcom_nx_config_lock();
@@ -729,14 +734,18 @@ static void espcp_network_got_ip_event_handler(espcp_message_t *message)
         if (message->payload != NULL)
         {
             espcp_got_ip_event_data_t *espcp_got_ip_data = espcp_extract_got_ip_event_data(message->payload);
-            if (config->default_interface->dns_address != espcp_got_ip_data->dns_address)
+            if (espcp_got_ip_data != NULL)
             {
-                hcom_nx_config_update_dns_address(config, espcp_got_ip_data->dns_address);
-                hcom_nx_config_add_dns_address_into_file(espcp_got_ip_data->dns_address);
+                if (config->default_interface->dns_address != espcp_got_ip_data->dns_address)
+                {
+                    hcom_nx_config_update_dns_address(config, espcp_got_ip_data->dns_address);
+                    hcom_nx_config_add_dns_address_into_file(espcp_got_ip_data->dns_address);
+                }
             }
         }
         hcom_nx_config_unlock();
     }
     espcp_pass_to_managed_event_handler(message);
+
     MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
 }
