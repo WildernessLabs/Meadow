@@ -49,6 +49,7 @@
 #include <meadow/hcom_nuttx_shared.h>
 #include <meadow/meadow_hw_version.h>
 #include <meadow/meadow_os.h>
+#include "../espcp/espcp_common.h"
 #include "../espcp/espcp_coprocessor.h"
 #include "../espcp/espcp_message_dispatcher.h"
 #include "../espcp/espcp_event_handlers.h"
