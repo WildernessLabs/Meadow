@@ -55,7 +55,6 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-#define USE_ORIGINAL_READ_SCHEME (0)
 
 #define HCOM_HOST_RECEIVE_BUFFER_SIZE (HCOM_PROTOCOL_SAFE_ENCODED_MSG_BUF_SIZE + \
   HCOM_HOST_RECEIVE_MAX_READ_SIZE + 1)
@@ -356,7 +355,6 @@ bool hcom_host_recv_received_data()
             thisFile, __LINE__, HCOM_COMMUNICATIONS_DEVICE_NAME);
 #endif
 
-#if(USE_ORIGINAL_READ_SCHEME > 0)
   while (!_shutting_down)
   {
     // This is a blocking read. read() will return:
@@ -377,58 +375,7 @@ bool hcom_host_recv_received_data()
       }
       continue;
     }
-#else
-  uint32_t dataBufOffset = 0;
-  ssize_t readResult;
 
-  // Stay in this loop until the HCOM is shutdown
-  while (!_shutting_down)
-  {
-    // I found that the read call doesn't wait for a large number of bytes to be
-    // received. I may be it just returns the number that have already been
-    // received, as the first read is usually < 8 bytes. The typical number read
-    // is 64 or 128, sometimes 256.
-    
-    // This is a blocking read. read() will return:
-    // (1) readReturn > 0 and readReturn is amount of data in buffer
-    // (2) readReturn == 0 on end of file
-    // (3) readReturn < 0 on a read error or interruption by a signal, value in errno
-    readResult = read(_comms_read_fd, &_recvDataBuffer[dataBufOffset],
-      HCOM_HOST_RECEIVE_MAX_READ_SIZE);
-    if (readResult > 0)
-    {
-      // Did we get a delimiter in the last read?
-      char *delim = memchr(_recvDataBuffer + dataBufOffset,
-        HCOM_PROTOCOL_COBS_DELIMITER, readResult);
-
-      dataBufOffset += readResult;    // New end of Buffer offset
-
-      // Anywhere close to overflowing the buffer?
-      if((dataBufOffset + HCOM_HOST_RECEIVE_MAX_READ_SIZE) >= \
-          HCOM_HOST_RECEIVE_BUFFER_SIZE)
-      {
-        hcom_logging_syslog(LOG_ERR, "%s@%d-dataBufOffset may cause buffer overflow\n",
-            thisFile, __LINE__);
-        return false;
-      }
-
-      if(delim == NULL)
-      {
-        continue;   // Read more bytes
-      }
-
-      int result = hcom_host_enq_deq_enqueue_rcvd_data(_recvDataBuffer, dataBufOffset);
-      if (result < 0)
-      {
-        hcom_logging_syslog(LOG_WARNING, "%s@%d-received result:%d \n",
-            thisFile, __LINE__, result);
-      }
-
-      dataBufOffset = 0;    // Reset buffer offset
-      continue;
-    }
-
-#endif
     // readResult == 0 (end-of-file). Host PC probably dropped connection
     if (readResult == 0)
     {
