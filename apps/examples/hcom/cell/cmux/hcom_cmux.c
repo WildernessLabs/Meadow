@@ -9,13 +9,15 @@
 
 #include <stdio.h>
 #include <stdbool.h>
-
+#include <string.h>
+#include <stdlib.h>
 #include <pty.h>
 
 #include <meadow/hcom_protocol.h>
 #include <meadow/meadow_os.h>
 
 #include "hcom_cmux.h"
+#include "netutils/chat.h"
 
 #define BIT_0 (0)
 #define BIT_1 (1)
@@ -26,12 +28,13 @@
 #define BIT_6 (6)
 #define BIT_7 (7)
 
-#define PATH_TO_UART1              "/dev/ttyS1"
 #define CMD_ATTEMPS  (10)
 #define CHANNEL_NAME_SIZE (64)
 
 #define FRAME_PREFIX (5)
 #define FRAME_POSFIX (2)
+#define HCOM_CMUX_TIMEOUT_SECONDS                     (30)
+#define HCOM_CMUX_NUMBER_OF_PORTS                     (5)
 
 #define HCOM_CMUX_TASK_PRIORITY                       150
 #define HCOM_CMUX_TASK_NAME                           "CellCmux"
@@ -167,61 +170,23 @@ typedef struct {
     time_t last_activity;
 } cmux_channel_t;
 
+typedef struct {
+    int serial_fd;
+    int number_of_ports;
+    cmux_channel_t *channel;
+    cell_settings_t *settings;
+}hcom_cmux_config_t;
+
 static char *thisFile = __FILE__;
 
-static int fd_uart = 0;
-static cmux_channel_t *cmux_status = NULL;
-static int number_of_ports = 5;
-
-static char *cmux_modem_at_cmd[] =
-{ 
-  {"ATE0\r\n"},
-  {"AT+IFC=2,2\r\n"},
-  {"AT+IPR=115200\r\n"},
-  {"AT+CMUX=0,0,5,127,10,3,30,10,2\r\n"}
-};
-
-static int hcom_send_attention_cmd(unsigned char* cmd, size_t cmd_size, uint32_t cmd_timeout)
-{
-  fd_set rfds;
-  int ret = 0;
-  struct timeval timeout;
-  static char buffer[125] = {0x00};
-
-  if (fd_uart)
-  {
-    ret = write(fd_uart, cmd, cmd_size);
-  }
-
-  if (cmd_timeout)
-  {
-    tcdrain(fd_uart);
-    sleep(1);
-
-    timeout.tv_sec = 0;
-		timeout.tv_usec = cmd_timeout;
-
-    for (int attemps = 0; attemps < CMD_ATTEMPS; attemps ++)
-    {
-        FD_ZERO(&rfds);
-	    FD_SET(fd_uart, &rfds);
-        ret = select((fd_uart+1), &rfds, NULL, NULL, &timeout);
-        if (ret > 0)
-        {
-            if (FD_ISSET(fd_uart, &rfds))
-            {
-                memset (buffer, 0, sizeof(buffer));
-                ret = read(fd_uart, buffer, sizeof(buffer));
-                if (ret > 0)
-                {
-                    break;
-                }
-            }
-        }
-    }
-  }
-  return ret;
-}
+static char g_cmux_script [] = 
+  "ECHO ON "
+  "TIMEOUT 30 "
+  "\"\" ATE0 "
+  "OK AT+IFC=2,2 "
+  "OK AT+IPR=115200 "
+  "OK AT+CMUX=0,0,5,127,10,3,30,10,2 "
+  "OK \\c";
 
 static int send_cmux_frame(int fd, int channel, char *buffer, int frame_size, unsigned char type)
 {
@@ -297,14 +262,11 @@ static int hcom_create_multiplex_channel(cmux_channel_t * ch, int num_of_ports)
 {
   int ret = 0;
   int master_fd, slave_fd = 0;
-  char pty_name[64];
   struct termios options;
 
-  // set raw input
   options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
   options.c_iflag &= ~(INLCR | ICRNL | IGNCR);
 
-  // set raw output
   options.c_oflag &= ~OPOST;
   options.c_oflag &= ~OLCUC;
   options.c_oflag &= ~ONLRET;
@@ -330,12 +292,12 @@ static int hcom_create_multiplex_channel(cmux_channel_t * ch, int num_of_ports)
   return ret;
 }
 
-static int open_channels(cmux_channel_t * ch, int num_of_ports)
+static int hcom_open_virtual_channels(int fd, int num_of_ports)
 {
   int ret = 0;
   for (int i = 0; i < num_of_ports; i++)
   {
-    ret = send_cmux_raw_frame(fd_uart, i, (FRAME_TYPE_SABM | CONTROL_FIELD_BIT_PF));
+    ret = send_cmux_raw_frame(fd, i, (FRAME_TYPE_SABM | CONTROL_FIELD_BIT_PF));
     if(ret != OK)
     {
       printf("Failed to open channel\n");
@@ -346,66 +308,51 @@ static int open_channels(cmux_channel_t * ch, int num_of_ports)
   return ret;
 }
 
-static int hcom_setup_multiplex_mode()
+static int hcom_setup_multiplex_mode(int fd)
 {
     int ret = 0;
+    struct chat_ctl ctl;
 
-    ret = hcom_send_attention_cmd(cmux_modem_at_cmd[0], strlen(cmux_modem_at_cmd[0]), 1000);      
-    if (ret <=0)
-    {
-        return ERROR;
-    }
+    ctl.echo = false;
+    ctl.verbose = false;
+    ctl.fd = fd;
+    ctl.timeout = HCOM_CMUX_TIMEOUT_SECONDS;
 
-    ret = hcom_send_attention_cmd(cmux_modem_at_cmd[1], strlen(cmux_modem_at_cmd[1]), 1000);
-    if (ret <=0)
-    {
-        printf("Failed to send,ret=%d\n", ret);
-        return ERROR;
-    }
-    sleep(1);
-
-    ret = hcom_send_attention_cmd(cmux_modem_at_cmd[2], strlen(cmux_modem_at_cmd[2]), 1000);
-    if (ret <=0)
-    {
-        printf("Failed to send,ret=%d\n", ret);
-        return ERROR;
-    }
-    sleep(1);
-
-    ret = hcom_send_attention_cmd(cmux_modem_at_cmd[3], strlen(cmux_modem_at_cmd[3]), 1000);
-    if (ret <=0)
-    {
-        printf("Failed to send,ret=%d\n", ret);
-        return ERROR;
-    }
-    return OK;
+    ret = chat(&ctl, &g_cmux_script, NULL);    
+    return ret;
 }
 
-static int hcom_cmux_daemon(int argc, FAR char *argv[])
+static void *hcom_cmux_thread(void *cmux_configs)
 {
-  fd_set rfds;
-  struct timeval timeout;
-  int channel = 0;
-  int ret = 0;
-  unsigned char buffer[512];
+    fd_set rfds;
+    struct timeval timeout;
+    int channel = 0;
+    int ret = 0;
+    unsigned char buffer[512];
+
+    hcom_cmux_config_t *cmux = (hcom_cmux_config_t *)cmux_configs;
+    if (!cmux)
+    {
+        return NULL;
+    }
 
     for (;;)
     {
         FD_ZERO(&rfds);
-        FD_SET(fd_uart, &rfds);
+        FD_SET(cmux->serial_fd, &rfds);
 
-        int max_fd = fd_uart;
-        for (int i = 0; i < number_of_ports; i++) 
+        int max_fd = cmux->serial_fd;
+        for (int i = 0; i < cmux->number_of_ports; i++) 
         {
-            if (cmux_status[i].active) 
+            if (cmux->channel[i].active) 
             {
-                FD_SET(cmux_status[i].master_fd, &rfds);
-                FD_SET(cmux_status[i].slave_fd, &rfds);
+                FD_SET(cmux->channel[i].master_fd, &rfds);
+                FD_SET(cmux->channel[i].slave_fd, &rfds);
 
-                if (cmux_status[i].master_fd > max_fd) 
-                    max_fd = cmux_status[i].master_fd;
-                if (cmux_status[i].slave_fd > max_fd) 
-                    max_fd = cmux_status[i].slave_fd;
+                if (cmux->channel[i].master_fd > max_fd) 
+                    max_fd = cmux->channel[i].master_fd;
+                if (cmux->channel[i].slave_fd > max_fd) 
+                    max_fd = cmux->channel[i].slave_fd;
             }
         }
 
@@ -415,21 +362,21 @@ static int hcom_cmux_daemon(int argc, FAR char *argv[])
         ret = select(max_fd + 1, &rfds, NULL, NULL, &timeout);
         if (ret > 0)
         {
-            if (FD_ISSET(fd_uart, &rfds))
+            if (FD_ISSET(cmux->serial_fd, &rfds))
             {
-                int bytes_read = read(fd_uart, buffer, sizeof(buffer) - 1);
+                int bytes_read = read(cmux->serial_fd, buffer, sizeof(buffer) - 1);
                 if (bytes_read > 0)
                 {
                     ;
                 }
             }
 
-            for (int i = 0; i < number_of_ports; i++) 
+            for (int i = 0; i < cmux->number_of_ports; i++) 
             {
-                if (cmux_status[i].active && FD_ISSET(cmux_status[i].master_fd, &rfds))
+                if (cmux->channel[i].active && FD_ISSET(cmux->channel[i].master_fd, &rfds))
                 {
                     memset(buffer, 0, sizeof(buffer));
-                    int bytes_read = read(cmux_status[i].master_fd, buffer, sizeof(buffer) - 1);
+                    int bytes_read = read(cmux->channel[i].master_fd, buffer, sizeof(buffer) - 1);
                     if (bytes_read > 0)
                     {
                         buffer[bytes_read] = '\r';
@@ -442,10 +389,10 @@ static int hcom_cmux_daemon(int argc, FAR char *argv[])
                     }
                 }
 
-                if (cmux_status[i].active && FD_ISSET(cmux_status[i].slave_fd, &rfds))
+                if (cmux->channel[i].active && FD_ISSET(cmux->channel[i].slave_fd, &rfds))
                 {
 					memset(buffer, 0, sizeof(buffer));
-					if (read(cmux_status[i].slave_fd, buffer, sizeof(buffer)-1) > 0 )
+					if (read(cmux->channel[i].slave_fd, buffer, sizeof(buffer)-1) > 0 )
 					{
                         ;
 					}
@@ -457,42 +404,80 @@ static int hcom_cmux_daemon(int argc, FAR char *argv[])
 
 int hcom_cmux_start(void)
 {
-    int ret = ERROR;
-    fd_uart = open(PATH_TO_UART1, O_RDWR | O_NONBLOCK);
-    if (fd_uart)
+    int ret = -ENODATA;
+    pthread_t cmux_thread_id;
+    hcom_cmux_config_t hcom_cmux;
+    meadow_configuration_t *config = meadow_os_deep_copy_config();
+
+    if ((config != NULL) && (config->default_interface != NULL))
     {
-        cmux_status = (cmux_channel_t *) malloc(sizeof(cmux_channel_t) * number_of_ports);
-        if (cmux_status == NULL)
+        if (config->default_interface->interface_type != MEADOW_IFT_CELL)
         {
-            hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate cmux channels\n", thisFile, __LINE__);
-            return (-ENOMEM);
-        }
+            hcom_cmux.number_of_ports = (int) HCOM_CMUX_NUMBER_OF_PORTS;
 
-        ret = hcom_create_multiplex_channel(cmux_status, number_of_ports);
-        if (ret < 0)
-        {
-            hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to create multiplex channels\n", thisFile, __LINE__);
-            return ret;
-        }
+            hcom_cmux.serial_fd = open(hcom_cmux.settings->ttyname, O_RDWR | O_NONBLOCK);
+            if (hcom_cmux.serial_fd < 0)
+            {
+                hcom_logging_syslog(LOG_ERR, "Unable to open file %s\n", hcom_cmux.settings->ttyname);
+                return -ENODEV;
+            }
 
-        ret = hcom_setup_multiplex_mode();
-        if (ret < 0)
-        {
-            hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to setup multiplex mode\n", thisFile, __LINE__);
-            return ret;
-        }
+            hcom_cmux.settings = malloc(sizeof(cell_settings_t));
+            if (hcom_cmux.settings == NULL) 
+            {
+                hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate cell settings struct\n", thisFile, __LINE__);
+                return -ENOMEM;
+            }
 
-        ret = task_create(HCOM_CMUX_TASK_NAME,
-                         HCOM_CMUX_TASK_PRIORITY,
-                         HCOM_CMUX_TASK_STACKSIZE,
-                         hcom_cmux_daemon, NULL);
-        if (ret < 0)
-        {
-            hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to create cmux task\n", thisFile, __LINE__);
-            return ret;
+            memcpy(hcom_cmux.settings, config->default_cell_settings, sizeof(cell_settings_t));
+
+            hcom_cmux.channel = (cmux_channel_t *) malloc(sizeof(cmux_channel_t) * hcom_cmux.number_of_ports);
+            if (hcom_cmux.channel == NULL)
+            {
+                hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate cmux channels\n", thisFile, __LINE__);
+                return -ENOMEM;
+            }
+
+            ret = hcom_create_multiplex_channel(hcom_cmux.channel, hcom_cmux.number_of_ports);
+            if (ret < 0)
+            {
+                hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to create multiplex channels\n", thisFile, __LINE__);
+                return ret;
+            }
+
+            ret = hcom_setup_multiplex_mode(hcom_cmux.serial_fd);
+            if (ret < 0)
+            {
+                hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to setup multiplex mode\n", thisFile, __LINE__);
+                return ret;
+            }
+            hcom_open_virtual_channels(hcom_cmux.serial_fd,  hcom_cmux.number_of_ports);
+
+            pthread_attr_t attr;
+            struct sched_param param;
+
+            pthread_attr_init(&attr);
+
+            size_t stack_size = HCOM_CMUX_TASK_STACKSIZE;
+            pthread_attr_setstacksize(&attr, stack_size);
+
+            param.sched_priority = HCOM_CMUX_TASK_PRIORITY;
+            pthread_attr_setschedparam(&attr, &param);
+
+            ret = pthread_create(&cmux_thread_id, &attr, hcom_cmux_thread, (void *)&hcom_cmux);
+            if (ret == OK)
+            {
+                /* TODO: Startup pppd thread.*/
+
+                hcom_logging_syslog(LOG_INFO, "%s@%d-CMUX thread launched\n", thisFile, __LINE__);
+
+                meadow_os_config_free_resources(config);
+                return ret;
+            }
+            hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to create CMUX thread\n", thisFile, __LINE__);
         }
-        ret = OK;
     }
+    meadow_os_config_free_resources(config);
 
     return ret;
 }
