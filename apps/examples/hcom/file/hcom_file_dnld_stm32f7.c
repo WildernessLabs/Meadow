@@ -107,17 +107,17 @@ int hcom_file_dnld_stm32f7_setup()
 }
 
 //==========================================================================
+#if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
 static void hcom_file_dnld_cleanup_cache_memory(void)
 {
-#if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
-    if (_dnldCacheMemory)
+  if (_dnldCacheMemory)
   {
     free(_dnldCacheMemory);
     _dnldCacheMemory = NULL;
     _dnldCacheOffset = 0;
   }
-#endif
 }
+#endif
 
 //==========================================================================
 // Beginning of a file download into the flash file system.
