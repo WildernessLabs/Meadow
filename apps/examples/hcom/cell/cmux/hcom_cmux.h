@@ -1,5 +1,5 @@
 /****************************************************************************
- * \apps\examples\hcom\cell\hcom_pppd.h
+ * \apps\examples\hcom\cell\hcom_cmux.h
  * 
  *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
