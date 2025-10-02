@@ -1,7 +1,7 @@
 /****************************************************************************
- * nuttx\configs\stm32f777zit6-meadow\src\meadow_interrupt.c
+ * nuttx\configs\stm32f777zit6-meadow\src\meadow_interrupt.h
  * 
- *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2024-2025 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,11 +35,44 @@
 #ifndef __CONFIGS_MEADOW_SRC_MEADOW_INTERRUPT__H
 #define __CONFIGS_MEADOW_SRC_MEADOW_INTERRUPT__H
 
+#define MINT_MSG_QUEUE_NAME           "/mdw_int"
+#define MINT_MSG_QUEUE_MAX_MSGS       16
+
+// This struct is sent from Meadow.Core to configure or remove an interrupt.
+struct mint_gpio_int_config
+{
+  // Must match ...\Meadow\Meadow.Core\source\Meadow.Core\Interop\Interop.upd.cs
+  uint32_t port;                // 0 - 15 (A-K)
+  uint32_t pin;                 // 0 - 15
+  uint32_t configType;          // 0=remove, 1=new, 2=lp wakeup
+  uint32_t risingEdge;          // 1 = enable
+  uint32_t fallingEdge;         // 1 = enable
+  uint32_t resistorMode;        // 0 = float, 1 = pull up, 2 = pull down
+  uint32_t debounceDuration;    // millisec * 10
+  uint32_t glitchDuration;      // millisec * 10
+};
+
+// This struct is sent to Meadow.Core when an interrupt occurs
+struct mint_send_int_core_s
+{
+  uint8_t gpioPinId;
+  uint8_t gpioState;
+  clock_t interruptTicks;
+} __attribute__((__packed__));
+typedef struct mint_send_int_core_s mint_send_int_core_t;
+
+#define SIZE_OF_MINT_CORE_MSG sizeof(mint_send_int_core_t)
+
 enum GPIOInterruptCfgType_e
 {
   gpio_intrpt_cfg_type_remove = 0,
   gpio_intrpt_cfg_type_new = 1,
   gpio_intrpt_cfg_type_wakeup = 2
 };
+
+int meadow_interrupt_setup(void);
+
+// Called from meadow-upd.c
+int mint_config_interrupt(struct mint_gpio_int_config* cfg);
 
 #endif // __CONFIGS_MEADOW_SRC_MEADOW_INTERRUPT__H

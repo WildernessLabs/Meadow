@@ -44,25 +44,7 @@
 #include <string.h>
 #include <nuttx/mqueue.h>
 #include "espcp/espcp_encoders.h"
-
-#define MINT_MSG_QUEUE_NAME           "/mdw_int"
-#define MINT_MSG_QUEUE_MSG_SIZE       2
-#define MINT_MSG_QUEUE_MAX_MSGS       16
-
-extern mqd_t s_int_queue;
-
-struct mint_gpio_int_config
-{
-  // Must match ...\Meadow\Meadow.Core\source\Meadow.Core\Interop\Interop.upd.cs
-  uint32_t port;                // 0 - 15 (A-K)
-  uint32_t pin;                 // 0 - 15
-  uint32_t configType;          // 0=remove,1=new, 2=lp wakeup
-  uint32_t risingEdge;          // 1 = enable
-  uint32_t fallingEdge;         // 1 = enable
-  uint32_t resistorMode;        // 0 = float, 1 = pull up, 2 = pull down
-  uint32_t debounceDuration;    // millisec * 10
-  uint32_t glitchDuration;      // millisec * 10
-};
+#include "meadow_interrupt.h"
 
 /*
  *  Information about the function that should be requested to
@@ -105,8 +87,6 @@ struct upd_get_set_configuration_value_s
 };
 typedef struct upd_get_set_configuration_value_s upd_get_set_configuration_value_t;
 
-// in meadow-upd-interrupt.c called from meadow-upd.c
-int mint_config_interrupt(struct mint_gpio_int_config* cfg);
 int upd_handle_esp32_command(struct upd_esp32_command *);
 int upd_handle_esp32_get_event_result(espcp_event_data_payload_t *);
 
