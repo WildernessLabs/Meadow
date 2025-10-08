@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\cell\hcom_cmux.c
  *
- *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2025 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,12 +73,6 @@ static char  g_cmux_script[] =
   "OK AT+CMUX=0,0,5,127,10,3,30,10,2 "
   "OK \\c";
 
-
-static void *hcom_cmux_thread(void *cmux_configs)
-{
-    return NULL;
-}
-
 int hcom_cmux_start(void)
 {
     int ret = -ENODATA;
@@ -95,6 +89,7 @@ int hcom_cmux_start(void)
             hcom_cmux.tty_name = HCOM_CMUX_TTY_DEVNODE;
 
             ret = cmux_create(&hcom_cmux);
+            hcom_logging_syslog(LOG_INFO, "%s-%d-Cell CMUX created: %d\n", thisFile, __LINE__, ret);
         }
     }
     meadow_os_config_free_resources(config);

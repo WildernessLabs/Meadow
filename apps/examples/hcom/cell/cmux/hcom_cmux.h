@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\cell\hcom_cmux.h
  * 
- *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2025 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
