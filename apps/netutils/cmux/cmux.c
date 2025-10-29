@@ -31,6 +31,8 @@
 #include <stdio.h>
 #include <fcntl.h>
 
+#include <sys/stat.h>
+#include <sys/select.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <pthread.h>
@@ -739,7 +741,7 @@ int cmux_create(struct cmux_settings_s *settings)
   ctl.fd = cmux_ctl->fd;
   ctl.timeout = 30;
 
-  ret = chat(&ctl, settings->script);
+  ret = chat(&ctl, settings->script, NULL);
   if (ret < 0)
     {
       perror("ERROR:Failed to run cmux script\n");

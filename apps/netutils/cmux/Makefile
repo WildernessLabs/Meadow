@@ -20,7 +20,7 @@
 #
 ############################################################################
 
-include $(APPDIR)/Make.defs
+-include $(TOPDIR)/Make.defs
 
 CSRCS = cmux.c
 
