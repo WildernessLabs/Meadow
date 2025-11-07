@@ -493,6 +493,9 @@ int network_test_performance(char *webserver_ip, uint16_t webserver_port, char *
  ****************************************************************************/
 int network_test_misc_network_functions(void)
 {
+    // Had to add this #if because with CONFIG_ETHERNET_TESTS and not
+    // CONFIG_ESP_TESTS configured this functions would not build. Peter 15Oct25
+#if(CONFIG_ESP_TESTS)
     syslog(LOGGING_LEVEL, "********** Testing misc network functions.\n");
 
     ALLOCATE_HEAP_STRUCTURES;
@@ -556,6 +559,7 @@ int network_test_misc_network_functions(void)
     GET_FINAL_HEAP_INFORMATION;
     HEAP_USAGE_PASS_OR_FAIL;
 
+#endif      // #if(CONFIG_ESP_TESTS)
     return(0);
 }
 
