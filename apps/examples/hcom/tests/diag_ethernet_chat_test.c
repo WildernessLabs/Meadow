@@ -353,7 +353,7 @@ int echo_message_to_sender(int sockfd, char *recvBuff, size_t recvSize)
   else
   {
     // This is normal behavior
-    syslog(LOG_ERR, "-->Chat Server:Successfully echoed %d of %d bytes\n",
+    syslog(LOG_INFO, "-->Chat Server:Successfully echoed %d of %d bytes\n",
             nbytessent, recvSize);
   }
   
