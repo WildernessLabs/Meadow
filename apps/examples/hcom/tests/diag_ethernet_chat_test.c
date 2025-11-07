@@ -361,4 +361,4 @@ int echo_message_to_sender(int sockfd, char *recvBuff, size_t recvSize)
   return ret;
 }
 
-#endif // defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+#endif // defined(CONFIG_ETH_CHAT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
