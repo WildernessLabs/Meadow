@@ -345,7 +345,7 @@ int echo_message_to_sender(int sockfd, char *recvBuff, size_t recvSize)
       */
 
     syslog(LOG_ERR, "Chat (%04d) Server:Only partial message sent (%d of %d)\n", rcvCount,
-       rcvCount, nbytessent, recvSize);
+       nbytessent, recvSize);
   }
   else if (nbytessent != recvSize)
   {
