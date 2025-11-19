@@ -349,7 +349,7 @@ int echo_message_to_sender(int sockfd, char *recvBuff, size_t recvSize)
   }
   else if (nbytessent != recvSize)
   {
-    syslog(LOG_ERR, "Chat (%04d)t Server: Bad send length (%d of %d)\n",
+    syslog(LOG_ERR, "Chat (%04d) Server: Bad send length (%d of %d)\n",
       rcvCount, nbytessent, recvSize);
   }
   else
