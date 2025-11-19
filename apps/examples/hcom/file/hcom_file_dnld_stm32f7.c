@@ -68,6 +68,7 @@
 
 // SD-Card aligned write buffering
 #define HCOM_FILE_DNLD_SDCARD_BLOCK_SIZE     (1024)  // 1K block alignment
+#define HCOM_FILE_DNLD_SDCARD_ALIGNMENT       (16)
 
 // This combination is disallowed
 #if(HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 0 &&\
@@ -276,7 +277,8 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
   if(dnldShared->dnldRqstCat == pathnameSdcard)
   {
     // Allocate extra space for alignment
-    _sdcardWriteBufferRaw = malloc(HCOM_FILE_DNLD_SDCARD_BLOCK_SIZE + 4 - 1);
+    _sdcardWriteBufferRaw = malloc(HCOM_FILE_DNLD_SDCARD_BLOCK_SIZE +
+      HCOM_FILE_DNLD_SDCARD_ALIGNMENT - 1);
     if(_sdcardWriteBufferRaw == NULL)
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-SD-Card buffer malloc returned NULL\n", 
@@ -288,9 +290,10 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
       return -ENOMEM;
     }
 
-    // Align to 4-byte boundary
+    // Align to correct boundary
     uintptr_t raw_addr = (uintptr_t)_sdcardWriteBufferRaw;
-    uintptr_t aligned_addr = (raw_addr + 4 - 1) & ~(4 - 1);
+    uintptr_t aligned_addr = (raw_addr + HCOM_FILE_DNLD_SDCARD_ALIGNMENT - 1) & \
+      ~(HCOM_FILE_DNLD_SDCARD_ALIGNMENT - 1);
     _sdcardWriteBuffer = (void *)aligned_addr;
     _sdcardBufferOffset = 0;
 
