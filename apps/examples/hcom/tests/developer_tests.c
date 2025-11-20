@@ -83,8 +83,8 @@ static meadow_test_names_t _testNames[] =
     { MEADOW_TEST_MCU_OVERLOAD, "MCU Overload tests" },
 #endif
 
-#if defined(CONFIG_CHAT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS) || (MEADOW_INCLUDE_ETHERNET_CHAT_TESTS_IN_BUILD > 0)
-    { MEADOW_TEST_CHAT_CLIENT, "Chat client tests" },
+#if defined(CONFIG_ETH_CHAT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
+    { MEADOW_TEST_CHAT_CLIENT, "Ethernet Chat client tests" },
 #endif
 
 #if defined(CONFIG_BBR_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
@@ -201,7 +201,7 @@ static meadow_test_methods_t _userspaceTests[] =
     { MEADOW_TEST_MCU_OVERLOAD, diag_misc_tests_overload_mcu },
 #endif
 
-#if (defined(CONFIG_CHAT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)) && (MEADOW_INCLUDE_ETHERNET_CHAT_TESTS_IN_BUILD > 0)
+#if defined(CONFIG_ETH_CHAT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
     { MEADOW_TEST_CHAT_CLIENT, diag_ethernet_chat_server },
 #endif
 
