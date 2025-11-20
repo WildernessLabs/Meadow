@@ -302,12 +302,15 @@ errout_with_buffer:
 }
 
 //=====================================================================
-// Reversion the order and sends back to client
+// Reverse the order (maybe) and sends back to client
 int echo_message_to_sender(int sockfd, char *recvBuff, size_t recvSize)
 {
   int ret = OK;
+  static int rcvCount = 0;
   char *outbuf;
   ssize_t nbytessent;
+
+  rcvCount++;
 
   outbuf = (char*)malloc(ETHERNET_CHAT_TEST_BUF_SIZE);
   if (!outbuf)
@@ -316,8 +319,7 @@ int echo_message_to_sender(int sockfd, char *recvBuff, size_t recvSize)
     return -ENOMEM;
   }
 
-#if (0)
-  // Reverse the data
+#if (0)  // Reverse the data - set to 1
   off_t recvOff = recvSize - 1;
   for(int i = 0; i < recvSize; i++)
   {
@@ -331,7 +333,7 @@ int echo_message_to_sender(int sockfd, char *recvBuff, size_t recvSize)
   nbytessent = send(sockfd, outbuf, recvSize, 0);
   if (nbytessent < 0)
   {
-    syslog(LOG_ERR, "Chat Server: send failed: %d\n", errno);
+    syslog(LOG_ERR, "Chat (%04d) Server: send failed: %d\n", rcvCount, errno);
     free(outbuf);
     return -ETHERNET_CHAT_MAGIC_ERROR_NUMB;    // Magic number
   }
@@ -342,19 +344,19 @@ int echo_message_to_sender(int sockfd, char *recvBuff, size_t recvSize)
       * error, but is an interesting thing to keep track of.
       */
 
-    syslog(LOG_ERR, "Chat Server:Only partial message sent (%d of %d)\n",
-            nbytessent, recvSize);
+    syslog(LOG_ERR, "Chat (%04d) Server:Only partial message sent (%d of %d)\n", rcvCount,
+       nbytessent, recvSize);
   }
   else if (nbytessent != recvSize)
   {
-    syslog(LOG_ERR, "Chat Server: Bad send length (%d of %d)\n",
-            nbytessent, recvSize);
+    syslog(LOG_ERR, "Chat (%04d) Server: Bad send length (%d of %d)\n",
+      rcvCount, nbytessent, recvSize);
   }
   else
   {
     // This is normal behavior
-    syslog(LOG_INFO, "-->Chat Server:Successfully echoed %d of %d bytes\n",
-            nbytessent, recvSize);
+    syslog(LOG_INFO, "-->Chat (%04d) Server:Successfully echoed %d of %d bytes\n",
+      rcvCount, nbytessent, recvSize);
   }
   
   free(outbuf);
