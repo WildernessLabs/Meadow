@@ -1,7 +1,7 @@
 /****************************************************************************
  * configs\stm32f777zit6-meadow\src\kerneltests\meadow_rotary_encoder_tests.c
  * 
- *   Copyright (C) 2024 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2024-2025 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,12 +61,12 @@
 
 // D05 (PB4) for Version 2 Feather or CCM V1. Interrupt group isolation means
 // that no pins can share the same Pin number for a rotary encoder
-#define ENCODER_PIN_CCM_PB4_INPUT   (GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTB | GPIO_PIN4)
-#define ENCODER_PIN_CCM_PB13_INPUT  (GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTB | GPIO_PIN13)
-#define ENCODER_PIN_CCM_PB7_INPUT   (GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTB | GPIO_PIN7)
-#define ENCODER_PIN_CCM_PB6_INPUT   (GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTB | GPIO_PIN6)
-#define ENCODER_PIN_CCM_PI11_INPUT  (GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTI | GPIO_PIN11)
-#define ENCODER_PIN_CCM_PD5_INPUT   (GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTD | GPIO_PIN5)
+#define ENCODER_PIN_CCM_D05_PB4_INPUT   (GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTB | GPIO_PIN4)
+#define ENCODER_PIN_CCM_D06_PB13_INPUT  (GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTB | GPIO_PIN13)
+#define ENCODER_PIN_CCM_D07_PB7_INPUT   (GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTB | GPIO_PIN7)
+#define ENCODER_PIN_CCM_D08_PB6_INPUT   (GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTB | GPIO_PIN6)
+#define ENCODER_PIN_CCM_D09_PI11_INPUT  (GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTI | GPIO_PIN11)
+#define ENCODER_PIN_CCM_D10_PD5_INPUT   (GPIO_INPUT | GPIO_PULLDOWN | GPIO_PORTD | GPIO_PIN5)
 
 /************************************************************************************
  * Private Data
@@ -91,8 +91,8 @@ void meadow_kt_rotary_encoder_tests(uint32_t userData)
 {
   int ret;
   int currentCount;
-  
-  syslog(2, "Rotary Encoder tests received 'set developer -d 18 -v %lu'\n", userData);
+
+  syslog(2, "Rotary Encoder tests received 'set developer -p 18 -v %lu'\n", userData);
 
   switch(userData)
   {
@@ -103,14 +103,14 @@ void meadow_kt_rotary_encoder_tests(uint32_t userData)
       rotary_encoder_config_test_add_n(userData);
       break;
 
-    case 10:
     case 11:
     case 12:
     case 13:
+    case 14:
       rotary_encoder_config_test_remove_n(userData);
       break;
 
-    case 20:
+    case 21:
       ret = meadow_rotary_encoder_read_count(0, &currentCount);
       if(ret < 0)
       {
@@ -120,7 +120,7 @@ void meadow_kt_rotary_encoder_tests(uint32_t userData)
       syslog(2, "Encoder 0 count:%d\n", currentCount);
       break;
 
-    case 21:
+    case 22:
       ret = meadow_rotary_encoder_read_count(5, &currentCount);
       if(ret < 0)
       {
@@ -130,7 +130,7 @@ void meadow_kt_rotary_encoder_tests(uint32_t userData)
       syslog(2, "Encoder 5 count:%d\n", currentCount);
       break;
 
-    case 22:
+    case 23:
       ret = meadow_rotary_encoder_read_count(7, &currentCount);
       if(ret < 0)
       {
@@ -150,11 +150,11 @@ void meadow_kt_rotary_encoder_tests(uint32_t userData)
  ************************************************************************************/
 void rotary_encoder_config_test_add_n(uint32_t userData)
 {
-  // Setup a rotarty encoder
+  // Setup a rotary encoder
   int ret;
   uint32_t encoderNumb;
-  uint32_t PinA;
-  uint32_t PinB;
+  uint32_t PinA = 0;
+  uint32_t PinB = 0;
 
   struct rotenc_config_parms* cfg = malloc(sizeof(struct rotenc_config_parms));
   if(cfg == NULL)
@@ -165,29 +165,29 @@ void rotary_encoder_config_test_add_n(uint32_t userData)
 
   // Note: The input pins defined for F7FeatherV2 would be D05, D06, D07, D08
   // for the first 4 pins. The last 2 are not available on F7FeatherV2
-  // Rotary Encoder testing. And becareful to not use the pins used by syslog,
+  // Rotary Encoder testing. And be careful to not use the pins used by syslog,
   // D12 and D13.
   switch(userData)
   {
     case 1:
       encoderNumb = 0;
-      PinA = ENCODER_PIN_CCM_PB4_INPUT;
-      PinB = ENCODER_PIN_CCM_PB13_INPUT;
+      PinA = ENCODER_PIN_CCM_D05_PB4_INPUT;
+      PinB = ENCODER_PIN_CCM_D06_PB13_INPUT;
       break;
     case 2:
       encoderNumb = 5;
-      PinA = ENCODER_PIN_CCM_PB7_INPUT;
-      PinB = ENCODER_PIN_CCM_PB6_INPUT;
+      PinA = ENCODER_PIN_CCM_D07_PB7_INPUT;
+      PinB = ENCODER_PIN_CCM_D08_PB6_INPUT;
       break;
     case 3:
       encoderNumb = 7;
-      PinA = ENCODER_PIN_CCM_PI11_INPUT;
-      PinB = ENCODER_PIN_CCM_PD5_INPUT;
+      PinA = ENCODER_PIN_CCM_D09_PI11_INPUT;
+      PinB = ENCODER_PIN_CCM_D10_PD5_INPUT;
       break;
     case 4:
-      encoderNumb = 8;    // Invalid
-      PinA = ENCODER_PIN_CCM_PB4_INPUT;
-      PinB = ENCODER_PIN_CCM_PB13_INPUT;
+      encoderNumb = 8;    // Invalid-too big
+      PinA = ENCODER_PIN_CCM_D05_PB4_INPUT;
+      PinB = ENCODER_PIN_CCM_D06_PB13_INPUT;
       break;
   }
 
@@ -203,7 +203,7 @@ void rotary_encoder_config_test_add_n(uint32_t userData)
   cfg->pinB =  (PinB & 0x0f);
   cfg->resistorMode = 2;    // 2 = pull down
 
-  // Call meadow_rotenc.c configuration function also used by managed code
+  // Call configuration function also used by managed code
   ret = meadow_config_rotary_encoder(cfg);
   if(ret < 0)
   {
@@ -217,9 +217,9 @@ void rotary_encoder_config_test_add_n(uint32_t userData)
 void rotary_encoder_config_test_remove_n(uint32_t userData)
 {
   int ret;
-  uint32_t encoderNumb;
-  uint32_t PinA;
-  uint32_t PinB;
+  uint32_t encoderNumb = 9;  // Invalid
+  uint32_t PinA = 0;
+  uint32_t PinB = 0;
 
   struct rotenc_config_parms* cfg = malloc(sizeof(struct rotenc_config_parms));
   if(cfg == NULL)
@@ -232,24 +232,26 @@ void rotary_encoder_config_test_remove_n(uint32_t userData)
   {
     case 10:
       encoderNumb = 0;
-      PinA = ENCODER_PIN_CCM_PB4_INPUT;
-      PinB = ENCODER_PIN_CCM_PB13_INPUT;
+      PinA = ENCODER_PIN_CCM_D05_PB4_INPUT;
+      PinB = ENCODER_PIN_CCM_D06_PB13_INPUT;
       break;
     case 11:
       encoderNumb = 5;
-      PinA = ENCODER_PIN_CCM_PB7_INPUT;
-      PinB = ENCODER_PIN_CCM_PB6_INPUT;
+      PinA = ENCODER_PIN_CCM_D07_PB7_INPUT;
+      PinB = ENCODER_PIN_CCM_D08_PB6_INPUT;
       break;
     case 12:
       encoderNumb = 7;
-      PinA = ENCODER_PIN_CCM_PI11_INPUT;
-      PinB = ENCODER_PIN_CCM_PD5_INPUT;
+      PinA = ENCODER_PIN_CCM_D09_PI11_INPUT;
+      PinB = ENCODER_PIN_CCM_D10_PD5_INPUT;
       break;
     case 13:
       encoderNumb = 8;    // Invalid
-      PinA = ENCODER_PIN_CCM_PB4_INPUT;
-      PinB = ENCODER_PIN_CCM_PB13_INPUT;
+      PinA = ENCODER_PIN_CCM_D05_PB4_INPUT;
+      PinB = ENCODER_PIN_CCM_D06_PB13_INPUT;
       break;
+    default:
+      encoderNumb = 9;  // Invalid
   }
 
   // For testing need to unconfigure the 2 GPIOs used as inputs
