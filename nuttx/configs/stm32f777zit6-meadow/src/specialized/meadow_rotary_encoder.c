@@ -163,22 +163,22 @@ static void rotenc_calc_dir_count(rotaryEncoderInfo_t *rotaryEncoderPtr,
 
     case 1: // CW
       rotaryEncoderPtr->rotClockWise = true;
-      rotaryEncoderPtr->activeCnt++;
+      rotaryEncoderPtr->abEdgeCount++;
       break;
 
     case -1: // CCW
       rotaryEncoderPtr->rotClockWise = false;
-      rotaryEncoderPtr->activeCnt--;
+      rotaryEncoderPtr->abEdgeCount--;
       break;
   }
 
 #if defined(CONFIG_ROTARY_ENCODER_TESTS)
   // For fast inputs, don't show every entry. The following was about right
   // for hall effect sensor on the shaft of a brushed motor.
-  if((rotaryEncoderPtr->activeCnt % 9973) == 0)
+  if((rotaryEncoderPtr->abEdgeCount % 9973) == 0)
   {
     syslog(2, "Encoder:%u, Total:%08d, Direction:%s\n", rotaryEncoderPtr->EncoderNumb,
-              rotaryEncoderPtr->activeCnt,
+              rotaryEncoderPtr->abEdgeCount,
               rotaryEncoderPtr->rotClockWise ? "ClockWise" : "CounterClockWise");
   }
 #endif
@@ -446,7 +446,7 @@ int meadow_rotary_encoder_read_count(uint8_t encoderNumb, int *encoderCount,
   // Get the encoders state and return
   sched_lock();
 
-  *encoderCount = rotaryEncoderPtr->activeCnt;
+  *encoderCount = rotaryEncoderPtr->abEdgeCount;
   *rotClockWise = rotaryEncoderPtr->rotClockWise;
 
   sched_unlock();
@@ -470,7 +470,7 @@ int meadow_rotary_encoder_set_count(uint8_t encoderNumb, int encoderCount)
   }
 
   sched_lock();
-  rotaryEncoderPtr->activeCnt = encoderCount;
+  rotaryEncoderPtr->abEdgeCount = encoderCount;
   sched_unlock();
 
   return OK;

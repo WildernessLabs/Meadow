@@ -74,7 +74,7 @@ struct rotaryEncoderInfo_s
 
   uint32_t prevCondBits;
   uint32_t prevOff;
-  int activeCnt;              // Current count
+  int abEdgeCount;            // Count of A and B, both edges
   bool rotClockWise;          // Current direction
 };
 typedef struct rotaryEncoderInfo_s rotaryEncoderInfo_t;
