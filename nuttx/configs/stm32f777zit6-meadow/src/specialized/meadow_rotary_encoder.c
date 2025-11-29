@@ -99,25 +99,6 @@ static uint32_t rotencInputDataReg[] =
   STM32_GPIOK_IDR,
 };
 
-struct rotaryEncoderInfo_s
-{
-  uint8_t EncoderNumb;          // Encoder number
-
-  // Represents the CPU Pin identifier (e.g. PD9, D=3 so 39)
-  uint8_t PinInfoA;             // Supplied by configuration
-  uint8_t PinInfoB;             // Supplied by configuration
-
-  // Address of correct "Input Data Register" which holds GPIO's hardware port
-  // state bits
-  uint32_t IDRAddressA;         // Calculated during configuration
-  uint32_t IDRAddressB;         // Calculated during configuration
-
-  uint32_t prevCondBits;
-  uint32_t prevOff;
-  int activeCnt;
-};
-typedef struct rotaryEncoderInfo_s rotaryEncoderInfo_t;
-
 // This is the list of the GPIOs currently being timed. The entries in this
 // list are very short lived, begin added as soon as the GPIO ISR is called
 // and removed as soon as the glitch or debounce period has elapsed.
@@ -160,8 +141,7 @@ static int rotEncLookup[] =
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-
-// This finds the direction (CW or CCW) and adds/subtracts the count.
+// This functions finds the direction (CW or CCW) and adds/subtracts the count.
 // This counts both interrupts, 'A' and 'B'.
 static void rotenc_calc_dir_count(rotaryEncoderInfo_t *rotaryEncoderPtr,
           uint32_t newCondBits)
@@ -172,7 +152,7 @@ static void rotenc_calc_dir_count(rotaryEncoderInfo_t *rotaryEncoderPtr,
   prevOff &= 0x0000000f;   // Save only lowest 4 bits
   rotaryEncoderPtr->prevOff = prevOff;
 
-  // Use the new state bits to lookup direction
+  // Use the new state bits to lookup direction (only 3 possible values)
   int newDir = rotEncLookup[prevOff];
 
   switch (newDir)
@@ -182,30 +162,33 @@ static void rotenc_calc_dir_count(rotaryEncoderInfo_t *rotaryEncoderPtr,
       return;
 
     case 1: // CW
+      rotaryEncoderPtr->rotClockWise = true;
       rotaryEncoderPtr->activeCnt++;
       break;
 
     case -1: // CCW
+      rotaryEncoderPtr->rotClockWise = false;
       rotaryEncoderPtr->activeCnt--;
       break;
   }
 
 #if defined(CONFIG_ROTARY_ENCODER_TESTS)
-  // if(rotaryEncoderPtr->activeCnt == 0)
-  //   return;
-
   // For fast inputs, don't show every entry. The following was about right
   // for hall effect sensor on the shaft of a brushed motor.
-  // if((rotaryEncoderPtr->activeCnt % 9973) == 0)
-  // {
-    syslog(2, "Encoder:%u, Total:%08d\n", rotaryEncoderPtr->EncoderNumb,
-              rotaryEncoderPtr->activeCnt);
-  // }
+  if((rotaryEncoderPtr->activeCnt % 9973) == 0)
+  {
+    syslog(2, "Encoder:%u, Total:%08d, Direction:%s\n", rotaryEncoderPtr->EncoderNumb,
+              rotaryEncoderPtr->activeCnt,
+              rotaryEncoderPtr->rotClockWise ? "ClockWise" : "CounterClockWise");
+  }
 #endif
 }
 
 //===========================================================================
 // Rotary encoder input A
+// Note:may need to insure that both 'A' and 'B' are changing every other
+// call, Possibly use int isrACount and isrBCount and if difference > than
+// some small number, warn user (e.g. "Only GPIO is changing").
 int rotenc_gpio_rot_enc_isr_a(int irq, void *context, void *arg)
 {
   uint8_t pinNumb;
@@ -283,6 +266,7 @@ int rotenc_config_interrupt_remove(struct rotenc_config_parms* cfg)
   PinInfoB = rotaryEncoderPtr->PinInfoB;
 
   // Tell Nuttx to forget about these interrupts
+  // This call will also disables the interrupts
   ret = stm32_gpiosetevent(PinInfoA, 0, 0, 0, NULL, NULL);
   if(ret < 0)
   {
@@ -326,7 +310,7 @@ int meadow_config_rotary_encoder(struct rotenc_config_parms* cfg)
     return ret;
   }
 
-  // Check the encoder number
+  // Is encoder number out of range?
   if(cfg->encoderNumb > (MEADOW_ROTARY_ENC_MAX - 1))
   {
     syslog(LOG_ERR, "%s@%d-Encoder %lu not available. Encoder range is 0 - %lu.\n",
@@ -392,6 +376,7 @@ int meadow_config_rotary_encoder(struct rotenc_config_parms* cfg)
   }
 
   // Setup both input points to trigger isr
+  // This call also enables the interrupts
   ret = stm32_gpiosetevent(
     cfgsetA,                      // Nuttx cfgset
     1,                            // rising edge,
@@ -424,9 +409,10 @@ int meadow_config_rotary_encoder(struct rotenc_config_parms* cfg)
 //========================================================================
 // Return the current rotary encoder count.
 // Note: using int for count int with a 10,000 counts/second input will
-// rollover in about 59 days. If longer is needed can be converted to
-// use int64.
-int meadow_rotary_encoder_read_count(uint8_t encoderNumb, int *encoderCount)
+// rollover in about 59 days. If longer is needed can be converted to use
+// long int (int64_t).
+int meadow_rotary_encoder_read_count(uint8_t encoderNumb, int *encoderCount,
+  bool *rotClockWise)
 {
   rotaryEncoderInfo_t *rotaryEncoderPtr;
 
@@ -447,17 +433,46 @@ int meadow_rotary_encoder_read_count(uint8_t encoderNumb, int *encoderCount)
     return -ERANGE;    // Out of Range
   }
 
+  rotaryEncoderPtr = _allRotaryEncodersList[encoderNumb];
+
   // Is requested slot valid?
-  if(_allRotaryEncodersList[encoderNumb] == NULL)
+  if(rotaryEncoderPtr == NULL)
   {
     syslog(LOG_ERR, "%s@%d-Slot %d is not configured\n",
               __FILE__, __LINE__, encoderNumb);
     return -ENODATA;    // No Data
   }
 
-  // Get the encoders data and return
-  rotaryEncoderPtr = _allRotaryEncodersList[encoderNumb];
+  // Get the encoders state and return
+  sched_lock();
+
   *encoderCount = rotaryEncoderPtr->activeCnt;
+  *rotClockWise = rotaryEncoderPtr->rotClockWise;
+
+  sched_unlock();
+
+  return OK;
+}
+
+//========================================================================
+// Permit the user to set or clear the current rotary encoder count.
+int meadow_rotary_encoder_set_count(uint8_t encoderNumb, int encoderCount)
+{
+  rotaryEncoderInfo_t *rotaryEncoderPtr;
+  rotaryEncoderPtr = _allRotaryEncodersList[encoderNumb];
+
+  // Is requested slot valid?
+  if(rotaryEncoderPtr == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-Slot %d is not configured\n",
+              __FILE__, __LINE__, encoderNumb);
+    return -ENODATA;    // No Data
+  }
+
+  sched_lock();
+  rotaryEncoderPtr->activeCnt = encoderCount;
+  sched_unlock();
+
   return OK;
 }
 
