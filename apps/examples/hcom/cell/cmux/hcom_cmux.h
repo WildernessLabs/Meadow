@@ -1,8 +1,8 @@
 /****************************************************************************
- * include/crc8.h
- *
- *   Copyright (C) 2014 Ken Pettit. All rights reserved.
- *   Author: Ken Pettit <pettitkd@gmail.com>
+ * \apps\examples\hcom\cell\hcom_cmux.h
+ * 
+ *   Copyright (C) 2025 Wilderness Labs. All rights reserved.
+ *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,82 +33,29 @@
  *
  ****************************************************************************/
 
-#ifndef __INCLUDE_CRC8_H
-#define __INCLUDE_CRC8_H
+#ifndef __CONFIGS_MEADOW_SRC_HCOM_CELL_CMUX__H
+#define __CONFIGS_MEADOW_SRC_HCOM_CELL_CMUX__H
+
+#include <meadow/hcom_shared_common.h>
 
 /****************************************************************************
- * Included Files
+ * Shared Definitions
  ****************************************************************************/
-
-#include <sys/types.h>
-#include <stdint.h>
 
 /****************************************************************************
- * Public Function Prototypes
+ * Public Data
  ****************************************************************************/
 
-#ifdef __cplusplus
-#define EXTERN extern "C"
-extern "C"
-{
-#else
-#define EXTERN extern
-#endif
 
 /****************************************************************************
- * Name: crc8part
- *
- * Description:
- *   Continue CRC calculation on a part of the buffer using the polynomial
- *   x^8+x^6+x^3+x^2+1 (Koopman, et al. "0xA6" poly).
- *
+ * Public Data
  ****************************************************************************/
 
-uint8_t crc8part(FAR const uint8_t *src, size_t len, uint8_t crc8val);
 
 /****************************************************************************
- * Name: crc8
- *
- * Description:
- *   Return an 8-bit CRC of the contents of the 'src' buffer, length 'len'
- *   using the polynomial x^8+x^6+x^3+x^2+1 (Koopman, et al. "0xA6" poly).
- *
+ * Public Functions
  ****************************************************************************/
 
-uint8_t crc8(FAR const uint8_t *src, size_t len);
 
-/****************************************************************************
- * Name: crc8ccitt
- *
- * Description:
- *   Return an 8-bit CRC of the contents of the 'src' buffer, length 'len'
- *   using the polynomial x^8+x^2+x^1+1 (aka "0x07" poly).
- *
- ****************************************************************************/
 
-uint8_t crc8ccitt(FAR const uint8_t *src, size_t len);
-
-/****************************************************************************
- * Name: crc8rohcpart
- ****************************************************************************/
-
-uint8_t crc8rohcpart(FAR const uint8_t *src, size_t len, uint8_t crc8val);
-
-/****************************************************************************
- * Name: crc8rohc
- ****************************************************************************/
-
-uint8_t crc8rohc(FAR const uint8_t *src, size_t len);
-
-/****************************************************************************
- * Name: crc8rohcincr
- ****************************************************************************/
-
-uint8_t crc8rohcincr(uint8_t data_byte, uint8_t crc8val);
-
-#undef EXTERN
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* __INCLUDE_CRC8_H */
+#endif //__CONFIGS_MEADOW_SRC_HCOM_CELL_CMUX__H

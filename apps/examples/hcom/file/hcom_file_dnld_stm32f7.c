@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\file\hcom_file_dnld_stm32f7.c
  * 
- *   Copyright (C) 2019-2023 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019-2025 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,8 +63,12 @@
 
 // For no cache behavior, set the 2 following to '0'
 #define HCOM_FILE_DNLD_CREATE_MEMORY_CACHE   (0)   // Cache file then write
-#define HCOM_FILE_DNLD_CACHE_NO_FILE_ACCESS  (0)   // No file write
+#define HCOM_FILE_DNLD_CACHE_NO_FILE_ACCESS  (0)   // No file write (debug)
 #define HCOM_FILE_DNLD_MAX_CACHE_FILE_SIZE   (8 * 1024 * 1024)  // 8MB limit
+
+// SD-Card aligned write buffering
+#define HCOM_FILE_DNLD_SDCARD_BLOCK_SIZE     (1024)  // 1K block alignment
+#define HCOM_FILE_DNLD_SDCARD_ALIGNMENT       (16)
 
 // This combination is disallowed
 #if(HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 0 &&\
@@ -93,6 +97,11 @@ void *_dnldCacheMemory;
 off_t _dnldCacheOffset;
 #endif
 
+// SD-Card aligned write buffer
+static void *_sdcardWriteBuffer;      // Aligned buffer pointer
+static void *_sdcardWriteBufferRaw;   // Original malloc pointer for free()
+static size_t _sdcardBufferOffset;    // Current offset in buffer
+
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -103,6 +112,9 @@ off_t _dnldCacheOffset;
 int hcom_file_dnld_stm32f7_setup()
 {
   _stateErrShown = false;   // In case of data before begin
+  _sdcardWriteBuffer = NULL;
+  _sdcardWriteBufferRaw = NULL;
+  _sdcardBufferOffset = 0;
   return OK;
 }
 
@@ -118,6 +130,19 @@ static void hcom_file_dnld_cleanup_cache_memory(void)
   }
 }
 #endif
+
+//==========================================================================
+// Cleanup SD-Card aligned write buffer
+static void hcom_file_dnld_cleanup_sdcard_buffer(void)
+{
+  if (_sdcardWriteBufferRaw)
+  {
+    free(_sdcardWriteBufferRaw);
+    _sdcardWriteBufferRaw = NULL;
+    _sdcardWriteBuffer = NULL;
+    _sdcardBufferOffset = 0;
+  }
+}
 
 //==========================================================================
 // Beginning of a file download into the flash file system.
@@ -157,7 +182,6 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
 #if (HCOM_FILE_DNLD_CACHE_NO_FILE_ACCESS == 0)
   // We need a file to store the downloaded data
 
-  //----------------------------------------------------------------------
   // Delete was added here to address Meadow Issue #855. Also, O_TRUNC was
   // removed from the open call. After this change, even after several hours
   // of continuous download testing, no assertion was seen. Did this fix
@@ -233,7 +257,7 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
 
   if (dnldShared->dnldTotalFileSize > HCOM_FILE_DNLD_MAX_CACHE_FILE_SIZE)
   {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-%d bytes is too large for cache\n",
+      hcom_logging_syslog(LOG_ERR, "%s@%d-%d bytes. File exceeds the cache limit\n",
                         thisFile, __LINE__, dnldShared->dnldTotalFileSize);
       dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
       return -EFBIG;    // File too large
@@ -248,6 +272,34 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
     return -ENOMEM;
   }
 #endif
+
+  // Allocate aligned buffer for SD-Card writes
+  if(dnldShared->dnldRqstCat == pathnameSdcard)
+  {
+    // Allocate extra space for alignment
+    _sdcardWriteBufferRaw = malloc(HCOM_FILE_DNLD_SDCARD_BLOCK_SIZE +
+      HCOM_FILE_DNLD_SDCARD_ALIGNMENT - 1);
+    if(_sdcardWriteBufferRaw == NULL)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-SD-Card buffer malloc returned NULL\n", 
+                          thisFile, __LINE__);
+#if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
+      hcom_file_dnld_cleanup_cache_memory();
+#endif
+      dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+      return -ENOMEM;
+    }
+
+    // Align to correct boundary
+    uintptr_t raw_addr = (uintptr_t)_sdcardWriteBufferRaw;
+    uintptr_t aligned_addr = (raw_addr + HCOM_FILE_DNLD_SDCARD_ALIGNMENT - 1) & \
+      ~(HCOM_FILE_DNLD_SDCARD_ALIGNMENT - 1);
+    _sdcardWriteBuffer = (void *)aligned_addr;
+    _sdcardBufferOffset = 0;
+
+    hcom_logging_syslog(LOG_INFO, "%s@%d-SD-Card aligned write buffer allocated (%d bytes)\n",
+                        thisFile, __LINE__, HCOM_FILE_DNLD_SDCARD_BLOCK_SIZE);
+  }
 
   // Set current action
   dnldShared->dnldCurrentState = HcomStm32F7DnldStateFileXfer;
@@ -279,6 +331,7 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
 #if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
     hcom_file_dnld_cleanup_cache_memory();
 #endif
+    hcom_file_dnld_cleanup_sdcard_buffer();
     dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
     return -ENOTRECOVERABLE;      // State not recoverable
   }
@@ -308,6 +361,7 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
 #if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
       hcom_file_dnld_cleanup_cache_memory();
 #endif
+      hcom_file_dnld_cleanup_sdcard_buffer();
       dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
       return -ENOMEM;
     }
@@ -333,6 +387,7 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
 #if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
       hcom_file_dnld_cleanup_cache_memory();
 #endif
+    hcom_file_dnld_cleanup_sdcard_buffer();
     dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
     return -EFAULT;   // Bad address
   }
@@ -352,7 +407,7 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
 
   if (_dnldCacheOffset + binDataLen > dnldShared->dnldTotalFileSize)
   {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-Cache overflow detected\n", thisFile, __LINE__);
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Cache overflow\n", thisFile, __LINE__);
       hcom_file_dnld_cleanup_cache_memory();
       dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
       return -EOVERFLOW;
@@ -368,33 +423,94 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
  #endif
 
 #else //  (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
-  // Write this file fragment to the file system
-  int ret = hcom_file_write_to_active_file(dnldShared, hcomDataMsg->binData,
-            binDataLen);
-  if (ret < 0)
+  // For SD-Card, use buffered writes in an aligned block
+  if(dnldShared->dnldRqstCat == pathnameSdcard)
   {
-    // Error
-    hostMsg = malloc(HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH);
-    if(hostMsg == NULL)
+    int ret;
+    size_t bytesRemaining = binDataLen;
+    size_t sourceOffset = 0;
+
+    while(bytesRemaining > 0)
     {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
-      dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
-      return -ENOMEM;
+      // Calculate how much space is left in the buffer
+      size_t spaceInBuffer = HCOM_FILE_DNLD_SDCARD_BLOCK_SIZE - _sdcardBufferOffset;
+      size_t bytesToCopy = (bytesRemaining < spaceInBuffer) ? bytesRemaining : spaceInBuffer;
+
+      // Copy data into the buffer
+      memcpy((uint8_t*)_sdcardWriteBuffer + _sdcardBufferOffset, 
+             hcomDataMsg->binData + sourceOffset, 
+             bytesToCopy);
+
+      _sdcardBufferOffset += bytesToCopy;
+      sourceOffset += bytesToCopy;
+      bytesRemaining -= bytesToCopy;
+
+      // If buffer is full, write it to SD-Card
+      if(_sdcardBufferOffset >= HCOM_FILE_DNLD_SDCARD_BLOCK_SIZE)
+      {
+        ret = hcom_file_write_to_active_file(dnldShared, _sdcardWriteBuffer,
+                  HCOM_FILE_DNLD_SDCARD_BLOCK_SIZE);
+        if (ret < 0)
+        {
+          hostMsg = malloc(HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH);
+          if(hostMsg == NULL)
+          {
+            hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+            hcom_file_dnld_cleanup_sdcard_buffer();
+            dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+            return -ENOMEM;
+          }
+          uint16_t seqNumb = hcomDataMsg->seqNumber;
+
+          hcom_logging_syslog(LOG_ERR, "%s@%d-SD-Card write of %s failed:%d seq:%d\n",
+                   thisFile, __LINE__, dnldShared->dnldOrigPathName, ret, seqNumb);
+
+          snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
+                    "SD-Card write of '%s', seq %d failed", dnldShared->dnldOrigPathName, seqNumb);
+          hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
+                  thisFile, __LINE__);
+
+          free(hostMsg);
+          hcom_file_dnld_cleanup_sdcard_buffer();
+          dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+          return ret;
+        }
+
+        // Reset buffer for next block
+        _sdcardBufferOffset = 0;
+      }
     }
-    uint16_t seqNumb = hcomDataMsg->seqNumber;
+  }
+  else
+  {
+    // Write to file system
+    int ret = hcom_file_write_to_active_file(dnldShared, hcomDataMsg->binData,
+              binDataLen);
+    if (ret < 0)
+    {
+      // Error
+      hostMsg = malloc(HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH);
+      if(hostMsg == NULL)
+      {
+        hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+        dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+        return -ENOMEM;
+      }
+      uint16_t seqNumb = hcomDataMsg->seqNumber;
 
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Write of %s failed:%d seq:%d\n",
-             thisFile, __LINE__, dnldShared->dnldOrigPathName, ret, seqNumb);
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Write of %s failed:%d seq:%d\n",
+               thisFile, __LINE__, dnldShared->dnldOrigPathName, ret, seqNumb);
 
-    // Notify host
-    snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
-              "Write of '%s', seq %d failed", dnldShared->dnldOrigPathName, seqNumb);
-    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
-            thisFile, __LINE__);
+      // Notify host
+      snprintf_chk(hostMsg, HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH,
+                "Write of '%s', seq %d failed", dnldShared->dnldOrigPathName, seqNumb);
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg,
+              thisFile, __LINE__);
 
-    free(hostMsg);
-    dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
-    return ret;
+      free(hostMsg);
+      dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+      return ret;
+    }
   }
 #endif//  (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
 
@@ -422,6 +538,7 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
 #if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
     hcom_file_dnld_cleanup_cache_memory();
 #endif
+    hcom_file_dnld_cleanup_sdcard_buffer();
     dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
     return -ENOTRECOVERABLE; // State not recoverable
   }
@@ -441,6 +558,24 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
     return ret;
   }
 #endif
+
+  // For SD-Card, flush any remaining buffered data
+  if(dnldShared->dnldRqstCat == pathnameSdcard && _sdcardBufferOffset > 0)
+  {
+    ret = hcom_file_write_to_active_file(dnldShared, _sdcardWriteBuffer,
+              _sdcardBufferOffset);
+    if (ret < 0)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-SD-Card final buffer flush of %s failed:%d\n",
+                thisFile, __LINE__, dnldShared->dnldOrigPathName, ret);
+      hcom_file_dnld_cleanup_sdcard_buffer();
+      dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+      return ret;
+    }
+
+    hcom_logging_syslog(LOG_INFO, "%s@%d-SD-Card flushed final %u bytes\n",
+                        thisFile, __LINE__, _sdcardBufferOffset);
+  }
 
   // Calculate the CRC checksum
   uint32_t actualFileCrc;
@@ -471,6 +606,9 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
 #if (HCOM_FILE_DNLD_CREATE_MEMORY_CACHE == 1)
     hcom_file_dnld_cleanup_cache_memory();
 #endif
+
+  // Cleanup SD-Card buffer
+  hcom_file_dnld_cleanup_sdcard_buffer();
 
   // Report results to host
   hostMsg = malloc(HCOM_MED_LONG_HOST_STRING_BUFF_LENGTH);

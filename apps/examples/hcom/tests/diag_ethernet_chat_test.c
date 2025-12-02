@@ -74,7 +74,7 @@
 #define ETHERNET_CHAT_TEST_BUF_SIZE (4096)
 #define ETHERNET_CHAT_MAGIC_ERROR_NUMB (0xef98765) 
 
-#if (defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)) && (MEADOW_INCLUDE_ETHERNET_CHAT_TESTS_IN_BUILD > 0)
+#if defined(CONFIG_ETH_CHAT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -102,7 +102,7 @@ static FAR void *diag_ethernet_chat_thread(FAR void *arg);
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// Called from a CLI developer -d 5 -v 0 to begin running, userData is not used
+// Called from a CLI developer -p 5 -v 0 to begin running, userData is not used
 void diag_ethernet_chat_server(uint32_t userData)
 {
   // Create a thread to run the chat server
@@ -128,7 +128,7 @@ void diag_ethernet_chat_server(uint32_t userData)
 }
 
 //=================================================================
-// This thread receives all stdout messages received from mono
+// This thread executes the chat test
 FAR void *diag_ethernet_chat_thread(FAR void *arg)
 {
   int ret;
@@ -266,8 +266,8 @@ FAR void *diag_ethernet_chat_thread(FAR void *arg)
     }
 
     recvCount++;
-    if((recvCount % 10) == 0)
-      syslog(LOG_INFO, "%d-Rcvd %d bytes\n", recvCount, nbytesread);
+    // if((recvCount % 10) == 0)
+    //   syslog(LOG_INFO, "%d-Rcvd %d bytes\n", recvCount, nbytesread);
 
 #if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
     hcom_diag_print_buffer((uint8_t*)buffer, nbytesread, LOG_INFO);
@@ -281,6 +281,11 @@ FAR void *diag_ethernet_chat_thread(FAR void *arg)
       if(ret == -ETHERNET_CHAT_MAGIC_ERROR_NUMB)
         goto errout_with_acceptsd;
     }
+    // else
+    // {
+    //   syslog(LOG_INFO, "Chat Server:success\n");
+    //   syslog(LOG_INFO, "=================================================\n\n");
+    // }
   }
 
 errout_with_acceptsd:
@@ -297,12 +302,15 @@ errout_with_buffer:
 }
 
 //=====================================================================
-// Reversion the order and sends back to client
+// Reverse the order (maybe) and sends back to client
 int echo_message_to_sender(int sockfd, char *recvBuff, size_t recvSize)
 {
   int ret = OK;
+  static int rcvCount = 0;
   char *outbuf;
   ssize_t nbytessent;
+
+  rcvCount++;
 
   outbuf = (char*)malloc(ETHERNET_CHAT_TEST_BUF_SIZE);
   if (!outbuf)
@@ -311,8 +319,7 @@ int echo_message_to_sender(int sockfd, char *recvBuff, size_t recvSize)
     return -ENOMEM;
   }
 
-#if (0)
-  // Reverse the data
+#if (0)  // Reverse the data - set to 1
   off_t recvOff = recvSize - 1;
   for(int i = 0; i < recvSize; i++)
   {
@@ -326,7 +333,7 @@ int echo_message_to_sender(int sockfd, char *recvBuff, size_t recvSize)
   nbytessent = send(sockfd, outbuf, recvSize, 0);
   if (nbytessent < 0)
   {
-    syslog(LOG_ERR, "Chat Server: send failed: %d\n", errno);
+    syslog(LOG_ERR, "Chat (%04d) Server: send failed: %d\n", rcvCount, errno);
     free(outbuf);
     return -ETHERNET_CHAT_MAGIC_ERROR_NUMB;    // Magic number
   }
@@ -337,23 +344,23 @@ int echo_message_to_sender(int sockfd, char *recvBuff, size_t recvSize)
       * error, but is an interesting thing to keep track of.
       */
 
-    syslog(LOG_ERR, "Chat Server:Only partial message sent (%d of %d)\n",
-            nbytessent, recvSize);
+    syslog(LOG_ERR, "Chat (%04d) Server:Only partial message sent (%d of %d)\n", rcvCount,
+       nbytessent, recvSize);
   }
   else if (nbytessent != recvSize)
   {
-    syslog(LOG_ERR, "Chat Server: Bad send length (%d of %d)\n",
-            nbytessent, recvSize);
+    syslog(LOG_ERR, "Chat (%04d) Server: Bad send length (%d of %d)\n",
+      rcvCount, nbytessent, recvSize);
   }
   else
   {
-    // syslog(LOG_ERR, "-->Chat Server:Succefully sent %d of %d bytes\n",
-    //         nbytessent, recvSize);
+    // This is normal behavior
+    syslog(LOG_INFO, "-->Chat (%04d) Server:Successfully echoed %d of %d bytes\n",
+      rcvCount, nbytessent, recvSize);
   }
   
   free(outbuf);
   return ret;
 }
 
-#endif // defined(CONFIG_ETHERNET_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS) || MEADOW_INCLUDE_ETHERNET_CHAT_TESTS_IN_BUILD > 0
-
+#endif // defined(CONFIG_ETH_CHAT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)

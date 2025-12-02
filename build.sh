@@ -243,9 +243,9 @@ if [ ! -z "$UNIT_TESTS" ]; then
             kconfig-tweak --file $NUTTX_CONFIG_FILE --enable BBR_TESTS
             BUILD_TESTS=true
             ;;
-            chat)
-            echo "Chat tests requested."
-            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable CHAT_TESTS
+            eth-chat)
+            echo "Ethernet Chat tests requested."
+            kconfig-tweak --file $NUTTX_CONFIG_FILE --enable ETH_CHAT_TESTS
             BUILD_TESTS=true
             ;;
             ethernet)
