@@ -40,12 +40,11 @@
  ****************************************************************************/
 #include <meadow/hcom_shared_common.h>
 
-#if MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER > 0
+#if defined(CONFIG_MEADOW_ROTARY_ENCODER)
 
 #include <nuttx/config.h>
 #include <string.h>
 #include <stdint.h>
-#include "stm32_gpio.h"   // stm32_configgpio
 
 // Caller must populate this struct
 struct rotenc_config_parms
@@ -74,19 +73,28 @@ struct rotaryEncoderInfo_s
 
   uint32_t prevCondBits;
   uint32_t prevOff;
-  int abEdgeCount;            // Count of A and B, both edges
-  bool rotClockWise;          // Current direction
+  int32_t abEdgeCount;        // Count of A and B, rising and falling edges
+  int32_t abEdgeChange;       // Count of edges since last read
+  uint32_t rotClockWise;      // Current direction 0 = Clockwise
 };
 typedef struct rotaryEncoderInfo_s rotaryEncoderInfo_t;
 
-// Public functions
-int meadow_config_rotary_encoder(struct rotenc_config_parms* rotencCfg);
-int meadow_rotary_encoder_read_count(uint8_t encoderNumb, int *encoderCount, bool *rotClockWise);
-int meadow_rotary_encoder_set_count(uint8_t encoderNumb, int encoderCount);
+// The Rotary Encoder Count consists of 2 GPIOs (A and B) and the rising and
+// falling edges of each pulse equals one count.
+#define MEADOW_ROTENC_GPIO_EDGES_PER_COUNT (4)
+
+// Public functions with syscalls
+int meadow_rotary_encoder_config(struct rotenc_config_parms* rotencCfg);
+int meadow_rotary_encoder_read_count(
+  uint32_t encoderNumb,     // 0 - 7 encoder config number
+  int32_t *encoderCount,    // Current full count (+/-)
+  int32_t *encoderChanged,  // Full counts since last read (+/-)
+  uint32_t *rotClockWise);  // Current rotational director
+int meadow_rotary_encoder_set_count(uint32_t encoderNumb, int32_t encoderCount);
 
 // Test function follow
 void rotary_encoder_test_exercise_test(uint32_t userData);
 
-#endif      // #if MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER > 0
+#endif      // defined(CONFIG_MEADOW_ROTARY_ENCODER)
 
 #endif      // __CONFIGS_MEADOW_SRC_MEADOW_ROTENC__H

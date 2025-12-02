@@ -28,10 +28,16 @@ config MEADOW_CLOUD
     default y
 
 config MEADOW_ETHNET_INCLUDE_IN_BUILD
-    bool "Build Meadow and include Ethernet for compute module"
-    default n
+    bool "Build Meadow and include Ethernet"
+    default y
     ---help---
     This must be used with a 'defconfig' file that includes the correct Ethernet configuration.
+
+config MEADOW_ROTARY_ENCODER
+    bool "Build Meadow and include Rotary Encoder"
+    default y
+    ---help---
+    Include Rotary Encoder code in Meadow build.
 
 config HCOM_ESP32_COMMS
     bool "Enables HCOM file download to the ESP32"

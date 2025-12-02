@@ -42,7 +42,7 @@
 
 #include <meadow/hcom_shared_common.h>
 
-#if MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER > 0
+#if defined(CONFIG_MEADOW_ROTARY_ENCODER)
 
 #include <nuttx/config.h>
 #include <string.h>
@@ -59,8 +59,7 @@
 #include <nuttx/arch.h>
 #include "meadow-upd.h"
 #include <meadow/meadow_hw_version.h>
-
-#include "meadow_rotary_encoder.h"
+#include <meadow/meadow_rotary_encoder.h>
 
 #if defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
 #pragma message "(--) meadow_rotary_encoder.c"
@@ -79,9 +78,6 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-
-static bool _firstTimeConfig = true;
-
 // All F7 possible input data registers addresses, used for ISR access to read
 // GPIO state value.
 static uint32_t rotencInputDataReg[] = 
@@ -99,9 +95,7 @@ static uint32_t rotencInputDataReg[] =
   STM32_GPIOK_IDR,
 };
 
-// This is the list of the GPIOs currently being timed. The entries in this
-// list are very short lived, begin added as soon as the GPIO ISR is called
-// and removed as soon as the glitch or debounce period has elapsed.
+// This is the list of the GPIOs currently configured.
 static rotaryEncoderInfo_t *_allRotaryEncodersList[MEADOW_ROTARY_ENC_MAX]\
         = {NULL};
 
@@ -142,7 +136,7 @@ static int rotEncLookup[] =
  * Private Functions
  ****************************************************************************/
 // This functions finds the direction (CW or CCW) and adds/subtracts the count.
-// This counts both interrupts, 'A' and 'B'.
+// This counts rising and falling edges of interrupts, 'A' and 'B'.
 static void rotenc_calc_dir_count(rotaryEncoderInfo_t *rotaryEncoderPtr,
           uint32_t newCondBits)
 {
@@ -162,24 +156,28 @@ static void rotenc_calc_dir_count(rotaryEncoderInfo_t *rotaryEncoderPtr,
       return;
 
     case 1: // CW
-      rotaryEncoderPtr->rotClockWise = true;
+      rotaryEncoderPtr->rotClockWise = 0;
       rotaryEncoderPtr->abEdgeCount++;
+      rotaryEncoderPtr->abEdgeChange++;
       break;
 
     case -1: // CCW
-      rotaryEncoderPtr->rotClockWise = false;
+      rotaryEncoderPtr->rotClockWise = 1;
       rotaryEncoderPtr->abEdgeCount--;
+      rotaryEncoderPtr->abEdgeChange--;
       break;
   }
 
 #if defined(CONFIG_ROTARY_ENCODER_TESTS)
   // For fast inputs, don't show every entry. The following was about right
-  // for hall effect sensor on the shaft of a brushed motor.
+  // for hall effect sensor on the shaft of a brushed motor
+  // (48 edges/revolution).
   if((rotaryEncoderPtr->abEdgeCount % 9973) == 0)
   {
-    syslog(2, "Encoder:%u, Total:%08d, Direction:%s\n", rotaryEncoderPtr->EncoderNumb,
-              rotaryEncoderPtr->abEdgeCount,
-              rotaryEncoderPtr->rotClockWise ? "ClockWise" : "CounterClockWise");
+    syslog(2, "Encoder:%lu, Interrupts:%08ld, Direction:%s\n",
+      rotaryEncoderPtr->EncoderNumb,
+      rotaryEncoderPtr->abEdgeCount,
+      rotaryEncoderPtr->rotClockWise == 0 ? "ClockWise" : "CounterClockWise");
   }
 #endif
 }
@@ -209,7 +207,7 @@ int rotenc_gpio_rot_enc_isr_a(int irq, void *context, void *arg)
   }
 
   // Only saves 2 ls bits
-  rotaryEncoderPtr->prevCondBits  = newCondBits;
+  rotaryEncoderPtr->prevCondBits = newCondBits;
 
   rotenc_calc_dir_count(rotaryEncoderPtr, newCondBits);
   return OK;
@@ -237,7 +235,7 @@ int rotenc_gpio_rot_enc_isr_b(int irq, void *context, void *arg)
   }
 
   // Only saves 2 ls bits
-  rotaryEncoderPtr->prevCondBits  = newCondBits;
+  rotaryEncoderPtr->prevCondBits = newCondBits;
 
   rotenc_calc_dir_count(rotaryEncoderPtr, newCondBits);
   return OK;
@@ -245,6 +243,7 @@ int rotenc_gpio_rot_enc_isr_b(int irq, void *context, void *arg)
 
 //========================================================================
 // Remove an existing rotary encoder entry
+// Caller will need to handle GPIO configuration as needed.
 int rotenc_config_interrupt_remove(struct rotenc_config_parms* cfg)
 {
   int ret;
@@ -265,7 +264,7 @@ int rotenc_config_interrupt_remove(struct rotenc_config_parms* cfg)
   PinInfoA = rotaryEncoderPtr->PinInfoA;
   PinInfoB = rotaryEncoderPtr->PinInfoB;
 
-  // Tell Nuttx to forget about these interrupts
+  // Tell Nuttx to forget about these GPIO interrupts
   // This call will also disables the interrupts
   ret = stm32_gpiosetevent(PinInfoA, 0, 0, 0, NULL, NULL);
   if(ret < 0)
@@ -291,17 +290,12 @@ int rotenc_config_interrupt_remove(struct rotenc_config_parms* cfg)
  * Public Functions
  ****************************************************************************/
 // To be called from .Net app to configure rotary encoder
-int meadow_config_rotary_encoder(struct rotenc_config_parms* cfg)
+int meadow_rotary_encoder_config(struct rotenc_config_parms* cfg)
 {
   int ret = OK;
   rotaryEncoderInfo_t *rotaryEncoderPtr;
   uint8_t pinDesignationA = cfg->portA << 4 | cfg->pinA;
   uint8_t pinDesignationB = cfg->portB << 4 | cfg->pinB;
-
-  if(_firstTimeConfig)
-  {
-    _firstTimeConfig = false;
-  }
 
   // Request to remove or add an encoder?
   if(! cfg->isAddEncoder)
@@ -407,12 +401,14 @@ int meadow_config_rotary_encoder(struct rotenc_config_parms* cfg)
 }
 
 //========================================================================
-// Return the current rotary encoder count.
-// Note: using int for count int with a 10,000 counts/second input will
-// rollover in about 59 days. If longer is needed can be converted to use
-// long int (int64_t).
-int meadow_rotary_encoder_read_count(uint8_t encoderNumb, int *encoderCount,
-  bool *rotClockWise)
+// Return the current rotary encoder
+// Count change since count last read
+// Current total count
+// the current direction of counting.
+int meadow_rotary_encoder_read_count(uint32_t encoderNumb,
+  int32_t *encoderCount,      // rotary encoder count
+  int32_t *encoderChanged,    // 0 = no changes, change count
+  uint32_t *rotClockWise)     // 0 = Clockwise
 {
   rotaryEncoderInfo_t *rotaryEncoderPtr;
 
@@ -446,7 +442,11 @@ int meadow_rotary_encoder_read_count(uint8_t encoderNumb, int *encoderCount,
   // Get the encoders state and return
   sched_lock();
 
-  *encoderCount = rotaryEncoderPtr->abEdgeCount;
+  *encoderChanged = rotaryEncoderPtr->abEdgeChange / MEADOW_ROTENC_GPIO_EDGES_PER_COUNT;
+  rotaryEncoderPtr->abEdgeChange = 0;  // Clear count
+
+  // Only return a full count
+  *encoderCount = rotaryEncoderPtr->abEdgeCount / MEADOW_ROTENC_GPIO_EDGES_PER_COUNT;
   *rotClockWise = rotaryEncoderPtr->rotClockWise;
 
   sched_unlock();
@@ -456,7 +456,7 @@ int meadow_rotary_encoder_read_count(uint8_t encoderNumb, int *encoderCount,
 
 //========================================================================
 // Permit the user to set or clear the current rotary encoder count.
-int meadow_rotary_encoder_set_count(uint8_t encoderNumb, int encoderCount)
+int meadow_rotary_encoder_set_count(uint32_t encoderNumb, int32_t encoderCount)
 {
   rotaryEncoderInfo_t *rotaryEncoderPtr;
   rotaryEncoderPtr = _allRotaryEncodersList[encoderNumb];
@@ -476,4 +476,4 @@ int meadow_rotary_encoder_set_count(uint8_t encoderNumb, int encoderCount)
   return OK;
 }
 
-#endif      // #if MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER > 0
+#endif      // defined(CONFIG_MEADOW_ROTARY_ENCODER)
