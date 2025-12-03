@@ -36,6 +36,9 @@ extern uint32_t meadow_os_native_protocol_version(void);
 extern int meadow_os_get_gateway_address(char *buffer);
 extern int meadow_measure_freq_configure(void* mdwCfgTimerChan);
 extern int meadow_measure_freq_return_freq_info(void* mdwFreqReturnData);
+extern int meadow_rotary_encoder_config(void* rotencCfg);
+extern int meadow_rotary_encoder_read_count(uint32_t encoderNumb, int32_t *encoderCount, uint32_t *encoderChanged, uint32_t *rotClockWise);
+extern int meadow_rotary_encoder_set_count(uint32_t encoderNumb, int32_t encoderCount);
 
 MonoDlMapping meadow_mappings[] = {
        { "open", open },
@@ -102,6 +105,9 @@ MonoDlMapping meadow_mappings[] = {
        { "meadow_os_coprocessor_deep_sleep", meadow_os_coprocessor_deep_sleep},
        { "meadow_measure_freq_configure", meadow_measure_freq_configure},
        { "meadow_measure_freq_return_freq_info", meadow_measure_freq_return_freq_info},
+       { "meadow_rotary_encoder_config", meadow_rotary_encoder_config},
+       { "meadow_rotary_encoder_read_count", meadow_rotary_encoder_read_count},
+       { "meadow_rotary_encoder_set_count", meadow_rotary_encoder_set_count},
 //       { "poll", poll },
 
 /*

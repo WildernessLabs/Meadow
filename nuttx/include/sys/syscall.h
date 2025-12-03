@@ -644,14 +644,23 @@
 #  define SYS_meadow_kt_dispatcher      SYS_meadow_measure_freq_return_freq_info
 #endif
 
-#if defined(CONFIG_ARCH_BOARD_MEADOW)
-#  define SYS_stm32_gpiowrite           (SYS_meadow_kt_dispatcher + 1)
-#  define SYS_stm32_configgpio          (SYS_meadow_kt_dispatcher + 2)
-#  define SYS_stm32_unconfiggpio        (SYS_meadow_kt_dispatcher + 3)
-#  define SYS_maxsyscall                (SYS_meadow_kt_dispatcher + 4)
+#if defined(CONFIG_MEADOW_ROTARY_ENCODER)
+#  define SYS_meadow_rotary_encoder_config         (SYS_meadow_kt_dispatcher + 1)
+#  define SYS_meadow_rotary_encoder_read_count     (SYS_meadow_kt_dispatcher + 2)
+#  define SYS_meadow_rotary_encoder_set_count      (SYS_meadow_kt_dispatcher + 3)
 #else
-#  define SYS_maxsyscall                (SYS_meadow_kt_dispatcher)
+#  define SYS_meadow_rotary_encoder_set_count      (SYS_meadow_kt_dispatcher)
 #endif
+
+#if defined(CONFIG_ARCH_BOARD_MEADOW)
+#  define SYS_stm32_gpiowrite           (SYS_meadow_rotary_encoder_set_count + 1)
+#  define SYS_stm32_configgpio          (SYS_meadow_rotary_encoder_set_count + 2)
+#  define SYS_stm32_unconfiggpio        (SYS_meadow_rotary_encoder_set_count + 3)
+#  define SYS_maxsyscall                (SYS_meadow_rotary_encoder_set_count + 4)
+#else
+#  define SYS_maxsyscall                (SYS_meadow_rotary_encoder_set_count)
+#endif
+
 
 /* Note that the reported number of system calls does *NOT* include the
  * architecture-specific system calls.  If the "real" total is required,
