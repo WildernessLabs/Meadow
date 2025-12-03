@@ -39,6 +39,7 @@
 
 #include "../hcom_nx/hcom_nx_common.h"
 #include <meadow/hcom_shared_common.h>
+#include "meadow_interrupt.h"
 
 // Only build if configured
 #if defined(CONFIG_MEADOW_INTERRUPT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
@@ -463,7 +464,7 @@ void meadow_interrupt_test_monitor_mint_mq(void)
     // syslog(1, "----> %s@%d-Calling mq_receive, waiting for message\n", thisFile, __LINE__);
     // usleep(20 * 1000);
     nbytes = mq_receive(mint_test_mq_fd, (char *)&mint_recvd_msg,
-      SIZE_OF_MINT_CORE_MSG, NULL);
+      MEADOW_INTERRUPT_MQ_MSG_SIZE, NULL);
     if(nbytes < 0)
     {
       // Signal
@@ -487,11 +488,12 @@ void meadow_interrupt_test_monitor_mint_mq(void)
 
     // Display the mq's data. The previous Meadow.OS only sent 2 bytes, the
     // new Meadow.OS sends a 10 byte message, including interrupt tick count.
-    if(nbytes == SIZE_OF_MINT_CORE_MSG)
+    if(nbytes == MEADOW_INTERRUPT_MQ_MSG_SIZE)
     {
-      struct timespec mintTicks;  // When interrupt occurred
+#if (MEADOW_INTERRUPT_INCLUDE_TIME_STAMP > 0)
+      struct timespec mintTicks;
 
-      // Get seconds and nanoseconds too
+      // Get time in seconds and nanoseconds
       (void)clock_ticks2time(mint_recvd_msg.interruptTicks, &mintTicks);
 
       syslog(2, "Mint test - Received, PinId:0x%02x, State:0x%02x, Ticks:%lld (sec:%d, nsec:%09d)\n",
@@ -500,6 +502,11 @@ void meadow_interrupt_test_monitor_mint_mq(void)
         mint_recvd_msg.interruptTicks,
         mintTicks.tv_sec,
         mintTicks.tv_nsec);
+#else
+      syslog(2, "Mint test - Received, PinId:0x%02x, State:0x%02x\n",
+        mint_recvd_msg.gpioPinId,
+        mint_recvd_msg.gpioState);
+#endif    
     }
     else
     {

@@ -255,7 +255,7 @@ int meadow_interrupt_setup(void)
   struct mq_attr attr;
   attr.mq_flags = 0;
   attr.mq_maxmsg = MINT_MSG_QUEUE_MAX_MSGS;
-  attr.mq_msgsize = SIZE_OF_MINT_CORE_MSG;
+  attr.mq_msgsize = MEADOW_INTERRUPT_MQ_MSG_SIZE;
   attr.mq_curmsgs = 0;
 
   mint_mqd = mq_open(MINT_MSG_QUEUE_NAME, O_WRONLY | O_CREAT, 0660, &attr);
@@ -789,11 +789,11 @@ int mint_forward_interrupt_to_core(struct interruptPinMap_s *gpioInfoAddr,
   // The first 2 bytes are the same if we add interrupt time or not
   mint_send_msg.gpioPinId = gpioInfoAddr->PinId;
   mint_send_msg.gpioState = state;
+#if (MEADOW_INTERRUPT_INCLUDE_TIME_STAMP > 0)
+  mint_send_msg.interruptTicks = clock_systimer();
+#endif
 
-  // WIP - WHAT TIME INFO TO SEND?
-  // THIS MUST BE RESOLVED WITH INPUT FROM THE MEADOW.CORE TEAM.
-  // 
-  // THE FOLLOWING IS EXPERIMENTAL CODE.
+  // Here is some variations on the time format to send to Meadow.Core
   //
   // struct tm tmTime = {0};
   // time_t secTime;         // uint32_t
@@ -807,7 +807,6 @@ int mint_forward_interrupt_to_core(struct interruptPinMap_s *gpioInfoAddr,
   //   ret = up_rtc_getdatetime_with_subseconds(&tmTime,
          // (long int *)&nanoseconds);
   // #endif
-
   //   // Convert struct tm to seconds
   //   secTime = (time_t)mktime(&tmTime);
   //   secPlusMs = (secTime * 1000   ) + (nanoseconds / (1000 * 1000));
@@ -826,10 +825,8 @@ int mint_forward_interrupt_to_core(struct interruptPinMap_s *gpioInfoAddr,
   // syslog(1, "Sec+MicroSec:%020lld\n", timeUS);
   //     secPlusMs, secPlusMs / 1000, secPlusMs % (1000 * 1000));
 
-  mint_send_msg.interruptTicks = clock_systimer();
-
   ret = mq_send(mint_mqd, (char *) &mint_send_msg,
-    SIZE_OF_MINT_CORE_MSG, 0);
+    MEADOW_INTERRUPT_MQ_MSG_SIZE, 0);
   if(ret < 0)
   {
     if(errno == ENOMEM)

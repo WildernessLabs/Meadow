@@ -38,6 +38,12 @@
 #define MINT_MSG_QUEUE_NAME           "/mdw_int"
 #define MINT_MSG_QUEUE_MAX_MSGS       16
 
+// This #define was added so timestamp code could be added without changing
+// the current behavior and do refactoring.
+// ONLY SET THIS TO 1 IF MEADOW.CORE HAS BEEN MODIFIED TO EXPECT TIME
+// Remove after Managed code has been updated`
+#define MEADOW_INTERRUPT_INCLUDE_TIME_STAMP (0)
+
 // This struct is sent from Meadow.Core to configure or remove an interrupt.
 struct mint_gpio_int_config
 {
@@ -57,11 +63,13 @@ struct mint_send_int_core_s
 {
   uint8_t gpioPinId;
   uint8_t gpioState;
+#if (MEADOW_INTERRUPT_INCLUDE_TIME_STAMP > 0)
   clock_t interruptTicks;
+#endif
 } __attribute__((__packed__));
 typedef struct mint_send_int_core_s mint_send_int_core_t;
 
-#define SIZE_OF_MINT_CORE_MSG sizeof(mint_send_int_core_t)
+#define MEADOW_INTERRUPT_MQ_MSG_SIZE sizeof(mint_send_int_core_t)
 
 enum GPIOInterruptCfgType_e
 {
