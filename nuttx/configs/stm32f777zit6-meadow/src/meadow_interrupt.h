@@ -41,7 +41,7 @@
 // This #define was added so timestamp code could be added without changing
 // the current behavior and do refactoring.
 // ONLY SET THIS TO 1 IF MEADOW.CORE HAS BEEN MODIFIED TO EXPECT TIME
-// Remove after Managed code has been updated`
+// Remove this #define after Managed code has been updated
 #define MEADOW_INTERRUPT_INCLUDE_TIME_STAMP (0)
 
 // This struct is sent from Meadow.Core to configure or remove an interrupt.
