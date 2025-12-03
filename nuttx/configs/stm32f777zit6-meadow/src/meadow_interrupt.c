@@ -1,7 +1,7 @@
 /****************************************************************************
  * nuttx\configs\stm32f777zit6-meadow\src\meadow_interrupt.c
  * 
- *   Copyright (C) 2020, 2021, 2023, 2024 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2020, 2021, 2023, 2024, 2025 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -108,7 +108,7 @@
  ****************************************************************************/
 static char *thisFile = __FILE__;
 
-static mqd_t mint_mqd;
+static mqd_t _mint_mqd;
 static bool _firstTimeConfig = true;
 
 // Current GPIO interrupt state
@@ -258,8 +258,8 @@ int meadow_interrupt_setup(void)
   attr.mq_msgsize = MEADOW_INTERRUPT_MQ_MSG_SIZE;
   attr.mq_curmsgs = 0;
 
-  mint_mqd = mq_open(MINT_MSG_QUEUE_NAME, O_WRONLY | O_CREAT, 0660, &attr);
-  if (mint_mqd == (mqd_t)-1)
+  _mint_mqd = mq_open(MINT_MSG_QUEUE_NAME, O_WRONLY | O_CREAT, 0660, &attr);
+  if (_mint_mqd == (mqd_t)-1)
   {
     int errcode = get_errno();
     syslog(LOG_ERR, "%s@%d-mq_open failed: %d\n", __FILE__, __LINE__, errcode);
@@ -272,8 +272,11 @@ int meadow_interrupt_setup(void)
 //=============================================================================
 void meadow_interrupt_shutdown(void)
 {
-  extern mqd_t mint_mqd;
-  mq_close(mint_mqd);
+  if(_mint_mqd != (mqd_t)-1)
+  {
+    mq_close(_mint_mqd);
+    _mint_mqd = (mqd_t)-1;
+  }
 }
 
 //=============================================================================
@@ -775,7 +778,8 @@ int mint_meadow_debounce_notification_logic(struct interruptPinMap_s *gpioInfoAd
 // This function will forward:
 // 1. PinId - upper 4-bits GPIO port, lower 4-bits GPIO pin
 // 2. State - 0 = false, 1 = true
-// 3. Ticks - Tick count since OS started (Note: ticks is subject to change)
+// 3. If MEADOW_INTERRUPT_INCLUDE_TIME_STAMP = 1, Tick count since OS started
+//    (Note: ticks is subject to change)
 int mint_forward_interrupt_to_core(struct interruptPinMap_s *gpioInfoAddr,
   uint8_t state)
 {
@@ -786,18 +790,23 @@ int mint_forward_interrupt_to_core(struct interruptPinMap_s *gpioInfoAddr,
   DEBUG_SET_LOW(DEBUG_PIN_V2_A3);
 
   // Forward interrupt info to Meadow.Core
-  // The first 2 bytes are the same if we add interrupt time or not
-  mint_send_msg.gpioPinId = gpioInfoAddr->PinId;
-  mint_send_msg.gpioState = state;
+  // The first byte  are the same if we add interrupt time or not
+  mint_send_msg.gpioPinId = gpioInfoAddr->PinId;  // port/pin of interrupt
+  mint_send_msg.gpioState = state;                // GPIO state
 #if (MEADOW_INTERRUPT_INCLUDE_TIME_STAMP > 0)
   mint_send_msg.interruptTicks = clock_systimer();
 #endif
 
-  // Here is some variations on the time format to send to Meadow.Core
+  // At this time no time information is being sent. The code that will be
+  // built if MEADOW_INTERRUPT_INCLUDE_TIME_STAMP is set to 1 will be the
+  // number of Nuttx ticks since startup. The entent is to have a framework
+  // here that can be easily modified to supply any type of timestamp
+  // Managed code can best use.
+  //
+  // Here is an possible implementation for the current time
   //
   // struct tm tmTime = {0};
   // time_t secTime;         // uint32_t
-  // long int nanoseconds;   // int32_t
   // uint64_t secTime;
   // int64_t nanoseconds;
   // int64_t secPlusMs;
@@ -825,7 +834,7 @@ int mint_forward_interrupt_to_core(struct interruptPinMap_s *gpioInfoAddr,
   // syslog(1, "Sec+MicroSec:%020lld\n", timeUS);
   //     secPlusMs, secPlusMs / 1000, secPlusMs % (1000 * 1000));
 
-  ret = mq_send(mint_mqd, (char *) &mint_send_msg,
+  ret = mq_send(_mint_mqd, (char *) &mint_send_msg,
     MEADOW_INTERRUPT_MQ_MSG_SIZE, 0);
   if(ret < 0)
   {
@@ -1031,6 +1040,14 @@ int mint_config_interrupt(struct mint_gpio_int_config* cfg)
 {
   int ret;
   struct interruptPinMap_s *gpioInfoAddr;
+
+  if(cfg == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-ERROR: mint_config_interrupt is NULL\n",
+       thisFile, __LINE__);
+    return -EINVAL;
+  }
+
   if(cfg->port > 15|| cfg->pin > 15)
   {
     syslog(LOG_ERR, "%s@%d-ERROR: mint_config_interrupt port/pin error\n",
@@ -1140,6 +1157,13 @@ int mint_config_interrupt_remove(struct mint_gpio_int_config* cfg,
           struct interruptPinMap_s *gpioInfoAddr)
 {
   int ret;
+
+  if(cfg == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-ERROR: mint_config_interrupt is NULL\n",
+       thisFile, __LINE__);
+    return -EINVAL;
+  }
 
   // Disable - remove a GPIO from being monitored
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 0
