@@ -461,6 +461,12 @@ SYSCALL_LOOKUP(meadow_adc_read_temp_vbat,            2, STUB_meadow_adc_read_tem
   SYSCALL_LOOKUP(meadow_kt_dispatcher,      2, STUB_meadow_kt_dispatcher)
 #endif
 
+#if defined (CONFIG_MEADOW_ROTARY_ENCODER)
+  SYSCALL_LOOKUP(meadow_rotary_encoder_config,      1, STUB_meadow_rotary_encoder_config)
+  SYSCALL_LOOKUP(meadow_rotary_encoder_read_count,  4, STUB_meadow_rotary_encoder_read_count)
+  SYSCALL_LOOKUP(meadow_rotary_encoder_set_count,   2, STUB_meadow_rotary_encoder_set_count)
+#endif
+
 #if defined(CONFIG_ARCH_BOARD_MEADOW)
   SYSCALL_LOOKUP(stm32_gpiowrite,           2, STUB_stm32_gpiowrite)
   SYSCALL_LOOKUP(stm32_configgpio,          1, STUB_stm32_configgpio)

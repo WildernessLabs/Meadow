@@ -131,7 +131,7 @@ static meadow_test_names_t _testNames[] =
     { MEADOW_TEST_SPI_DMA, "SPI DMA tests" },
 #endif
 
-#if (defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)) && (MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER > 0)
+#if (defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)) && defined(CONFIG_MEADOW_ROTARY_ENCODER)
     { MEADOW_TEST_ROTARY_ENCODER, "Rotary Encoder tests" },
 #endif
 
