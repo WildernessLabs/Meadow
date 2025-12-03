@@ -38,13 +38,13 @@
 /****************************************************************************
  * Included Files
  ****************************************************************************/
-#include <meadow/hcom_shared_common.h>
+#include <nuttx/config.h>
 
 #if defined(CONFIG_MEADOW_ROTARY_ENCODER)
 
-#include <nuttx/config.h>
 #include <string.h>
 #include <stdint.h>
+#include <meadow/hcom_shared_common.h>
 
 // Caller must populate this struct
 struct rotenc_config_parms
