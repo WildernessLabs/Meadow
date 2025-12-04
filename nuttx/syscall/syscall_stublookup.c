@@ -471,6 +471,12 @@ int STUB_pwrmgmt_most_recent_wakeup_reason(int nbr);
   int STUB_meadow_measure_freq_return_freq_info(int nbr, uintptr_t parm1);
 #endif
 
+#if defined (CONFIG_MEADOW_ROTARY_ENCODER)
+  int STUB_meadow_rotary_encoder_config(int nbr, uintptr_t parm1);
+  int STUB_meadow_rotary_encoder_read_count(int nbr, uintptr_t parm1, uintptr_t parm2, uintptr_t parm3, uintptr_t parm4);
+  int STUB_meadow_rotary_encoder_set_count(int nbr, uintptr_t parm1, uintptr_t parm2);
+#endif
+
 #if defined(CONFIG_ARCH_BOARD_MEADOW)
 void STUB_stm32_gpiowrite(int nbr, uint32_t parm1, int parm2);
 int STUB_stm32_configgpio(int nbr, uint32_t parm1);

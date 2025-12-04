@@ -104,7 +104,7 @@ static meadow_test_methods_t _kernelTests[] =
     { MEADOW_TEST_SPI_DMA, meadow_kt_spi_dma_tests },
 #endif
 
-#if (defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)) && (MEADOW_INCLUDE_CODE_FOR_ROTARY_ENCODER > 0)
+#if (defined(CONFIG_ROTARY_ENCODER_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)) && defined(CONFIG_MEADOW_ROTARY_ENCODER)
     { MEADOW_TEST_ROTARY_ENCODER, meadow_kt_rotary_encoder_tests },
 #endif
 
