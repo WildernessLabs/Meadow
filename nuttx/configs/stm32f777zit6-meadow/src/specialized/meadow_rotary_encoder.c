@@ -294,6 +294,14 @@ int meadow_rotary_encoder_config(struct rotenc_config_parms* cfg)
 {
   int ret = OK;
   rotaryEncoderInfo_t *rotaryEncoderPtr;
+
+  if(cfg == NULL)
+  {
+    syslog(LOG_ERR, "%s@%d-Parameter cfg cannot be NULL\n",
+              __FILE__, __LINE__);
+    return -EINVAL;
+  }
+
   uint8_t pinDesignationA = cfg->portA << 4 | cfg->pinA;
   uint8_t pinDesignationB = cfg->portB << 4 | cfg->pinB;
 
@@ -413,9 +421,9 @@ int meadow_rotary_encoder_read_count(uint32_t encoderNumb,
   rotaryEncoderInfo_t *rotaryEncoderPtr;
 
   // Check for NULL
-  if(encoderCount == NULL)
+  if(encoderCount == NULL || encoderChanged == NULL || rotClockWise == NULL)
   {
-    syslog(LOG_ERR, "%s@%d-encoderCount cannot be NULL\n",
+    syslog(LOG_ERR, "%s@%d-Input parameters cannot be NULL\n",
               __FILE__, __LINE__);
     return -EINVAL;
   }
