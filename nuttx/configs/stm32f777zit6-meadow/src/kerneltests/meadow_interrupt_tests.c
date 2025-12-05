@@ -437,7 +437,7 @@ static void meadow_interrupt_test_initialize_wakeup_and_sleep(void)
 // It displays the data of all queued messages, one-by-one and exits
 // when no message are left.
 //
-// Execute 'developer -p -v 4' configure D05 as DI no time
+// Execute 'developer -p 18 -v 4' configure D05 as DI no time
 // Optional - Toggle D05, 1 or more times
 // Execute -v 9 to begin reading mq to syslog
 // Toggling D05 will now show messages at each toggle
@@ -486,14 +486,13 @@ void meadow_interrupt_test_monitor_mint_mq(void)
       break;      // No message
     }
 
-    // Display the mq's data. The previous Meadow.OS only sent 2 bytes, the
-    // new Meadow.OS sends a 10 byte message, including interrupt tick count.
+    // Display the mq's data.
     if(nbytes == MEADOW_INTERRUPT_MQ_MSG_SIZE)
     {
 #if (MEADOW_INTERRUPT_INCLUDE_TIME_STAMP > 0)
       struct timespec mintTicks;
 
-      // Get time in seconds and nanoseconds
+      // Convert Nuttx ticks to time
       (void)clock_ticks2time(mint_recvd_msg.interruptTicks, &mintTicks);
 
       syslog(2, "Mint test - Received, PinId:0x%02x, State:0x%02x, Ticks:%lld (sec:%d, nsec:%09d)\n",

@@ -779,7 +779,7 @@ int mint_meadow_debounce_notification_logic(struct interruptPinMap_s *gpioInfoAd
 // 1. PinId - upper 4-bits GPIO port, lower 4-bits GPIO pin
 // 2. State - 0 = false, 1 = true
 // 3. If MEADOW_INTERRUPT_INCLUDE_TIME_STAMP = 1, Tick count since OS started
-//    (Note: ticks is subject to change)
+//    (Note: using Nuttx ticks is subject to change)
 int mint_forward_interrupt_to_core(struct interruptPinMap_s *gpioInfoAddr,
   uint8_t state)
 {
@@ -797,13 +797,13 @@ int mint_forward_interrupt_to_core(struct interruptPinMap_s *gpioInfoAddr,
   mint_send_msg.interruptTicks = clock_systimer();
 #endif
 
-  // At this time no time information is being sent. The code that will be
-  // built if MEADOW_INTERRUPT_INCLUDE_TIME_STAMP is set to 1 will be the
-  // number of Nuttx ticks since startup. The entent is to have a framework
-  // here that can be easily modified to supply any type of timestamp
-  // Managed code can best use.
+  // At this time (05Dec25) no time information is being sent. The code that
+  // will be built if MEADOW_INTERRUPT_INCLUDE_TIME_STAMP is set to 1 will be
+  // the number of Nuttx ticks since startup. The entent is to have a
+  // framework here that can be easily modified to supply any type of
+  // timestamp Managed code can use best.
   //
-  // Here is an possible implementation for the current time
+  // Here is an possible (untested) implementation for the current time
   //
   // struct tm tmTime = {0};
   // time_t secTime;         // uint32_t

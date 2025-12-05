@@ -39,7 +39,7 @@
 #define MINT_MSG_QUEUE_MAX_MSGS       16
 
 // This #define was added so timestamp code could be added without changing
-// the current behavior and do refactoring.
+// the current behavior and and yet do the needed refactoring.
 // ONLY SET THIS TO 1 IF MEADOW.CORE HAS BEEN MODIFIED TO EXPECT TIME
 // Remove this #define after Managed code has been updated
 #define MEADOW_INTERRUPT_INCLUDE_TIME_STAMP (0)
