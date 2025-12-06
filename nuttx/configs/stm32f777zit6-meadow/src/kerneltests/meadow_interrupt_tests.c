@@ -453,7 +453,7 @@ void meadow_interrupt_test_monitor_mint_mq(void)
   mint_test_mq_fd = mq_open(MINT_MSG_QUEUE_NAME, O_RDONLY);
   if (mint_test_mq_fd == (mqd_t)-1)
   {
-    syslog(2, "Error:Mint test open mq:-1, errno:%d\n", errno);
+    syslog(LOG_ERR, "Error:Mint test open mq:-1, errno:%d\n", errno);
     usleep(20 * 1000);
     return;
   }
@@ -473,7 +473,7 @@ void meadow_interrupt_test_monitor_mint_mq(void)
         continue;
       }
 
-      syslog(2, "---->%s@%d-Mint test - Error:mq_receive, ret:%d, errno:%d\n",
+      syslog(LOG_ERR "---->%s@%d-Mint test - Error:mq_receive, ret:%d, errno:%d\n",
         thisFile, __LINE__, nbytes, errno);
         usleep(20 * 1000);
       break;
@@ -481,7 +481,7 @@ void meadow_interrupt_test_monitor_mint_mq(void)
 
     if(nbytes == 0)
     {
-      syslog(2, "Mint test - read mq, 0-byte message?\n");
+      syslog(LOG_ERR, "Mint test - read mq, 0-byte message?\n");
       usleep(20 * 1000);
       break;      // No message
     }
