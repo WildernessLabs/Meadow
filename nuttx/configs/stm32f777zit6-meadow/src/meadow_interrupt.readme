@@ -1,0 +1,16 @@
+This code will work without any Meadow.Core changes as long as
+"#define MEADOW_INTERRUPT_INCLUDE_TIME_STAMP (0)" is not changed to '1'.
+
+The Meadow.Core team needs to:
+ - Decide the time format to be used in notifying Meadow.Core about an interrupt.
+   It currently will add the Nuttx tick count, but this can easy be changes.
+ - Update `Meadow.Core` to accept notifications with the new time format added.
+    This commit adds a 64-bit field containing the Nuttx tick count at the time the
+    interrupt occurred.
+
+Since the message size has increased, `Meadow.Core` will also need to be modified
+to match. This will require both `Meadow.Core` and `Meadow.OS` to be updated on
+the Meadow platform at the same time.
+
+Peter Moody
+05Dec2025

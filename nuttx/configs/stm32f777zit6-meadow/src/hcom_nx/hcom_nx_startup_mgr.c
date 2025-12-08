@@ -51,6 +51,7 @@
 #include <meadow/hcom_bbreg_defn.h>
 #include <meadow/meadow_os.h>
 #include <meadow/meadow_os_fault_handling.h>
+#include "meadow_interrupt.h"
 
 #if defined(CONFIG_MEADOW_ETHNET_INCLUDE_IN_BUILD)
 #include <meadow/meadow_hw_version.h>
@@ -278,6 +279,13 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
     return ret;
   }
 #endif
+  // Setup meadow interrupt
+  ret = meadow_interrupt_setup();
+  if (ret < 0)
+  {
+    syslog(LOG_CRIT, "%s@%d-initialization for meadow interrupt:%d\n", thisFile, __LINE__, ret);
+    return ret;
+  }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
   syslog(2,  "hcom_nx_setup_mgr 6c\n"); usleep(5 * 1000);

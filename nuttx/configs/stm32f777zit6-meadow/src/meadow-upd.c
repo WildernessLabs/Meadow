@@ -25,6 +25,7 @@
 #include "stm32_i2c.h"
 #include "stm32f777zit6-meadow.h"
 #include "stm32_spi.h"
+#include "meadow_interrupt.h"
 
 #include <dirent.h>
 
@@ -41,7 +42,6 @@
 #include "espcp/espcp_common.h"
 #include "espcp/espcp_encoders.h"
 #include "hcom_nx/hcom_nx_config_manager.h"
-// #include "pwrmgmt/pwrmgmt_local.h"
 
 /****************************************************************************
  * Private Types
@@ -152,8 +152,6 @@ static int upd_get_set_configuration_value(upd_get_set_configuration_value_t *);
 /****************************************************************************
  * Private Data
  ****************************************************************************/
-
-mqd_t s_int_queue;
 
 static const struct file_operations g_driver_operations =
 {
@@ -567,33 +565,14 @@ static int upd_handle_pwm(int cmd, unsigned long arg)
   return OK;
 }
 
+// Called from hcom_via_nx_upd_driver_open() in hcom_via_nx_upd_driver_open.c
 static int upd_open(struct file *filep)
 {
-  extern mqd_t s_int_queue;
-  struct mq_attr attr;
-  attr.mq_flags = 0;
-  attr.mq_maxmsg = MINT_MSG_QUEUE_MAX_MSGS;
-  attr.mq_msgsize = MINT_MSG_QUEUE_MSG_SIZE;
-  attr.mq_curmsgs = 0;
-
-  if(s_int_queue == 0)
-  {
-    s_int_queue = mq_open(MINT_MSG_QUEUE_NAME, O_WRONLY | O_CREAT, 0660, &attr);
-    if (s_int_queue == (mqd_t)-1)
-    {
-      int errcode = get_errno();
-      syslog(LOG_ERR, "%s@%d-mq_open failed: %d\n", __FILE__, __LINE__, errcode);
-      return -errcode;
-    }
-  }
   return OK;
 }
 
 static int upd_close(struct file *filep)
 {
-  extern mqd_t s_int_queue;
-  mq_close(s_int_queue);
-
   return OK;
 }
 
