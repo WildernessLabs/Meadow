@@ -39,6 +39,7 @@
 
 #include "../hcom_nx/hcom_nx_common.h"
 #include <meadow/hcom_shared_common.h>
+#include "meadow_interrupt.h"
 
 // Only build if configured
 #if defined(CONFIG_MEADOW_INTERRUPT_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
@@ -436,7 +437,7 @@ static void meadow_interrupt_test_initialize_wakeup_and_sleep(void)
 // It displays the data of all queued messages, one-by-one and exits
 // when no message are left.
 //
-// Execute 'developer -p -v 4' configure D05 as DI no time
+// Execute 'developer -p 18 -v 4' configure D05 as DI no time
 // Optional - Toggle D05, 1 or more times
 // Execute -v 9 to begin reading mq to syslog
 // Toggling D05 will now show messages at each toggle
@@ -452,7 +453,7 @@ void meadow_interrupt_test_monitor_mint_mq(void)
   mint_test_mq_fd = mq_open(MINT_MSG_QUEUE_NAME, O_RDONLY);
   if (mint_test_mq_fd == (mqd_t)-1)
   {
-    syslog(2, "Error:Mint test open mq:-1, errno:%d\n", errno);
+    syslog(LOG_ERR, "Error:Mint test open mq:-1, errno:%d\n", errno);
     usleep(20 * 1000);
     return;
   }
@@ -463,7 +464,7 @@ void meadow_interrupt_test_monitor_mint_mq(void)
     // syslog(1, "----> %s@%d-Calling mq_receive, waiting for message\n", thisFile, __LINE__);
     // usleep(20 * 1000);
     nbytes = mq_receive(mint_test_mq_fd, (char *)&mint_recvd_msg,
-      SIZE_OF_MINT_CORE_MSG, NULL);
+      MEADOW_INTERRUPT_MQ_MSG_SIZE, NULL);
     if(nbytes < 0)
     {
       // Signal
@@ -472,7 +473,7 @@ void meadow_interrupt_test_monitor_mint_mq(void)
         continue;
       }
 
-      syslog(2, "---->%s@%d-Mint test - Error:mq_receive, ret:%d, errno:%d\n",
+      syslog(LOG_ERR "---->%s@%d-Mint test - Error:mq_receive, ret:%d, errno:%d\n",
         thisFile, __LINE__, nbytes, errno);
         usleep(20 * 1000);
       break;
@@ -480,18 +481,18 @@ void meadow_interrupt_test_monitor_mint_mq(void)
 
     if(nbytes == 0)
     {
-      syslog(2, "Mint test - read mq, 0-byte message?\n");
+      syslog(LOG_ERR, "Mint test - read mq, 0-byte message?\n");
       usleep(20 * 1000);
       break;      // No message
     }
 
-    // Display the mq's data. The previous Meadow.OS only sent 2 bytes, the
-    // new Meadow.OS sends a 10 byte message, including interrupt tick count.
-    if(nbytes == SIZE_OF_MINT_CORE_MSG)
+    // Display the mq's data.
+    if(nbytes == MEADOW_INTERRUPT_MQ_MSG_SIZE)
     {
-      struct timespec mintTicks;  // When interrupt occurred
+#if (MEADOW_INTERRUPT_INCLUDE_TIME_STAMP > 0)
+      struct timespec mintTicks;
 
-      // Get seconds and nanoseconds too
+      // Convert Nuttx ticks to time
       (void)clock_ticks2time(mint_recvd_msg.interruptTicks, &mintTicks);
 
       syslog(2, "Mint test - Received, PinId:0x%02x, State:0x%02x, Ticks:%lld (sec:%d, nsec:%09d)\n",
@@ -500,6 +501,11 @@ void meadow_interrupt_test_monitor_mint_mq(void)
         mint_recvd_msg.interruptTicks,
         mintTicks.tv_sec,
         mintTicks.tv_nsec);
+#else
+      syslog(2, "Mint test - Received, PinId:0x%02x, State:0x%02x\n",
+        mint_recvd_msg.gpioPinId,
+        mint_recvd_msg.gpioState);
+#endif    
     }
     else
     {
