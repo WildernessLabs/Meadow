@@ -976,6 +976,11 @@ typedef struct mono_signature_s mono_signature_t;
 // Augments the normal Nuttx LOG_XXXX list
 #define LOG_NONE                         0xff
 
+// Meadow uses these syslog defines when doing diagnostics and testing,
+// since LOG_CRIT will always be output.
+#define LOG_MDIAG                       LOG_CRIT
+#define LOG_MTEST                       LOG_CRIT
+
 // typedef for sending messages to host (e.g. CLI) from nuttx side
 typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
           size_t totalMsgLen, char *sourceFileName, int sourceLineNumber);
@@ -1015,7 +1020,7 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
 // 'hcom_diag_print_buffer' on Nuttx 'hcom_nx_diag_print_buffer'
 #define HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE           0
  // To output non-null terminated string. This won't work if binary in buffer
- // syslog(2, "%.*s\n", textLen, buffer);
+ // syslog(LOG_XXX, "%.*s\n", textLen, buffer);
 
 // Outputs to syslog the PID of each new thread
 #define HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS    0

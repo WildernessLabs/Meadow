@@ -374,7 +374,7 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
               0, hostMsg, thisFile, __LINE__);
 
-    // syslog(1, "%s\n", hostMsg);
+    // syslog(LOG_MDIAG, "%s\n", hostMsg);
 
     free(hostMsg);
   }
@@ -398,7 +398,7 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
 
 #if defined (CONFIG_DIR_MGMT_TESTS)
   #if (HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0)
-  syslog(2, "------- %s@%d (Showing first 16 of %lu packet) ------\n", __FILE__, __LINE__, packetSize);
+  syslog(LOG_MTEST, "------- %s@%d (Showing first 16 of %lu packet) ------\n", __FILE__, __LINE__, packetSize);
   hcom_diag_print_buffer((uint8_t *)hcomDataMsg, 16, 1);
   #endif
 #endif

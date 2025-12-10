@@ -174,7 +174,7 @@ static void rotenc_calc_dir_count(rotaryEncoderInfo_t *rotaryEncoderPtr,
   // (48 edges/revolution).
   if((rotaryEncoderPtr->abEdgeCount % 9973) == 0)
   {
-    syslog(2, "Encoder:%lu, Interrupts:%08ld, Direction:%s\n",
+    syslog(LOG_MTEST, "Encoder:%lu, Interrupts:%08ld, Direction:%s\n",
       rotaryEncoderPtr->EncoderNumb,
       rotaryEncoderPtr->abEdgeCount,
       rotaryEncoderPtr->rotClockWise == 0 ? "ClockWise" : "CounterClockWise");

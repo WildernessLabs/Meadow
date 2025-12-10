@@ -237,7 +237,7 @@ static enum hcom_file_msg_cat_e hcom_dir_mgmt_categorize_pathname(
 #if defined (CONFIG_DIR_MGMT_TESTS)
     else
     {
-      syslog(2, "SDCard not configured for use\n");
+      syslog(LOG_MTEST, "SDCard not configured for use\n");
     }
 #endif
   }
@@ -459,7 +459,7 @@ int hcom_host_process_init_hcom_dnld_share(hcom_dnld_shared_t *dnldShared,
   hcom_dir_mgmt_free_file_info(dnldShared);
 
 #if defined (CONFIG_DIR_MGMT_TESTS)
-    syslog(2, "===> %s@%d-Populating dnldShared information\n", thisFile, __LINE__);
+    syslog(LOG_MTEST, "===> %s@%d-Populating dnldShared information\n", thisFile, __LINE__);
 #endif
 
   if(isFileMsgType)
@@ -644,30 +644,30 @@ int hcom_dir_mgmt_check_and_add_subdir(hcom_dnld_shared_t *dnldShared)
 #if defined (CONFIG_DIR_MGMT_TESTS)
     else
     {
-      syslog(2, "===> %s@%d- Searching FS found '%s' which is:\n",
+      syslog(LOG_MTEST, "===> %s@%d- Searching FS found '%s' which is:\n",
                 thisFile, __LINE__, fullFileNamePath);
       if (S_ISREG(statBuf.st_mode))
-        syslog(2, "type: File\n");
+        syslog(LOG_MTEST, "type: File\n");
       else if (S_ISDIR(statBuf.st_mode))
-        syslog(2, "type: Directory\n");
+        syslog(LOG_MTEST, "type: Directory\n");
       else if (S_ISCHR(statBuf.st_mode))
-        syslog(2, "type: Character driver\n");
+        syslog(LOG_MTEST, "type: Character driver\n");
       else if (S_ISBLK(statBuf.st_mode))
-        syslog(2, "type: Block driver\n");
+        syslog(LOG_MTEST, "type: Block driver\n");
       else if (S_ISMQ(statBuf.st_mode))
-        syslog(2, "type: Message queue\n");
+        syslog(LOG_MTEST, "type: Message queue\n");
       else if (S_ISSEM(statBuf.st_mode))
-        syslog(2, "type: Named semaphore\n");
+        syslog(LOG_MTEST, "type: Named semaphore\n");
       else if (S_ISSHM(statBuf.st_mode))
-        syslog(2, "type: Shared memory\n");
+        syslog(LOG_MTEST, "type: Shared memory\n");
       else if (S_ISSOCK(statBuf.st_mode))
-        syslog(2, "type: Socket\n");
+        syslog(LOG_MTEST, "type: Socket\n");
       else if (S_ISMTD(statBuf.st_mode))
-        syslog(2, "type: Named MTD driver\n");
+        syslog(LOG_MTEST, "type: Named MTD driver\n");
       else if (S_ISLNK(statBuf.st_mode))
-        syslog(2, "type: Symbolic link\n");
+        syslog(LOG_MTEST, "type: Symbolic link\n");
       else
-        syslog(2, "type: Unknown\n");
+        syslog(LOG_MTEST, "type: Unknown\n");
 
       usleep(30 * 1000);
     }

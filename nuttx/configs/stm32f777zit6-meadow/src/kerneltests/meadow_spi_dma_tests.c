@@ -104,7 +104,7 @@ static void spi_test_main_work_function(FAR void *arg);
 /************************************************************************************
  * Public Functions
  ************************************************************************************/
-// developer -d 17 comes here
+// developer -p 17 comes here
 void meadow_kt_spi_dma_tests(uint32_t userData)
 {
   memset(_testOps, 0, sizeof(SPITestingOptions));
@@ -297,7 +297,8 @@ void meadow_kt_spi_dma_tests(uint32_t userData)
       break;
 
     default:
-      syslog(2, "Undefined test meadow_kt_spi_dma_tests, userData:%lu\n", userData);
+      syslog(LOG_MTEST, "Undefined test meadow_kt_spi_dma_tests, userData:%lu\n",
+        userData);
       return;
   }
 
@@ -318,7 +319,8 @@ int spi_initiate_loopback_test(SPITestingOptions *testOps)
   testOps->spiDev = stm32_spibus_initialize(testOps->spiNumber);  // Nuttx function
   if(testOps->spiDev == NULL)
   {
-    syslog(2, "%s@%d-SPI%d failed to initialize\n", __FILE__, __LINE__, 3);
+    syslog(LOG_MTEST, "%s@%d-SPI%d failed to initialize\n",
+      __FILE__, __LINE__, 3);
     return -ENODEV;
   }
 
@@ -335,11 +337,11 @@ int spi_initiate_loopback_test(SPITestingOptions *testOps)
   SPI_SETBITS(testOps->spiDev, testOps->msgBits);
 
 #if defined (CONFIG_STM32F7_SPI_DMA)
-  syslog(2, "%s@%d-DMA test, SPI%lu, allocate %lu bytes\n",
+  syslog(LOG_MTEST, "%s@%d-DMA test, SPI%lu, allocate %lu bytes\n",
           __FILE__, __LINE__, testOps->spiNumber,
           testOps->bufferSize);
 #else
-  syslog(2, "%s@%d-Non-DMA test, SPI%lu, allocate %lu bytes\n",
+  syslog(LOG_MTEST, "%s@%d-Non-DMA test, SPI%lu, allocate %lu bytes\n",
           __FILE__, __LINE__, testOps->spiNumber,
           testOps->bufferSize);
 #endif
@@ -347,7 +349,7 @@ int spi_initiate_loopback_test(SPITestingOptions *testOps)
   ret = work_queue(HPWORK, &spi_test_work, spi_test_main_work_function, testOps, 0);
   if(ret < 0)
   {
-    syslog(2, "%s@%d-Error work_queue returned with error:%d\n", __FILE__, __LINE__, ret); usleep(30 * 1000);
+    syslog(LOG_MTEST, "%s@%d-Error work_queue returned with error:%d\n", __FILE__, __LINE__, ret); usleep(30 * 1000);
   }
 
   return ret;
@@ -367,7 +369,8 @@ void spi_test_main_work_function(FAR void *arg)
   txBuff = malloc(testOps->bufferSize);
   if(txBuff == NULL)
   {
-    syslog(2, "%s@%d-Couldn't allocate mem for txBuff\n", __FILE__, __LINE__);
+    syslog(LOG_MTEST, "%s@%d-Couldn't allocate mem for txBuff\n",
+      __FILE__, __LINE__);
     usleep(20 * 1000);
     return;
   }
@@ -376,13 +379,15 @@ void spi_test_main_work_function(FAR void *arg)
   if(rxBuff == NULL)
   {
     free(txBuff);
-    syslog(2, "%s@%d-Couldn't allocate mem for rxBuff\n", __FILE__, __LINE__);
+    syslog(LOG_MTEST, "%s@%d-Couldn't allocate mem for rxBuff\n",
+      __FILE__, __LINE__);
     return;
   }
 
-  // syslog(2, "%s@%d- 24 MHz, sending:%lu (0x%08x) bytes, testOps:%p, txBuff:%p, rxBuff:%p\n",
-  //           __FILE__, __LINE__, testOps->bufferSize, testOps->bufferSize,
-  //           testOps, txBuff, rxBuff); usleep(20 * 1000);
+  // syslog(LOG_MTEST,
+  //  "%s@%d- 24 MHz, sending:%lu (0x%08x) bytes, testOps:%p, txBuff:%p, rxBuff:%p\n",
+  //  __FILE__, __LINE__, testOps->bufferSize, testOps->bufferSize,
+  //  testOps, txBuff, rxBuff); usleep(20 * 1000);
 
   // Fill send buffer with pseudo "data"
   for(bufOff = 0; bufOff < testOps->bufferSize; bufOff++)
@@ -429,14 +434,14 @@ void spi_test_main_work_function(FAR void *arg)
 
       while(numbToSend > 65532)
       {
-        // syslog(1, "->Send Loop-to send %lu bytes, tx:%p->rx:%p\n",
+        // syslog(LOG_MTEST, "->Send Loop-to send %lu bytes, tx:%p->rx:%p\n",
         //           numbToSend, txTempBuf, rxTempBuf);
         SPI_EXCHANGE(testOps->spiDev, txTempBuf, rxTempBuf, 65532);
         txTempBuf += 65532;
         rxTempBuf += 65532;
         numbToSend -= 65532;
       }
-      // syslog(1, "->Send Last-%lu bytes, tx:%p->rx:%p\n",
+      // syslog(LOG_MTEST, "->Send Last-%lu bytes, tx:%p->rx:%p\n",
       //             numbToSend, txTempBuf, rxTempBuf);
       SPI_EXCHANGE(testOps->spiDev, txTempBuf, rxTempBuf, numbToSend);
     }
@@ -448,21 +453,22 @@ void spi_test_main_work_function(FAR void *arg)
       // Quit on error and show buffers
       if(txBuff[bufOff] != rxBuff[bufOff])
       {
-        syslog(2, "-->Loop:%02d - Error sent:%lu(0x%08x) bytes, err@bufOff:%lu(0x%08x), txBuff:%p, rxBuff:%p [txBuff:0x%02x(%p) != rxBuff:0x%02x(%p)]\n",
-                loopOff,
-                testOps->bufferSize, testOps->bufferSize,
-                bufOff, bufOff,
-                txBuff, rxBuff,
-                txBuff[bufOff], &txBuff[bufOff],
-                rxBuff[bufOff], &rxBuff[bufOff]);
+        syslog(LOG_MTEST,
+          "-->Loop:%02d - Error sent:%lu(0x%08x) bytes, err@bufOff:%lu(0x%08x), txBuff:%p, rxBuff:%p [txBuff:0x%02x(%p) != rxBuff:0x%02x(%p)]\n",
+          loopOff,
+          testOps->bufferSize, testOps->bufferSize,
+          bufOff, bufOff,
+          txBuff, rxBuff,
+          txBuff[bufOff], &txBuff[bufOff],
+          rxBuff[bufOff], &rxBuff[bufOff]);
 
 // #if HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0
 //         // Show bytes before and after error
-//         syslog(2, "------------------------ txBuff ---------------------------\n");
+//         syslog(LOG_MTEST, "------------------------ txBuff ---------------------------\n");
 //         hcom_nx_diag_print_buffer((&txBuff[bufOff]) - 24, 48, 1);
-//         syslog(2, "------------------------ rxBuff ---------------------------\n");
+//         syslog(LOG_MTEST, "------------------------ rxBuff ---------------------------\n");
 //         hcom_nx_diag_print_buffer((&rxBuff[bufOff]) - 24, 48, 1);
-//         syslog(2, "-------------------- End of rxBuff ------------------------\n");
+//         syslog(LOG_MTEST, "-------------------- End of rxBuff ------------------------\n");
 //         hcom_nx_diag_print_buffer(rxBuff + (testOps->bufferSize - 16), 16, 1);
         
 //         usleep(30 * 1000);
@@ -488,20 +494,22 @@ void spi_test_main_work_function(FAR void *arg)
   {
     if(failCount[loopOff] == 0)
     {
-      syslog(2, "Loop:%02d - Successful transfer of:%d bytes\n", loopOff + 1, successCount[loopOff]);
+      syslog(LOG_MTEST, "Loop:%02d - Successful transfer of:%d bytes\n",
+        loopOff + 1, successCount[loopOff]);
     }
     else
     {
-      syslog(2, "Loop:%02d - Transfer failed. First offset:%d, total errors:%d, total success:%d\n",
-                loopOff, firstMismatch[loopOff], failCount[loopOff], successCount[loopOff]);
+      syslog(LOG_MTEST,
+        "Loop:%02d - Transfer failed. First offset:%d, total errors:%d, total success:%d\n",
+        loopOff, firstMismatch[loopOff], failCount[loopOff], successCount[loopOff]);
     }
   }
 
-  // syslog(2, "Successful transfered:%d of %d\n", score, testOps->repeatExchange);
+  // syslog(LOG_MTEST, "Successful transfered:%d of %d\n", score, testOps->repeatExchange);
 
   free(txBuff);
   free(rxBuff);
-  // syslog(2, "Memory freed\n"); usleep(10 * 1000);
+  // syslog(LOG_MTEST, "Memory freed\n"); usleep(10 * 1000);
 }
 
 #endif  // #if defined(CONFIG_SPI_DMA_TESTS)

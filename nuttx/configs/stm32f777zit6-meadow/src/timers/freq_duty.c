@@ -288,7 +288,8 @@ int meadow_timer_setup_freq_duty(struct timerConfig_s timerConfig)
   }
   else
   {
-    // syslog(2, "meadow_timer_setup_freq_dc_decode() no gpio defined\n");
+    // syslog(LOG_WARNING,
+    //   "meadow_timer_setup_freq_dc_decode() no gpio defined\n");
     freqDcData->gpioInputConfig = MEADOW_TIMER_BAD_GPIO_VALUE;
     return -1;
   }
@@ -300,7 +301,8 @@ int meadow_timer_setup_freq_duty(struct timerConfig_s timerConfig)
   ret = meadow_timer_init_freq_and_dutycycle(timerConfig.timerNumber);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-Meadow freq + duty cycle init failed:%d\n", __FILE__, __LINE__, ret);
+    syslog(LOG_ERR, "%s@%d-Meadow freq + duty cycle init failed:%d\n",
+      __FILE__, __LINE__, ret);
     return ret;
   }
 
@@ -491,13 +493,13 @@ int meadow_timer_test_freq_and_dutycycle(int timerNumber)
     uint32_t iDutyCycle = (dutyCycle * 1000.0);
     uint32_t iFrequency = (freq * 1000.0);
 
-    // syslog(2, "Freq:%06.4fHz [%lu], DC:%02.2f%% [%lu], CCR1:%06lu, CCR2:%06lu, retries:%lu\n",
-              freq, iFrequency, dutyCycle, iDutyCycle, fullPeriod, partPeriod, validCheckCount);
+    // syslog(LOG_MTEST, "Freq:%06.4fHz [%lu], DC:%02.2f%% [%lu], CCR1:%06lu, CCR2:%06lu, retries:%lu\n",
+    //           freq, iFrequency, dutyCycle, iDutyCycle, fullPeriod, partPeriod, validCheckCount);
   }
   else
   {
-    // syslog(2, "Invalid data                   CCR1:%06lu, CCR2:%06lu, retries:%lu\n",
-              fullPeriod, partPeriod, validCheckCount);
+    // syslog(LOG_MTEST, "Invalid data                   CCR1:%06lu, CCR2:%06lu, retries:%lu\n",
+    //           fullPeriod, partPeriod, validCheckCount);
   }
 
   // Prevent this count from being used when there's no input.

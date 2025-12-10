@@ -257,11 +257,11 @@ int nsh_main_proxy(int argcx, char *argvx[])
   // int nsh_port_fd = open(HCOM_DIAG_NSH_SERIAL_DEVICE, O_RDWR);
   // if(nsh_port_fd < 0)
   // {
-  //   syslog(2, "Error attempting to open NSH Port, ret:%d errno:%d\n", nsh_port_fd, errno);
+  //   syslog(LOG_MTEST, "Error attempting to open NSH Port, ret:%d errno:%d\n", nsh_port_fd, errno);
   //   return -1;
   // }
 
-  // syslog(2, "NSH Port opened success. Will echo.\n");
+  // syslog(LOG_MTEST, "NSH Port opened success. Will echo.\n");
   // // ECHO for TESTING
   // char testBuf[16];
   // while(true)
@@ -270,16 +270,16 @@ int nsh_main_proxy(int argcx, char *argvx[])
   //   ret = read(nsh_port_fd, testBuf, 1);
   //   if(ret < 0)
   //   {
-  //     syslog(2, "Error reading NSH Port, ret:%d errno:%d\n", ret, errno);
+  //     syslog(LOG_MTEST, "Error reading NSH Port, ret:%d errno:%d\n", ret, errno);
   //     continue;
   //   }
 
-  //   syslog(2, "NSH Port read character\n");
+  //   syslog(LOG_MTEST, "NSH Port read character\n");
     
   //   ret =  write(nsh_port_fd, testBuf, 1);
   //   if(ret < 0)
   //   {
-  //     syslog(2, "Error writing NSH Port, ret:%d errno:%d\n", ret, errno);
+  //     syslog(LOG_MTEST, "Error writing NSH Port, ret:%d errno:%d\n", ret, errno);
   //   }
   // }
 

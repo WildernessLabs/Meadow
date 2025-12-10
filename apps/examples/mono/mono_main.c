@@ -261,7 +261,7 @@ int mono_main(int hcom_argc, char *hcom_argv[])
 
   // for(int check = 0; check < finalArgc; check++)
   // {
-  //   syslog(2, "finalArgv[%d] is '%s'\n", check, finalArgv[check]);
+  //   syslog(LOG_MTEST, "finalArgv[%d] is '%s'\n", check, finalArgv[check]);
   // }
 
   setenv("MONO_LOG_LEVEL", "warning", 1);

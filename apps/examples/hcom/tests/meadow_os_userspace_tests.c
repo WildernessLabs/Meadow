@@ -135,12 +135,13 @@ void meadow_os_userspace_send_parameter(char * const buffer, uint32_t buffer_len
     if ((buffer != NULL) && (buffer_length > 0) && (parameter_name != NULL))
     {
         snprintf_chk(buffer, buffer_length, "%s = %s", parameter_name, (parameter_value == NULL) ? "NULL" : parameter_value);
-        syslog(1, "%s", buffer);
+        syslog(LOG_MTEST, "%s", buffer);
         hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, buffer, __FILE__, __LINE__);
     }
     else
     {
-        syslog(1, "Developer tests: Invalid parameters passed to meadow_os_userspace_send_parameter.\n");
+        syslog(LOG_MTEST,
+            "Developer tests: Invalid parameters passed to meadow_os_userspace_send_parameter.\n");
         hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, "Invalid parameters passed to meadow_os_userspace_send_parameter.\n", __FILE__, __LINE__);
     }
 }
@@ -167,7 +168,7 @@ void meadow_os_userspace_get_test_configuration_test(uint32_t userdata)
 
     if (hostMsg == NULL)
     {
-        syslog(1, "Developer tests: failed to allocate memory for hostMsg\n");
+        syslog(LOG_MTEST, "Developer tests: failed to allocate memory for hostMsg\n");
         return;
     }
 
@@ -187,8 +188,11 @@ void meadow_os_userspace_get_test_configuration_test(uint32_t userdata)
     }
     else
     {
-        syslog(1, "Developer tests: failed to get unit tests configuration.\n");
-        hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, "Failed to get unit tests configuration.\n", __FILE__, __LINE__);
+        syslog(LOG_MTEST,
+            "Developer tests: failed to get unit tests configuration.\n");
+        
+            hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0,
+                "Failed to get unit tests configuration.\n", __FILE__, __LINE__);
     }
 }
 
@@ -215,7 +219,7 @@ void meadow_os_cli_timeout_test(uint32_t userdata)
 
     if (hostMsg == NULL)
     {
-        syslog(1, "Developer tests: failed to allocate memory for hostMsg\n");
+        syslog(LOG_MTEST, "Developer tests: failed to allocate memory for hostMsg\n");
         return;
     }
 
@@ -225,13 +229,13 @@ void meadow_os_cli_timeout_test(uint32_t userdata)
     }
 
     snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "CLI timeout test, sleeping for %lu seconds\n", userdata);
-    syslog(1, "%s", hostMsg);
+    syslog(LOG_MTEST, "%s", hostMsg);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, __FILE__, __LINE__);
 
     sleep(userdata);
 
     snprintf_chk(hostMsg, HCOM_LARGE_HOST_STRING_BUFF_LENGTH, "Back from sleep.\n");
-    syslog(1, "%s", hostMsg);
+    syslog(LOG_MTEST, "%s", hostMsg);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_ERROR, 0, hostMsg, __FILE__, __LINE__);
 
     free(hostMsg);
