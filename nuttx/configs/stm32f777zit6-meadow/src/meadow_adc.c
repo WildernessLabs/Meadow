@@ -915,7 +915,7 @@ void meadow_adc_initialize(uint16_t *dmaAdcBuf, uint32_t userGpioXferCount)
     stm32_dmafree(_dmaHandle); 
   }
 
-  // Using Nuttx DMA to handle ADC DMA. Because of our SDCard implementation
+  // Using Nuttx DMA to handle ADC DMA. Because our SDCard implementation
   // uses SDMMC2 which uses the other ADC DMA2 channel.
   _dmaHandle = stm32_dmachannel(ADC1_DMA_CHAN);
 
