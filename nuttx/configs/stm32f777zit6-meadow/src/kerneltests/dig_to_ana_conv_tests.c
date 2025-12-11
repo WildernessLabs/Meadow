@@ -33,6 +33,8 @@
  *
  ****************************************************************************/
 
+ // This has never been implemented
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
@@ -148,7 +150,8 @@ void meadow_kt_dac_tests(uint32_t userData)
 {
   static int firstTime = true;
 
-  syslog(2, "%s@%d-Entered meadow_kt_dac_tests, userData:%lu\n", __FILE__, __LINE__, userData);
+  syslog(LOG_MTEST, "%s@%d-Entered meadow_kt_dac_tests, userData:%lu\n",
+    __FILE__, __LINE__, userData);
 
 //   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D01);
 //   DEBUG_CONFIGURE_PIN(DEBUG_PIN_V2_D02);
@@ -171,7 +174,7 @@ void meadow_kt_dac_tests(uint32_t userData)
       }
       else
       {
-        syslog(2, "Only first time\n");
+        syslog(LOG_MTEST, "Only first time\n");
       }
       break;
 
@@ -180,7 +183,8 @@ void meadow_kt_dac_tests(uint32_t userData)
       break;
 
     default:
-      syslog(2, "Undefined test for meadow_kt_dac_tests, userData:%lu\n", userData);
+      syslog(LOG_MTEST, "Undefined test for meadow_kt_dac_tests, userData:%lu\n",
+        userData);
       break;
   }
 }
@@ -198,7 +202,7 @@ static void getSinTable()
 // IF USED NEED '/n' at end
   for (i = 0; i < CONFIG_DAC_TESTS_FIXED_N; i++) {
       sinValue = (uint16_t)(2047 * sin(2 * CONFIG_DAC_TESTS_FIXED_PI * i / CONFIG_DAC_TESTS_FIXED_N) + 2048);
-      syslog(2, "%u, ", sinValue);
+      syslog(LOG_MTEST, "%u, ", sinValue);
   }
 }
 
@@ -213,7 +217,8 @@ static void dac_tests_initialize_dac_1(void)
   ret = stm32_configgpio(QUICK_MISC_PIN_V2_A00_DAC_1);
   if(ret < 0)
   {
-    syslog(2, "Error#1 in dac_tests_initialize_dac_1.\n ret:%d errno:%d\n", ret, errno);
+    syslog(LOG_MTEST, "Error#1 in dac_tests_initialize_dac_1.\n ret:%d errno:%d\n",
+      ret, errno);
   }
 
   // Enable DAC1

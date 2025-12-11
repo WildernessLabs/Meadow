@@ -69,10 +69,11 @@
 /************************************************************************************
  * Public Functions
  ************************************************************************************/
-// set developer -d 10 come here
+// set developer -p 10 come here
 void meadow_kt_quick_misc_tests(uint32_t userData)
 {
-  syslog(2, "Quick and Misc tests received 'set developer -d 10 -v %lu'.\n", userData);
+  syslog(LOG_MTEST, "Quick and Misc tests received 'set developer -p 10 -v %lu'.\n",
+    userData);
 
   switch(userData)
   {
@@ -88,7 +89,9 @@ void meadow_kt_quick_misc_tests(uint32_t userData)
       break;
 #endif
     default:
-      syslog(2, "Undefined test for meadow_kt_quick_misc_tests, userData:%lu. NO TEST DEFINED\n", userData);
+      syslog(LOG_MTEST,
+        "Undefined test for meadow_kt_quick_misc_tests, userData:%lu. NO TEST DEFINED\n",
+        userData);
       break;
   }
 }

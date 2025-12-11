@@ -183,7 +183,7 @@ int hcom_dir_mgmt_free_file_info(hcom_dnld_shared_t *dnldShared)
   // To help insure all removed
   if(dnldShared->dnldFullPathName != NULL)
   {
-    syslog(2, "===> %s@%d-About to remove any existing dnldShared resources, cat:%s, file'%s'\n",
+    syslog(LOG_MTEST, "===> %s@%d-About to remove any existing dnldShared resources, cat:%s, file'%s'\n",
               thisFile, __LINE__,
               hcom_file_dir_mgmt_find_category(dnldShared->dnldRqstCat),
               dnldShared->dnldFullPathName);
@@ -191,7 +191,7 @@ int hcom_dir_mgmt_free_file_info(hcom_dnld_shared_t *dnldShared)
   }
   else
   {
-    syslog(2, "===> %s@%d-About to remove any existing dnldShared resources, cat:%s\n",
+    syslog(LOG_MTEST, "===> %s@%d-About to remove any existing dnldShared resources, cat:%s\n",
               thisFile, __LINE__,
               hcom_file_dir_mgmt_find_category(dnldShared->dnldRqstCat));
     usleep(20 * 1000);
@@ -316,7 +316,7 @@ static int hcom_host_process_init_write_or_del(hcom_dnld_shared_t *dnldShared,
   if(dnldShared->dnldRqstCat == pathnameSdcard)
   {
 #if defined (CONFIG_DIR_MGMT_TESTS)
-    syslog(2, "===> %s@%d-Must mount SDCard for file:%s\n",
+    syslog(LOG_MTEST, "===> %s@%d-Must mount SDCard for file:%s\n",
               thisFile, __LINE__,
               dnldShared->dnldFullPathName);
     usleep(20 * 1000);
@@ -588,7 +588,7 @@ int hcom_host_handle_packet(hcom_dnld_shared_t *dnldShared,
        requestType != HCOM_MDOW_REQUEST_MONO_UPDATE_FILE_END)
     {
       syslog(LOG_ERR, "%s@%d-ERROR:F7 Dnld active, unexpected rqst type:0x%04x, dnld state:%d\n",
-        thisFile, __LINE__, requestType);
+        thisFile, __LINE__, requestType, dnldShared->dnldCurrentState);
       return -EBADRQC;   // Invalid request code
     }
   }
@@ -621,7 +621,7 @@ int hcom_host_handle_packet(hcom_dnld_shared_t *dnldShared,
     if(dnldShared->dnldRqstCat == pathnameSdcard)
     {
 #if defined (CONFIG_DIR_MGMT_TESTS)
-      syslog(2, "===> %s@%d-Must mount SDCard for file:%s\n",
+      syslog(LOG_MTEST, "===> %s@%d-Must mount SDCard for file:%s\n",
                 thisFile, __LINE__, dnldShared->dnldFullPathName);
       usleep(20 * 1000);
 #endif
@@ -654,7 +654,7 @@ int hcom_host_handle_packet(hcom_dnld_shared_t *dnldShared,
     if(dnldShared->dnldRqstCat == pathnameSdcard)
     {
 #if defined (CONFIG_DIR_MGMT_TESTS)
-      syslog(2, "===> %s@%d-Must mount SDCard for file:%s\n",
+      syslog(LOG_MTEST, "===> %s@%d-Must mount SDCard for file:%s\n",
                 thisFile, __LINE__, dnldShared->dnldFullPathName);
       usleep(20 * 1000);
 #endif
@@ -776,7 +776,7 @@ int hcom_host_handle_packet(hcom_dnld_shared_t *dnldShared,
         // Still have memory to free, don't return
       }
 #if defined (CONFIG_DIR_MGMT_TESTS)
-      syslog(2, "===> %s@%d-umount successful, cat:%s', file:%s\n",
+      syslog(LOG_MTEST, "===> %s@%d-umount successful, cat:%d', file:%s\n",
               __FILE__, __LINE__,
               hcom_file_dir_mgmt_find_category(dnldShared->dnldRqstCat),
               dnldShared->dnldFullPathName);

@@ -128,7 +128,7 @@ FAR void *hcom_host_text_transport_pthread(FAR void *arg)
     }
 
     // String is NULL terminated but no '\n'. So, output the text carefully.
-    // syslog(1, "%s@%d-Sending msg:'%.*s' to CLI\n", __FILE__, __LINE__,
+    // syslog(LOG_MDIAG, "%s@%d-Sending msg:'%.*s' to CLI\n", __FILE__, __LINE__,
     //     strlen(hostTextMsgBuf), hostTextMsgBuf);
 
     // Forward to host_text and wait again for next message

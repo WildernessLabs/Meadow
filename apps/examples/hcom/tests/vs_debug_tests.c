@@ -100,7 +100,7 @@ int MonoVsRemoteDebugTestSetup(int argc, char *argv[])
     }
     argv++;
   }
-  // syslog(2, "DBGTest->Setup:found SD:%d\n", _socksd);
+  // syslog(LOG_MTEST, "DBGTest->Setup:found SD:%d\n", _socksd);
 
   int ret = MonoDebugTestInitialize();
   return ret;
@@ -138,7 +138,7 @@ FAR void *hcom_vs_debug_test_pthread(FAR void *arg)
 {
 
 #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
-  syslog(2, "New pthread [PID:%d],'%s'\n", getpid(), "debug_test_pthread");
+  syslog(LOG_MDIAG, "New pthread [PID:%d],'%s'\n", getpid(), "debug_test_pthread");
 #endif
 
   MonoDebugTestExecute();
@@ -152,12 +152,12 @@ int MonoDebugTestExecute(void)
   int ret;
   FAR uint8_t *echobuf;
 
-  // syslog(2, "DBGTest->Exec:Mono debug test is starting with SD:%d\n", _socksd);
+  // syslog(LOG_MTEST, "DBGTest->Exec:Mono debug test is starting with SD:%d\n", _socksd);
 
   echobuf  = (uint8_t*)malloc(MONO_DEBUG_TEST_ECHO_BUFF_SIZE);
   if (echobuf == NULL)
   {
-    syslog(2, "DBGTest->Exec:failed to allocate echobuf %d long must exit\n", MONO_DEBUG_TEST_ECHO_BUFF_SIZE);
+    syslog(LOG_MTEST, "DBGTest->Exec:failed to allocate echobuf %d long must exit\n", MONO_DEBUG_TEST_ECHO_BUFF_SIZE);
     return -ENOMEM;
   }
 
@@ -173,30 +173,30 @@ int MonoDebugTestExecute(void)
     // ret = MonoDebugTestConnect();
     // if(ret < 0)
     // {
-      // syslog(2, "DBGTest->Connection could not be made\n");
+      // syslog(LOG_MTEST, "DBGTest->Connection could not be made\n");
     //   return -1;
     // }
 
     // Blocking call.
-    // syslog(2, "DBGTest->Exec:Waiting for message:%d\n", xmitCount);
+    // syslog(LOG_MTEST, "DBGTest->Exec:Waiting for message:%d\n", xmitCount);
     ret = MonoDebugTestReceive(echobuf);
     if(ret < 0)
     {
-      syslog(2, "DBGTest->Receive failed\n"); usleep(20 * 1000);
+      syslog(LOG_MTEST, "DBGTest->Receive failed\n"); usleep(20 * 1000);
       continue;
     }
 
     // This is an echo client so we send whatever we receive
     // Send
-    // syslog(2, "DBGTest->Exec:Sending message:%d\n", xmitCount);
+    // syslog(LOG_MTEST, "DBGTest->Exec:Sending message:%d\n", xmitCount);
     ret = MonoDebugTestSend(echobuf, ret);
     if(ret < 0)
     {
-      syslog(2, "DBGTest->Exec:Send failed\n");
+      syslog(LOG_MTEST, "DBGTest->Exec:Send failed\n");
     }
   }
 
-  // syslog(2, "DBGTest->Exec:Echoed %d times or error. Bye!\n", xmitCount);
+  // syslog(LOG_MTEST, "DBGTest->Exec:Echoed %d times or error. Bye!\n", xmitCount);
   exit(1);
 }
 
@@ -225,7 +225,7 @@ int MonoDebugTestExecute(void)
 //   myaddr.sun_path[addrlen] = '\0';
 //   addrlen += sizeof(sa_family_t) + 1;
 
-// // syslog(2, "DBGTest-> Connect to %s...\n", HCOM_MONO_REMOTE_DBG_SOCKET_NAME);
+// // syslog(LOG_MTEST, "DBGTest-> Connect to %s...\n", HCOM_MONO_REMOTE_DBG_SOCKET_NAME);
 
 //   int attemptCnt = 0;
 //   do
@@ -240,7 +240,7 @@ int MonoDebugTestExecute(void)
 //     }
 //   } while(ret < 0);
 
-//   // syslog(2, "DBGTest->hcom connect attempted:%d SUCCESSFUL\n", attemptCnt);
+//   // syslog(LOG_MTEST, "DBGTest->hcom connect attempted:%d SUCCESSFUL\n", attemptCnt);
 //   _connected = true;  
 //   return OK;
 
@@ -253,26 +253,26 @@ int MonoDebugTestSend(uint8_t *sendBuffer, int sendSize)
 {
   int nbytessent;
   
-  // syslog(2, "DBGTest->Sending: %d bytes\n", sendSize);
+  // syslog(LOG_MTEST, "DBGTest->Sending: %d bytes\n", sendSize);
   
   /* Then send one message */
   nbytessent = send(_socksd, sendBuffer, sendSize, 0);
   if (nbytessent < 0)
   {
-    syslog(2, "DBGTest->send failed: %d\n", errno);
+    syslog(LOG_MTEST, "DBGTest->send failed: %d\n", errno);
     goto errout_with_socket;
   }
   else if (nbytessent != sendSize)
   {
-    syslog(2, "DBGTest->Bad send length: %d Expected: %d\n", nbytessent, sendSize);
+    syslog(LOG_MTEST, "DBGTest->Bad send length: %d Expected: %d\n", nbytessent, sendSize);
     goto errout_with_socket;
   }
 
-  // syslog(2, "DBGTest->Sent %d bytes to hcom\n", sendSize);
+  // syslog(LOG_MTEST, "DBGTest->Sent %d bytes to hcom\n", sendSize);
   return OK;
 
 errout_with_socket:
-  syslog(2, "DBGTest->Exit error\n");
+  syslog(LOG_MTEST, "DBGTest->Exit error\n");
   return 1;
 }
 
@@ -282,24 +282,24 @@ int MonoDebugTestReceive(uint8_t *recvBuffer)
 {
   int nbytesrecvd;  
   
-  // syslog(2, "DBGTest->Receive:Waiting to receive VS dbg info via hcom sd:%d\n", _socksd);
+  // syslog(LOG_MTEST, "DBGTest->Receive:Waiting to receive VS dbg info via hcom sd:%d\n", _socksd);
   nbytesrecvd = recv(_socksd, recvBuffer, MONO_DEBUG_TEST_ECHO_BUFF_SIZE, 0);
   if (nbytesrecvd < 0)
   {
-    syslog(2, "DBGTest->Receive:recv failed: %d\n", errno);
+    syslog(LOG_MTEST, "DBGTest->Receive:recv failed: %d\n", errno);
     goto errout_with_socket;
   }
   else if (nbytesrecvd == 0)
   {
-    syslog(2, "DBGTest->Receive:The server closed the connection\n");
+    syslog(LOG_MTEST, "DBGTest->Receive:The server closed the connection\n");
     goto errout_with_socket;
   }
 
-  // syslog(2, "DBGTest->Received %d bytes\n", nbytesrecvd);
+  // syslog(LOG_MTEST, "DBGTest->Received %d bytes\n", nbytesrecvd);
   return nbytesrecvd;
 
 errout_with_socket:
-  syslog(2, "DBGTest->RECEIVE Exit error\n");
+  syslog(LOG_MTEST, "DBGTest->RECEIVE Exit error\n");
   return -1;
 }
 
