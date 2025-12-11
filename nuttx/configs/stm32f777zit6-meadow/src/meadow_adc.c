@@ -1,7 +1,7 @@
 /****************************************************************************
  * configs/stm32f777zit6-meadow/src/meadow_adc.c
  * 
- *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2023, 2025 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,6 +58,7 @@
 #include <meadow/hcom_shared_common.h>
 #include <meadow/meadow_syscall_support.h>
 #include "chip/stm32f76xx77xx_dma.h"
+#include "../include/board.h"
 
 #ifndef CONFIG_STM32F7_DMA2
 #error "Meadow ADC requires CONFIG_STM32F7_DMA2 to be configured"
@@ -916,7 +917,7 @@ void meadow_adc_initialize(uint16_t *dmaAdcBuf, uint32_t userGpioXferCount)
 
   // Using Nuttx DMA to handle ADC DMA. Because of our SDCard implementation
   // uses SDMMC2 which uses the other ADC DMA2 channel.
-  _dmaHandle = stm32_dmachannel(DMAMAP_ADC1_1);
+  _dmaHandle = stm32_dmachannel(ADC1_DMA_CHAN);
 
   // Configure the DMA SCR (Stream Control Register) values
   regval = getreg32(STM32_DMA2_S0CR);
