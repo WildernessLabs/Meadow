@@ -504,7 +504,7 @@
 // SDCard present detection pin (CCM v2a this is CCM pin 28, PG6)
 #define GPIO_MEADOW_SDIO_NCD  (GPIO_INPUT|GPIO_PULLUP|GPIO_EXTI|GPIO_PORTG|GPIO_PIN6)
 
-// ADC DMA mapping (solves Meadow, Issue # 681)
+// ADC DMA mapping (Meadow, Issue 681)
 #define ADC1_DMA_CHAN DMAMAP_ADC1_1
 
 /* FMC - SDRAM */
