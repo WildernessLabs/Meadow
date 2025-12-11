@@ -58,6 +58,7 @@
 #include <meadow/hcom_shared_common.h>
 #include <meadow/meadow_syscall_support.h>
 #include "chip/stm32f76xx77xx_dma.h"
+#include "../include/board.h"
 
 #ifndef CONFIG_STM32F7_DMA2
 #error "Meadow ADC requires CONFIG_STM32F7_DMA2 to be configured"
@@ -914,9 +915,9 @@ void meadow_adc_initialize(uint16_t *dmaAdcBuf, uint32_t userGpioXferCount)
     stm32_dmafree(_dmaHandle); 
   }
 
-  // Using Nuttx DMA to handle ADC DMA. Because of our SDCard implementation
+  // Using Nuttx DMA to handle ADC DMA. Because our SDCard implementation
   // uses SDMMC2 which uses the other ADC DMA2 channel.
-  _dmaHandle = stm32_dmachannel(DMAMAP_ADC1_1);
+  _dmaHandle = stm32_dmachannel(ADC1_DMA_CHAN);
 
   // Configure the DMA SCR (Stream Control Register) values
   regval = getreg32(STM32_DMA2_S0CR);
