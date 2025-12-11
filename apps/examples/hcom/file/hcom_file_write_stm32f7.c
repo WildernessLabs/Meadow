@@ -166,7 +166,7 @@ int hcom_file_write_to_active_file(hcom_dnld_shared_t *dnldShared,
 
 #if defined (CONFIG_DIR_MGMT_TESTS)
   #if (HCOM_INCLUDE_DIAG_PRINT_BUFFER_CODE > 0)
-  syslog(2, "------- %s@%d File Write show first 16 of %d ------\n",
+  syslog(LOG_MTEST, "------- %s@%d File Write show first 16 of %d ------\n",
             __FILE__, __LINE__, fileWriteSize);
   hcom_diag_print_buffer(writeDataBuff, 16, 1);
   #endif

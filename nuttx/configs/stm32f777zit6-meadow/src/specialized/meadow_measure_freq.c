@@ -732,7 +732,8 @@ static uint8_t meadow_measure_freq_verify_portpin_get_chan(
   if(hardwareVersion == MEADOW_F7_HW_VERSION_NUMB_F7V1)
   {    
 #if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
-    syslog(1, "--->%s@%d  This is a F7FeatherV1\n", __FILE__, __LINE__);
+    syslog(LOG_MDIAG, "--->%s@%d  This is a F7FeatherV1\n",
+      __FILE__, __LINE__);
 #endif
     // Find offset to top of array
     uint8_t *featherArrayTop = &validF7v1GpioArray[gpioArrayOff][0];
@@ -746,8 +747,8 @@ static uint8_t meadow_measure_freq_verify_portpin_get_chan(
       if(*entryPtr == portAndPin)
       {
 #if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
-        syslog(1, "--->%s@%d-Found v1 match for 0x%02x at entry:%d\n",
-            __FILE__, __LINE__, portAndPin, entryCnt);
+        syslog(LOG_MDIAG, "--->%s@%d-Found v1 match for 0x%02x at entry:%d\n",
+          __FILE__, __LINE__, portAndPin, entryCnt);
         dbgPortPin = *entryPtr;
 #endif
         break;
@@ -761,16 +762,17 @@ static uint8_t meadow_measure_freq_verify_portpin_get_chan(
     }
 
 #if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
-    syslog(1, "--->%s@%d-F7v1 Timer%lu, Offset:%p, 0x%02x (P%c%d)\n\n",
-        __FILE__, __LINE__,
-        timerNumb, entryPtr, dbgPortPin,
-        ((dbgPortPin) >> 4) + 'A', dbgPortPin & 0x0f);
+    syslog(LOG_MDIAG, "--->%s@%d-F7v1 Timer%lu, Offset:%p, 0x%02x (P%c%d)\n\n",
+      __FILE__, __LINE__,
+      timerNumb, entryPtr, dbgPortPin,
+      ((dbgPortPin) >> 4) + 'A', dbgPortPin & 0x0f);
 #endif
   }
   else if (hardwareVersion == MEADOW_F7_HW_VERSION_NUMB_F7V2)
   {
 #if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
-    // syslog(1, "--->%s@%d All Entries for F7FeatherV2\n", __FILE__, __LINE__);
+    // syslog(LOG_MDIAG,
+    //    "--->%s@%d All Entries for F7FeatherV2\n", __FILE__, __LINE__);
     // hcom_nx_diag_print_buffer((uint8_t *)&validF7v2GpioArray[0][0],
     //   MEADOW_MEAS_FREQ_NUMB_OF_F7_TIMERS * MEADOW_MEAS_FREQ_MAX_F7_BYTES_PER_TIMER, 1);
 #endif
@@ -788,7 +790,7 @@ static uint8_t meadow_measure_freq_verify_portpin_get_chan(
       if(*entryPtr == portAndPin)
       {
 #if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
-        syslog(1, "--->%s@%d-Found v2 match for 0x%02x at entry:%d\n",
+        syslog(LOG_MDIAG, "--->%s@%d-Found v2 match for 0x%02x at entry:%d\n",
             __FILE__, __LINE__, portAndPin, entryCnt);
         dbgPortPin = *entryPtr;
 #endif
@@ -803,7 +805,7 @@ static uint8_t meadow_measure_freq_verify_portpin_get_chan(
     }
 
 #if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
-    syslog(1, "--->%s@%d-F7v2 Timer%lu, Offset:%p, 0x%02x (P%c%d)\n\n",
+    syslog(LOG_MDIAG, "--->%s@%d-F7v2 Timer%lu, Offset:%p, 0x%02x (P%c%d)\n\n",
         __FILE__, __LINE__,
         timerNumb, entryPtr, dbgPortPin,
         ((dbgPortPin) >> 4) + 'A', dbgPortPin & 0x0f);
@@ -823,8 +825,8 @@ static uint8_t meadow_measure_freq_verify_portpin_get_chan(
   // We need to trust the the users have some idea of what they are doing.
 
 #if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
-  // syslog(1, "--->%s@%d All Entries for CCM\n", __FILE__, __LINE__);
-  // syslog(1, "--->Timer:%lu, Top of CCM array:%p\n", timerNumb, &validStm32F7GpioArray[0][0]);
+  // syslog(LOG_MDIAG, "--->%s@%d All Entries for CCM\n", __FILE__, __LINE__);
+  // syslog(LOG_MDIAG, "--->Timer:%lu, Top of CCM array:%p\n", timerNumb, &validStm32F7GpioArray[0][0]);
   // hcom_nx_diag_print_buffer((uint8_t *)&validStm32F7GpioArray[0][0],
   //   MEADOW_MEAS_FREQ_NUMB_OF_F7_TIMERS * MEADOW_MEAS_FREQ_MAX_CCM_BYTES_PER_TIMER, 1);
 #endif
@@ -844,7 +846,7 @@ static uint8_t meadow_measure_freq_verify_portpin_get_chan(
     if(ccmEntryPtr->portPin == portAndPin && ccmEntryPtr->chan != 0)
     {
 #if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
-      syslog(1, "--->%s@%d-Found CCM match for 0x%02x at entry:%d\n",
+      syslog(LOG_MDIAG, "--->%s@%d-Found CCM match for 0x%02x at entry:%d\n",
           __FILE__, __LINE__, portAndPin, entryCnt);
 #endif          
       break;
@@ -859,10 +861,11 @@ static uint8_t meadow_measure_freq_verify_portpin_get_chan(
 
 #if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
   dbgPortPin = ccmEntryPtr->portPin;
-  syslog(1, "--->EXITING %s@%d-Timer%lu, Offset:%p, 0x%02x (P%c%d), channel:%u\n",
-      __FILE__, __LINE__, timerNumb, ccmEntryPtr,
-      dbgPortPin, ((dbgPortPin) >> 4) + 'A', dbgPortPin & 0x0f,
-      ccmEntryPtr->chan);
+  syslog(LOG_MDIAG,
+    "--->EXITING %s@%d-Timer%lu, Offset:%p, 0x%02x (P%c%d), channel:%u\n",
+    __FILE__, __LINE__, timerNumb, ccmEntryPtr,
+    dbgPortPin, ((dbgPortPin) >> 4) + 'A', dbgPortPin & 0x0f,
+    ccmEntryPtr->chan);
 #endif
 
   // Return the channel
@@ -886,10 +889,11 @@ int meadow_measure_freq_configure(mdwFreqCfgTimer_t *mdwCfgTimerChan)
   bool chanNeedsDuty;
 
 #if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
-  syslog(1, "START CFG %s@%d-TIM%lu, Chn:%lu, input Pin defn:0x%02x (P%c%d)\n",
-            __FILE__, __LINE__, timerNumber,
-            channelNumber, portAndPin,
-            ((portAndPin) >> 4) + 'A', portAndPin & 0x0f);
+  syslog(LOG_MDIAG,
+    "START CFG %s@%d-TIM%lu, Chn:%lu, input Pin defn:0x%02x (P%c%d)\n",
+    __FILE__, __LINE__, timerNumber,
+    channelNumber, portAndPin,
+    ((portAndPin) >> 4) + 'A', portAndPin & 0x0f);
 #endif
 
   if(timerNumber > 14 || timerNumber < 1)
@@ -1010,12 +1014,13 @@ int meadow_measure_freq_configure(mdwFreqCfgTimer_t *mdwCfgTimerChan)
             mdwFreqTimerInfo->timerAltFunc;
 
 #if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
-  syslog(1, "--->%s@%d-TIM%lu, Chn:%lu, input Pin defn:0x%02x (P%c%d), AF:%u Pin defn+AF=0x%08lx\n",
-            __FILE__, __LINE__, timerNumber,
-            channelNumber, portAndPin,
-            ((portAndPin) >> 4) + 'A', portAndPin & 0x0f,
-            mdwFreqTimerInfo->timerAltFunc >> GPIO_AF_SHIFT,
-            inputGpioConfig);
+  syslog(LOG_MDIAG,
+    "--->%s@%d-TIM%lu, Chn:%lu, input Pin defn:0x%02x (P%c%d), AF:%u Pin defn+AF=0x%08lx\n",
+    __FILE__, __LINE__, timerNumber,
+    channelNumber, portAndPin,
+    ((portAndPin) >> 4) + 'A', portAndPin & 0x0f,
+    mdwFreqTimerInfo->timerAltFunc >> GPIO_AF_SHIFT,
+    inputGpioConfig);
 #endif
 
   // Valided GPIO so, configure input for timer / channel.
@@ -1429,10 +1434,11 @@ int meadow_measure_freq_return_freq_info(mdwFreqReturnData_t *returnData)
   }
 
 #if(MEADOW_MEASURE_FREQ_INCLUDE_DIAG_OUTPUT > 0)
-  // syslog(1, "--->%s@%d-Returning data-for timer:%lu, channel:%lu, active channels:0x%02x\n",
-  //         __FILE__, __LINE__,
-  //         returnData->timerNumber, returnData->channelNumber,
-  //         mdwFreqTimerInfo->chanActiveBits);
+  // syslog(LOG_MDIAG,
+  //   "--->%s@%d-Returning data-for timer:%lu, channel:%lu, active channels:0x%02x\n",
+  //   __FILE__, __LINE__,
+  //   returnData->timerNumber, returnData->channelNumber,
+  //   mdwFreqTimerInfo->chanActiveBits);
 #endif
 
   // Is the channel configured?
@@ -1543,34 +1549,40 @@ void meadow_measure_freq_diag_dump_timer_regs(char *label,
 {
   uint32_t timerBase = mdwFreqTimerInfo->timerBase;
 
-  syslog(2, "\nTimer:%lu Register Dump-%s\n", mdwFreqTimerInfo->timerNumb, label);
-  syslog(2, "\tCR1:\t0x%08x\tCR2:\t0x%08x\tSMCR:\t0x%08x\tDIER:\t0x%08x\n",
-          getreg16(timerBase + STM32_GTIM_CR1_OFFSET),
-          getreg16(timerBase + STM32_GTIM_CR2_OFFSET),
-          getreg32(timerBase + STM32_GTIM_SMCR_OFFSET),
-          getreg16(timerBase + STM32_GTIM_DIER_OFFSET));
+  syslog(LOG_MDIAG,
+    "\nTimer:%lu Register Dump-%s\n", mdwFreqTimerInfo->timerNumb, label);
+  syslog(LOG_MDIAG,
+    "\tCR1:\t0x%08x\tCR2:\t0x%08x\tSMCR:\t0x%08x\tDIER:\t0x%08x\n",
+    getreg16(timerBase + STM32_GTIM_CR1_OFFSET),
+    getreg16(timerBase + STM32_GTIM_CR2_OFFSET),
+    getreg32(timerBase + STM32_GTIM_SMCR_OFFSET),
+    getreg16(timerBase + STM32_GTIM_DIER_OFFSET));
 
-  syslog(2, "\tSR:\t0x%08x\tEGR:\t0x%08x\tCCMR1:\t0x%08x\tCCMR2:\t0x%08x\n",
-          getreg16(timerBase + STM32_GTIM_SR_OFFSET),
-          getreg16(timerBase + STM32_GTIM_EGR_OFFSET),
-          getreg32(timerBase + STM32_GTIM_CCMR1_OFFSET),
-          getreg32(timerBase + STM32_GTIM_CCMR2_OFFSET));
+  syslog(LOG_MDIAG,
+    "\tSR:\t0x%08x\tEGR:\t0x%08x\tCCMR1:\t0x%08x\tCCMR2:\t0x%08x\n",
+    getreg16(timerBase + STM32_GTIM_SR_OFFSET),
+    getreg16(timerBase + STM32_GTIM_EGR_OFFSET),
+    getreg32(timerBase + STM32_GTIM_CCMR1_OFFSET),
+    getreg32(timerBase + STM32_GTIM_CCMR2_OFFSET));
 
-  syslog(2, "\tCCER:\t0x%08x\tCNT:\t0x%08x\tPSC:\t0x%08x\tARR:\t0x%08x\n",
-          getreg16(timerBase + STM32_GTIM_CCER_OFFSET),
-          getreg32(timerBase + STM32_GTIM_CNT_OFFSET),
-          getreg16(timerBase + STM32_GTIM_PSC_OFFSET),
-          getreg32(timerBase + STM32_GTIM_ARR_OFFSET));
+  syslog(LOG_MDIAG,
+    "\tCCER:\t0x%08x\tCNT:\t0x%08x\tPSC:\t0x%08x\tARR:\t0x%08x\n",
+    getreg16(timerBase + STM32_GTIM_CCER_OFFSET),
+    getreg32(timerBase + STM32_GTIM_CNT_OFFSET),
+    getreg16(timerBase + STM32_GTIM_PSC_OFFSET),
+    getreg32(timerBase + STM32_GTIM_ARR_OFFSET));
 
-  syslog(2, "\tCCR1:\t0x%08x\tCCR2:\t0x%08x\tCCR3:\t0x%08x\tCCR4:\t0x%08x\n",
-          getreg32(timerBase + STM32_GTIM_CCR1_OFFSET),
-          getreg32(timerBase + STM32_GTIM_CCR2_OFFSET),
-          getreg32(timerBase + STM32_GTIM_CCR3_OFFSET),
-          getreg32(timerBase + STM32_GTIM_CCR4_OFFSET));
+  syslog(LOG_MDIAG,
+    "\tCCR1:\t0x%08x\tCCR2:\t0x%08x\tCCR3:\t0x%08x\tCCR4:\t0x%08x\n",
+    getreg32(timerBase + STM32_GTIM_CCR1_OFFSET),
+    getreg32(timerBase + STM32_GTIM_CCR2_OFFSET),
+    getreg32(timerBase + STM32_GTIM_CCR3_OFFSET),
+    getreg32(timerBase + STM32_GTIM_CCR4_OFFSET));
 
-  syslog(2, "\tDCR:\t0x%08x\tDMAR:\t0x%08x\tOR:\t0x%08x\n",
-          getreg16(timerBase + STM32_GTIM_DCR_OFFSET),
-          getreg16(timerBase + STM32_GTIM_DMAR_OFFSET),
-          getreg16(timerBase + STM32_GTIM_OR_OFFSET));
+  syslog(LOG_MDIAG,
+    "\tDCR:\t0x%08x\tDMAR:\t0x%08x\tOR:\t0x%08x\n",
+    getreg16(timerBase + STM32_GTIM_DCR_OFFSET),
+    getreg16(timerBase + STM32_GTIM_DMAR_OFFSET),
+    getreg16(timerBase + STM32_GTIM_OR_OFFSET));
 }
 #endif

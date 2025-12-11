@@ -100,7 +100,7 @@ static int stm32_ncd_interrupt(int irq, FAR void *context, void *arg)
   _CurrentSdInserted = !stm32_gpioread(GPIO_MEADOW_SDIO_NCD);
 
 #if defined (CONFIG_SD_CARD_TESTS)
-syslog(2, "%s@%d-SDMMC interrupt. Card was %s, now is %s\n",
+syslog(LOG_MTEST, "%s@%d-SDMMC interrupt. Card was %s, now is %s\n",
             __FILE__, __LINE__,
             _PreviousSdInserted ? "In" : "Out",
             _CurrentSdInserted ? "In" : "Out");
@@ -175,7 +175,7 @@ int stm32_sdio_initialize_meadow(void)
   // Use SD card detect pin to check if a card is inserted
   _CurrentSdInserted = !stm32_gpioread(GPIO_MEADOW_SDIO_NCD);
 
-  // syslog(LOG_DEBUG, "%s@%d-At startup. Card was %s, now is %s\n",
+  // syslog(LOG_MDIAG, "%s@%d-At startup. Card was %s, now is %s\n",
   //           __FILE__, __LINE__,
   //           _PreviousSdInserted ? "In" : "Out",
   //           _CurrentSdInserted ? "In" : "Out");

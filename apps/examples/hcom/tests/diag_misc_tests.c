@@ -87,20 +87,20 @@ void diag_misc_tests_overload_mcu(uint32_t userData)
     // Stop the task
     _keepRunning = false;
     _firstTime = true;
-    syslog(2, "AP-In Overload Test-Stopping the Overload Thread\n");
+    syslog(LOG_MTEST, "AP-In Overload Test-Stopping the Overload Thread\n");
     return;
   }
 
   if(userData > 100)
   {
-    syslog(2, "AP-The entered value %u is out of the 0-100 range, 1000 to exit\n",
+    syslog(LOG_MTEST, "AP-The entered value %u is out of the 0-100 range, 1000 to exit\n",
               userData);
     return;
   }
 
   // Save the new overload percentage
   _overload_percent = userData;
-  syslog(2, "AP-In Overload Test-Target overload %u msec, runtime:%u msec\n",
+  syslog(LOG_MTEST, "AP-In Overload Test-Target overload %u msec, runtime:%u msec\n",
       _overload_percent, HCOM_OVERLOAD_CYCLE_TIME_MS - userData);
   
   if(_firstTime)
@@ -180,7 +180,7 @@ int overload_main(int argc, char *argv[])
   _keepRunning = true;
 
   close(_nx_access_fd);
-  syslog(2, "AP-In Overload Test-Exited Overload Thread\n");
+  syslog(LOG_MTEST, "AP-In Overload Test-Exited Overload Thread\n");
   return 0;
 }
 
@@ -256,10 +256,10 @@ void diag_misc_tests_snprintf_on_nuttx(uint32_t userData)
   ret = snprintf_chk(buffer, bufLen, testStr, userData);
   if(ret < 0)
   {
-    syslog(2, "AP-Error - snprintf test using snprintf_chk ret:%d\n", ret);
+    syslog(LOG_MTEST, "AP-Error - snprintf test using snprintf_chk ret:%d\n", ret);
   }
 
   // Output results
-  syslog(2, "AP-snprintf test:%s, Buffer Len:%d snprintf ret:%d\n", testDefn, bufLen, ret);
+  syslog(LOG_MTEST, "AP-snprintf test:%s, Buffer Len:%d snprintf ret:%d\n", testDefn, bufLen, ret);
   hcom_diag_print_buffer((uint8_t *)buffer, 16, 1);
 }

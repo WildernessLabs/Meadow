@@ -128,7 +128,7 @@ int meadow_timer_setup_lsi_clock(struct timerConfig_s timerConfig)
 
   if(timerInfo == NULL)
   {
-    // syslog(2, "meadow_timer_get_timer_info_pointer() returned NULL\n");
+    // syslog(LOG_ERR, "meadow_timer_get_timer_info_pointer() returned NULL\n");
     return -ENXIO;
   }
 
@@ -140,13 +140,13 @@ int meadow_timer_setup_lsi_clock(struct timerConfig_s timerConfig)
     uint32_t afPortPin = meadow_timer_get_ver_based_gpio_chan(timerConfig.timerNumber, i);
     if(afPortPin != 0x00ff)
     {
-      // syslog(2, "Initializing GPIO for TIM5 CH4\n");
+      // syslog(LOG_INFO, "Initializing GPIO for TIM5 CH4\n");
       configInfo = MEADOW_TIMER_GPIO_CONST | afPortPin;
       stm32_configgpio(configInfo);
     }
     else
     {
-      // syslog(2, "meadow_timer_setup_rc_servo_decode() no gpio at offset:%d\n", i);
+      // syslog(LOG_WARNING, "meadow_timer_setup_rc_servo_decode() no gpio at offset:%d\n", i);
       configInfo = MEADOW_TIMER_BAD_GPIO_VALUE;
       return -1;
     }
@@ -345,9 +345,10 @@ int meadow_timer_test_lsi_clock(int timerNumber)
   
   int lsiErrSec = round(abs(lsiErrTotSec - (lsiErrMin * 60)));
 
-  // syslog(2, "%03u. LSI Freq:%06.2f, Ave:%06.02f (%+03.2f%%, %+d:%02d/hr), Hi:%06.2f, Lo:%06.2f\n",
-            // freqCount, lsiFreq, lsiAvg, lsiPercentErr * 100,
-            // lsiErrMin, lsiErrSec, lsiHigh, lsiLow);
+  // syslog(LOG_INFO,
+  //  "%03u. LSI Freq:%06.2f, Ave:%06.02f (%+03.2f%%, %+d:%02d/hr), Hi:%06.2f, Lo:%06.2f\n",
+  // freqCount, lsiFreq, lsiAvg, lsiPercentErr * 100,
+  // lsiErrMin, lsiErrSec, lsiHigh, lsiLow);
   
   return OK;
 }

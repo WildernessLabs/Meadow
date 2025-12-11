@@ -202,7 +202,7 @@ int meadow_timer_setup_pulse_width(struct timerConfig_s timerConfig)
   }
   else
   {
-    // syslog(2, "meadow_timer_setup_freq_dc_decode() no GPIO defined\n");
+    // syslog(LOG_WARNING, "meadow_timer_setup_freq_dc_decode() no GPIO defined\n");
     pulseWidData->gpioInputConfig = MEADOW_TIMER_BAD_GPIO_VALUE;
     return -1;
   }
@@ -214,7 +214,8 @@ int meadow_timer_setup_pulse_width(struct timerConfig_s timerConfig)
   ret = meadow_timer_init_gated_pulse_width(timerConfig.timerNumber);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-Meadow pulse width init failed:%d\n", __FILE__, __LINE__, ret);
+    syslog(LOG_ERR, "%s@%d-Meadow pulse width init failed:%d\n",
+      __FILE__, __LINE__, ret);
     return ret;
   }
 
@@ -353,7 +354,8 @@ int meadow_timer_test_gated_pulse_width(int timerNumber)
     // that the semaphore count is correct. If not correct, it means that the
     // ISR didn't do the sem_post() call. Therefore, we need to call sem_post
     // to keep the semaphore in sync with the ISR.
-    syslog(LOG_ERR, "ERROR:Pulse width-Semaphore ret:%d, errno:%d\n", ret, errno);
+    syslog(LOG_ERR, "ERROR:Pulse width-Semaphore ret:%d, errno:%d\n",
+      ret, errno);
 
     int semcount;
     sem_getvalue(&_endPWidthSem, &semcount);
@@ -385,13 +387,15 @@ int meadow_timer_test_gated_pulse_width(int timerNumber)
       double oneWayTimeSec = totalTimeSec/2.0;
       double distance = oneWayTimeSec /*seconds*/ * 345; /* meters/second*/
 
-      // syslog(2, "Count:%lu, Time:%4.8f, Distance:%1.6fm\n",
-                cntValue, oneWayTimeSec, distance);
+      // syslog(LOG_INFO, "Count:%lu, Time:%4.8f, Distance:%1.6fm\n",
+                // cntValue, oneWayTimeSec, distance);
       ret = OK;
     }
     else
     {
-      // syslog(2, "ERROR:Timer%u count was %lu\n", timerInfo->timerNumb, cntValue);
+      // syslog(LOG_WARNING,
+      //  "ERROR:Timer%u count was %lu\n", timerInfo->timerNumb,
+      //  cntValue);
       ret = -1;
     }
   }

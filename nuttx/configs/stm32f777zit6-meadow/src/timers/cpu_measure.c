@@ -237,7 +237,9 @@ int meadow_timer_test_cpu_measure_ticks()
   uint64_t currentTicks = meadow_timer_cpu_measure_total_ticks();
 
   // Only need to show lower 48-bits
-  // syslog(2, "Current Tick count:%012x (%llu)\n", currentTicks, currentTicks);
+  // syslog(LOG_MDIAG,
+  //  "Current Tick count:%012x (%llu)\n",
+  //  currentTicks, currentTicks);
   
   return OK;
 }
@@ -253,12 +255,12 @@ int meadow_timer_test_cpu_cpu_load(void)
   returnData.timerUsage = CpuLoadValue;
 
   meadow_timer_mono_current_cpu_load(&returnData);
-  // syslog(2, "CPU Load %d\n", returnData.dataField1);
+  // syslog(LOG_MDIAG, "CPU Load %d\n", returnData.dataField1);
 #else
   static bool firstTime = true;
   if(firstTime)
   {
-    syslog(1 "CONFIG_ARCH_IDLE_CUSTOM must be defined to test cpu load\n");
+    syslog(LOG_MDIAG "CONFIG_ARCH_IDLE_CUSTOM must be defined to test cpu load\n");
     firstTime = false;
   }
 #endif

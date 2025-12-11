@@ -297,10 +297,11 @@ int mint_gpio_no_delay_isr(int irq, void *context, void *arg)
   }
 
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-    syslog(LOG_INFO, "mint-(no delay)-0x%02x (P%c%d)- A 'no_delay' interrupt received, state:%d (5)\n",
-            gpioInfoAddr->PinId,
-            ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f,
-            gpioInfoAddr->CurrentProcessState);
+    syslog(LOG_MDIAG,
+      "mint-(no delay)-0x%02x (P%c%d)- A 'no_delay' interrupt received, state:%d (5)\n",
+      gpioInfoAddr->PinId,
+      ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f,
+      gpioInfoAddr->CurrentProcessState);
 #endif
 
   if(gpioInfoAddr->CurrentProcessState != mint_state_mon_no_delay)
@@ -348,7 +349,7 @@ int mint_gpio_need_delay_isr(int irq, void *context, void *arg)
   }
 
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 1
-    syslog(LOG_INFO, "mint-(delay)-0x%02x (P%c%d)- received delay targeted interrupt\n",
+    syslog(LOG_MDIAG, "mint-(delay)-0x%02x (P%c%d)- received delay targeted interrupt\n",
             gpioInfoAddr->PinId,
             ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f);
 #endif
@@ -358,7 +359,7 @@ int mint_gpio_need_delay_isr(int irq, void *context, void *arg)
   if(gpioInfoAddr->CurrentProcessState != mint_state_wait_gpio_chg)
   {
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 1
-    syslog(LOG_INFO, "mint-(delay)--PinId:0x%02x ignored, not waiting for GPIO change\n", gpioInfoAddr->PinId);
+    syslog(LOG_MDIAG, "mint-(delay)--PinId:0x%02x ignored, not waiting for GPIO change\n", gpioInfoAddr->PinId);
 #endif
 
     DEBUG_SET_LOW(DEBUG_PIN_V2_A2);
@@ -375,7 +376,8 @@ int mint_gpio_need_delay_isr(int irq, void *context, void *arg)
     DEBUG_SET_HIGH(DEBUG_PIN_V2_A3);
 
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 1
-    syslog(LOG_INFO, "mint-(delay)--PinId:0x%02x, Process glitch\n", gpioInfoAddr->PinId);
+    syslog(LOG_MDIAG, "mint-(delay)--PinId:0x%02x, Process glitch\n",
+      gpioInfoAddr->PinId);
 #endif
 
     // If both glitch and debounce configured, glitch always runs before
@@ -395,7 +397,8 @@ int mint_gpio_need_delay_isr(int irq, void *context, void *arg)
     DEBUG_SET_HIGH(DEBUG_PIN_V2_A3);
     
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 1
-    syslog(LOG_INFO, "mint-(delay)--PinId:0x%02x, Process debounce\n", gpioInfoAddr->PinId);
+    syslog(LOG_MDIAG, "mint-(delay)--PinId:0x%02x, Process debounce\n",
+      gpioInfoAddr->PinId);
 #endif
 
     gpioInfoAddr->DebounceDownCounter = gpioInfoAddr->DebounceConfiguredDuration;
@@ -411,7 +414,8 @@ int mint_gpio_need_delay_isr(int irq, void *context, void *arg)
     // The configured duration for both glitch and debounce duration is == 0?
     // This is illegal as this ISR is only for GPIOs using glitch or debounce
     // filtering which is indicated by their configured duration being > 0.
-    syslog(LOG_ERR, "%s@%d-Wrong ISR mint_gpio_need_delay_isr called\n", __FILE__, __LINE__);
+    syslog(LOG_ERR, "%s@%d-Wrong ISR mint_gpio_need_delay_isr called\n",
+      __FILE__, __LINE__);
     usleep(20 * 1000);
     ASSERT(false);
   }
@@ -501,7 +505,8 @@ int mint_process_gpio_debounce(struct interruptPinMap_s *gpioInfoAddr)
     // This is the first time to process this debounce filter request
 
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 1
-    syslog(LOG_INFO, "mint-(debo)-0x%02x DEBOUNCE Starting\n", gpioInfoAddr->PinId);
+    syslog(LOG_MDIAG, "mint-(debo)-0x%02x DEBOUNCE Starting\n",
+      gpioInfoAddr->PinId);
     gpioInfoAddr->TimeProcessingBegan = clock_systimer();
 #endif
 
@@ -518,7 +523,9 @@ int mint_process_gpio_debounce(struct interruptPinMap_s *gpioInfoAddr)
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 1
     else
     {
-      syslog(LOG_INFO, "mint-(debo)-0x%02x Debounce started following Glitch\n", gpioInfoAddr->PinId);
+      syslog(LOG_MDIAG,
+        "mint-(debo)-0x%02x Debounce started following Glitch\n",
+        gpioInfoAddr->PinId);
     }
 #endif
   }
@@ -535,7 +542,7 @@ int mint_process_gpio_debounce(struct interruptPinMap_s *gpioInfoAddr)
 
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 1
   uint32_t procTime = clock_systimer() - gpioInfoAddr->TimeProcessingBegan;
-  syslog(LOG_INFO, "mint-(debo)-0x%02x Debounce proccessing ended in %d ms\n",
+  syslog(LOG_MDIAG, "mint-(debo)-0x%02x Debounce proccessing ended in %d ms\n",
             gpioInfoAddr->PinId, procTime);
 #endif
 
@@ -565,7 +572,8 @@ int mint_process_gpio_glitch(struct interruptPinMap_s *gpioInfoAddr)
   {
     // First time to process glitch or restarting after glitch detected
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 1
-    syslog(LOG_INFO, "mint-(glitch)-0x%02x Glitch Starting\n", gpioInfoAddr->PinId);
+    syslog(LOG_MDIAG, "mint-(glitch)-0x%02x Glitch Starting\n",
+      gpioInfoAddr->PinId);
 #endif
     gpioInfoAddr->TimeProcessingBegan = clock_systimer();
   }
@@ -597,7 +605,7 @@ int mint_process_gpio_glitch(struct interruptPinMap_s *gpioInfoAddr)
     gpioInfoAddr->GlitchPrevGpioState = currentState;
 
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 1
-    syslog(LOG_INFO, "mint-(glitch)-0x%02x Glitch state changed was:%d now:%d\n",
+    syslog(LOG_MDIAG, "mint-(glitch)-0x%02x Glitch state changed was:%d now:%d\n",
           gpioInfoAddr->PinId, gpioInfoAddr->GlitchPrevGpioState, currentState);
 #endif
     return glit_debo_ret_check_next_gpio;   // Keep waiting
@@ -622,7 +630,7 @@ int mint_process_gpio_glitch(struct interruptPinMap_s *gpioInfoAddr)
   // Finished checking, GPIO state stable for filter time.
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 1
   uint32_t totalTime = clock_systimer() - gpioInfoAddr->TimeProcessingBegan;
-  syslog(LOG_INFO, "mint-(glitch)-0x%02x Glitch completed in %d ms, timeouts:%d\n",
+  syslog(LOG_MDIAG, "mint-(glitch)-0x%02x Glitch completed in %d ms, timeouts:%d\n",
           gpioInfoAddr->PinId, totalTime, gpioInfoAddr->GlitchTimeoutsCounter);
 #endif
 
@@ -635,7 +643,9 @@ int mint_process_gpio_glitch(struct interruptPinMap_s *gpioInfoAddr)
     {
       case rqstdintmode_both:
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 1
-        syslog(LOG_INFO, "mint_(glitch)-0x%02x Notifying Meadow.Core, rqstdintmode_both\n", gpioInfoAddr->PinId);
+        syslog(LOG_MDIAG,
+          "mint_(glitch)-0x%02x Notifying Meadow.Core, rqstdintmode_both\n",
+          gpioInfoAddr->PinId);
 #endif
         mint_forward_interrupt_to_core(gpioInfoAddr, currentState);
         break;
@@ -644,14 +654,18 @@ int mint_process_gpio_glitch(struct interruptPinMap_s *gpioInfoAddr)
         if(!isRising)
         {
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 1
-          syslog(LOG_INFO, "mint_(glitch)-0x%02x Notifying, Falling and config rqstdintmode_falling\n", gpioInfoAddr->PinId);
+          syslog(LOG_MDIAG,
+            "mint_(glitch)-0x%02x Notifying, Falling and config rqstdintmode_falling\n",
+            gpioInfoAddr->PinId);
 #endif
           mint_forward_interrupt_to_core(gpioInfoAddr, currentState);
         }
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 1
         else
         {
-          syslog(LOG_INFO, "mint_(glitch)-0x%02x ignoring, Rising but config rqstdintmode_falling\n", gpioInfoAddr->PinId);
+          syslog(LOG_MDIAG,
+            "mint_(glitch)-0x%02x ignoring, Rising but config rqstdintmode_falling\n",
+            gpioInfoAddr->PinId);
         }
 #endif
         break;
@@ -660,14 +674,18 @@ int mint_process_gpio_glitch(struct interruptPinMap_s *gpioInfoAddr)
         if(isRising)
         {
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 1
-          syslog(LOG_INFO, "mint_(glitch)-0x%02x Notifying, Rising and config rqstdintmode_rising\n", gpioInfoAddr->PinId);
+          syslog(LOG_MDIAG,
+            "mint_(glitch)-0x%02x Notifying, Rising and config rqstdintmode_rising\n",
+            gpioInfoAddr->PinId);
 #endif
           mint_forward_interrupt_to_core(gpioInfoAddr, currentState);
         }
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 1
         else
         {
-          syslog(LOG_INFO, "mint_(glitch)-0x%02x Ignoring, Falling but config rqstdintmode_rising\n", gpioInfoAddr->PinId);
+          syslog(LOG_MDIAG,
+            "mint_(glitch)-0x%02x Ignoring, Falling but config rqstdintmode_rising\n",
+            gpioInfoAddr->PinId);
         }
 #endif
         break;
@@ -683,7 +701,8 @@ int mint_process_gpio_glitch(struct interruptPinMap_s *gpioInfoAddr)
   else
   {
     // gpioInfoAddr->LastKnownGpioState == currentState i.e. no change. It's a glitch, ignore it
-    syslog(LOG_INFO, "mint_(glitch)-0x%02x No GPIO state change-Ignore\n", gpioInfoAddr->PinId);
+    syslog(LOG_MDIAG, "mint_(glitch)-0x%02x No GPIO state change-Ignore\n",
+      gpioInfoAddr->PinId);
   }
 #endif
 
@@ -725,7 +744,9 @@ int mint_meadow_debounce_notification_logic(struct interruptPinMap_s *gpioInfoAd
   uint8_t newState;
   
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 1
-  syslog(LOG_INFO, "mint-(debounce)-0x%02x Debounce alone, no Glitch\n", gpioInfoAddr->PinId);
+  syslog(LOG_MDIAG,
+    "mint-(debounce)-0x%02x Debounce alone, no Glitch\n",
+    gpioInfoAddr->PinId);
 #endif
 
   switch(gpioInfoAddr->GpioRiseFallValue)
@@ -743,7 +764,9 @@ int mint_meadow_debounce_notification_logic(struct interruptPinMap_s *gpioInfoAd
       // The LastKnownGpioState was updated after the debounce timeout period.
       newState = gpioInfoAddr->LastKnownGpioState == 1 ? 0 : 1;
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 1
-      syslog(LOG_INFO, "mint-(debounce)-0x%02x--Notifying 0x%02x rqstdintmode_both \n", gpioInfoAddr->PinId, newState);
+      syslog(LOG_MDIAG,
+        "mint-(debounce)-0x%02x--Notifying 0x%02x rqstdintmode_both \n",
+        gpioInfoAddr->PinId, newState);
 #endif
       mint_forward_interrupt_to_core(gpioInfoAddr, newState);
       break;
@@ -751,7 +774,9 @@ int mint_meadow_debounce_notification_logic(struct interruptPinMap_s *gpioInfoAd
     case rqstdintmode_falling:
       newState = 0;      // Assume high to low transition
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 1
-      syslog(LOG_INFO, "mint-(debounce)-0x%02x--Notifying 0x%02x rqstdintmode_falling\n", gpioInfoAddr->PinId, 0);
+      syslog(LOG_MDIAG,
+        "mint-(debounce)-0x%02x--Notifying 0x%02x rqstdintmode_falling\n",
+        gpioInfoAddr->PinId, 0);
 #endif
       mint_forward_interrupt_to_core(gpioInfoAddr, newState);
       break;
@@ -759,7 +784,9 @@ int mint_meadow_debounce_notification_logic(struct interruptPinMap_s *gpioInfoAd
     case rqstdintmode_rising:
       newState = 1;      // Assume low to high transition
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 1
-      syslog(LOG_INFO, "mint-(debounce)-0x%02x--Notifying 0x%02x rqstdintmode_rising\n", gpioInfoAddr->PinId, 1);
+      syslog(LOG_MDIAG,
+        "mint-(debounce)-0x%02x--Notifying 0x%02x rqstdintmode_rising\n",
+        gpioInfoAddr->PinId, 1);
 #endif
       mint_forward_interrupt_to_core(gpioInfoAddr, 1);
       break;
@@ -821,17 +848,17 @@ int mint_forward_interrupt_to_core(struct interruptPinMap_s *gpioInfoAddr,
   //   secPlusMs = (secTime * 1000   ) + (nanoseconds / (1000 * 1000));
   //   // timeUS = (secTime * 1000000) + (nanoseconds / 1000);
   //
-  //   syslog(1, "------------------------------------\n");
-  //   syslog(1, "Sizes:secTime:%lu, nanoseconds:%lu, secPlusMs:%lu\n",
+  //   syslog(LOG_MTEST, "------------------------------------\n");
+  //   syslog(LOG_MTEST, "Sizes:secTime:%lu, nanoseconds:%lu, secPlusMs:%lu\n",
   //     sizeof(secTime), sizeof(nanoseconds), sizeof(secPlusMs));
   //
   //   Wed Oct  1 17:21:03 2025
-  //   syslog(1, "UTC:%s", ctime((time_t *) &secTime));
-  //   syslog(1, "nanoseconds :%020lld\n", nanoseconds);
-  //   syslog(1, "milliseconds:%020lld\n", nanoseconds / (1000 * 1000));
-  //   syslog(1, "Seconds     :%020lld\n", secTime);
-  //   syslog(1, "Sec+MilliSec:%020lld, Sec:%lld, MS::%lld\n",
-  // syslog(1, "Sec+MicroSec:%020lld\n", timeUS);
+  //   syslog(LOG_MTEST, "UTC:%s", ctime((time_t *) &secTime));
+  //   syslog(LOG_MTEST, "nanoseconds :%020lld\n", nanoseconds);
+  //   syslog(LOG_MTEST, "milliseconds:%020lld\n", nanoseconds / (1000 * 1000));
+  //   syslog(LOG_MTEST, "Seconds     :%020lld\n", secTime);
+  //   syslog(LOG_MTEST, "Sec+MilliSec:%020lld, Sec:%lld, MS::%lld\n",
+  //   syslog(LOG_MTEST, "Sec+MicroSec:%020lld\n", timeUS);
   //     secPlusMs, secPlusMs / 1000, secPlusMs % (1000 * 1000));
 
   ret = mq_send(_mint_mqd, (char *) &mint_send_msg,
@@ -1103,7 +1130,9 @@ int mint_config_interrupt(struct mint_gpio_int_config* cfg)
     ret = mint_config_interrupt_prep_timer(MEADOW_INTERRUPT_STM32F7_TIMER_NUMBER);
     if(ret < 0)
     {
-      syslog(LOG_ERR, "mint-(cfg)-mint_config_interrupt_prep_timer failed, ret:%d\n", ret);
+      syslog(LOG_ERR,
+        "mint-(cfg)-mint_config_interrupt_prep_timer failed, ret:%d\n",
+        ret);
       return ret;
     }
   }
@@ -1167,8 +1196,11 @@ int mint_config_interrupt_remove(struct mint_gpio_int_config* cfg,
 
   // Disable - remove a GPIO from being monitored
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-  syslog(LOG_INFO, "mint-(cfg)-0x%02x (P%c%d)--Removing GPIO\n", gpioInfoAddr->PinId,
-              ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f);
+  syslog(LOG_MDIAG,
+    "mint-(cfg)-0x%02x (P%c%d)--Removing GPIO\n",
+    gpioInfoAddr->PinId,
+    ((gpioInfoAddr->PinId) >> 4) + 'A',
+    gpioInfoAddr->PinId & 0x0f);
 #endif
 
   // Small chance but it might be actively timing
@@ -1258,22 +1290,24 @@ int mint_config_interrupt_new(struct mint_gpio_int_config* cfg,
   }
 
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-  syslog(LOG_INFO, "mint-(cfg)- 0x%02x (P%c%d)-Cfg Enabled-LKS:%d, GLDuration:%d, DBDuration:%d, RiseFallValue:%d, cfgset:0x%08x\n",
-            gpioInfoAddr->PinId,
-            ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f,
-            gpioInfoAddr->LastKnownGpioState,
-            gpioInfoAddr->GlitchConfiguredDuration,
-            gpioInfoAddr->DebounceConfiguredDuration,
-            gpioInfoAddr->GpioRiseFallValue,
-            cfgset);
+  syslog(LOG_MDIAG,
+    "mint-(cfg)- 0x%02x (P%c%d)-Cfg Enabled-LKS:%d, GLDuration:%d, DBDuration:%d, RiseFallValue:%d, cfgset:0x%08x\n",
+    gpioInfoAddr->PinId,
+    ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f,
+    gpioInfoAddr->LastKnownGpioState,
+    gpioInfoAddr->GlitchConfiguredDuration,
+    gpioInfoAddr->DebounceConfiguredDuration,
+    gpioInfoAddr->GpioRiseFallValue,
+    cfgset);
 #endif
 
   // Tell Nuttx about interrupt parameters
   if(gpioInfoAddr->GlitchConfiguredDuration > 0)
   {
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-    syslog(LOG_INFO, "mint-(cfg)-0x%02x (P%c%d)--Config Glitch\n", gpioInfoAddr->PinId,
-                ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f);
+    syslog(LOG_MDIAG,
+      "mint-(cfg)-0x%02x (P%c%d)--Config Glitch\n", gpioInfoAddr->PinId,
+      ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f);
 #endif
     // Glitch - we must receive both rising and falling or we cannot keep
     // LastKnownGpioState accurately. After a stable state is reached we save
@@ -1297,8 +1331,9 @@ int mint_config_interrupt_new(struct mint_gpio_int_config* cfg,
   else if(gpioInfoAddr->DebounceConfiguredDuration > 0)
   {
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-    syslog(LOG_INFO, "mint-(cfg)-0x%02x (P%c%d)--Config Debounce\n", gpioInfoAddr->PinId,
-                ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f);
+    syslog(LOG_MDIAG,
+      "mint-(cfg)-0x%02x (P%c%d)--Config Debounce\n", gpioInfoAddr->PinId,
+      ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f);
 #endif
     // Debounce - we cannot know the GPIOs state for certain when we receive
     // the interrupt notification, so we rely on the MCU only sending interrupts
@@ -1322,8 +1357,10 @@ int mint_config_interrupt_new(struct mint_gpio_int_config* cfg,
   else
   {
 #if MEADOW_INTERRUPT_INCLUDE_DIAGNOSTIC_SYSLOG > 0
-    syslog(LOG_INFO, "mint-(cfg)-0x%02x (P%c%d)--Config NO delay\n", gpioInfoAddr->PinId,
-                ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f);
+    syslog(LOG_MDIAG,
+      "mint-(cfg)-0x%02x (P%c%d)--Config NO delay\n",
+      gpioInfoAddr->PinId,
+      ((gpioInfoAddr->PinId) >> 4) + 'A', gpioInfoAddr->PinId & 0x0f);
 #endif
     // No filtering required. Also used for low-power sleep wakeup.
     // For no delay, as with debounce, we cannot know the GPIOs state for

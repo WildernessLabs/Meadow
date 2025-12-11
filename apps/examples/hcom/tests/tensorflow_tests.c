@@ -172,10 +172,10 @@ static void *tensorflow_tests_load_tensorflow_dll(char *name)
 {
     char path[128];
 
-    syslog(2, "    Opening %s DLL\n", name);
+    syslog(LOG_MTEST, "    Opening %s DLL\n", name);
     snprintf(path, 128, "%s/%s", MONO_MEADOW_EXECUTABLE_PARTITION_NAME, name);
     void *handle = dlopen(path, RTLD_NOW);
-    syslog(2, "    Handle: %p\n", handle);
+    syslog(LOG_MTEST, "    Handle: %p\n", handle);
 
     return(handle);
 }
@@ -200,18 +200,18 @@ void tensorflow_tests_hello_world(uint32_t value)
 {
     bool pass = true;
 
-    syslog(2, "Executing Tensorflow Hello World test\n");
+    syslog(LOG_MTEST, "Executing Tensorflow Hello World test\n");
 
     void *handle = tensorflow_tests_load_tensorflow_dll("Tensorflow.so");
     if (handle > 0)
     {
         void (*testsetup)(void) = dlsym(handle, "tensorflow_hello_world_test_setup");
-        syslog(2, "    tensorflow_hello_world_test_setup: %p\n", testsetup);
+        syslog(LOG_MTEST, "    tensorflow_hello_world_test_setup: %p\n", testsetup);
         if (testsetup != 0)
         {
             testsetup();
             void (*testloop)(uint32_t, uint32_t) = dlsym(handle,"tensorflow_hello_world_test_loop");
-            syslog(2, "    tensorflow_hello_world_test_loop: %p\n", testloop); 
+            syslog(LOG_MTEST, "    tensorflow_hello_world_test_loop: %p\n", testloop); 
             if (testloop != 0)
             {
                 for (int pass = 0; pass < 2; pass++)
@@ -222,9 +222,9 @@ void tensorflow_tests_hello_world(uint32_t value)
                         testloop((uint32_t) &x, (uint32_t) &y);
                         if (floats_not_equal(x, hello_world_results[index].x) || floats_not_equal(y, hello_world_results[index].y))
                         {
-                            syslog(2, "    Test %d failed\n", index);
-                            syslog(2, "    Expected: %f, %f\n", hello_world_results[index].x, hello_world_results[index].y);
-                            syslog(2, "    Actual: %f, %f\n", x, y);
+                            syslog(LOG_MTEST, "    Test %d failed\n", index);
+                            syslog(LOG_MTEST, "    Expected: %f, %f\n", hello_world_results[index].x, hello_world_results[index].y);
+                            syslog(LOG_MTEST, "    Actual: %f, %f\n", x, y);
                             pass = false;
                             break;
                         }
@@ -233,24 +233,24 @@ void tensorflow_tests_hello_world(uint32_t value)
             } 
             else
             {
-                syslog(2, "    Cannot locate the tensorflow_hello_world_test_loop method.\n");
+                syslog(LOG_MTEST, "    Cannot locate the tensorflow_hello_world_test_loop method.\n");
                 pass = false;
             }
         }
         else
         {
-            syslog(2, "    Cannot locate the tensorflow_hello_world_test_setup method.\n");
+            syslog(LOG_MTEST, "    Cannot locate the tensorflow_hello_world_test_setup method.\n");
             pass = false;
         }
         dlclose(handle);
     }
     else
     {
-        syslog(2, "    Cannot open Tensorflow.so\n");
+        syslog(LOG_MTEST, "    Cannot open Tensorflow.so\n");
         pass = false;
     }
 
-    syslog(2, "    Tensorflow Hello World test - %s.\n", pass ? "PASS" : "FAIL");
+    syslog(LOG_MTEST, "    Tensorflow Hello World test - %s.\n", pass ? "PASS" : "FAIL");
 }
 
 #endif // defined(CONFIG_TENSORFLOW_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)

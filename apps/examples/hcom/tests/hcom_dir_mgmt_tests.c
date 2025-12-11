@@ -78,42 +78,42 @@ static off_t hcom_dir_mgmt_find_file_status(char *path)
   ret = stat(path, &statBuf);
   if (ret < 0)
   {
-    syslog(2, "stat call error. ret:%d, errno:%d\n", ret, errno);
+    syslog(LOG_MTEST, "stat call error. ret:%d, errno:%d\n", ret, errno);
     return -1;
   }
 
 #if HCOM_DIR_MGMT_TST_SHOW_FULL_FILE_STATUS > 0
-  syslog(2, "Reported by stat:\n");
+  syslog(LOG_MTEST, "Reported by stat:\n");
 
   if (S_ISREG(statBuf.st_mode))
-    syslog(2, "type        : File\n");
+    syslog(LOG_MTEST, "type        : File\n");
   else if (S_ISDIR(statBuf.st_mode))
-    syslog(2, "type        : Directory\n");
+    syslog(LOG_MTEST, "type        : Directory\n");
   else if (S_ISCHR(statBuf.st_mode))
-    syslog(2, "type        : Character driver\n");
+    syslog(LOG_MTEST, "type        : Character driver\n");
   else if (S_ISBLK(statBuf.st_mode))
-    syslog(2, "type        : Block driver\n");
+    syslog(LOG_MTEST, "type        : Block driver\n");
   else if (S_ISMQ(statBuf.st_mode))
-    syslog(2, "type        : Message queue\n");
+    syslog(LOG_MTEST, "type        : Message queue\n");
   else if (S_ISSEM(statBuf.st_mode))
-    syslog(2, "type        : Named semaphore\n");
+    syslog(LOG_MTEST, "type        : Named semaphore\n");
   else if (S_ISSHM(statBuf.st_mode))
-    syslog(2, "type        : Shared memory\n");
+    syslog(LOG_MTEST, "type        : Shared memory\n");
   else if (S_ISSOCK(statBuf.st_mode))
-    syslog(2, "type        : Socket\n");
+    syslog(LOG_MTEST, "type        : Socket\n");
   else if (S_ISMTD(statBuf.st_mode))
-    syslog(2, "type        : Named MTD driver\n");
+    syslog(LOG_MTEST, "type        : Named MTD driver\n");
   else if (S_ISLNK(statBuf.st_mode))
-    syslog(2, "type        : Symbolic link\n");
+    syslog(LOG_MTEST, "type        : Symbolic link\n");
   else
-    syslog(2, "type        : Unknown\n");
+    syslog(LOG_MTEST, "type        : Unknown\n");
 
-  syslog(2, "file size   : %d (bytes)\n",  statBuf.st_size);
-  syslog(2, "block size  : %d (bytes)\n",  statBuf.st_blksize);
-  syslog(2, "size        : %d (blocks)\n", statBuf.st_blocks);
-  syslog(2, "access time : %d\n",          statBuf.st_atime);
-  syslog(2, "modify time : %d\n",          statBuf.st_mtime);
-  syslog(2, "change time : %d\n",          statBuf.st_ctime);
+  syslog(LOG_MTEST, "file size   : %d (bytes)\n",  statBuf.st_size);
+  syslog(LOG_MTEST, "block size  : %d (bytes)\n",  statBuf.st_blksize);
+  syslog(LOG_MTEST, "size        : %d (blocks)\n", statBuf.st_blocks);
+  syslog(LOG_MTEST, "access time : %d\n",          statBuf.st_atime);
+  syslog(LOG_MTEST, "modify time : %d\n",          statBuf.st_mtime);
+  syslog(LOG_MTEST, "change time : %d\n",          statBuf.st_ctime);
 #endif
 
 #if HCOM_DIR_MGMT_TST_SHOW_FULL_FILE_STATUS > 0
@@ -121,21 +121,21 @@ static off_t hcom_dir_mgmt_find_file_status(char *path)
   ret = statfs(path, &buf);
   if (ret < 0)
   {
-    syslog(2, "ERROR statfs(%s) failed with errno=%d\n", path, errno);
+    syslog(LOG_MTEST, "ERROR statfs(%s) failed with errno=%d\n", path, errno);
     return -1;
   }
   else
   {
     // LITTLEFS_SUPER_MAGIC = 0x0a732923
-    syslog(2, "Reported by statfs:\n");
-    syslog(2, "FS Type           : %0x\n", buf.f_type);
-    syslog(2, "Block size        : %d\n",  buf.f_bsize);
-    syslog(2, "Number of blocks  : %d\n",  buf.f_blocks);
-    syslog(2, "Free blocks       : %d\n",  buf.f_bfree);
-    syslog(2, "Free user blocks  : %d\n",  buf.f_bavail);
-    syslog(2, "Number file nodes : %d\n",  buf.f_files);
-    syslog(2, "Free file nodes   : %d\n",  buf.f_ffree);
-    syslog(2, "File name length  : %d\n",  buf.f_namelen);
+    syslog(LOG_MTEST, "Reported by statfs:\n");
+    syslog(LOG_MTEST, "FS Type           : %0x\n", buf.f_type);
+    syslog(LOG_MTEST, "Block size        : %d\n",  buf.f_bsize);
+    syslog(LOG_MTEST, "Number of blocks  : %d\n",  buf.f_blocks);
+    syslog(LOG_MTEST, "Free blocks       : %d\n",  buf.f_bfree);
+    syslog(LOG_MTEST, "Free user blocks  : %d\n",  buf.f_bavail);
+    syslog(LOG_MTEST, "Number file nodes : %d\n",  buf.f_files);
+    syslog(LOG_MTEST, "Free file nodes   : %d\n",  buf.f_ffree);
+    syslog(LOG_MTEST, "File name length  : %d\n",  buf.f_namelen);
   }
 #endif
 
@@ -161,8 +161,8 @@ static void hcom_dir_mgmt_print_directory_files(DIR *dir[],
       {
         // Skip a line and print this directory path as a header before the
         // first file is printed
-        syslog(2, "\n");
-        syslog(2, "Directory:%s\n", currentPath);
+        syslog(LOG_MTEST, "\n");
+        syslog(LOG_MTEST, "Directory:%s\n", currentPath);
         filesFound = true;
       }
 
@@ -177,7 +177,7 @@ static void hcom_dir_mgmt_print_directory_files(DIR *dir[],
       off_t fsize = hcom_dir_mgmt_find_file_status(fullFileName);
       free(fullFileName);
 
-      syslog(2, "  %s [%ld bytes]\n", entry->d_name, fsize);
+      syslog(LOG_MTEST, "  %s [%ld bytes]\n", entry->d_name, fsize);
       fileCount++;
     }
   }
@@ -185,12 +185,12 @@ static void hcom_dir_mgmt_print_directory_files(DIR *dir[],
   // Line if we printed files
   if(filesFound)
   {
-    syslog(2, "----------%d Total File(s) (Level:%d)----------\n",
+    syslog(LOG_MTEST, "----------%d Total File(s) (Level:%d)----------\n",
               fileCount, dirLevel);
   }
   else
   {
-    syslog(2, "No Files:%s\n", currentPath);
+    syslog(LOG_MTEST, "No Files:%s\n", currentPath);
   }
 
   // Return to the start of directory and look for deeper directories
@@ -281,7 +281,7 @@ static int hcom_dir_mgmt_find_next_directory(const char *initialDir)
           else if(DIRENT_ISBLK(entry->d_type)) {entryType = "block";}
           else if(DIRENT_ISLINK(entry->d_type)) {entryType = "link";}
           else {entryType = "????";}
-          syslog(2, "%s/%s [%s]\n", currentPath, entry->d_name, entryType);
+          syslog(LOG_MTEST, "%s/%s [%s]\n", currentPath, entry->d_name, entryType);
         }
       }
     }
@@ -353,7 +353,7 @@ static int hcom_dir_mgmt_tst_recurse_nested_directories(const char *rootDir,
       if(strcmp(entry->d_name, "proc") == 0)
         return OK; // ignore procfs information
               
-      syslog(2, "%*s%s/\n", indent, "", entry->d_name);
+      syslog(LOG_MTEST, "%*s%s/\n", indent, "", entry->d_name);
 
       if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
         continue;
@@ -375,13 +375,13 @@ static int hcom_dir_mgmt_tst_recurse_nested_directories(const char *rootDir,
       else if(DIRENT_ISLINK(entry->d_type)) {entryType = "link";}
       else {entryType = "????";}
 
-      syslog(2, "%*s%s [%s]\n", indent, "", entry->d_name, entryType);
+      syslog(LOG_MTEST, "%*s%s [%s]\n", indent, "", entry->d_name, entryType);
 
     }
 #endif
   }
   // Blank line
-  syslog(2, "\n");
+  syslog(LOG_MTEST, "\n");
 
   closedir(dir);
   return OK;
@@ -408,7 +408,7 @@ static int hcom_dir_mgmt_tst_recurse_nested_directories_start(const char *rootDi
 /****************************************************************************
  * Public Functions
  ***************************************************************************/
-// These tests are developer -d 13
+// These tests are developer -p 13
 void meadow_dir_mgmt_tests(uint32_t userData)
 {
   int ret;
@@ -417,7 +417,7 @@ void meadow_dir_mgmt_tests(uint32_t userData)
   uint32_t freeBytes;
   uint32_t usedBytes;
 
-  syslog(2, "Directory management received 'set developer -d 13 -v %lu'\n", userData);
+  syslog(LOG_MTEST, "Directory management received 'set developer -p 13 -v %lu'\n", userData);
   usleep(20 * 1000);
 
   // We assume sdcard needs to be mounted and if not, an error message, we'll
@@ -427,7 +427,7 @@ void meadow_dir_mgmt_tests(uint32_t userData)
   ret = mount(MEADOW_SDCARD_BLOCK_NAME, MEADOW_SDCARD_MOUNT_POINT_NAME,
             MEADOW_SDCARD_FILE_SYS_TYPE, 0, NULL);
   if(ret < 0)
-    syslog(2, "SD-Card mount attempt failed. ret:%d, errno:%d\n", ret, errno);
+    syslog(LOG_MTEST, "SD-Card mount attempt failed. ret:%d, errno:%d\n", ret, errno);
   else
     isMounted = true;
 
@@ -438,12 +438,12 @@ void meadow_dir_mgmt_tests(uint32_t userData)
       ret = meadow_read_file_total_free_flash_size(&totalBytes, &freeBytes);
       if(ret < 0)
       {
-        syslog(2, "Error: calling meadow_read_file_total_free_flash_size(), ret:%d, errno:%d\n",
+        syslog(LOG_MTEST, "Error: calling meadow_read_file_total_free_flash_size(), ret:%d, errno:%d\n",
                   ret, errno);
         return;
       }
       usedBytes = totalBytes - freeBytes;
-      syslog(2, "Total bytes:%lu (%luMb), Free bytes:%lu (%luMb), Used bytes (calculated):%lu (%luMb)\n",
+      syslog(LOG_MTEST, "Total bytes:%lu (%luMb), Free bytes:%lu (%luMb), Used bytes (calculated):%lu (%luMb)\n",
                 totalBytes, totalBytes/(1024*1024),
                 freeBytes, freeBytes/(1024*1024),
                 usedBytes, usedBytes/(1024*1024));
@@ -501,10 +501,10 @@ void meadow_dir_mgmt_tests(uint32_t userData)
   {
     ret = umount(MEADOW_SDCARD_MOUNT_POINT_NAME);
     if(ret < 0)
-      syslog(2, "%s@%d-ERROR: umount failed. ret:%d, errno:%d\n",
+      syslog(LOG_MTEST, "%s@%d-ERROR: umount failed. ret:%d, errno:%d\n",
                 thisFile, __LINE__, ret, errno);
 
-    syslog(2, "===> umount successful\n");
+    syslog(LOG_MTEST, "===> umount successful\n");
   }
 }
 

@@ -103,7 +103,8 @@
 
 //   if(ret < 0)
 //   {
-//     syslog(2, "Error:meadow_measure_freq_configure() ret:%ld\n",  ret);
+//     syslog(LOG_MTEST, "Error:meadow_measure_freq_configure() ret:%ld\n",
+//       ret);
 //     return ret;
 //   }
 
@@ -145,12 +146,12 @@ static void display_frequency_and_friends(
   if(ret < 0)
   {
 #if (MEADOW_FREQ_MEAS_TEST_USE_SYSLOG_OUTPUT > 0)
-    syslog(2, "Timer %lu, Channel:%lu - Error %d\n",
+    syslog(LOG_MTEST, "Timer %lu, Channel:%lu - Error %d\n",
             mdwFreqReturnData.timerNumber, 
             mdwFreqReturnData.channelNumber,
             ret);
 #else
-    syslogToHost(2, "Timer %lu, Channel:%lu - Error %d\n",
+    syslogToHost(LOG_MTEST, "Timer %lu, Channel:%lu - Error %d\n",
             mdwFreqReturnData.timerNumber, 
             mdwFreqReturnData.channelNumber,
             ret);
@@ -159,21 +160,23 @@ static void display_frequency_and_friends(
   }
 
 #if (MEADOW_FREQ_MEAS_TEST_USE_SYSLOG_OUTPUT > 0)
-  syslog(2, "Timer %lu, Channel:%lu - Freq:%6.2fHz, DC:%02.2f%%, AvgFreq:%6.2fHz, Input Count:%lu\n",
-          mdwFreqReturnData.timerNumber, 
-          mdwFreqReturnData.channelNumber,
-          ((double)mdwFreqReturnData.frequencyX1000)/1000.0,
-          ((double)mdwFreqReturnData.dutyCycleX1000)/1000.0,
-          ((double)mdwFreqReturnData.avgFreqX1000)/1000.0,
-          mdwFreqReturnData.gpioCountForAvg);
+  syslog(LOG_MTEST,
+    "Timer %lu, Channel:%lu - Freq:%6.2fHz, DC:%02.2f%%, AvgFreq:%6.2fHz, Input Count:%lu\n",
+    mdwFreqReturnData.timerNumber, 
+    mdwFreqReturnData.channelNumber,
+    ((double)mdwFreqReturnData.frequencyX1000)/1000.0,
+    ((double)mdwFreqReturnData.dutyCycleX1000)/1000.0,
+    ((double)mdwFreqReturnData.avgFreqX1000)/1000.0,
+    mdwFreqReturnData.gpioCountForAvg);
 #else  
-  syslogToHost(2, "Timer %lu, Channel:%lu - Freq:%6.2fHz, DC:%02.2f%%, AvgFreq:%6.2fHz, Input Count:%lu\n",
-          mdwFreqReturnData.timerNumber, 
-          mdwFreqReturnData.channelNumber,
-          ((double)mdwFreqReturnData.frequencyX1000)/1000.0,
-          ((double)mdwFreqReturnData.dutyCycleX1000)/1000.0,
-          ((double)mdwFreqReturnData.avgFreqX1000)/1000.0,
-          mdwFreqReturnData.gpioCountForAvg);
+  syslogToHost(LOG_MTEST,
+    "Timer %lu, Channel:%lu - Freq:%6.2fHz, DC:%02.2f%%, AvgFreq:%6.2fHz, Input Count:%lu\n",
+    mdwFreqReturnData.timerNumber, 
+    mdwFreqReturnData.channelNumber,
+    ((double)mdwFreqReturnData.frequencyX1000)/1000.0,
+    ((double)mdwFreqReturnData.dutyCycleX1000)/1000.0,
+    ((double)mdwFreqReturnData.avgFreqX1000)/1000.0,
+    mdwFreqReturnData.gpioCountForAvg);
 #endif
 }
 
@@ -189,10 +192,10 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
   mdwFreqCfgTimer_t mdwCfgTimerChan;
 
 #if (MEADOW_FREQ_MEAS_TEST_USE_SYSLOG_OUTPUT > 0)
-  syslog(2, "meadow_kt_measure_freq_tests 'set developer -d 19 -v %lu'\n",
+  syslog(LOG_MTEST, "meadow_kt_measure_freq_tests 'set developer -p 19 -v %lu'\n",
             userData);
 #else
-  syslogToHost(2, "meadow_kt_measure_freq_tests 'set developer -d 19 -v %lu'\n",
+  syslogToHost(LOG_MTEST, "meadow_kt_measure_freq_tests 'set developer -p 19 -v %lu'\n",
             userData);
 #endif
 
@@ -207,7 +210,8 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
   switch(userData)
   {
     case 1:
-      syslog(2, "%s@%d-Invalid test:%lu\n", __FILE__, __LINE__, userData);
+      syslog(LOG_MTEST, "%s@%d-Invalid test:%lu\n",
+        __FILE__, __LINE__, userData);
       break;
     
     //--------------------------------------------------------------
@@ -425,9 +429,11 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
       
     default:
 #if (MEADOW_FREQ_MEAS_TEST_USE_SYSLOG_OUTPUT > 0)
-      syslog(2, "meadow_measure_freq_tests, no test:%lu\n", userData);
+      syslog(LOG_MTEST, "meadow_measure_freq_tests, no test:%lu\n",
+        userData);
 #else
-    syslogToHost(2, "meadow_measure_freq_tests, no test:%lu\n", userData);
+    syslogToHost(LOG_MTEST, "meadow_measure_freq_tests, no test:%lu\n",
+      userData);
 #endif
       break;
   }
@@ -519,10 +525,10 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
     }
 
 #if (MEADOW_FREQ_MEAS_TEST_USE_SYSLOG_OUTPUT > 0)
-    syslog(2, "%s@%d-Failure: Test:%lu, ret:%d (%s)\n",
+    syslog(LOG_MTEST, "%s@%d-Failure: Test:%lu, ret:%d (%s)\n",
               __FILE__, __LINE__, userData, ret, errorStr);
 #else
-    syslogToHost(2, "%s@%d-Failure: Test:%lu, ret:%d (%s)\n",
+    syslogToHost(LOG_MTEST, "%s@%d-Failure: Test:%lu, ret:%d (%s)\n",
               __FILE__, __LINE__, userData, ret, errorStr);
 #endif
   }
@@ -548,10 +554,10 @@ void meadow_kt_measure_freq_tests(uint32_t userData)
     }
 
 #if (MEADOW_FREQ_MEAS_TEST_USE_SYSLOG_OUTPUT > 0)
-    syslog(2, "%s@%d-Success: Test:%lu, ret:%d (%s)\n",
+    syslog(LOG_MTEST, "%s@%d-Success: Test:%lu, ret:%d (%s)\n",
               __FILE__, __LINE__, userData, ret, successStr);
 #else
-    syslogToHost(2,  "%s@%d-Success: Test:%lu, ret:%d (%s)\n",
+    syslogToHost(LOG_MTEST,  "%s@%d-Success: Test:%lu, ret:%d (%s)\n",
               __FILE__, __LINE__, userData, ret, successStr);
 #endif
   }

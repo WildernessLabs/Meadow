@@ -57,7 +57,7 @@ static int execute_sqlite_query2_experiment(void);
 // Callable from CLI
 void hcom_meadow_sqlite_tests(uint32_t userData)
 {
-  // syslog(2, "SQLite test:Entered hcom_meadow_sqlite_tests switch, userData:%d\n", userData);
+  // syslog(LOG_MTEST, "SQLite test:Entered hcom_meadow_sqlite_tests switch, userData:%d\n", userData);
   
   switch(userData)
   {
@@ -74,7 +74,7 @@ void hcom_meadow_sqlite_tests(uint32_t userData)
     break;
 
     default:
-    // syslog(2, "SQLite-TEST only userData 1 & 2 implemented\n");
+    // syslog(LOG_MTEST, "SQLite-TEST only userData 1, 2 and 3 implemented\n");
     break;
   }
 }
@@ -86,31 +86,31 @@ static sqlite3 * hcom_sqlite_register_vfs_and_open(const char *databaseName)
   sqlite3 *sqlite_db;
   int ret;
     
-  // syslog(2, "SQLite-TEST open database ENTERED\n");
+  // syslog(LOG_MTEST, "SQLite-TEST open database ENTERED\n");
 
   // Must register the vfs since we cannot use one of the built-in ones
   // To do this we ask the vfs for a pointer that represents itself.
-  // syslog(2, "SQLite-TEST test:Step #1-register vfs\n");
+  // syslog(LOG_MTEST, "SQLite-TEST test:Step #1-register vfs\n");
 
   // Using a modified version of the demo vfs
   sqlite3_vfs *pVfs = sqlite3_demovfs();
   if(pVfs == NULL)
   {
-    // syslog(2, "SQLite-TEST ERROR: sqlite3_demovfs\n");
+    // syslog(LOG_MTEST, "SQLite-TEST ERROR: sqlite3_demovfs\n");
     return NULL;
   }
-  // syslog(2, "SQLite-TEST test:Step #1-register vfs - success\n");
-  // syslog(2, "SQLite-TEST test:Step #2-find just registered self\n");
+  // syslog(LOG_MTEST, "SQLite-TEST test:Step #1-register vfs - success\n");
+  // syslog(LOG_MTEST, "SQLite-TEST test:Step #2-find just registered self\n");
 
   // Then we register the vfs with sqlite
   ret = sqlite3_vfs_register(pVfs, 1);
   if(ret)
   {
-    // syslog(2, "SQLite-TEST ERROR: sqlite3_vfs_register\n");
+    // syslog(LOG_MTEST, "SQLite-TEST ERROR: sqlite3_vfs_register\n");
     return NULL;
   }
-  // syslog(2, "SQLite-TEST test:Step #1-register vfs - success\n");
-  // syslog(2, "SQLite-TEST test:Step #2-find just registered self\n");
+  // syslog(LOG_MTEST, "SQLite-TEST test:Step #1-register vfs - success\n");
+  // syslog(LOG_MTEST, "SQLite-TEST test:Step #2-find just registered self\n");
 
   // Next we attempt to find it...
   // This is really not needed because we already have what we
@@ -118,12 +118,12 @@ static sqlite3 * hcom_sqlite_register_vfs_and_open(const char *databaseName)
   sqlite3_vfs *foundVfs = sqlite3_vfs_find(VIRTUAL_FILE_SYS_NAME);
   if(foundVfs == NULL)
   {
-    syslog(2, "SQLite-TEST Cannot find vfs:%s)\n",
+    syslog(LOG_MTEST, "SQLite-TEST Cannot find vfs:%s)\n",
           VIRTUAL_FILE_SYS_NAME);
     return NULL;
   }
-  // syslog(2, "SQLite-TEST test:Step #2-find self registered - success\n");
-  // syslog(2, "SQLite-TEST test:Step #3-open database\n");
+  // syslog(LOG_MTEST, "SQLite-TEST test:Step #2-find self registered - success\n");
+  // syslog(LOG_MTEST, "SQLite-TEST test:Step #3-open database\n");
 
   //-------------------------------------------------------
   // Open database
@@ -134,13 +134,13 @@ static sqlite3 * hcom_sqlite_register_vfs_and_open(const char *databaseName)
           VIRTUAL_FILE_SYS_NAME);
   if(ret)
   {
-    syslog(2, "SQLite-TEST ERROR:Cannot open database:%s, error:%d (%s)\n",
+    syslog(LOG_MTEST, "SQLite-TEST ERROR:Cannot open database:%s, error:%d (%s)\n",
           databaseName, sqlite3_extended_errcode(sqlite_db),
           sqlite3_errmsg(sqlite_db));
     return NULL;
   }
 
-  syslog(2, "SQLite-TEST test:Step #3-open database-success\n");
+  syslog(LOG_MTEST, "SQLite-TEST test:Step #3-open database-success\n");
   
   return sqlite_db;
 }
@@ -153,11 +153,11 @@ int execute_sqlite_populate_database()
   int ret;
   char *errMsg;
     
-  // syslog(2, "SQLite-TEST create and insert test:Started\n");
+  // syslog(LOG_MTEST, "SQLite-TEST create and insert test:Started\n");
   sqlite_db = hcom_sqlite_register_vfs_and_open(DATABASE_TEST_NAME);
   if(sqlite_db == NULL)
   {
-    syslog(2, "SQLite-TEST ERROR:Call to hcom_sqlite_register_vfs_and_open())\n",
+    syslog(LOG_MTEST, "SQLite-TEST ERROR:Call to hcom_sqlite_register_vfs_and_open(%s))\n",
           DATABASE_TEST_NAME);
   }
 
@@ -166,18 +166,18 @@ int execute_sqlite_populate_database()
 //   ret = sqlite3_exec(sqlite_db, TEST_SQL_TABLE_NO_JOURNAL, NULL, NULL, &errMsg);
 //   if( ret != SQLITE_OK )
 //   {
-//     // syslog(2, "SQLite-TEST ERROR:Step #4-Turn off Journal\n");
+//     // syslog(LOG_MTEST, "SQLite-TEST ERROR:Step #4-Turn off Journal\n");
 //     return -1;
 //   }
-//   // syslog(2, "SQLite-TEST test:Step #4-turn off journal - success\n");
+//   // syslog(LOG_MTEST, "SQLite-TEST test:Step #4-turn off journal - success\n");
 
   char *tableDropSql = "DROP TABLE IF EXISTS Names";
 
-  // syslog(2, "SQLite-TEST test:Step #4-Drop table if it exists [%s]\n", tableDropSql);
+  // syslog(LOG_MTEST, "SQLite-TEST test:Step #4-Drop table if it exists [%s]\n", tableDropSql);
   ret = sqlite3_exec(sqlite_db, tableDropSql, NULL, NULL, &errMsg);
   if(ret)
   {
-    syslog(2, "SQLite-TEST ERROR:Drop table-sqlite3_exec:'%s', errMsg:%s, error:%d (%s)\n",
+    syslog(LOG_MTEST, "SQLite-TEST ERROR:Drop table-sqlite3_exec:'%s', errMsg:%s, error:%d (%s)\n",
           DATABASE_TEST_NAME, errMsg, sqlite3_extended_errcode(sqlite_db),
           sqlite3_errmsg(sqlite_db));
     return -1;
@@ -189,20 +189,20 @@ int execute_sqlite_populate_database()
     " first_name text not null,"
     " last_name text not null)";
  
-  // syslog(2, "SQLite-TEST test:Step #5-create database [%s]\n", tableCreateSql);
+  // syslog(LOG_MTEST, "SQLite-TEST test:Step #5-create database [%s]\n", tableCreateSql);
 
   ret = sqlite3_exec(sqlite_db, tableCreateSql, NULL, NULL, &errMsg);
   if(ret)
   {
-    syslog(2, "SQLite-TEST ERROR:Create table-sqlite3_exec:'%s', errMsg:%s, error:%d (%s)\n",
+    syslog(LOG_MTEST, "SQLite-TEST ERROR:Create table-sqlite3_exec:'%s', errMsg:%s, error:%d (%s)\n",
           DATABASE_TEST_NAME, errMsg, sqlite3_extended_errcode(sqlite_db),
           sqlite3_errmsg(sqlite_db));
     return -1;
   }
 
-  // syslog(2, "SQLite-TEST test:Step #5-create database - success\n");
+  // syslog(LOG_MTEST, "SQLite-TEST test:Step #5-create database - success\n");
   //--------------------------------------------------
-  // syslog(2, "SQLite-TEST test:Step #6-open names file\n");
+  // syslog(LOG_MTEST, "SQLite-TEST test:Step #6-open names file\n");
 
   #define FILE_OF_NAMES "/meadow0/TabDelimited200Names.txt"
 
@@ -210,12 +210,12 @@ int execute_sqlite_populate_database()
   FILE *pFile = fopen (FILE_OF_NAMES, "r");
   if((void *)pFile == NULL)
   {
-    syslog(2, "SQLite-TEST ERROR:fopen:'%s', errno:%d\n",
+    syslog(LOG_MTEST, "SQLite-TEST ERROR:fopen:'%s', errno:%d\n",
           FILE_OF_NAMES, errno);
     return -1;
   }
 
-  // syslog(2, "SQLite-TEST test:Step #6-open names file - success\n");
+  // syslog(LOG_MTEST, "SQLite-TEST test:Step #6-open names file - success\n");
 
 #define BUFFER_SIZE 256
   int nameId = 0;
@@ -228,13 +228,13 @@ int execute_sqlite_populate_database()
   ret = sqlite3_exec(sqlite_db, "BEGIN TRANSACTION", NULL, NULL, &errMsg);
   if(ret < 0)
   {
-    syslog(2, "SQLite-TEST ERROR:sqlite3_exec:'BEGIN TRANSACTION', errMsg:%s, error:%d (%s)\n",
+    syslog(LOG_MTEST, "SQLite-TEST ERROR:sqlite3_exec:'BEGIN TRANSACTION', errMsg:%s, error:%d (%s)\n",
           DATABASE_TEST_NAME, errMsg, sqlite3_extended_errcode(sqlite_db),
           sqlite3_errmsg(sqlite_db));
     return -1;
   }
 
-  // syslog(2, "SQLite-TEST test:Step #7 - fill database table with names\n");
+  // syslog(LOG_MTEST, "SQLite-TEST test:Step #7 - fill database table with names\n");
 
   //--------------------------------------------------
   // Insert names into SQLlite database.
@@ -250,13 +250,13 @@ int execute_sqlite_populate_database()
 
     // Insert statement
     sprintf(sSQL, "INSERT INTO Names VALUES (%d, '%s','%s')", nameId, sFirstName, sLastName);
-    // // syslog(2, "--------------------------------------\n");
-    // // syslog(2, "SQLite-TEST test:Step #8 (%d)-Insert statement '%s'\n", nameId, sSQL);
+    // // syslog(LOG_MTEST, "--------------------------------------\n");
+    // // syslog(LOG_MTEST, "SQLite-TEST test:Step #8 (%d)-Insert statement '%s'\n", nameId, sSQL);
 
     ret = sqlite3_exec(sqlite_db, sSQL, NULL, NULL, &errMsg);
     if(ret)
     {
-      syslog(2, "SQLite-TEST ERROR:sqlite3_exec INSERT into '%s', errMsg:%s, error:%d (%s)\n",
+      syslog(LOG_MTEST, "SQLite-TEST ERROR:sqlite3_exec INSERT into '%s', errMsg:%s, error:%d (%s)\n",
             DATABASE_TEST_NAME, errMsg, sqlite3_extended_errcode(sqlite_db), sqlite3_errmsg(sqlite_db));
       return -1;
     }
@@ -265,7 +265,7 @@ int execute_sqlite_populate_database()
   ret = sqlite3_exec(sqlite_db, "END TRANSACTION", NULL, NULL, &errMsg);
   if(ret < 0)
   {
-    syslog(2, "SQLite-TEST ERROR:sqlite3_exec:'END TRANSACTION', errMsg:%s, error:%d (%s)\n",
+    syslog(LOG_MTEST, "SQLite-TEST ERROR:sqlite3_exec:'%s' 'END TRANSACTION', errMsg:%s, error:%d (%s)\n",
           DATABASE_TEST_NAME, errMsg, sqlite3_extended_errcode(sqlite_db),
           sqlite3_errmsg(sqlite_db));
     return -1;
@@ -275,14 +275,14 @@ int execute_sqlite_populate_database()
   {
     if(errno != 0)
     {
-      // syslog(2, "SQLite-TEST test:Step #8 ERROR:ret:%d, errno:%d\n", ret, errno);
+      // syslog(LOG_MTEST, "SQLite-TEST test:Step #8 ERROR:ret:%d, errno:%d\n", ret, errno);
       return -errno;
     }
   }
 
   sqlite3_close_v2(sqlite_db);
 
-  // syslog(2, "SQLite-TEST test:Step #8 SUCCESS wrote %d entries\n", nameId);
+  // syslog(LOG_MTEST, "SQLite-TEST test:Step #8 SUCCESS wrote %d entries\n", nameId);
   return OK;
 }
 
@@ -292,15 +292,15 @@ int execute_sqlite_query1_experiment()
   sqlite3 *sqlite_db;
   int ret;
     
-  // syslog(2, "SQLite-TEST create and insert test:Started\n");
+  // syslog(LOG_MTEST, "SQLite-TEST create and insert test:Started\n");
   sqlite_db = hcom_sqlite_register_vfs_and_open(DATABASE_TEST_NAME);
   if(sqlite_db == NULL)
   {
-    syslog(2, "SQLite-TEST ERROR:Call to hcom_sqlite_register_vfs_and_open())\n",
+    syslog(LOG_MTEST, "SQLite-TEST ERROR:Call to hcom_sqlite_register_vfs_and_open(%s))\n",
           DATABASE_TEST_NAME);
   }
 
-  // syslog(2, "SQLite-TEST test:Step #3-query database\n");
+  // syslog(LOG_MTEST, "SQLite-TEST test:Step #3-query database\n");
   
   //--------------------------------------------------------
   // Create a sorted list
@@ -313,7 +313,7 @@ int execute_sqlite_query1_experiment()
   ret = sqlite3_prepare_v2(sqlite_db, simpleQuerySql, -1, &stmt, NULL);
   if(ret)
   {
-    syslog(2, "SQLite-TEST ERROR:sqlite3_prepare_v3:'%s', error:%d (%s)\n",
+    syslog(LOG_MTEST, "SQLite-TEST ERROR:sqlite3_prepare_v3:'%s', error:%d (%s)\n",
           DATABASE_TEST_NAME, sqlite3_extended_errcode(sqlite_db),
           sqlite3_errmsg(sqlite_db));
     return -1;
@@ -330,13 +330,13 @@ int execute_sqlite_query1_experiment()
     const unsigned char *lastName = sqlite3_column_text (stmt, 2);
 
     // Just show via syslog
-    syslog(2, "#%d-Row:%d, First:%s Name:%s\n", counter, id, firstName, lastName);
+    syslog(LOG_MTEST, "#%d-Row:%d, First:%s Name:%s\n", counter, id, firstName, lastName);
     counter++;
   }
 
   if(ret != SQLITE_DONE)
   {
-    syslog(2, "SQLite-TEST ERROR:sqlite3_step:'%s', error:%d (%s)\n",
+    syslog(LOG_MTEST, "SQLite-TEST ERROR:sqlite3_step:'%s', error:%d (%s)\n",
           DATABASE_TEST_NAME, sqlite3_extended_errcode(sqlite_db),
           sqlite3_errmsg(sqlite_db));
     return -1;
@@ -344,14 +344,14 @@ int execute_sqlite_query1_experiment()
   sqlite3_finalize(stmt);
   sqlite3_close_v2(sqlite_db);
 
-  // syslog(2, "SQLite-TEST test:Step #3-query database - success\n");
+  // syslog(LOG_MTEST, "SQLite-TEST test:Step #3-query database - success\n");
   return OK;
 }
 
 //===========================================================
 int execute_sqlite_query2_experiment()
 {
-  // syslog(2, "SQLite-TEST no test created\n");
+  // syslog(LOG_MTEST, "SQLite-TEST no test created\n");
   return OK;
 }
 
@@ -359,13 +359,13 @@ int execute_sqlite_query2_experiment()
 // These are required for sqlite
 SQLITE_API int sqlite3_os_init(void)
 {
-  // syslog(2, "MGR-ENTERED sqlite3_os_init\n");
+  // syslog(LOG_MTEST, "MGR-ENTERED sqlite3_os_init\n");
   return SQLITE_OK;
 }
 
 SQLITE_API int sqlite3_os_end(void)
 {
-  // syslog(2, "MGR-ENTERED sqlite3_os_end\n");
+  // syslog(LOG_MTEST, "MGR-ENTERED sqlite3_os_end\n");
   return SQLITE_OK;
 }
 

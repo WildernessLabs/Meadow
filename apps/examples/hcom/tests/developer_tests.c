@@ -317,11 +317,11 @@ void hcom_developer_tests_developer(uint16_t param, uint32_t value)
 
     if (hostMsg == NULL)
     {
-        syslog(2, "Developer tests: failed to allocate memory for hostMsg\n");
+        syslog(LOG_MTEST, "Developer tests: failed to allocate memory for hostMsg\n");
         return;
     }
 
-    syslog(2, "Developer test param: %u - value: %lu\n", param, value);
+    syslog(LOG_MTEST, "Developer test param: %u - value: %lu\n", param, value);
 
     if (param == 0)
     {
