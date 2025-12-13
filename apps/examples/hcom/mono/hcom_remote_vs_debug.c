@@ -194,7 +194,8 @@ FAR void *hcom_mono_remote_dbg_pthread(FAR void *arg)
   struct remote_dbg_session *dbgSock;
 
 #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
-  syslog(2, "New pthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_REMOTE_DBG);
+  syslog(LOG_MDIAG, "New pthread [PID:%d],'%s'\n",
+    getpid(), HCOM_THREAD_NAME_REMOTE_DBG);
 #endif
 
   dbgSock = (struct remote_dbg_session *)malloc(sizeof(struct remote_dbg_session));

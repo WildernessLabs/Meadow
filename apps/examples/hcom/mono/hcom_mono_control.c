@@ -320,7 +320,8 @@ static void *monitor_mono_task(void *arg)
     int status;
 
 #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
-    syslog(2, "New pthread [PID:%d],'%s'\n", getpid(), "hcom_mono_control");
+    syslog(LOG_MDIAG, "New pthread [PID:%d],'%s'\n",
+      getpid(), "hcom_mono_control");
 #endif
 
     // Wait for the mono_pid task to exit

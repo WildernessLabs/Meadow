@@ -381,11 +381,12 @@ int pwrmgmt_enter_stop_mode(void)
   clock_gettime(CLOCK_REALTIME, &abstime);  // Nuttx internal time
   gmtime_r(&abstime.tv_sec, &tmNowOs);
 
-  syslog(2, "Before Stop:RTC-%4d-%02d-%02dT%02d:%02d:%02d, Nuttx-%4d-%02d-%02dT%02d:%02d:%02d\n",
-            tmNowRtc.tm_year + 1900, tmNowRtc.tm_mon + 1, tmNowRtc.tm_mday,
-            tmNowRtc.tm_hour, tmNowRtc.tm_min, tmNowRtc.tm_sec,
-            tmNowOs.tm_year + 1900, tmNowOs.tm_mon + 1, tmNowOs.tm_mday,
-            tmNowOs.tm_hour, tmNowOs.tm_min, tmNowOs.tm_sec);
+  syslog(LOG_MDIAG,
+    "Before Stop:RTC-%4d-%02d-%02dT%02d:%02d:%02d, Nuttx-%4d-%02d-%02dT%02d:%02d:%02d\n",
+    tmNowRtc.tm_year + 1900, tmNowRtc.tm_mon + 1, tmNowRtc.tm_mday,
+    tmNowRtc.tm_hour, tmNowRtc.tm_min, tmNowRtc.tm_sec,
+    tmNowOs.tm_year + 1900, tmNowOs.tm_mon + 1, tmNowOs.tm_mday,
+    tmNowOs.tm_hour, tmNowOs.tm_min, tmNowOs.tm_sec);
 #endif
 
   // Put SDRAM into self-refresh mode so data isn't lost (saves current).
@@ -488,11 +489,12 @@ int pwrmgmt_enter_stop_mode(void)
   clock_gettime(CLOCK_REALTIME, &abstime2);  // Nuttx internal time
   gmtime_r(&abstime2.tv_sec, &tmNowOs2);
 
-  syslog(2, "Awake! - RTC-%4d-%02d-%02dT%02d:%02d:%02d, Nuttx-%4d-%02d-%02dT%02d:%02d:%02d\n",
-            tmNowRtc2.tm_year + 1900, tmNowRtc2.tm_mon + 1, tmNowRtc2.tm_mday,
-            tmNowRtc2.tm_hour, tmNowRtc2.tm_min, tmNowRtc2.tm_sec,
-            tmNowOs2.tm_year + 1900, tmNowOs2.tm_mon + 1, tmNowOs2.tm_mday,
-            tmNowOs2.tm_hour, tmNowOs2.tm_min, tmNowOs2.tm_sec);
+  syslog(LOG_MDIAG,
+    "Awake! - RTC-%4d-%02d-%02dT%02d:%02d:%02d, Nuttx-%4d-%02d-%02dT%02d:%02d:%02d\n",
+    tmNowRtc2.tm_year + 1900, tmNowRtc2.tm_mon + 1, tmNowRtc2.tm_mday,
+    tmNowRtc2.tm_hour, tmNowRtc2.tm_min, tmNowRtc2.tm_sec,
+    tmNowOs2.tm_year + 1900, tmNowOs2.tm_mon + 1, tmNowOs2.tm_mday,
+    tmNowOs2.tm_hour, tmNowOs2.tm_min, tmNowOs2.tm_sec);
 #endif
 
   return OK;

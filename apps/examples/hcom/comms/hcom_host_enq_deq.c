@@ -148,7 +148,7 @@ bool hcom_host_enq_deq_clear_buffer()
 //   sem_getvalue(&_runProcSem, &value_runProcSem);
 //   sem_getvalue(&_runRecvSem, &value_runRecvSem);
 
-//   syslog(2, "Error State: lockCirBufSem:%d, _runProcSem:%d, _runRecvSem:%d\n",
+//   syslog(LOG_MDIAG, "Error State: lockCirBufSem:%d, _runProcSem:%d, _runRecvSem:%d\n",
 //             value_lockCirBufSem, value_runProcSem, value_runRecvSem);
 // }
 

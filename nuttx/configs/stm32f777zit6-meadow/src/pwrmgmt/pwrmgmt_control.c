@@ -137,7 +137,8 @@ static int pwrmgmt_notify_registered_modules(bool lpStart)
       continue;
     }
 
-    // syslog(2, "%s@%d-Notifying - callback:%p, %s\n", __FILE__, __LINE__, callback, lpStart ? "true" : "false");
+    // syslog(LOG_MDIAG, "%s@%d-Notifying - callback:%p, %s\n",
+    //   __FILE__, __LINE__, callback, lpStart ? "true" : "false");
 
     // Notify registered recipient announcing what's about to happen
     ret = callback(lpStart);
@@ -171,7 +172,8 @@ int pwrmgmt_subscribe_for_low_pwr_notifications(pwr_mgmt_notify_callback callbac
 {
   int slotOffset;
 
-  // syslog(2, "%s@%d-Subscribing callback:%p\n", __FILE__, __LINE__, callback);
+  // syslog(LOG_MDIAG, "%s@%d-Subscribing callback:%p\n",
+  //   __FILE__, __LINE__, callback);
 
   // Find free slot
   for(slotOffset = 0; slotOffset < PWR_MGMT_MAX_CALLBACKS_AVAILABLE; slotOffset++)

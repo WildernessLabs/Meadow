@@ -156,10 +156,10 @@ do
   gmtime_r(&almSeconds, &tmAlarm);
 
 #if MEADOW_POWER_MANAGEMENT_SHOW_TIME_CALC > 0
-  // syslog(2, "Wakeup in seconds - %u\n", secondsTillAlarm);
+  // syslog(LOG_MTEST, "Wakeup in seconds - %u\n", secondsTillAlarm);
   _diagCount++;
-  syslog(2, "Low-pwr Request#  - %06d\n", _diagCount);
-  syslog(2, "Hardware Time     - %02dT%02d:%02d:%02d\n",
+  syslog(LOG_MTEST, "Low-pwr Request#  - %06d\n", _diagCount);
+  syslog(LOG_MTEST, "Hardware Time     - %02dT%02d:%02d:%02d\n",
             tmHardware.tm_mday, tmHardware.tm_hour,
             tmHardware.tm_min, tmHardware.tm_sec);
 
@@ -170,10 +170,10 @@ do
   // clock_gettime(CLOCK_REALTIME, &abstime);  // Nuttx internal time
   // gmtime_r(&abstime.tv_sec, &tmNowNx);
 
-  // syslog(2, "Nuttx Time        - %02dT%02d:%02d:%02d\n",
+  // syslog(LOG_MTEST, "Nuttx Time        - %02dT%02d:%02d:%02d\n",
   //           tmNowNx.tm_mday, tmNowNx.tm_hour, tmNowNx.tm_min, tmNowNx.tm_sec);
 
-  syslog(2, "Wake up Time      - %02dT%02d:%02d:%02d\n",
+  syslog(LOG_MTEST, "Wake up Time      - %02dT%02d:%02d:%02d\n",
             tmAlarm.tm_mday, tmAlarm.tm_hour, tmAlarm.tm_min, tmAlarm.tm_sec);
   usleep(20 * 1000);
 
@@ -239,7 +239,7 @@ int pwrmgmt_config_rtc_alarm_wakeup_tm(struct tm tmAlarm)
   // Take care of second control bit
   regval &= ~(RTC_ALRMR_MSK1);    // Bit 7 : 0=Second must match
 
-  // syslog(2, "RTC Alm A register- 0x%08x\n", regval);
+  // syslog(LOG_MDIAG, "RTC Alm A register- 0x%08x\n", regval);
   // usleep(10 * 1000);
 
   // Set the time and day information in compare register.

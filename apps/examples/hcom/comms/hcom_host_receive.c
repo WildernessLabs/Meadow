@@ -217,7 +217,8 @@ FAR void *hcom_host_recv_pthread(FAR void *arg)
   bool delayBeforeRetry = false;
 
 #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
-  syslog(2, "New pthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_HCOM_RECEIVE);
+  syslog(LOG_MDIAG, "New pthread [PID:%d],'%s'\n",
+    getpid(), HCOM_THREAD_NAME_HCOM_RECEIVE);
 #endif
 
   // Notify the startup manager that it can continue the startup process

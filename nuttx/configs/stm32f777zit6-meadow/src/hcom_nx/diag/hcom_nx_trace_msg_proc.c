@@ -343,7 +343,8 @@ void *hcom_nx_trace_msg_kthread(int argc, char *argv[])
   }
 
 #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
-  syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_TRACE_RAMLOG);
+  syslog(LOG_MDIAG, "New kthread [PID:%d],'%s'\n",
+    getpid(), HCOM_THREAD_NAME_TRACE_RAMLOG);
 #endif
 
   // Attach a signal handler to catch the kill command

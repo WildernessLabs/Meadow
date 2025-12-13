@@ -330,69 +330,69 @@
 // On apps side they are in /apps/examples/hcom/diag/hcom_diag_gpio.h
 //
 // F7v1
-// syslog(2, "#define DEBUG_PIN_V1_A0 (0x%08x)\n", DEBUG_PIN_V1_A0);
-// syslog(2, "#define DEBUG_PIN_V1_A1 (0x%08x)\n", DEBUG_PIN_V1_A1);
-// syslog(2, "#define DEBUG_PIN_V1_A2 (0x%08x)\n", DEBUG_PIN_V1_A2);
-// syslog(2, "#define DEBUG_PIN_V1_A3 (0x%08x)\n", DEBUG_PIN_V1_A3);
-// syslog(2, "#define DEBUG_PIN_V1_A4 (0x%08x)\n", DEBUG_PIN_V1_A4);
-// syslog(2, "#define DEBUG_PIN_V1_A5 (0x%08x)\n", DEBUG_PIN_V1_A5);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_A0 (0x%08x)\n", DEBUG_PIN_V1_A0);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_A1 (0x%08x)\n", DEBUG_PIN_V1_A1);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_A2 (0x%08x)\n", DEBUG_PIN_V1_A2);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_A3 (0x%08x)\n", DEBUG_PIN_V1_A3);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_A4 (0x%08x)\n", DEBUG_PIN_V1_A4);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_A5 (0x%08x)\n", DEBUG_PIN_V1_A5);
 
-// syslog(2, "#define DEBUG_PIN_V1_SCK (0x%08x)\n", DEBUG_PIN_V1_SCK);
-// syslog(2, "#define DEBUG_PIN_V1_COPI (0x%08x)\n", DEBUG_PIN_V1_COPI);
-// syslog(2, "#define DEBUG_PIN_V1_CIPO (0x%08x)\n", DEBUG_PIN_V1_CIPO);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_SCK (0x%08x)\n", DEBUG_PIN_V1_SCK);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_COPI (0x%08x)\n", DEBUG_PIN_V1_COPI);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_CIPO (0x%08x)\n", DEBUG_PIN_V1_CIPO);
 
-// syslog(2, "#define DEBUG_PIN_V1_D00 (0x%08x)\n", DEBUG_PIN_V1_D00);
-// syslog(2, "#define DEBUG_PIN_V1_D01 (0x%08x)\n", DEBUG_PIN_V1_D01);
-// syslog(2, "#define DEBUG_PIN_V1_D02 (0x%08x)\n", DEBUG_PIN_V1_D02);
-// syslog(2, "#define DEBUG_PIN_V1_D03 (0x%08x)\n", DEBUG_PIN_V1_D03);
-// syslog(2, "#define DEBUG_PIN_V1_D04 (0x%08x)\n", DEBUG_PIN_V1_D04);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_D00 (0x%08x)\n", DEBUG_PIN_V1_D00);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_D01 (0x%08x)\n", DEBUG_PIN_V1_D01);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_D02 (0x%08x)\n", DEBUG_PIN_V1_D02);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_D03 (0x%08x)\n", DEBUG_PIN_V1_D03);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_D04 (0x%08x)\n", DEBUG_PIN_V1_D04);
 
-// syslog(2, "#define DEBUG_PIN_V1_D05 (0x%08x)\n", DEBUG_PIN_V1_D05);
-// syslog(2, "#define DEBUG_PIN_V1_D06 (0x%08x)\n", DEBUG_PIN_V1_D06);
-// syslog(2, "#define DEBUG_PIN_V1_D07 (0x%08x)\n", DEBUG_PIN_V1_D07);
-// syslog(2, "#define DEBUG_PIN_V1_D08 (0x%08x)\n", DEBUG_PIN_V1_D08);
-// syslog(2, "#define DEBUG_PIN_V1_D09 (0x%08x)\n", DEBUG_PIN_V1_D09);
-// syslog(2, "#define DEBUG_PIN_V1_D10 (0x%08x)\n", DEBUG_PIN_V1_D10);
-// syslog(2, "#define DEBUG_PIN_V1_D11 (0x%08x)\n", DEBUG_PIN_V1_D11);
-// syslog(2, "#define DEBUG_PIN_V1_D12 (0x%08x)\n", DEBUG_PIN_V1_D12);
-// syslog(2, "#define DEBUG_PIN_V1_D13 (0x%08x)\n", DEBUG_PIN_V1_D13);
-// syslog(2, "#define DEBUG_PIN_V1_D14 (0x%08x)\n", DEBUG_PIN_V1_D14);
-// syslog(2, "#define DEBUG_PIN_V1_D15 (0x%08x)\n", DEBUG_PIN_V1_D15);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_D05 (0x%08x)\n", DEBUG_PIN_V1_D05);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_D06 (0x%08x)\n", DEBUG_PIN_V1_D06);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_D07 (0x%08x)\n", DEBUG_PIN_V1_D07);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_D08 (0x%08x)\n", DEBUG_PIN_V1_D08);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_D09 (0x%08x)\n", DEBUG_PIN_V1_D09);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_D10 (0x%08x)\n", DEBUG_PIN_V1_D10);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_D11 (0x%08x)\n", DEBUG_PIN_V1_D11);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_D12 (0x%08x)\n", DEBUG_PIN_V1_D12);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_D13 (0x%08x)\n", DEBUG_PIN_V1_D13);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_D14 (0x%08x)\n", DEBUG_PIN_V1_D14);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_D15 (0x%08x)\n", DEBUG_PIN_V1_D15);
 
-// syslog(2, "#define DEBUG_PIN_V1_RED_LED (0x%08x)\n", DEBUG_PIN_V1_RED_LED);
-// syslog(2, "#define DEBUG_PIN_V1_GREEN_LED (0x%08x)\n", DEBUG_PIN_V1_GREEN_LED);
-// syslog(2, "#define DEBUG_PIN_V1_BLUE_LED (0x%08x)\n", DEBUG_PIN_V1_BLUE_LED);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_RED_LED (0x%08x)\n", DEBUG_PIN_V1_RED_LED);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_GREEN_LED (0x%08x)\n", DEBUG_PIN_V1_GREEN_LED);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V1_BLUE_LED (0x%08x)\n", DEBUG_PIN_V1_BLUE_LED);
 
 // // F7v2
-// syslog(2, "#define DEBUG_PIN_V2_A0 (0x%08x)\n", DEBUG_PIN_V2_A0);
-// syslog(2, "#define DEBUG_PIN_V2_A1 (0x%08x)\n", DEBUG_PIN_V2_A1);
-// syslog(2, "#define DEBUG_PIN_V2_A2 (0x%08x)\n", DEBUG_PIN_V2_A2);
-// syslog(2, "#define DEBUG_PIN_V2_A3 (0x%08x)\n", DEBUG_PIN_V2_A3);
-// syslog(2, "#define DEBUG_PIN_V2_A4 (0x%08x)\n", DEBUG_PIN_V2_A4);
-// syslog(2, "#define DEBUG_PIN_V2_A5 (0x%08x)\n", DEBUG_PIN_V2_A5);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_A0 (0x%08x)\n", DEBUG_PIN_V2_A0);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_A1 (0x%08x)\n", DEBUG_PIN_V2_A1);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_A2 (0x%08x)\n", DEBUG_PIN_V2_A2);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_A3 (0x%08x)\n", DEBUG_PIN_V2_A3);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_A4 (0x%08x)\n", DEBUG_PIN_V2_A4);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_A5 (0x%08x)\n", DEBUG_PIN_V2_A5);
 
-// syslog(2, "#define DEBUG_PIN_V2_SCK (0x%08x)\n", DEBUG_PIN_V2_SCK);
-// syslog(2, "#define DEBUG_PIN_V2_COPI (0x%08x)\n", DEBUG_PIN_V2_COPI);
-// syslog(2, "#define DEBUG_PIN_V2_CIPO (0x%08x)\n", DEBUG_PIN_V2_CIPO);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_SCK (0x%08x)\n", DEBUG_PIN_V2_SCK);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_COPI (0x%08x)\n", DEBUG_PIN_V2_COPI);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_CIPO (0x%08x)\n", DEBUG_PIN_V2_CIPO);
 
-// syslog(2, "#define DEBUG_PIN_V2_D00 (0x%08x)\n", DEBUG_PIN_V2_D00);
-// syslog(2, "#define DEBUG_PIN_V2_D01 (0x%08x)\n", DEBUG_PIN_V2_D01);
-// syslog(2, "#define DEBUG_PIN_V2_D02 (0x%08x)\n", DEBUG_PIN_V2_D02);
-// syslog(2, "#define DEBUG_PIN_V2_D03 (0x%08x)\n", DEBUG_PIN_V2_D03);
-// syslog(2, "#define DEBUG_PIN_V2_D04 (0x%08x)\n", DEBUG_PIN_V2_D04);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_D00 (0x%08x)\n", DEBUG_PIN_V2_D00);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_D01 (0x%08x)\n", DEBUG_PIN_V2_D01);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_D02 (0x%08x)\n", DEBUG_PIN_V2_D02);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_D03 (0x%08x)\n", DEBUG_PIN_V2_D03);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_D04 (0x%08x)\n", DEBUG_PIN_V2_D04);
 
-// syslog(2, "#define DEBUG_PIN_V2_D05 (0x%08x)\n", DEBUG_PIN_V2_D05);
-// syslog(2, "#define DEBUG_PIN_V2_D06 (0x%08x)\n", DEBUG_PIN_V2_D06);
-// syslog(2, "#define DEBUG_PIN_V2_D07 (0x%08x)\n", DEBUG_PIN_V2_D07);
-// syslog(2, "#define DEBUG_PIN_V2_D08 (0x%08x)\n", DEBUG_PIN_V2_D08);
-// syslog(2, "#define DEBUG_PIN_V2_D09 (0x%08x)\n", DEBUG_PIN_V2_D09);
-// syslog(2, "#define DEBUG_PIN_V2_D10 (0x%08x)\n", DEBUG_PIN_V2_D10);
-// syslog(2, "#define DEBUG_PIN_V2_D11 (0x%08x)\n", DEBUG_PIN_V2_D11);
-// syslog(2, "#define DEBUG_PIN_V2_D12 (0x%08x)\n", DEBUG_PIN_V2_D12);
-// syslog(2, "#define DEBUG_PIN_V2_D13 (0x%08x)\n", DEBUG_PIN_V2_D13);
-// syslog(2, "#define DEBUG_PIN_V2_D14 (0x%08x)\n", DEBUG_PIN_V2_D14);
-// syslog(2, "#define DEBUG_PIN_V2_D15 (0x%08x)\n", DEBUG_PIN_V2_D15);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_D05 (0x%08x)\n", DEBUG_PIN_V2_D05);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_D06 (0x%08x)\n", DEBUG_PIN_V2_D06);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_D07 (0x%08x)\n", DEBUG_PIN_V2_D07);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_D08 (0x%08x)\n", DEBUG_PIN_V2_D08);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_D09 (0x%08x)\n", DEBUG_PIN_V2_D09);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_D10 (0x%08x)\n", DEBUG_PIN_V2_D10);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_D11 (0x%08x)\n", DEBUG_PIN_V2_D11);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_D12 (0x%08x)\n", DEBUG_PIN_V2_D12);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_D13 (0x%08x)\n", DEBUG_PIN_V2_D13);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_D14 (0x%08x)\n", DEBUG_PIN_V2_D14);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_D15 (0x%08x)\n", DEBUG_PIN_V2_D15);
 
-// syslog(2, "#define DEBUG_PIN_V2_RED_LED (0x%08x)\n", DEBUG_PIN_V2_RED_LED);
-// syslog(2, "#define DEBUG_PIN_V2_GREEN_LED (0x%08x)\n", DEBUG_PIN_V2_GREEN_LED);
-// syslog(2, "#define DEBUG_PIN_V2_BLUE_LED (0x%08x)\n", DEBUG_PIN_V2_BLUE_LED);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_RED_LED (0x%08x)\n", DEBUG_PIN_V2_RED_LED);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_GREEN_LED (0x%08x)\n", DEBUG_PIN_V2_GREEN_LED);
+// syslog(LOG_MDIAG, "#define DEBUG_PIN_V2_BLUE_LED (0x%08x)\n", DEBUG_PIN_V2_BLUE_LED);
