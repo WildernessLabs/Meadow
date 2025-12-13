@@ -89,7 +89,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   stm32_configgpio(MEADOW_DEBUG_NJTRST_NOT_USED_GPIO);
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 1a\n"); usleep(5 * 1000);
+  syslog(LOG_MDIAG,  "hcom_nx_setup_mgr 1a\n"); usleep(5 * 1000);
 #endif
 
   if (mtd == NULL)
@@ -113,7 +113,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 1b\n"); usleep(5 * 1000);
+  syslog(LOG_MDIAG,  "hcom_nx_setup_mgr 1b\n"); usleep(5 * 1000);
 #endif
   //
   //  Saves a copy of mtd
@@ -184,16 +184,16 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   //
   hcom_nx_config_set_time_to_os_build_time();
   
-  // syslog(2, "YAML Config:Net I/F:%s, DHCP:%s\n",
+  // syslog(LOG_MDIAG, "YAML Config:Net I/F:%s, DHCP:%s\n",
   //           config->default_interface->interface_name,
   //           config->default_interface->use_dhcp == 1 ? "Yes" : "No");
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 1c\n"); usleep(5 * 1000);
+  syslog(LOG_MDIAG,  "hcom_nx_setup_mgr 1c\n"); usleep(5 * 1000);
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 2a\n"); usleep(5 * 1000);
+  syslog(LOG_MDIAG,  "hcom_nx_setup_mgr 2a\n"); usleep(5 * 1000);
 #endif
 
   ret = hcom_nx_route_text_to_host_setup();
@@ -204,7 +204,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 2b\n"); usleep(5 * 1000);
+  syslog(LOG_MDIAG,  "hcom_nx_setup_mgr 2b\n"); usleep(5 * 1000);
 #endif
 
   ret = hcom_nx_utils_startup_handling_of_trace_level();
@@ -215,7 +215,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 3a\n"); usleep(5 * 1000);
+  syslog(LOG_MDIAG,  "hcom_nx_setup_mgr 3a\n"); usleep(5 * 1000);
 #endif
 
 #if (defined (CONFIG_FS_PROCFS) && defined (CONFIG_SYSTEM_NSH))
@@ -229,7 +229,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 3b\n"); usleep(5 * 1000);
+  syslog(LOG_MDIAG,  "hcom_nx_setup_mgr 3b\n"); usleep(5 * 1000);
 #endif
 
 #if defined (CONFIG_MEADOW_TIMER_SUPPORT)
@@ -242,7 +242,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 4\n"); usleep(5 * 1000);
+  syslog(LOG_MDIAG,  "hcom_nx_setup_mgr 4\n"); usleep(5 * 1000);
 #endif
 
   // Initialize hcom nuttx driver
@@ -254,11 +254,11 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 5\n"); usleep(5 * 1000);
+  syslog(LOG_MDIAG,  "hcom_nx_setup_mgr 5\n"); usleep(5 * 1000);
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 6a\n"); usleep(5 * 1000);
+  syslog(LOG_MDIAG,  "hcom_nx_setup_mgr 6a\n"); usleep(5 * 1000);
 #endif
 
 #if HCOM_INCLUDE_QSPI_FLASH_TESTS_IN_BUILD > 0
@@ -271,7 +271,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 6b\n"); usleep(5 * 1000);
+  syslog(LOG_MDIAG,  "hcom_nx_setup_mgr 6b\n"); usleep(5 * 1000);
 #endif
 
 #if defined(CONFIG_SD_CARD_TESTS) || defined(CONFIG_ALL_MEADOW_TESTS)
@@ -291,7 +291,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 6c\n"); usleep(5 * 1000);
+  syslog(LOG_MDIAG,  "hcom_nx_setup_mgr 6c\n"); usleep(5 * 1000);
 #endif
 
 #if defined (CONFIG_MEADOW_PWR_MGMT_SUPPORT)
@@ -304,7 +304,7 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 7\n"); usleep(5 * 1000);
+  syslog(LOG_MDIAG,  "hcom_nx_setup_mgr 7\n"); usleep(5 * 1000);
 #endif
 
 #if defined (CONFIG_STM32F7_SDMMC2)
@@ -438,7 +438,8 @@ if (ret < 0)
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2,  "hcom_nx_setup_mgr 8-Successful exit\n"); usleep(5 * 1000);
+  syslog(LOG_MDIAG,  "hcom_nx_setup_mgr 8-Successful exit\n");
+  usleep(5 * 1000);
 #endif
 
   return OK;

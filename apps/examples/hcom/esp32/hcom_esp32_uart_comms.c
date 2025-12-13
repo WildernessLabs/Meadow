@@ -274,7 +274,8 @@ FAR void *hcom_esp32_uart_comms_pthread(FAR void *arg)
   int ret;
 
 #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
-  syslog(2, "New pthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_ESP32_RECEIVE);
+  syslog(LOG_MDIAG, "New pthread [PID:%d],'%s'\n",
+    getpid(), HCOM_THREAD_NAME_ESP32_RECEIVE);
 #endif
 
   // Note: only one chance to open serial port. Should this be in the main

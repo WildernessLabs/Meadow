@@ -154,11 +154,12 @@ int meadow_eth_monitor_link_status_isr(int irq, void *context, void *arg)
   currStatusPhy2 = (temp16 & MII_MSR_LINKSTATUS) != 0;
 
   // Use to verify that LAN9355 IRQ is being generated and getting this far
-  // syslog(2, "%s@%d-mon-ISR-Link status PREV Link Status:%s, CURR PHY A:%s, CURR PHY B:%s\n",
-  //         thisFile, __LINE__,
-  //         _prevLinkStatus == 0 ? "Down" : "Up",
-  //         currStatusPhy1  == 0 ? "Down" : "Up",
-  //         currStatusPhy2  == 0 ? "Down" : "Up");
+  // syslog(LOG_MDIAG,
+  //   "%s@%d-mon-ISR-Link status PREV Link Status:%s, CURR PHY A:%s, CURR PHY B:%s\n",
+  //   thisFile, __LINE__,
+  //   _prevLinkStatus == 0 ? "Down" : "Up",
+  //   currStatusPhy1  == 0 ? "Down" : "Up",
+  //   currStatusPhy2  == 0 ? "Down" : "Up");
 
   // Note: We combine the 2 PHY Link Status values into single combined link
   // status. This is because, Nuttx and Meadow only support 1 link status.

@@ -304,8 +304,9 @@ int hcom_file_upld_proc_start_file_upload(hcom_dnld_shared_t *dnldShared)
   activeFileNameLen = strlen(dnldShared->dnldFullPathName) + 1;
   totalMsgLength = activeFileNameLen + HCOM_PROTOCOL_FILE_MSG_LENGTH;
 
-  // syslog(2, "%s@%d-start_file_upload, from FS fileSize:%ld, totalMsgLength:%lu, fileNameLen:%lu\n",
-  //         thisFile, __LINE__, fileSize, totalMsgLength, activeFileNameLen); usleep(20 * 1000);
+  // syslog(LOG_MDIAG,
+  //   "%s@%d-start_file_upload, from FS fileSize:%ld, totalMsgLength:%lu, fileNameLen:%lu\n",
+  //   thisFile, __LINE__, fileSize, totalMsgLength, activeFileNameLen); usleep(20 * 1000);
   
   fileMsg = (HcomProtoFileMsg_t *)malloc(totalMsgLength);
   if(fileMsg == NULL)
@@ -337,8 +338,9 @@ int hcom_file_upld_proc_start_file_upload(hcom_dnld_shared_t *dnldShared)
   memcpy(fileMsg->fileInfo.fileName, dnldShared->dnldFullPathName,
             activeFileNameLen);
 
-  // syslog(2, "Up---> File CRC is:0x%08x, filesize:%lu, filename:'%s'. Sending 'Init upload OK' to HOST\n",
-  //           crc32Checksum, fileSize, fileMsg->fileInfo.fileName);
+  // syslog(LOG_MDIAG,
+  //   "Up---> File CRC is:0x%08x, filesize:%lu, filename:'%s'. Sending 'Init upload OK' to HOST\n",
+  //   crc32Checksum, fileSize, fileMsg->fileInfo.fileName);
 
   // This message contains what the host needs to start receiving a file
   hcom_host_send_std_msg_data((HcomProtoHdrMsg_t *)fileMsg,
@@ -467,7 +469,7 @@ int hcom_file_upld_proc_build_upload_packet(int fd, char *fileName)
     }
   } while (nbytes > 0);
 
-  // syslog(2, "UP--->%s@%d-Data upload complete. Sent %d Msgs:, bytes:%d\n",
+  // syslog(LOG_MDIAG, "UP--->%s@%d-Data upload complete. Sent %d Msgs:, bytes:%d\n",
   //           thisFile, __LINE__, sentCount, totalSent);
   free(binMsg);
 

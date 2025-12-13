@@ -66,18 +66,19 @@ char *hcom_diag_find_host_request_type(uint16_t hostRqstType);
 // Takes a hcom message and outputs a string containing the header information
 void hcom_diag_decode_data_packet_type(decodedSize)
 {
-  syslog(2, "---------- Meadow Data (%d bytes) ----------\n", decodedSize);
+  syslog(LOG_MDIAG, "---------- Meadow Data (%d bytes) ----------\n",
+    decodedSize);
 }
 
 // Takes a hcom message and outputs a string containing the header information
 void hcom_diag_decode_recvd_message_type(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize)
 {
-  syslog(2, "-------------- Meadow Received ---------------\n");
+  syslog(LOG_MDIAG, "-------------- Meadow Received ---------------\n");
 
   uint16_t rqstType = hdrMsg->stdHeader.rqstType;
   char *requestStr = hcom_diag_find_meadow_request_type(rqstType);
-  syslog(2, "Received '%s' (0x%04x) %u bytes\n", requestStr,
+  syslog(LOG_MDIAG, "Received '%s' (0x%04x) %u bytes\n", requestStr,
             rqstType, packetSize);
   hcom_diag_print_buffer((const uint8_t *)hdrMsg, packetSize, 1);
 }
@@ -167,14 +168,14 @@ void hcom_diag_decode_sending_message_type(const uint8_t *hostRawMsg,
     if(textLen > (packetSize - HCOM_PROTOCOL_STD_HDR_SIZE))
       textLen = packetSize - HCOM_PROTOCOL_STD_HDR_SIZE;
 
-    syslog(2, "->Sending %s (0x%04x) %03u bytes, msg text:'%.*s')\n",
+    syslog(LOG_MDIAG, "->Sending %s (0x%04x) %03u bytes, msg text:'%.*s')\n",
           requestStr, hostRqstType, packetSize, textLen, 
           hostRawMsg + HCOM_PROTOCOL_STD_HDR_SIZE);
   }
   else
   {
     // No text
-    syslog(2, "->Sending %s (0x%04x) %03u bytes\n",
+    syslog(LOG_MDIAG, "->Sending %s (0x%04x) %03u bytes\n",
           requestStr, hostRqstType, packetSize);
   }
 

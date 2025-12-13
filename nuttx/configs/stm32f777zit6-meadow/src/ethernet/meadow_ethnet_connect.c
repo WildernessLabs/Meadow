@@ -138,7 +138,8 @@ void *meadow_ethnet_connect_kthread(int argc, char *argv[])
   _meadow_eth_conn_action = MEADOW_ETH_CONN_UNDEFINED_STATE;
 
 #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
-  syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), MEADOW_THREAD_NAME_ETHNET_CONNECTION);
+  syslog(LOG_MDIAG, "New kthread [PID:%d],'%s'\n",
+    getpid(), MEADOW_THREAD_NAME_ETHNET_CONNECTION);
 #endif
 
   _dhcp_info = malloc(sizeof(struct dhcp_info_s));

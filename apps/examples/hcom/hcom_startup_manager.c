@@ -119,11 +119,12 @@ int hcom_main(int argc, char *argv[])
   int ret;
 
 #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
-  syslog(2, "Nuttx startup pthread [PID:%ld] hcom_main()\n", getpid()); usleep(10 * 1000);
+  syslog(LOG_MDIAG, "Nuttx startup pthread [PID:%ld] hcom_main()\n", getpid());
+  usleep(10 * 1000);
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 1\n"); usleep(10 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 1\n"); usleep(10 * 1000);
 #endif
 
   // To better control the startup sequence a semaphore is used.
@@ -159,7 +160,7 @@ int hcom_main(int argc, char *argv[])
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 2\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 2\n"); usleep(20 * 1000);
 #endif
 
   // Note: This needs to be early because all battery backed register
@@ -173,11 +174,11 @@ int hcom_main(int argc, char *argv[])
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 3\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 3\n"); usleep(20 * 1000);
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 4\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 4\n"); usleep(20 * 1000);
 #endif
 
   // Restores previous syslog mask from the battery backed register (BBR).
@@ -191,11 +192,11 @@ int hcom_main(int argc, char *argv[])
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 5\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 5\n"); usleep(20 * 1000);
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 6\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 6\n"); usleep(20 * 1000);
 #endif
 
   // Does nothing
@@ -207,7 +208,7 @@ int hcom_main(int argc, char *argv[])
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 7\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 7\n"); usleep(20 * 1000);
 #endif
 
   // Does nothing
@@ -233,7 +234,7 @@ int hcom_main(int argc, char *argv[])
   }
   
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 8\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 8\n"); usleep(20 * 1000);
 #endif
 
   // Does nothing
@@ -245,7 +246,7 @@ int hcom_main(int argc, char *argv[])
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 9a\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 9a\n"); usleep(20 * 1000);
 #endif
 
   // Sets internal variable state
@@ -265,7 +266,7 @@ int hcom_main(int argc, char *argv[])
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 9b\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 9b\n"); usleep(20 * 1000);
 #endif
 
   // Sets internal variable state
@@ -277,7 +278,7 @@ int hcom_main(int argc, char *argv[])
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 10\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 10\n"); usleep(20 * 1000);
 #endif
   // Allocates memory and sets a few internal variable states
   ret = hcom_file_write_setup();
@@ -288,7 +289,7 @@ int hcom_main(int argc, char *argv[])
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 11\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 11\n"); usleep(20 * 1000);
 #endif
 
   // Allocates memory and initializes hcom circular buffer
@@ -300,7 +301,7 @@ int hcom_main(int argc, char *argv[])
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 12\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 12\n"); usleep(20 * 1000);
 #endif
 
   // Sets one variable
@@ -312,7 +313,7 @@ int hcom_main(int argc, char *argv[])
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 13\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 13\n"); usleep(20 * 1000);
 #endif
 
 #if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)
@@ -331,7 +332,7 @@ int hcom_main(int argc, char *argv[])
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 14\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 14\n"); usleep(20 * 1000);
 #endif
 
   // Creates a fifo and a thread to receive stderr
@@ -350,7 +351,7 @@ int hcom_main(int argc, char *argv[])
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 15\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 15\n"); usleep(20 * 1000);
 #endif
 
 #if defined(CONFIG_HCOM_MONO_REMOTE_DEBUGGING)
@@ -364,7 +365,7 @@ int hcom_main(int argc, char *argv[])
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 16\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 16\n"); usleep(20 * 1000);
 #endif
 
 #if defined (CONFIG_HCOM_ESP32_COMMS)
@@ -378,7 +379,7 @@ int hcom_main(int argc, char *argv[])
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 17\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 17\n"); usleep(20 * 1000);
 #endif
 
   // Allocates memory and sets some internal variables
@@ -390,7 +391,7 @@ int hcom_main(int argc, char *argv[])
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 18a\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 18a\n"); usleep(20 * 1000);
 #endif
 
   // Creates a thread to run hcom USB serial receive
@@ -408,7 +409,7 @@ int hcom_main(int argc, char *argv[])
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 18b\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 18b\n"); usleep(20 * 1000);
 #endif
 
   // This is for transporting syslog messages to CLI. But, only if BBR requests it.
@@ -421,7 +422,7 @@ int hcom_main(int argc, char *argv[])
 
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 18c\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 18c\n"); usleep(20 * 1000);
 #endif
 
   // This is for transporting text messages to Host.
@@ -433,7 +434,7 @@ int hcom_main(int argc, char *argv[])
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 19\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 19\n"); usleep(20 * 1000);
 #endif
 
   // Minor setup, configures blue led as output
@@ -445,7 +446,7 @@ int hcom_main(int argc, char *argv[])
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 20\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 20\n"); usleep(20 * 1000);
 #endif
 
   // Open ESP32 events message queue on user space side
@@ -471,11 +472,11 @@ int hcom_main(int argc, char *argv[])
   }
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 21\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 21\n"); usleep(20 * 1000);
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
-  syslog(2, "Startup Manager 22-Exit\n"); usleep(20 * 1000);
+  syslog(LOG_MDIAG, "Startup Manager 22-Exit\n"); usleep(20 * 1000);
 #endif
 
   sem_destroy(&_startupWaitSem);

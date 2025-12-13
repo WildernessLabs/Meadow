@@ -117,7 +117,8 @@ void hcom_trace_to_cli_create_thread()
 FAR void *hcom_trace_to_cli_transport_pthread(FAR void *arg)
 {
 #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
-  syslog(2, "New pthread [PID:%d],'%s'\n", getpid(), HCOM_THREAD_NAME_CLI_TRANSPORT);
+  syslog(LOG_MDIAG, "New pthread [PID:%d],'%s'\n",
+    getpid(), HCOM_THREAD_NAME_CLI_TRANSPORT);
 #endif
 
   size_t stringLen;

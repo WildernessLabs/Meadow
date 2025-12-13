@@ -277,7 +277,8 @@ void *pwrmgmt_lsi_calc_prep_thread_func(int argc, char *argv[])
   uint32_t rtcPrer;
 
 #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
-  syslog(2, "New kthread [PID:%d],'%s'\n", getpid(), "LSI calibrate");
+  syslog(LOG_MDIAG, "New kthread [PID:%d],'%s'\n",
+    getpid(), "LSI calibrate");
 #endif
 
   // Under some undetermined conditions RTC pre-scaler could become 0x007f00ff
