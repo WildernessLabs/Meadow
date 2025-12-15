@@ -579,6 +579,7 @@ int espcp_usrsock_accept(struct socket *psock, struct sockaddr *addr, socklen_t 
                         }
                         break;
                     case espcp_status_codes_thread_pool_is_full:
+                    case espcp_status_codes_esp_out_of_memory:
                         result = -ENOMEM;
                         break;
                     default:
@@ -715,6 +716,7 @@ int espcp_usrsock_bind(struct socket *psock, const struct sockaddr *addr, sockle
                         }
                         break;
                     case espcp_status_codes_thread_pool_is_full:
+                    case espcp_status_codes_esp_out_of_memory:
                         result = -ENOMEM;
                         break;
                     default:
@@ -823,6 +825,7 @@ int espcp_usrsock_close(struct socket *psock)
                         }
                         break;
                     case espcp_status_codes_thread_pool_is_full:
+                    case espcp_status_codes_esp_out_of_memory:
                         result = -ENOMEM;
                         break;
                     default:
@@ -944,6 +947,7 @@ int espcp_usrsock_connect(struct socket *psock, const struct sockaddr *addr, soc
                         }
                         break;
                     case espcp_status_codes_thread_pool_is_full:
+                    case espcp_status_codes_esp_out_of_memory:
                         result = -ENOMEM;
                         break;
                     default:
@@ -1074,6 +1078,7 @@ static int espcp_usrsock_getsockpeername(struct socket *psock, struct sockaddr *
                         }
                         break;
                     case espcp_status_codes_thread_pool_is_full:
+                    case espcp_status_codes_esp_out_of_memory:
                         result = -ENOMEM;
                         break;
                     default:
@@ -1289,6 +1294,7 @@ static int espcp_usrsock_send_ioctl_to_esp(struct socket *psock, int cmd, void *
                     }
                     break;
                 case espcp_status_codes_thread_pool_is_full:
+                case espcp_status_codes_esp_out_of_memory:
                     result = -ENOMEM;
                     break;
                 default:
@@ -1459,6 +1465,7 @@ int espcp_usrsock_listen(struct socket *psock, int backlog)
                         }
                         break;
                     case espcp_status_codes_thread_pool_is_full:
+                    case espcp_status_codes_esp_out_of_memory:
                         result = -ENOMEM;
                         break;
                     default:
@@ -1567,7 +1574,14 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
             espcp_lock_poll_requests_queue();
             gl_remove_item(_espcp_poll_requests, message->message_id, espcp_usrsock_poll_request_compare_message_id);
             espcp_unlock_poll_requests_queue();
-            result = -EFAULT;
+            if (message->status_code == espcp_status_codes_esp_out_of_memory)
+            {
+                result = -ENOMEM;
+            }
+            else
+            {
+                result = -EFAULT;
+            }
         }
     }
 
@@ -1892,6 +1906,7 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
                     }
                     break;
                 case espcp_status_codes_thread_pool_is_full:
+                case espcp_status_codes_esp_out_of_memory:
                     result = -ENOMEM;
                     break;
                 default:
@@ -2038,6 +2053,7 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
                         }
                         break;
                     case espcp_status_codes_thread_pool_is_full:
+                    case espcp_status_codes_esp_out_of_memory:
                         result = -ENOMEM;
                         break;
                     default:
@@ -2371,6 +2387,7 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
                         }
                         break;
                     case espcp_status_codes_thread_pool_is_full:
+                    case espcp_status_codes_esp_out_of_memory:
                         result = -ENOMEM;
                         break;
                     default:
@@ -2686,6 +2703,7 @@ int espcp_usrsock_setsockopt(struct socket *psock, int level, int option,
                             }
                             break;
                         case espcp_status_codes_thread_pool_is_full:
+                        case espcp_status_codes_esp_out_of_memory:
                             result = -ENOMEM;
                             break;
                         default:
@@ -2828,6 +2846,7 @@ int espcp_usrsock_socket(int domain, int type, int protocol, struct socket *psoc
                     }
                     break;
                 case espcp_status_codes_thread_pool_is_full:
+                case espcp_status_codes_esp_out_of_memory:
                     result = -ENOMEM;
                     break;
                 default:
@@ -2945,6 +2964,7 @@ int32_t espcp_usrsock_read(struct socket *psock, const void *buffer, size_t coun
                         }
                         break;
                     case espcp_status_codes_thread_pool_is_full:
+                    case espcp_status_codes_esp_out_of_memory:
                         result = -ENOMEM;
                         break;
                     default:
