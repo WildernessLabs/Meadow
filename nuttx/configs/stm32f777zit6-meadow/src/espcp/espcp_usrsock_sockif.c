@@ -1574,7 +1574,14 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
             espcp_lock_poll_requests_queue();
             gl_remove_item(_espcp_poll_requests, message->message_id, espcp_usrsock_poll_request_compare_message_id);
             espcp_unlock_poll_requests_queue();
-            result = -EFAULT;
+            if (message->status_code == espcp_status_codes_esp_out_of_memory)
+            {
+                result = -ENOMEM;
+            }
+            else
+            {
+                result = -EFAULT;
+            }
         }
     }
 
