@@ -318,7 +318,7 @@ int hcom_main(int argc, char *argv[])
 
 #if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)
   // Creates a fifo and a thread to receive stdout
-  ret = hcom_mono_stdout_read_setup();
+  ret = hcom_mono_stdxxx_read_setup();
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_CRIT, "%s@%d-setup mono stdout fifo %d\n", thisFile, __LINE__, ret);
@@ -335,19 +335,6 @@ int hcom_main(int argc, char *argv[])
   syslog(LOG_MDIAG, "Startup Manager 14\n"); usleep(20 * 1000);
 #endif
 
-  // Creates a fifo and a thread to receive stderr
-  ret = hcom_mono_stderr_read_setup();
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup mono stderr fifo %d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-  ret = hcom_startup_mgr_takesem(&_startupWaitSem);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup mono stderr fifo %d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
@@ -500,8 +487,7 @@ int hcom_main(int argc, char *argv[])
 void hcom_manager_shutdown()
 {  
   hcom_host_recv_shutdown();
-  hcom_mono_stdout_read_shutdown();
-  hcom_mono_stderr_read_shutdown();
+  hcom_mono_stdxxx_read_shutdown();
   hcom_common_utils_shutdown();
   hcom_diag_logging_shutdown();
   hcom_host_route_shutdown();  

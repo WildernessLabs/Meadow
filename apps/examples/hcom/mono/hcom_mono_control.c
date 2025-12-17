@@ -709,20 +709,13 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
   // For Mono apps to forward Console.WriteLine text etc., we must redirect
   // the Mono tasks stdout fd to a fifo which will route this text to the host
   // PC if CLI or equal is running.
-  ret = hcom_mono_stdout_redirect();
+  ret = hcom_mono_stdxxx_redirect();
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-stdoutredirect:%d\n", thisFile, __LINE__, ret);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-stdxxx_redirect:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
-  ret = hcom_mono_stderr_redirect();
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-stderr redirect:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-  
   // For this Mono main thread to access the nuttx side it needs to
   // open, use and close the nx upd driver.
   nx_access_fd = hcom_via_nx_upd_driver_open();

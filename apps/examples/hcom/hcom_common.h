@@ -274,12 +274,9 @@ void hcom_mono_ctrl_enable_mono(uint32_t userData);
 void hcom_mono_ctrl_report_mono_enabled_state(uint32_t userData);
 
 // mono stdout & stderr to host
-int hcom_mono_stderr_read_setup(void);
-void hcom_mono_stderr_read_shutdown(void);
-int hcom_mono_stdout_read_setup(void);
-void hcom_mono_stdout_read_shutdown(void);
-int hcom_mono_stdout_redirect(void);
-int hcom_mono_stderr_redirect(void);
+int hcom_mono_stdxxx_read_setup(void);
+void hcom_mono_stdxxx_read_shutdown(void);
+int hcom_mono_stdxxx_redirect(void);
 
 // mono Visual Studio interactions
 int hcom_mono_remote_dbg_setup(void);
