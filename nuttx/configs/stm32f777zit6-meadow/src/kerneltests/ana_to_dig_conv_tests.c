@@ -1,7 +1,7 @@
 /****************************************************************************
  * configs\stm32f777zit6-meadow\src\kerneltests\ana_to_dig_conv_tests.c
  * 
- *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2023, 2025 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -236,8 +236,8 @@ void adc_test_initialize(uint32_t numberGpio)
   // To test need to prepare a few things
   // A list of input points. Note points can be used more than once
 
-  // These need to be configured here for testing, but not for non-testing
-  // they'll be configured by Meadow.Core
+  // These need to be configured here for testing, but only for testing.
+  // For normal operation, they'll be configured by Meadow.Core
   stm32_configgpio(GPIO_V2_A00_IN4_PA4);
   stm32_configgpio(GPIO_V2_A01_IN5_PA5);
   stm32_configgpio(GPIO_V2_A02_IN3_PA3);
@@ -246,8 +246,9 @@ void adc_test_initialize(uint32_t numberGpio)
   stm32_configgpio(GPIO_V2_A05_IN10_PC0);
 
   // We'll use the first of these based on the ADC_TESTS_MAX_GPIO_COUNT
-  // value. If it is 1 then only used the first entry. It it is 6, we'll use
-  // the first 6 entries. For more than 6 we reuse the previous analog GPIOs
+  // value. If it is 1 then only used the first entry. If it is 6, we'll use
+  // the first 6 entries. For more than 6 we must reuse the previous analog
+  // GPIOs, all the way to 16 entries.
   //
   // The Nuttx GPIO Config holds the Port in bits 7:4 and the Pin in bits 3:0
   // this is all we need to setup the ADC
@@ -344,6 +345,10 @@ void *adc_test_kthread_func(int argc, char *argv[])
       
       syslog(LOG_MTEST, "TestApp: Vbat:%f, Temp:%f\n",
         batteryVoltage, temperatureValue);
+    }
+    else
+    {
+      syslog(LOG_MTEST, "ADC Test Thread should not be running\n");
     }
 
     // Just keep looping
