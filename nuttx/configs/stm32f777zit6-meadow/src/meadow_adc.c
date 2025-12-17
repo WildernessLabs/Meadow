@@ -342,9 +342,9 @@ static void meadow_adc_dma_isr(DMA_HANDLE handle, uint8_t status,
     // DMA2's SxCR register's will need to be re-enabled after each
     // conversion. This is because it's cleared whenever an a DMA transfer
     // has been completed.
-    regval  = getreg32(STM32_DMA2_S0CR);
+    regval  = getreg32(STM32_DMA2_S4CR);
     regval |= DMA_SCR_EN;
-    putreg32(regval, STM32_DMA2_S0CR);
+    putreg32(regval, STM32_DMA2_S4CR);
 
     // From Ref Man 15.8.1
     // At the end of the last DMA transfer (number of transfers configured in the
@@ -465,13 +465,13 @@ static void adc_test_display_basic_adc_regs(uint32_t baseADCAddr)
 static void adc_test_display_basic_dma_regs(void)
 {
   syslog(LOG_MTEST, "S0CR:  0x%08x  S0NDTR: 0x%08x\n",
-        getreg32(STM32_DMA2_S0CR),
-        getreg32(STM32_DMA2_S0NDTR));
+        getreg32(STM32_DMA2_S4CR),
+        getreg32(STM32_DMA2_S4NDTR));
 
   syslog(LOG_MTEST, "S0PAR: 0x%08x  S0M0AR: 0x%08x S0M1AR: 0x%08x\n",
-        getreg32(STM32_DMA2_S0PAR),
-        getreg32(STM32_DMA2_S0M0AR),
-        getreg32(STM32_DMA2_S0M1AR));
+        getreg32(STM32_DMA2_S4PAR),
+        getreg32(STM32_DMA2_S4M0AR),
+        getreg32(STM32_DMA2_S4M1AR));
 }
 #endif
 
@@ -896,9 +896,9 @@ void meadow_adc_restart(void)
   uint32_t regval;
 
   // Enable DMA
-  regval  = getreg32(STM32_DMA2_S0CR);
+  regval  = getreg32(STM32_DMA2_S4CR);
   regval |= DMA_SCR_EN;
-  putreg32(regval, STM32_DMA2_S0CR);
+  putreg32(regval, STM32_DMA2_S4CR);
 
   // Start the ADC conversion
   regval  = getreg32(STM32_ADC1_BASE + STM32_ADC_CR2_OFFSET);
@@ -923,7 +923,7 @@ void meadow_adc_initialize(uint16_t *dmaAdcBuf, uint32_t userGpioXferCount)
   _dmaHandle = stm32_dmachannel(ADC1_DMA_CHAN);
 
   // Configure the DMA SCR (Stream Control Register) values
-  regval = getreg32(STM32_DMA2_S0CR);
+  regval = getreg32(STM32_DMA2_S4CR);
   regval |=  DMA_SCR_MSIZE_16BITS;  // Size of memory transfer
   regval |= DMA_SCR_PSIZE_16BITS;   // Size of peripheral transfer
   // Memory increment mode. 0=mem addr is fixed, 1=mem addr increments

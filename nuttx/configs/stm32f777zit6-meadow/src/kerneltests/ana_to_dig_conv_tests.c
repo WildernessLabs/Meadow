@@ -1,7 +1,7 @@
 /****************************************************************************
  * configs\stm32f777zit6-meadow\src\kerneltests\ana_to_dig_conv_tests.c
  * 
- *   Copyright (C) 2023 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2023, 2025 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without

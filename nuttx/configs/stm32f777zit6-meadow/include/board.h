@@ -496,8 +496,9 @@
 // 'DMA_HANDLE stm32_dmachannel(unsigned int dmamap)'.
 // syslog(2, "stm32_dmachannel(dmamap:0x%08x, DMA:%d, Chan:%d, Stream:%d)\n",
 //  dmamap, ((dmamap >> 7) & 1) + 1, ((dmamap >> 4) & 7), (dmamap & 0xf));
-//
 // It won't show DMA initialized by Meadow.Core until it's initialized...
+// Also for meadow_adc.c the stream number will need to be changed for a
+// number of register uses.
 // Note: All SPI DMA configuration is hardcoded in stm32_spi.c
 
 /* SDMMC2 Pin mapping
