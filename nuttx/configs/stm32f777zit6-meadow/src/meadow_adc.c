@@ -34,7 +34,7 @@
  ****************************************************************************/
 
 // Note: this code uses DMA to transfer data from the ADC's data store to a
-// preallocated buffer. This code primarly uses STM32_ADC1_BASE throughout.
+// preallocated buffer. This code primarily uses STM32_ADC1_BASE throughout.
 // This will make it easy if ADC1 needs to switched to ADC2 or switch
 // STM32_ADC1_BASE to baseADCAddr and support multiple ADCs.
 
@@ -58,6 +58,7 @@
 #include <meadow/hcom_shared_common.h>
 #include <meadow/meadow_syscall_support.h>
 #include "chip/stm32f76xx77xx_dma.h"
+#include "../include/board.h"
 
 #ifndef CONFIG_STM32F7_DMA2
 #error "Meadow ADC requires CONFIG_STM32F7_DMA2 to be configured"
@@ -89,9 +90,12 @@
 #define ADC_ALL_POSSIBLE_ADC_INTERRUPTS (ADC_SR_OVR | ADC_SR_STRT | \
           ADC_SR_JSTRT | ADC_SR_JEOC | ADC_SR_EOC | ADC_SR_AWD)
 
-// #define ADC_SMPR_DEFAULT    ADC_SMPR_3       // 4 usec for 6 analogs (265kHz)
-#define ADC_SMPR_DEFAULT    ADC_SMPR_112     // 32 usec for 6 analogs (32kHz)
-// #define ADC_SMPR_DEFAULT    ADC_SMPR_480     // 124 usec for 6 analogs
+// Pick one of these to determine ADC sample time. There are several others
+// in stm32f74xx77xx_adc.h for fine tuning if needed.
+// #define ADC_SMPR_DEFAULT    ADC_SMPR_3     // 4 usec for 6 analogs (265kHz)
+#define ADC_SMPR_DEFAULT    ADC_SMPR_112      // 32 usec for 6 analogs (32kHz)
+// #define ADC_SMPR_DEFAULT    ADC_SMPR_480   // 124 usec for 6 analogs
+
 #define ADC_SMPR1_DEFAULT     ((ADC_SMPR_DEFAULT << ADC_SMPR1_SMP10_SHIFT) | \
                                (ADC_SMPR_DEFAULT << ADC_SMPR1_SMP11_SHIFT) | \
                                (ADC_SMPR_DEFAULT << ADC_SMPR1_SMP12_SHIFT) | \
@@ -101,6 +105,7 @@
                                (ADC_SMPR_DEFAULT << ADC_SMPR1_SMP16_SHIFT) | \
                                (ADC_SMPR_DEFAULT << ADC_SMPR1_SMP17_SHIFT) | \
                                (ADC_SMPR_DEFAULT << ADC_SMPR1_SMP18_SHIFT))
+
 #define ADC_SMPR2_DEFAULT     ((ADC_SMPR_DEFAULT << ADC_SMPR2_SMP0_SHIFT) | \
                                (ADC_SMPR_DEFAULT << ADC_SMPR2_SMP1_SHIFT) | \
                                (ADC_SMPR_DEFAULT << ADC_SMPR2_SMP2_SHIFT) | \
@@ -154,8 +159,8 @@
 //  * Private Data
 //  ************************************************************************************/
 // From data sheet - GPIO to ADC1 channel input map
-// Entries represent the STM32F7's valid GPIOs the can be used for ADC1 or
-// ADC2. ADC3 has a few others that we'll ignore them for now.
+// Entries represent the STM32F7's valid GPIOs that can be used for ADC1 or
+// ADC2. ADC3 has a few others that we'll ignore for now.
 // The following values are matched to those supplied by the caller, but here
 // the position (0-16) defines the ADC multiplex position of the switch (see
 // Ref Man Figure 71). Other values are not used.
@@ -914,9 +919,8 @@ void meadow_adc_initialize(uint16_t *dmaAdcBuf, uint32_t userGpioXferCount)
     stm32_dmafree(_dmaHandle); 
   }
 
-  // Using Nuttx DMA to handle ADC DMA. Because of our SDCard implementation
-  // uses SDMMC2 which uses the other ADC DMA2 channel.
-  _dmaHandle = stm32_dmachannel(DMAMAP_ADC1_1);
+  // Using Nuttx DMA for ADC DMA.
+  _dmaHandle = stm32_dmachannel(ADC1_DMA_CHAN);
 
   // Configure the DMA SCR (Stream Control Register) values
   regval = getreg32(STM32_DMA2_S0CR);
@@ -1091,7 +1095,7 @@ int meadow_adc_free_configuration_resources()
  * Public Functions
  ************************************************************************************/
 // This function can handle as few as 1 GPIO and as many as 16 GPIOs. It is
-// called for GPIO initialization. And if the gpioCount -s 0 it will release
+// called for GPIO initialization. And if the gpioCount is 0 it will release
 // any resources that have been claimed by an earlier configuration.
 // For VBat and Temperature values. A part of the configuration is needed for
 // both. This is not duplicated here.
@@ -1105,6 +1109,8 @@ int meadow_adc_configure(uint8_t gpioList[], uint32_t gpioCount,
 #if defined CONFIG_ADC_TESTS
   syslog(LOG_MTEST, "Entry meadow_adc_configure() gpioCount:%lu, resultBuffer:%p\n",
             gpioCount, resultBuffer);
+
+  // Show register values
   adc_test_display_basic_adc_regs(STM32_ADC1_BASE);
   adc_test_display_basic_dma_regs();
 #endif
