@@ -110,6 +110,8 @@ static int hcom_mono_stdout_low_power_notification(bool lpStart);
  * Public Functions
  ****************************************************************************/
 #if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)
+
+// Public function
 int hcom_mono_stdxxx_read_setup()
 {
   _shutting_down = false;
@@ -136,6 +138,7 @@ int hcom_mono_stdxxx_read_setup()
 
 //==========================================================================
 // Closing connection forces a receive error which, causes the thread to return.
+// Public function
 void hcom_mono_stdxxx_read_shutdown()
 {
   _shutting_down = true;
@@ -401,8 +404,9 @@ int hcom_mono_stdout_read_fifo_loop()
 }
 
 //==================================================================
+// Public function
 // Since the mono_main task's main thread called this function it will
-// cause it's stdout calls to be routed to the correct fifo
+// cause it's stdout calls to be routed to the correct fifos
 int hcom_mono_stdxxx_redirect(void)
 {
   int ret;
