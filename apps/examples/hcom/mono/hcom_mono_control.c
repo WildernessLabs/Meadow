@@ -707,8 +707,9 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
   uint32_t blueLedPinDefn;
 
   // For Mono apps to forward Console.WriteLine text etc., we must redirect
-  // the Mono tasks stdout fd to a fifo which will route this text to the host
-  // PC if CLI or equal is running.
+  // the Mono task's stdout and stderr to fifos which are read by hcom and
+  // routes the text to the host PC/CLI and if configured to syslog.
+  // This call will do all the work needed to redirect stdout and stderr.
   ret = hcom_mono_stdxxx_redirect();
   if (ret < 0)
   {

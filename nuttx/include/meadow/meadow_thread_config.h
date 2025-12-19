@@ -186,18 +186,11 @@
 #define HCOM_THREAD_STACKSIZE_TRACE_RAMLOG          2048
 
 /**
- * This thread reads stdout and forwards to the Host
+ * This thread reads stdout and stderr and forwards text to the Host
  */
-#define HCOM_THREAD_PRIORITY_STDERR_REDIRECT        120
-#define HCOM_THREAD_NAME_STDOUT_REDIRECT            "MonoOut"
-#define HCOM_THREAD_STACKSIZE_STDOUT_REDIRECT       2048
-
-/**
- * This thread reads stderr and forwards to the Host
- */
-#define HCOM_THREAD_PRIORITY_STDOUT_REDIRECT        120
-#define HCOM_THREAD_NAME_STDERR_REDIRECT            "MonoErr"
-#define HCOM_THREAD_STACKSIZE_STDERR_REDIRECT       2048
+#define HCOM_THREAD_PRIORITY_STDXXX_REDIRECT        120
+#define HCOM_THREAD_STACKSIZE_STDXXX_REDIRECT       2048
+#define HCOM_THREAD_NAME_STDXXX_REDIRECT            "MonoStdxxx"
 
 /**
  * 
