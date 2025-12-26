@@ -34,9 +34,8 @@
  ****************************************************************************/
 
 // This module is responsible for opening 2 fifos for reading stderr and
-// stdout and routing the messages to the host PC/Mac for display via
-// Meadow.CLI and if configured to syslog.
-// The write end of these fifos are in hcom_mono_control.c
+// stdout from mono and routing the messages to the host PC/Mac for display
+// via Meadow.CLI and if configured to syslog.
 
 /****************************************************************************
  * Included Files
@@ -55,7 +54,7 @@
  ****************************************************************************/
 #pragma message "(--) hcom_stdxxx_redirect.c"
 
-#if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)
+#if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)   // (--) THIS SHOULD BE REMOVED
 
 /* Configuration ************************************************************/
 
@@ -68,11 +67,12 @@ static char *thisFile = __FILE__;
 
 static bool _shutting_down;
 static bool _lowPowerActive;
-
 static int _stdout_read_fd;
-static int _stdout_fifo_fd;
+static int _stdout_write_fd;
 static int _stderr_read_fd;
-static int _stderr_fifo_fd;
+static int _stderr_write_fd;
+static uint8_t *_fifo_message_buffer;
+static char *_stderr_syslog_buffer;
 
 /****************************************************************************
  * Public Data
@@ -80,6 +80,7 @@ static int _stderr_fifo_fd;
 
 /**
  * @brief Should we copy the application output to the UART (COM1)?
+ * Set by hcom_startup_manager.c
  * 
  */
 bool g_copy_application_output_to_uart = false;
@@ -95,11 +96,11 @@ static int hcom_mono_stdxxx_read_fifo_loop(void);
 static int hcom_mono_stdxxx_create_infrastructure(void);
 static int hcom_mono_stdxxx_make_thread(void);
 static int hcom_mono_stdxxx_low_power_notification(bool lpStart);
-static void hcom_mono_stdxxx_close_delay_read(bool closeNeeded);
-static void hcom_mono_stdxxx_read_pub_fifo(int fd_active, uint8_t fifo_buffer[]);
-static void hcom_mono_stdxxx_publish_message(ssize_t msgLength, uint8_t fifo_buffer[]);
-static void hcom_mono_stdxxx_to_syslog(int useableBufSize, uint8_t fifo_buffer[]);
-static int hcom_host_send_stdxxx_to_cli(int useableBufSize, uint8_t fifo_buffer[]);
+static void hcom_mono_stdxxx_close_read_fds(bool closeNeeded);
+static void hcom_mono_stdxxx_read_mono_fifo(int fd_active, uint8_t fifo_message_buffer[]);
+static void hcom_mono_stdxxx_publish_message(ssize_t msgLength, uint8_t fifo_message_buffer[]);
+static void hcom_mono_stdxxx_to_syslog(int useableBufSize, uint8_t fifo_message_buffer[]);
+static int hcom_host_send_stdxxx_to_cli(int useableBufSize, uint8_t fifo_message_buffer[]);
 #endif
 
 /****************************************************************************
@@ -112,23 +113,46 @@ int hcom_mono_stdxxx_read_setup()
 {
   _shutting_down = false;
   _stdout_read_fd = -1;
-  _stdout_fifo_fd = -1;
+  _stdout_write_fd = -1;
+  _stderr_read_fd = -1;
+  _stderr_write_fd = -1;
   _lowPowerActive = false;
+  _fifo_message_buffer = NULL;
+  _stderr_syslog_buffer = NULL;
+
+  syslog(2, "#####->stdxxx - Entered read setup 1\n"); usleep(20 * 1000);
 
   // Register with power management so we can properly shutdown before entering
   // a low-power mode.
   int ret = hcom_via_nx_register_pwr_mgmt_callback(hcom_mono_stdxxx_low_power_notification);
   if(ret < 0)
   {
-    syslog(LOG_ERR, "%s@%d-Registering for pwr mgmt:%d\n", thisFile, __LINE__, ret);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Registering for pwr mgmt:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
-  // It would be nice if this initialization could be postponed until we
-  // knew if mono was running. This was attempted but created timing issues.
-  // And since the whole point of Meadow is to run mono, there isn't any
-  // compelling reason to worry about it doing this initialization if mono
-  // isn't running.
+  // This buffer is always needed
+  _fifo_message_buffer = (uint8_t *) malloc(HCOM_MONO_APP_STDXXX_REDIRECT_BUFF_SIZE + 1);
+  if (_fifo_message_buffer == NULL)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Memory allocate error, errno:%d\n",
+      thisFile, __LINE__, errno);
+    return -ENOMEM;
+  }
+
+  // This buffer is only for preparing messages for syslog
+  if(g_copy_application_output_to_uart)
+  {
+    _stderr_syslog_buffer = (char *) malloc(HCOM_MONO_APP_STDXXX_REDIRECT_BUFF_SIZE + 1);
+    if (_stderr_syslog_buffer == NULL)
+    {
+      hcom_logging_syslog(LOG_ERR, "%s@%d-Memory allocate error, errno:%d\n",
+        thisFile, __LINE__, errno);
+      free(_fifo_message_buffer);
+      return -ENOMEM;
+    }
+  }
+
   return hcom_mono_stdxxx_create_infrastructure();
 }
 
@@ -145,6 +169,18 @@ void hcom_mono_stdxxx_read_shutdown()
     hcom_logging_syslog(LOG_ERR, "%s@%d close read, errno:%d\n",
       thisFile, __LINE__, errno);
   }
+
+  if(_fifo_message_buffer != NULL)
+  {
+    free(_fifo_message_buffer);
+    _fifo_message_buffer = NULL;
+  }
+
+  if(_stderr_syslog_buffer != NULL)
+  {
+    free(_stderr_syslog_buffer);
+    _stderr_syslog_buffer = NULL;
+  }
 }
 
 //==========================================================================
@@ -153,8 +189,11 @@ int hcom_mono_stdxxx_low_power_notification(bool lpStart)
 {
   if(lpStart)
   {
-    // Low-Power mode is starting very soon
-    _lowPowerActive = true;
+    _lowPowerActive = true;  // Low-Power mode is starting very soon
+  }
+  else
+  {
+    _lowPowerActive = false;
   }
 
   return OK;
@@ -165,6 +204,8 @@ int hcom_mono_stdxxx_low_power_notification(bool lpStart)
 int hcom_mono_stdxxx_create_infrastructure()
 {
   int ret;
+
+  syslog(2, "#####->stdxxx - Entered create infrastructure\n"); usleep(20 * 1000);
 
   // Create stdout fifo 
   ret = mkfifo(HCOM_MONO_STDOUT_REDIRECT_FIFO, 0666);
@@ -186,7 +227,8 @@ int hcom_mono_stdxxx_create_infrastructure()
     return ret;
   }
 
-  // Create a thread to read the fifo messages
+  // Create a thread to read the fifo messages and do the rest of the
+  // initialization
   ret = hcom_mono_stdxxx_make_thread();
   if (ret < 0)
   {
@@ -197,11 +239,12 @@ int hcom_mono_stdxxx_create_infrastructure()
     return ret;
   }
 
-  // The startup semaphore will be released by the new thread
+  // The startup manager's semaphore will be released by the new thread
   return OK;
 }
 
 //==========================================================================
+// Thread creation
 int hcom_mono_stdxxx_make_thread()
 {
   int ret;
@@ -228,45 +271,51 @@ int hcom_mono_stdxxx_make_thread()
 
 //==========================================================================
 // This thread first does a little initialization then goes into a
-// loop reading all fifo messages redirected from stdxxx (mono).
+// loop reading all fifo messages from mono.
 // This function creates the infrastructure needed to route mono generated
 // stdout and stderr to the host PC / Mac.
 void *hcom_mono_stdxxx_pthread(FAR void *arg)
 {
   int ret;
 
-#if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
+// #if HCOM_DIAG_OUTPUT_SYSLOG_PID_OF_NEW_THREADS > 0
   syslog(LOG_MDIAG, "New pthread [PID:%d],'%s'\n",
     getpid(), HCOM_THREAD_NAME_STDXXX_REDIRECT);
-#endif
+// #endif
 
-  // Release startup manager to continue startup
+  // Release startup manager's semaphore to continue startup
   hcom_startup_mgr_release_sem();
+  syslog(2, "#####->stdxxx - sdtxxx pthread 1\n"); usleep(20 * 1000);
 
   // Thread stays in this loop till shutdown
   while(!_shutting_down)
   {
+    syslog(2, "#####->stdxxx - sdtxxx pthread 2\n"); usleep(20 * 1000);
     ret = hcom_mono_stdout_open_read_fifo();
     if(ret < 0)
     {
       // Insure all fifo's closed
-      hcom_mono_stdxxx_close_delay_read(false);
+      hcom_mono_stdxxx_close_read_fds(false);
       continue;
     }
 
+    syslog(2, "#####->stdxxx - sdtxxx pthread 3\n"); usleep(20 * 1000);
     ret = hcom_mono_stderr_open_read_fifo();
     if(ret < 0)
     {
-      hcom_mono_stdxxx_close_delay_read(false);
+      hcom_mono_stdxxx_close_read_fds(false);
       continue;
     }
 
-    // Read a message from either fifo and forward to CLI
+    syslog(2, "#####->stdxxx - sdtxxx pthread 4\n"); usleep(20 * 1000);
+
+    // Read messages from either fifo and forward to CLI
     ret = hcom_mono_stdxxx_read_fifo_loop();
+    syslog(2, "#####->stdxxx - sdtxxx pthread 5\n"); usleep(20 * 1000);
     if(ret < 0)
     {
       // Only return on error
-      hcom_mono_stdxxx_close_delay_read(true);
+      hcom_mono_stdxxx_close_read_fds(true);
     }
   }
 
@@ -275,7 +324,7 @@ void *hcom_mono_stdxxx_pthread(FAR void *arg)
 
 //==========================================================================
 // Close both fifo read descriptors
-void hcom_mono_stdxxx_close_delay_read(bool closeNeeded)
+void hcom_mono_stdxxx_close_read_fds(bool closeNeeded)
 {
   if(closeNeeded && _stdout_read_fd >= 0)
   {
@@ -308,7 +357,7 @@ int hcom_mono_stdout_open_read_fifo()
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-open %s, errno:%d\n",
       thisFile, __LINE__, HCOM_MONO_STDOUT_REDIRECT_FIFO, errno);
-    return -1;
+    return -errno;
   }
 
   return OK;
@@ -330,16 +379,16 @@ int hcom_mono_stderr_open_read_fifo()
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-open %s, errno:%d\n",
       thisFile, __LINE__, HCOM_MONO_STDERR_REDIRECT_FIFO, errno);
-    return -1;
+    return -errno;
   }
 
   return OK;
 }
 
 //==========================================================================
-// This loop  waits for a fifo to be written to and then reads
+// This loop waits for either of the fifos to be written to, and then reads
 // and forwards what it finds to CLI.
-// It is expected that only text message will be received. But not
+// It is expected that full text message will be received. But not
 // necessarily C style strings.
 int hcom_mono_stdxxx_read_fifo_loop()
 {
@@ -347,11 +396,10 @@ int hcom_mono_stdxxx_read_fifo_loop()
   int nfds;
   fd_set read_fds;
   fd_set run_fds;
-  uint8_t fifo_buffer[HCOM_MONO_APP_STDXXX_REDIRECT_BUFF_SIZE];
 
-  FD_ZERO(&read_fds);
-  FD_SET(_stdout_read_fd, &read_fds);
-  FD_SET(_stderr_read_fd, &read_fds);
+  // FD_ZERO(&read_fds);
+  // FD_SET(_stdout_read_fd, &read_fds);
+  // FD_SET(_stderr_read_fd, &read_fds);
 
   // Remember max_fd is the fd with the largest numeric value + 1
   max_fd = _stdout_read_fd;
@@ -359,43 +407,58 @@ int hcom_mono_stdxxx_read_fifo_loop()
      max_fd = _stderr_read_fd;
   max_fd++;
 
+  syslog(2, "#####->stdxxx - Entered sdtxxx read fifo loop\n"); usleep(20 * 1000);
+
   do
   {
-    // Take a copy that can be corrupted by the select call
-    memcpy(&run_fds, &read_fds, sizeof(fd_set));
+    // (--) Not best way to do this
+    FD_ZERO(&read_fds);
+    FD_SET(_stdout_read_fd, &read_fds);
+    FD_SET(_stderr_read_fd, &read_fds);
 
-    //  Returned Value:
+    // A copy that can be corrupted, by processing
+    // memcpy(&run_fds, &read_fds, sizeof(fd_set));
+
+    //  Returned Value: nfds
     //   0  : Timer expired
     //   > 0: The number of bits set in the three sets of descriptors
     //   -1 : An error occurred (errno will be set appropriately)
+    syslog(2, "#####->stdxxx - Calling select\n"); usleep(20 * 1000);
     nfds = select(max_fd, &run_fds, NULL, NULL, NULL);
+    syslog(2, "stdxxx - Returned from select call, nfds:%d\n", nfds); usleep(20 * 1000);
     if(nfds < 0)
     {
+      // Error
       if(errno == -EINTR)
         continue;       // Ignore interruptions
 
       // Report error and continue
-      syslog(LOG_ERR, "select() call errno:%d", errno);
+      hcom_logging_syslog(LOG_ERR, "select() call errno:%d", errno);
+      usleep(100 * 1000);      // (--) MAY WANT TO SLEEP HERE?????
       continue;
     }
     
     if(nfds == 0)
     {
-      // (--) MAY WANT TO SLEEP HERE?????
-      continue;   // ?? Timeout (not used)
+      syslog(2, "stdxxx - From select nfds == 0");
+      usleep(100 * 1000);      // (--) MAY WANT TO SLEEP HERE?????
+      continue;   //  Timeout (not used)
     }
 
+    // nfds > 0
     // Valid return from select so, call the appropriate read fifo.
-    if( FD_ISSET(_stdout_read_fd, &run_fds ) )
+    if(FD_ISSET(_stdout_read_fd, &run_fds))
     {
       // Read and publish stdout
-      hcom_mono_stdxxx_read_pub_fifo(_stdout_read_fd, fifo_buffer);
+      syslog(2, "stdxxx - From select stdout is set\n"); usleep(20 * 1000);
+      hcom_mono_stdxxx_read_mono_fifo(_stdout_read_fd, _fifo_message_buffer);
     }
 
-    if( FD_ISSET(_stderr_read_fd, &run_fds ) )
+    if(FD_ISSET(_stderr_read_fd, &run_fds))
     {
       // Read and publish stderr
-      hcom_mono_stdxxx_read_pub_fifo(_stderr_read_fd, fifo_buffer);
+      syslog(2, "stdxxx - From select stderr is set\n"); usleep(20 * 1000);
+      hcom_mono_stdxxx_read_mono_fifo(_stderr_read_fd, _fifo_message_buffer);
     }
 
     // Only thing left is fifo was empty (readReturn == 0)
@@ -407,18 +470,29 @@ int hcom_mono_stdxxx_read_fifo_loop()
 //==========================================================================
 // Read data from the requested fifo into the provided buffer
 // This function will not return any indication of success or error.
-void hcom_mono_stdxxx_read_pub_fifo(int fd_active, uint8_t fifo_buffer[])
+void hcom_mono_stdxxx_read_mono_fifo(int fd_active, uint8_t fifo_message_buffer[])
 {
   ssize_t readReturn;
 
-  // read returned Value:
-  //  The positive non-zero number of bytes read on success, 0 on if an
-  //  end-of-file condition, or -1 on failure with errno set appropriately.
-  readReturn = read(fd_active, fifo_buffer, HCOM_MONO_APP_STDXXX_REDIRECT_BUFF_SIZE);
+  syslog(2, "#####->stdxxx - Entered read pub fifo\n"); usleep(20 * 1000);
+
+  // read returned value:
+  //  positive non-zero number of bytes read on success
+  //  0 on if an end-of-file condition
+  //  -1 on failure with errno set appropriately
+  readReturn = read(fd_active, fifo_message_buffer, HCOM_MONO_APP_STDXXX_REDIRECT_BUFF_SIZE);
+  syslog(2, "#####->stdxxx - read pub fifo, readReturn:%d\n", readReturn); usleep(20 * 1000);
   if (readReturn > 0)
   {
-    // Have read data from stdxxx, now publish to waiting receivers
-    hcom_mono_stdxxx_publish_message(readReturn, fifo_buffer);
+    // Have read data from stdxxx, now publish to CLI
+    hcom_mono_stdxxx_publish_message(readReturn, fifo_message_buffer);
+    return;
+  }
+  
+  if(readReturn == 0)
+  {
+    // 10 / sec max
+    usleep(100 * 1000);
     return;
   }
 
@@ -430,13 +504,14 @@ void hcom_mono_stdxxx_read_pub_fifo(int fd_active, uint8_t fifo_buffer[])
 }
 
 //==========================================================================
-// Send the fifo messages to the Host
-void hcom_mono_stdxxx_publish_message(ssize_t msgLength, uint8_t fifo_buffer[])
+// Send the fifo's messages to the Host
+void hcom_mono_stdxxx_publish_message(ssize_t msgLength, uint8_t fifo_message_buffer[])
 {
   int ret;
   int useableBufSize;
+  syslog(2, "stdxxx - Entering Publish message\n"); usleep(20 * 1000);
 
-  // Make sure message fits in allocated fifo_buffer, if not, truncate
+  // Make sure message fits in allocated fifo_message_buffer, if not, truncate
   if(msgLength >= HCOM_MONO_APP_STDXXX_REDIRECT_BUFF_SIZE)
   {
     useableBufSize = HCOM_MONO_APP_STDXXX_REDIRECT_BUFF_SIZE - 1;
@@ -446,80 +521,66 @@ void hcom_mono_stdxxx_publish_message(ssize_t msgLength, uint8_t fifo_buffer[])
     useableBufSize = msgLength;
   }
 
-  // Send to host PC/MAC/Linux
-  ret = hcom_host_send_stdxxx_to_cli(useableBufSize, fifo_buffer);
+  // Send to host
+  ret = hcom_host_send_stdxxx_to_cli(useableBufSize, fifo_message_buffer);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "Send to CLI failed, ret:%d", ret);
     return;
   }
 
-  // Route message to syslog.
+  // Route message to syslog?
   // (--) WHY NOT USE BBR? OR FUNCTION TO SET BOOL TRUE OR FALSE?
   if (g_copy_application_output_to_uart)
   {
-    hcom_mono_stdxxx_to_syslog(useableBufSize, fifo_buffer);
+    hcom_mono_stdxxx_to_syslog(useableBufSize, fifo_message_buffer);
   }
 }
 
 //============================================================================
 // Forward stdxxx message to syslog
-void hcom_mono_stdxxx_to_syslog(int useableBufSize, uint8_t fifo_buffer[])
+void hcom_mono_stdxxx_to_syslog(int useableBufSize, uint8_t fifo_message_buffer[])
 {
   int syslog_buffer_index = 0;
-  char *syslog_stdxxx_buffer = NULL;
-
-  syslog_stdxxx_buffer = (char *) malloc(HCOM_MONO_APP_STDXXX_REDIRECT_BUFF_SIZE + 1);
-  if (syslog_stdxxx_buffer == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Memory allocate error, errno:%d\n",
-      thisFile, __LINE__, errno);
-    return -ENOMEM;
-  }
-
   // This needs special care to insure the message is properly formatted
   for (int index = 0; index < useableBufSize; index++)
   {
-    if ((fifo_buffer[index] >= ' ') && (fifo_buffer[index] <= '~'))
+    if ((fifo_message_buffer[index] >= ' ') && (fifo_message_buffer[index] <= '~'))
     {
-      syslog_stdxxx_buffer[syslog_buffer_index] = fifo_buffer[index];
+      _stderr_syslog_buffer[syslog_buffer_index] = fifo_message_buffer[index];
     }
-    if ((fifo_buffer[index] == '\n') ||
+    if ((fifo_message_buffer[index] == '\n') ||
         (syslog_buffer_index >= HCOM_MONO_APP_STDXXX_REDIRECT_BUFF_SIZE - 2))
     {
-      syslog_stdxxx_buffer[syslog_buffer_index] = '\n';
-      syslog_stdxxx_buffer[syslog_buffer_index + 1] = '\0';
+      _stderr_syslog_buffer[syslog_buffer_index] = '\n';
+      _stderr_syslog_buffer[syslog_buffer_index + 1] = '\0';
       syslog_buffer_index = 0;
-      hcom_logging_syslog(LOG_INFO, "%s", (char *) syslog_stdxxx_buffer);
+
+      hcom_logging_syslog(LOG_INFO, "%s", (char *) _stderr_syslog_buffer);
     }
     else
     {
       syslog_buffer_index++;
     }
   }
-
-  if(syslog_stdxxx_buffer != NULL)
-  {
-    free(syslog_stdxxx_buffer);
-  }
 }
 
 //==============================================================================
 // Forward a message to CLI, if possible
-int hcom_host_send_stdxxx_to_cli(int useableBufSize, uint8_t fifo_buffer[])
+int hcom_host_send_stdxxx_to_cli(int useableBufSize, uint8_t fifo_message_buffer[])
 {
   int ret;
 
   // Send to CLI. Includes ctrl character(s)
   ret = hcom_host_send_raw_string_msg(HCOM_HOST_REQUEST_TEXT_MONO_STDOUT, 0,
-    (char *) fifo_buffer, useableBufSize, thisFile, __LINE__);
+    (char *) fifo_message_buffer, useableBufSize, thisFile, __LINE__);
 
   if (ret < 0)
   {
     if(ret == -EAGAIN)
     {
       // The only reason the send would be blocked is that there is no host
-      // listening for a receive message. This is normal for HCOM
+      // listening for a message. This is normal for HCOM and must be ignored.
       return OK;
     }
 
@@ -539,73 +600,73 @@ int hcom_host_send_stdxxx_to_cli(int useableBufSize, uint8_t fifo_buffer[])
 }
 
 //=====================================================================
-// Open specified stdxxx per caller supplied arguments
-static int hcom_mono_open_mono_fifo(int stdxxx_fifo_fd,
-  char *fifoRedirect)
+// Open stderr or stdout
+static int hcom_mono_open_mono_fifo(char *fifoRedirect)
 {
   int ret;
+  int stdxxx_write_fd;
 
-  if (stdxxx_fifo_fd < 0)
+  // Open stdxxx fifo
+  do
   {
-    // Open stdxxx fifo
-    do
-    {
-      // Opening with O_NONBLOCK seems like the right thing to do but
-      // it is NOT. It causes the mono app to halt.
-      stdxxx_fifo_fd = open(fifoRedirect, O_WRONLY);
-      if (stdxxx_fifo_fd >= 0)
-        break; // Success
+    // Opening with O_NONBLOCK seems like the right thing to do but
+    // it is NOT. It causes the mono app to halt.
+    stdxxx_write_fd = open(fifoRedirect, O_WRONLY);
+    if (stdxxx_write_fd >= 0)
+      break; // Success
 
-      if (errno != ENOENT) // ENOENT = Error No Entity -> No such file or directory
-      {
-        // All other errors exit
-        hcom_logging_syslog(LOG_ERR, "%s@%d-Open of %s failed errno:%d\n",
-                            thisFile, __LINE__, fifoRedirect, errno);
-        stdxxx_fifo_fd = -1;
-        return -errno;
-      }
+  } while (errno == -EINTR);
 
-      // Sleep and try again
-      usleep(100 * 1000);
-    } while (errno == ENOENT);
-
-    // Assign the fifo's write end to the stdxxx fd.
-    ret = dup2(stdxxx_fifo_fd, STDOUT_FILENO);
-    if (ret < 0)
-    {
-      hcom_logging_syslog(LOG_ERR, "%s@%d-redirect_writer (%s): dup2 failed ret:%d errno:%d\n",
-                          thisFile, __LINE__, fifoRedirect, ret, errno);
-      return -errno;
-    }
-
-    close(stdxxx_fifo_fd);
+  if(errno < 0)
+  {
+    // All errors exit
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Open of %s failed errno:%d\n",
+                        thisFile, __LINE__, fifoRedirect, errno);
+    return -errno;
   }
+
+  // Assign the fifo's write end to the stdxxx fd.
+  ret = dup2(stdxxx_write_fd, STDOUT_FILENO);
+  if (ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d-redirect_writer (%s): dup2 failed ret:%d errno:%d\n",
+                        thisFile, __LINE__, fifoRedirect, ret, errno);
+    close(stdxxx_write_fd);
+    return -errno;
+  }
+
+  // Close the write fd
+  close(stdxxx_write_fd);
 
   return OK;
 }
 
 //==================================================================
 // Public function
-// This function is called from the mono_main's main thread. This insures
-// that the fifos can redirect the stdout and stderr messages from mono
-// here to be routed.
+// This function is called from the mono_main's main thread. Thus insuring
+// that the fifos can written to from mono.
 int hcom_mono_stdxxx_redirect(void)
 {
   int ret;
 
   // Open stdout fifo
-  ret = hcom_mono_open_mono_fifo(_stdout_fifo_fd, HCOM_MONO_STDOUT_REDIRECT_FIFO);
+  ret = hcom_mono_open_mono_fifo(HCOM_MONO_STDOUT_REDIRECT_FIFO);
   if(ret < 0)
   {
+    syslog(LOG_ERR, "%s@%d stdout error on open(), ret:%d, errno:%d\n",
+      thisFile, __LINE__, ret, errno);
     return ret;
   }
   
   // Open stderr fifo
-  ret = hcom_mono_open_mono_fifo(_stderr_fifo_fd, HCOM_MONO_STDERR_REDIRECT_FIFO);
+  ret = hcom_mono_open_mono_fifo(HCOM_MONO_STDERR_REDIRECT_FIFO);
   if(ret < 0)
   {
+    syslog(LOG_ERR, "%s@%d stderr error on open(), ret:%d, errno:%d\n",
+      thisFile, __LINE__, ret, errno);
     return ret;
   }
+
   return OK;
 }
 
