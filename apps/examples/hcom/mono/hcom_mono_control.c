@@ -469,7 +469,7 @@ bool hcom_mono_ctrl_should_mono_run()
   bool run_mono = hcom_mono_ctrl_did_mono_run_last_time();
   if (!run_mono)
   {
-    char *noStartReason = "Mono will not start - mono did not run correctly last time";
+    char *noStartReason = "Runtime will not start, it did not run correctly last time";
     hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, noStartReason);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
                                      noStartReason, thisFile, __LINE__);
@@ -706,6 +706,7 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
   int nx_access_fd;
   uint32_t blueLedPinDefn;
 
+#if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)
   // For Mono apps to forward Console.WriteLine text etc., we must redirect
   // the Mono task's stdout and stderr to fifos which are read by hcom and
   // routes the text to the host PC/CLI and if configured to syslog.
@@ -716,6 +717,7 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
     hcom_logging_syslog(LOG_ERR, "%s@%d-stdxxx_redirect:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
+#endif
 
   // For this Mono main thread to access the nuttx side it needs to
   // open, use and close the nx upd driver.

@@ -1072,8 +1072,9 @@ void hcom_nx_exec_ex_flash_verify_segments(void);
 /****************************************************************************
  * Public Data
  ****************************************************************************/
-
+#if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)
 /**
  * @brief Should we copy the application output to the UART (COM1)?
  */
 extern bool g_copy_application_output_to_uart;
+#endif

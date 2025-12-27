@@ -136,6 +136,7 @@ int hcom_main(int argc, char *argv[])
   // Special non-standard nuttx function required for signaling semaphores
   sem_setprotocol(&_startupWaitSem, SEM_PRIO_NONE);
 
+  #if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)
   //
   //  We take a copy of the config and set and application global variables first
   //  to make them available to the various components that need them.  Doing this
@@ -150,6 +151,7 @@ int hcom_main(int argc, char *argv[])
   }
   g_copy_application_output_to_uart = config->copy_application_output_to_uart && config->use_uart1_for_trace;
   meadow_os_config_free_resources(config);
+#endif
 
   // Allocates memory for moving reading ramlog. Nothing to wait for.
   ret = hcom_diag_logging_setup();
