@@ -274,9 +274,9 @@ void hcom_mono_ctrl_enable_mono(uint32_t userData);
 void hcom_mono_ctrl_report_mono_enabled_state(uint32_t userData);
 
 // mono stdout & stderr to host
-int hcom_mono_stdxxx_read_setup(void);
-void hcom_mono_stdxxx_read_shutdown(void);
 #if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)
+void hcom_mono_stdxxx_read_shutdown(void);
+int hcom_mono_stdxxx_read_setup(void);
 int hcom_mono_stdxxx_redirect(void);
 #endif
 

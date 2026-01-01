@@ -489,7 +489,9 @@ int hcom_main(int argc, char *argv[])
 void hcom_manager_shutdown()
 {  
   hcom_host_recv_shutdown();
+#if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)
   hcom_mono_stdxxx_read_shutdown();
+#endif
   hcom_common_utils_shutdown();
   hcom_diag_logging_shutdown();
   hcom_host_route_shutdown();  

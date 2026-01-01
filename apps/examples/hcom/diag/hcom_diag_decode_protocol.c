@@ -1,7 +1,7 @@
 /****************************************************************************
  * apps\examples\hcom\diag\hcom_diag_decode_protocol.c
  * 
- *   Copyright (C) 2021-2023 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2021-2026 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,13 +63,16 @@ char *hcom_diag_find_host_request_type(uint16_t hostRqstType);
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-// Takes a hcom message and outputs a string containing the header information
+// This is called when a data packet is received from CLI. Only the size is
+// shown because of the impact of output putting all of the data in hex.
 void hcom_diag_decode_data_packet_type(decodedSize)
 {
   syslog(LOG_MDIAG, "---------- Meadow Data (%d bytes) ----------\n",
     decodedSize);
 }
 
+//===========================================================================
+// Decode and display message received from CLI
 // Takes a hcom message and outputs a string containing the header information
 void hcom_diag_decode_recvd_message_type(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize)
@@ -143,6 +146,7 @@ char *hcom_diag_find_meadow_request_type(uint16_t rqstType)
 }
 
 //======================================================================
+// Decode and display message set to CLI
 void hcom_diag_decode_sending_message_type(const uint8_t *hostRawMsg,
           const uint16_t hostRqstType, const size_t packetSize)
 {
