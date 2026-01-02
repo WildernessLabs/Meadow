@@ -108,7 +108,7 @@ void hcom_startup_mgr_release_sem_err(int semaphoreRet)
  * Public Functions
  ****************************************************************************/
 // This is the hcom tasks main thread, created by Nuttx when it has finished
-// initializating and starting the OS. This thread will do all the following
+// initialization and starting the OS. This thread will do all the following
 // initialization of hcom, then becomes the thread that receives CLI messages.
 // Other hcom threads are created by this thread or one of it's child threads.
 // This means that they are all in the same "task group." See the following

@@ -400,7 +400,6 @@ int hcom_mono_stdxxx_read_fifo_loop()
     //  = 0: indicates that the call timed out and no fd was ready
     //  < 0: error, -1 is returned, and errno is set appropriately
     ret = poll(poll_fds, 2, -1);
-    syslog(2, "poll() returned:%d\n", ret);
     if(ret < 0)
     {
       if(errno == -EINTR)
@@ -491,8 +490,7 @@ void hcom_mono_stdxxx_read_mono_fifo(uint32_t pollOffset, int fd_active,
   if (readReturn > 0)
   {
     syslog(2, "read() with fd:%d, returned:%d\n", fd_active, readReturn);
-    hcom_diag_print_buffer(fifo_read_buffer, readReturn, 2);
-    
+
     // Have read data from stdxxx, now send to CLI
     hcom_mono_stdxxx_publish_message(pollOffset, readReturn, fifo_read_buffer);
     return;
@@ -555,7 +553,6 @@ void hcom_mono_stdxxx_publish_message(uint32_t pollOffset,
 #endif
 
   // Send to host
-  
   ret = hcom_host_send_stdxxx_to_cli(pollOffset, useableBufSize, fifo_read_buffer);
   if(ret < 0)
   {
@@ -590,7 +587,6 @@ int hcom_host_send_stdxxx_to_cli(uint32_t pollOffset, int useableBufSize,
   // Send to CLI. Includes ctrl character(s)
   ret = hcom_host_send_raw_string_msg(requestType, 0,
     (char *) fifo_read_buffer, useableBufSize, thisFile, __LINE__);
-
   if (ret < 0)
   {
     if(ret == -EAGAIN)
