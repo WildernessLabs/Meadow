@@ -339,7 +339,7 @@ int hcom_via_nx_get_mcu_ser_numb(char mcuSerNumb[16]);
 void hcom_via_nx_restore_uart_reconfig(uint32_t uartId);
 uint32_t hcom_via_nx_get_hw_version(void);
 uint32_t hcom_via_nx_get_hw_version_alt(int alt_access_fd);
-void hcom_via_nx_mono_has_started(void);
+void hcom_via_nx_mono_has_started_alt(int alt_access_fd);
 size_t hcom_via_nx_provide_cli_trace_transport(char *buff, size_t bufLen);
 size_t hcom_via_nx_provide_host_text_transport(uint16_t *requestType,
         char *buff, size_t bufLen);

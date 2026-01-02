@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\mono\hcom_mono_control.c
  *
- *   Copyright (C) 2020-2023 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2020-2026 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -736,7 +736,7 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
 #if defined(CONFIG_RAMLOG_SYSLOG)
   // Sets flag so ramlog can restore UART1's proper configuration since
   // mono's internal initialization reconfigured as digital output
-  hcom_via_nx_mono_has_started();
+  hcom_via_nx_mono_has_started_alt(nx_access_fd);
 #endif
 
   // Must reconfigure because mono may have changed the
