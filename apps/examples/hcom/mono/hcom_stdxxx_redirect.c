@@ -1,7 +1,7 @@
 /****************************************************************************
  * \examples\hcom\hcom_stdxxx_redirect.c
  * 
- *   Copyright (C) 2025 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2026 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,18 +52,18 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-#pragma message "(--) hcom_stdxxx_redirect.c"
-
 #if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)
 
 /* Configuration ************************************************************/
 
 #define HCOM_MONO_APP_STDXXX_REDIRECT_BUFF_SIZE 384
-
-#define HCOM_MONO_APP_STDXXX_SHOW_DIAGNOSTICS (0)
-
 #define HCOM_STDXXX_POLL_OFFSET_STDOUT (0)
 #define HCOM_STDXXX_POLL_OFFSET_STDERR (1)
+#define HCOM_MONO_APP_STDXXX_SHOW_DIAGNOSTICS (1)
+
+#if(HCOM_MONO_APP_STDXXX_SHOW_DIAGNOSTICS == 1)
+#pragma message "(--) hcom_stdxxx_redirect.c"
+#endif
 
 /****************************************************************************
  * Private Data
@@ -86,7 +86,7 @@ static char *_stdxxx_syslog_buffer;
  * Set by hcom_startup_manager.c
  * 
  */
-bool g_copy_application_output_to_uart = true;
+bool g_copy_application_output_to_uart = false;
 
 /****************************************************************************
  * Private Function Prototypes
@@ -125,7 +125,7 @@ int hcom_mono_stdxxx_read_setup()
   int ret = hcom_via_nx_register_pwr_mgmt_callback(hcom_mono_stdxxx_low_power_notification);
   if(ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-Registering for pwr mgmt:%d\n", thisFile, __LINE__, ret);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-Registering for pwr mgmt, ret:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
 
@@ -332,7 +332,7 @@ void hcom_mono_stdxxx_close_read_fds(bool closeNeeded)
 }
 
 //==========================================================================
-// Note: This has already been redirected by hcom_mono_control.c at startup
+// Open stdout fifo
 int hcom_mono_stdout_open_read_fifo()
 {
   if(_stdout_read_fd >= 0)
@@ -374,6 +374,7 @@ int hcom_mono_stderr_open_read_fifo()
 
   return OK;
 }
+
 //==========================================================================
 // This loop waits for either of the fifos to be written to, and then reads
 // and forwards what it finds to CLI, and maybe syslog.
@@ -414,6 +415,7 @@ int hcom_mono_stdxxx_read_fifo_loop()
     }
 
     // A value of 0 indicates that the call timed out and no file descriptors were ready.
+    // This implementation doesn't provide a timeout value.
     if(ret == 0)
     {
       syslog(LOG_WARNING, "stdxxx(poll) - From poll() ret == 0, Timeout\n");
@@ -435,7 +437,6 @@ int hcom_mono_stdxxx_read_fifo_loop()
 
     // Check stdout
     fdsReverts = poll_fds[HCOM_STDXXX_POLL_OFFSET_STDOUT].revents;
-
     if(fdsReverts > 0)
     {
       // syslog(LOG_MDIAG, "stdout(poll) - reverts:%d (0x%04x)\n", fdsReverts, fdsReverts);
@@ -489,8 +490,6 @@ void hcom_mono_stdxxx_read_mono_fifo(uint32_t pollOffset, int fd_active,
     HCOM_MONO_APP_STDXXX_REDIRECT_BUFF_SIZE);
   if (readReturn > 0)
   {
-    syslog(2, "read() with fd:%d, returned:%d\n", fd_active, readReturn);
-
     // Have read data from stdxxx, now send to CLI
     hcom_mono_stdxxx_publish_message(pollOffset, readReturn, fifo_read_buffer);
     return;
@@ -499,7 +498,6 @@ void hcom_mono_stdxxx_read_mono_fifo(uint32_t pollOffset, int fd_active,
   if(readReturn == 0)
   {
     // End-of-file
-    syslog(2, "read() with fd:%d, EOF (0)\n", fd_active);
     usleep(100 * 1000);
     return;
   }
@@ -507,8 +505,6 @@ void hcom_mono_stdxxx_read_mono_fifo(uint32_t pollOffset, int fd_active,
   if(readReturn < 0)
   {
     // Read error
-    syslog(2, "read() with fd:%d, errno:%d\n", fd_active, errno);
-
     hcom_logging_syslog(LOG_ERR, "fifo read error:%d, errno:%d",
       readReturn, errno);
   }
@@ -521,8 +517,6 @@ void hcom_mono_stdxxx_publish_message(uint32_t pollOffset,
 {
   int ret;
   int useableBufSize;
-
-  // syslog(LOG_MDIAG, "stdxxx - Entering Publish message, sending %d bytes\n", msgLength); usleep(20 * 1000);
 
   // Make sure message fits in allocated fifo_read_buffer, if not, truncate
   if(msgLength >= HCOM_MONO_APP_STDXXX_REDIRECT_BUFF_SIZE)
@@ -538,18 +532,14 @@ void hcom_mono_stdxxx_publish_message(uint32_t pollOffset,
 #if (HCOM_MONO_APP_STDXXX_SHOW_DIAGNOSTICS == 1)
   if(pollOffset == HCOM_STDXXX_POLL_OFFSET_STDOUT)
   {
-    syslog(LOG_MDIAG, "->%.*s (^ from stdout)\n",
+    syslog(LOG_MDIAG, "->stdout - %.*s",
       useableBufSize, fifo_read_buffer);
   }
   else
   {
-    syslog(LOG_MDIAG, "->%.*s (^ from stderr)\n",
+    syslog(LOG_MDIAG, "->stderr - %.*s",
       useableBufSize, fifo_read_buffer);
   }
-
-  static int dbg_count = 0;
-  dbg_count++;
-  syslog(LOG_MDIAG, "cli send count:%d\n", dbg_count);
 #endif
 
   // Send to host
@@ -560,7 +550,7 @@ void hcom_mono_stdxxx_publish_message(uint32_t pollOffset,
     return;
   }
   
-  // Route message to syslog?
+  // Route message to syslog if so configured
   if (g_copy_application_output_to_uart)
   {
     hcom_mono_stdxxx_to_syslog(useableBufSize, fifo_read_buffer);
@@ -591,7 +581,7 @@ int hcom_host_send_stdxxx_to_cli(uint32_t pollOffset, int useableBufSize,
   {
     if(ret == -EAGAIN)
     {
-      // The only reason the send would be blocked is that there is no host
+      // The main reason the send would be blocked is that there is no host
       // listening for a message. This is normal for HCOM and must be ignored.
       return OK;
     }
@@ -646,7 +636,7 @@ void hcom_mono_stdxxx_to_syslog(int useableBufSize, uint8_t fifo_read_buffer[])
 
 //=====================================================================
 // Open stderr or stdout
-static int hcom_mono_open_mono_fifo(char *fifoRedirect)
+static int hcom_mono_open_mono_fifo(char *fifoRedirect, int stdxxxFileNo)
 {
   int ret;
   int std_temp_write_fd;
@@ -654,8 +644,6 @@ static int hcom_mono_open_mono_fifo(char *fifoRedirect)
   // Open stdxxx fifo
   do
   {
-    // Opening with O_NONBLOCK seems like the right thing to do but
-    // it is NOT. It causes the mono app to halt.
     std_temp_write_fd = open(fifoRedirect, O_WRONLY);
     if(std_temp_write_fd == -1)
     {
@@ -699,10 +687,11 @@ int hcom_mono_stdxxx_redirect(void)
 {
   int ret;
 
-  // syslog(LOG_MDIAG, "Mono - has called to open stdxxx fifos\n"); usleep(20 * 1000);
+  // syslog(LOG_MDIAG, "Mono - called to open fifos\n"); usleep(20 * 1000);
 
   // Open stdout fifo
-  ret = hcom_mono_open_mono_fifo(HCOM_MONO_STDOUT_REDIRECT_FIFO);
+  ret = hcom_mono_open_mono_fifo(HCOM_MONO_STDOUT_REDIRECT_FIFO,
+    STDOUT_FILENO);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d stdout error on open(), ret:%d, errno:%d\n",
@@ -711,7 +700,8 @@ int hcom_mono_stdxxx_redirect(void)
   }
   
   // Open stderr fifo
-  ret = hcom_mono_open_mono_fifo(HCOM_MONO_STDERR_REDIRECT_FIFO);
+  ret = hcom_mono_open_mono_fifo(HCOM_MONO_STDERR_REDIRECT_FIFO,
+    STDERR_FILENO);
   if(ret < 0)
   {
     syslog(LOG_ERR, "%s@%d stderr error on open(), ret:%d, errno:%d\n",
