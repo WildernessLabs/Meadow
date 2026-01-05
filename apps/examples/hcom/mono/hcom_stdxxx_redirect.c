@@ -159,9 +159,10 @@ int hcom_mono_stdxxx_read_setup()
 // Public function
 void hcom_mono_stdxxx_read_shutdown()
 {
+  int ret;
   _shutting_down = true;
 
-  int ret = close(_stdout_read_fd);
+  ret = close(_stdout_read_fd);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d stdout close, errno:%d\n",
@@ -170,7 +171,7 @@ void hcom_mono_stdxxx_read_shutdown()
 
   _stdout_read_fd = -1;
 
-  int ret = close(_stderr_read_fd);
+  ret = close(_stderr_read_fd);
   if(ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d stderr close, errno:%d\n",
@@ -620,8 +621,8 @@ void hcom_mono_stdxxx_to_syslog(int useableBufSize, uint8_t fifo_read_buffer[])
   // This needs special care to insure the message is properly formatted
   for (int index = 0; index < useableBufSize; index++)
   {
-    // // If character valid to send just copy to previously allocated buffer
-    if ((fifo_read_buffer[index] >= ' ') && (fifo_read_buffer[index] <= '~'))
+    // If character printable copy to previously allocated buffer
+    if(isprint(fifo_read_buffer[index]))
     {
       _stdxxx_syslog_buffer[syslog_buffer_index] = fifo_read_buffer[index];
     }
