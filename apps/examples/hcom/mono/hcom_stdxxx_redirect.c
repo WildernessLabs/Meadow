@@ -164,9 +164,20 @@ void hcom_mono_stdxxx_read_shutdown()
   int ret = close(_stdout_read_fd);
   if(ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d close read, errno:%d\n",
+    hcom_logging_syslog(LOG_ERR, "%s@%d stdout close, errno:%d\n",
       thisFile, __LINE__, errno);
   }
+
+  _stdout_read_fd = -1;
+
+  int ret = close(_stderr_read_fd);
+  if(ret < 0)
+  {
+    hcom_logging_syslog(LOG_ERR, "%s@%d stderr close, errno:%d\n",
+      thisFile, __LINE__, errno);
+  }
+
+  _stderr_read_fd = -1;
 
   if(_fifo_read_buffer != NULL)
   {
@@ -383,7 +394,7 @@ int hcom_mono_stderr_open_read_fifo()
 int hcom_mono_stdxxx_read_fifo_loop()
 {
   int ret;
-  short int fdsReverts;
+  short int fdsRevents;
   struct pollfd poll_fds[2];
 
   // Note: POLLERR, POLLHUP and POLLINVAL should not be included in the events
@@ -436,36 +447,36 @@ int hcom_mono_stdxxx_read_fifo_loop()
     // #define POLLNVAL     (0x20)  // Invalid fd member (revents only).
 
     // Check stdout
-    fdsReverts = poll_fds[HCOM_STDXXX_POLL_OFFSET_STDOUT].revents;
-    if(fdsReverts > 0)
+    fdsRevents = poll_fds[HCOM_STDXXX_POLL_OFFSET_STDOUT].revents;
+    if(fdsRevents > 0)
     {
-      // syslog(LOG_MDIAG, "stdout(poll) - reverts:%d (0x%04x)\n", fdsReverts, fdsReverts);
-      if(fdsReverts & POLLIN)
+      // syslog(LOG_MDIAG, "stdout(poll) - events:%d (0x%04x)\n", fdsRevents, fdsRevents);
+      if(fdsRevents & POLLIN)
       {
         hcom_mono_stdxxx_read_mono_fifo(HCOM_STDXXX_POLL_OFFSET_STDOUT,
           _stdout_read_fd, _fifo_read_buffer);
       }
 
-      if (fdsReverts & POLLHUP)
+      if (fdsRevents & POLLHUP)
       {
-        syslog(LOG_WARNING, "stdout(poll) - In reverts POLLHUP (hangup)\n");
+        syslog(LOG_WARNING, "stdout(poll) - In revents POLLHUP (hangup)\n");
       }
     }
 
     // Check stderr
-    fdsReverts = poll_fds[HCOM_STDXXX_POLL_OFFSET_STDERR].revents;
-    if(fdsReverts > 0)
+    fdsRevents = poll_fds[HCOM_STDXXX_POLL_OFFSET_STDERR].revents;
+    if(fdsRevents > 0)
     {
-      // syslog(LOG_MDIAG, "stderr(poll) - reverts:%d (0x%04x)\n", fdsReverts, fdsReverts);
-      if (fdsReverts & POLLIN)
+      // syslog(LOG_MDIAG, "stderr(poll) - events:%d (0x%04x)\n", fdsRevents, fdsRevents);
+      if (fdsRevents & POLLIN)
       {
         hcom_mono_stdxxx_read_mono_fifo(HCOM_STDXXX_POLL_OFFSET_STDERR,
           _stderr_read_fd, _fifo_read_buffer);
       }
       
-      if (fdsReverts & POLLHUP)
+      if (fdsRevents & POLLHUP)
       {
-        syslog(LOG_WARNING, "stderr(poll) - In reverts POLLHUP (hangup)\n");
+        syslog(LOG_WARNING, "stderr(poll) - In revents POLLHUP (hangup)\n");
       }
     }
 
@@ -609,7 +620,7 @@ void hcom_mono_stdxxx_to_syslog(int useableBufSize, uint8_t fifo_read_buffer[])
   // This needs special care to insure the message is properly formatted
   for (int index = 0; index < useableBufSize; index++)
   {
-    // If printable ascii just copy to previously allocated buffer
+    // // If character valid to send just copy to previously allocated buffer
     if ((fifo_read_buffer[index] >= ' ') && (fifo_read_buffer[index] <= '~'))
     {
       _stdxxx_syslog_buffer[syslog_buffer_index] = fifo_read_buffer[index];

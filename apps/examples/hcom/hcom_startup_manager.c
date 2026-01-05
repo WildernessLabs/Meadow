@@ -323,7 +323,7 @@ int hcom_main(int argc, char *argv[])
   ret = hcom_mono_stdxxx_read_setup();
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup mono stdout fifo %d\n", thisFile, __LINE__, ret);
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup mono stdxxx fifo %d\n", thisFile, __LINE__, ret);
     return ret;
   }
   ret = hcom_startup_mgr_takesem(&_startupWaitSem);
