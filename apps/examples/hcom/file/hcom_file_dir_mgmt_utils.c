@@ -78,7 +78,7 @@
 #pragma message "(--) dir_mgmt_utils.c"
 #endif
 
-#pragma GCC optimize("O0")    // Prevent compiler from changing the code
+// #pragma GCC optimize("O0")    // Prevent compiler from changing the code
 
 #define HCOM_FILE_DIR_OUTPUT_TO_SYSLOG (1)
 

@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\mono\hcom_mono_control.c
  *
- *   Copyright (C) 2020-2023 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2020-2026 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -469,7 +469,7 @@ bool hcom_mono_ctrl_should_mono_run()
   bool run_mono = hcom_mono_ctrl_did_mono_run_last_time();
   if (!run_mono)
   {
-    char *noStartReason = "Mono will not start - mono did not run correctly last time";
+    char *noStartReason = "Runtime will not start, it did not run correctly last time";
     hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, noStartReason);
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
                                      noStartReason, thisFile, __LINE__);
@@ -706,23 +706,19 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
   int nx_access_fd;
   uint32_t blueLedPinDefn;
 
+#if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)
   // For Mono apps to forward Console.WriteLine text etc., we must redirect
-  // the Mono tasks stdout fd to a fifo which will route this text to the host
-  // PC if CLI or equal is running.
-  ret = hcom_mono_stdout_redirect();
+  // the Mono task's stdout and stderr to fifos which are read by hcom and
+  // routes the text to the host PC/CLI and if configured to syslog.
+  // This call will do all the work needed to redirect stdout and stderr.
+  ret = hcom_mono_stdxxx_redirect();
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-stdoutredirect:%d\n", thisFile, __LINE__, ret);
+    hcom_logging_syslog(LOG_ERR, "%s@%d-stdxxx_redirect:%d\n", thisFile, __LINE__, ret);
     return ret;
   }
+#endif
 
-  ret = hcom_mono_stderr_redirect();
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s@%d-stderr redirect:%d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-  
   // For this Mono main thread to access the nuttx side it needs to
   // open, use and close the nx upd driver.
   nx_access_fd = hcom_via_nx_upd_driver_open();
@@ -740,7 +736,7 @@ int hcom_mono_ctrl_mono_appears_to_be_running()
 #if defined(CONFIG_RAMLOG_SYSLOG)
   // Sets flag so ramlog can restore UART1's proper configuration since
   // mono's internal initialization reconfigured as digital output
-  hcom_via_nx_mono_has_started();
+  hcom_via_nx_mono_has_started_alt(nx_access_fd);
 #endif
 
   // Must reconfigure because mono may have changed the

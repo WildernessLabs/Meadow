@@ -82,8 +82,7 @@ HCOM_SRCS = comms/hcom_host_encode.c \
 	cell/cmux/hcom_cmux.c \
 	mono/hcom_mono_control.c \
 	mono/hcom_remote_vs_debug.c \
-	mono/hcom_stdout_redirect.c \
-	mono/hcom_stderr_redirect.c \
+	mono/hcom_stdxxx_redirect.c \
 	nx_rqsts/hcom_bbreg_access.c \
 	nx_rqsts/hcom_misc_requests.c \
 	nx_rqsts/hcom_via_nx_access.c \

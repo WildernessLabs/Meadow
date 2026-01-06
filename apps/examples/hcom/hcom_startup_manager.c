@@ -108,7 +108,7 @@ void hcom_startup_mgr_release_sem_err(int semaphoreRet)
  * Public Functions
  ****************************************************************************/
 // This is the hcom tasks main thread, created by Nuttx when it has finished
-// initializating and starting the OS. This thread will do all the following
+// initialization and starting the OS. This thread will do all the following
 // initialization of hcom, then becomes the thread that receives CLI messages.
 // Other hcom threads are created by this thread or one of it's child threads.
 // This means that they are all in the same "task group." See the following
@@ -136,6 +136,7 @@ int hcom_main(int argc, char *argv[])
   // Special non-standard nuttx function required for signaling semaphores
   sem_setprotocol(&_startupWaitSem, SEM_PRIO_NONE);
 
+  #if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)
   //
   //  We take a copy of the config and set and application global variables first
   //  to make them available to the various components that need them.  Doing this
@@ -150,6 +151,7 @@ int hcom_main(int argc, char *argv[])
   }
   g_copy_application_output_to_uart = config->copy_application_output_to_uart && config->use_uart1_for_trace;
   meadow_os_config_free_resources(config);
+#endif
 
   // Allocates memory for moving reading ramlog. Nothing to wait for.
   ret = hcom_diag_logging_setup();
@@ -318,10 +320,10 @@ int hcom_main(int argc, char *argv[])
 
 #if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)
   // Creates a fifo and a thread to receive stdout
-  ret = hcom_mono_stdout_read_setup();
+  ret = hcom_mono_stdxxx_read_setup();
   if (ret < 0)
   {
-    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup mono stdout fifo %d\n", thisFile, __LINE__, ret);
+    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup mono stdxxx fifo %d\n", thisFile, __LINE__, ret);
     return ret;
   }
   ret = hcom_startup_mgr_takesem(&_startupWaitSem);
@@ -335,19 +337,6 @@ int hcom_main(int argc, char *argv[])
   syslog(LOG_MDIAG, "Startup Manager 14\n"); usleep(20 * 1000);
 #endif
 
-  // Creates a fifo and a thread to receive stderr
-  ret = hcom_mono_stderr_read_setup();
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup mono stderr fifo %d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
-  ret = hcom_startup_mgr_takesem(&_startupWaitSem);
-  if (ret < 0)
-  {
-    hcom_logging_syslog(LOG_CRIT, "%s@%d-setup mono stderr fifo %d\n", thisFile, __LINE__, ret);
-    return ret;
-  }
 #endif
 
 #if HCOM_DIAG_INCLUDE_STARTUP_SYSLOG > 0
@@ -500,8 +489,9 @@ int hcom_main(int argc, char *argv[])
 void hcom_manager_shutdown()
 {  
   hcom_host_recv_shutdown();
-  hcom_mono_stdout_read_shutdown();
-  hcom_mono_stderr_read_shutdown();
+#if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)
+  hcom_mono_stdxxx_read_shutdown();
+#endif
   hcom_common_utils_shutdown();
   hcom_diag_logging_shutdown();
   hcom_host_route_shutdown();  

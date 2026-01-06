@@ -274,12 +274,11 @@ void hcom_mono_ctrl_enable_mono(uint32_t userData);
 void hcom_mono_ctrl_report_mono_enabled_state(uint32_t userData);
 
 // mono stdout & stderr to host
-int hcom_mono_stderr_read_setup(void);
-void hcom_mono_stderr_read_shutdown(void);
-int hcom_mono_stdout_read_setup(void);
-void hcom_mono_stdout_read_shutdown(void);
-int hcom_mono_stdout_redirect(void);
-int hcom_mono_stderr_redirect(void);
+#if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)
+void hcom_mono_stdxxx_read_shutdown(void);
+int hcom_mono_stdxxx_read_setup(void);
+int hcom_mono_stdxxx_redirect(void);
+#endif
 
 // mono Visual Studio interactions
 int hcom_mono_remote_dbg_setup(void);
@@ -340,7 +339,7 @@ int hcom_via_nx_get_mcu_ser_numb(char mcuSerNumb[16]);
 void hcom_via_nx_restore_uart_reconfig(uint32_t uartId);
 uint32_t hcom_via_nx_get_hw_version(void);
 uint32_t hcom_via_nx_get_hw_version_alt(int alt_access_fd);
-void hcom_via_nx_mono_has_started(void);
+void hcom_via_nx_mono_has_started_alt(int alt_access_fd);
 size_t hcom_via_nx_provide_cli_trace_transport(char *buff, size_t bufLen);
 size_t hcom_via_nx_provide_host_text_transport(uint16_t *requestType,
         char *buff, size_t bufLen);

@@ -1,7 +1,7 @@
 /****************************************************************************
  * nuttx\configs\stm32f777zit6-meadow\src\hcom_nx\diag\hcom_nx_trace_msg_proc.c
  *
- *   Copyright (C) 2021 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2021-2026 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -244,7 +244,7 @@ int hcom_nx_trace_msg_lazy_initialization()
     {
       return -EINVAL;
     }
-    
+
     snprintf_chk(timeBuf, 64, "%02d:%02d:%02d", tmNow.tm_hour, tmNow.tm_min,
               tmNow.tm_sec);
 
@@ -535,8 +535,6 @@ int hcom_nx_trace_msg_open_uart_serial_port()
   return OK;
 }
 
-
-
 //=================================================================
 // This function reads the data put into the ramlog by Nuttx
 // Returning on error will close the uart connection
@@ -587,8 +585,8 @@ int hcom_nx_trace_msg_read_ramlog_loop(uint8_t *readBuf)
 //=======================================================================
 // Add the data read from ramlog into a circular buffer. It can be added
 // byte by byte or several bytes at once.
-// We assume that the message "unit" (aka line) will be delimited with
-// 0x0a (AKA 'line feed' or '\n')
+// We assume that the message itself will be delimited with 0x0a
+// (AKA 'line feed' or '\n'). If not multiple messages will be output together
 int hcom_nx_trace_msg_save_recvd_data(uint8_t readBuf[], const ssize_t recvByteCnt)
 {
   int addResult;

@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\os_rqsts\hcom_via_nx_access.c
  * 
- *   Copyright (C) 2020 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2020-2026 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -352,12 +352,12 @@ int hcom_via_nx_put_meadow_into_dfu_mode()
 }
 
 //=============================================================
-// Mono has started running let kernelland know
-void hcom_via_nx_mono_has_started()
+// Mono has started running let kernel-land know
+void hcom_via_nx_mono_has_started_alt(int alt_access_fd)
 {
   int ret;
 
-  ret = ioctl(_nx_access_fd, HCOM_NX_UPD_MONO_HAS_STARTED, (unsigned long) NULL);
+  ret = ioctl(alt_access_fd, HCOM_NX_UPD_MONO_HAS_STARTED, (unsigned long) NULL);
   if (ret < 0)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s Mono has started ret:%d, errno:%d\n",

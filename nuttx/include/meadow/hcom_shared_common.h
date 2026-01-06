@@ -986,10 +986,9 @@ typedef int (* send_host_std_msg_data)(HcomProtoHdrMsg_t *hdrMsg,
           size_t totalMsgLen, char *sourceFileName, int sourceLineNumber);
 
 //--------------------------------------------------------------------
-// These needed Meadow features can be excluded from a build by
+// This Meadow features can be excluded from a build by
 // using the make menuconfig 'Board Selection' option.
 // To enable/disable remote debugging use CONFIG_HCOM_MONO_REMOTE_DEBUGGING 
-// To enable/disable stdout and stder use CONFIG_HCOM_MONO_STDERR_STDOUT
 
 //--------------------------------------------------------------------
 // The following control diagnostics that can be added to the built
@@ -1073,8 +1072,9 @@ void hcom_nx_exec_ex_flash_verify_segments(void);
 /****************************************************************************
  * Public Data
  ****************************************************************************/
-
+#if defined(CONFIG_HCOM_MONO_STDERR_STDOUT)
 /**
  * @brief Should we copy the application output to the UART (COM1)?
  */
 extern bool g_copy_application_output_to_uart;
+#endif
