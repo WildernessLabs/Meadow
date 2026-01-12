@@ -71,7 +71,6 @@
 #include "../hcom_nx/hcom_nx_common.h"
 #include <meadow/hcom_nuttx_shared.h>
 #include "../hcom_nx/hcom_nx_config_manager.h"
-#include "../misc/long_period_scheduler.h"
 #include "../espcp/espcp_message.h"
 #include "../espcp/espcp_event_handlers.h"
 
@@ -101,6 +100,8 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+
+static struct work_s ntp_work_queue;
 
 /****************************************************************************
  * Public Functions
@@ -364,17 +365,16 @@ int ntpc_connect_to_server(char *server_name, struct sockaddr_in *server, uint32
 }
 
 /****************************************************************************
- * Name: ntpc_daemon
+ * Name: ntpc_raise_time_changed_event
  *
  * Description:
- *  Implementation of the NTP daemon.  This method should be run in its own
- *  thread.
+ *  Prepares a message for the event to be dispatched.
  * 
  * Input Parameters:
- *  None.
+ *  enum espcp_esp32_interfaces interface.
  *
  * Returned Value:
- *  OK.
+ *  void.
  *
  * Assumptions/Limitations:
  *  None.
@@ -394,11 +394,11 @@ void ntpc_raise_time_changed_event(enum espcp_esp32_interfaces interface)
 }
 
 /****************************************************************************
- * Name: ntpc_daemon
+ * Name: ntp_worker
  *
  * Description:
- *  Implementation of the NTP daemon.  This method should be run in its own
- *  thread.
+ *  Implementation of the NTP worker.  This method will be run by the Nuttx 
+ *   low-priority worker queue thread.
  * 
  * Input Parameters:
  *  None.
@@ -410,7 +410,7 @@ void ntpc_raise_time_changed_event(enum espcp_esp32_interfaces interface)
  *  None.
  *
  ****************************************************************************/
-static uint32_t ntpc_daemon(void)
+static void ntp_worker(void *arg)
 {
     struct sockaddr_in server;
     struct ntp_datagram_s xmit;
@@ -424,7 +424,11 @@ static uint32_t ntpc_daemon(void)
     hcom_nx_config_lock();
     meadow_configuration_t *config = hcom_nx_config_get_pointer();
     uint32_t number_of_servers = config->ntp_servers_count;
+    uint32_t refresh_period = config->ntp_refresh_period_seconds;
     hcom_nx_config_unlock();
+
+    // syslog(2, "Refresh period:%lu, Numb servers:%lu\n",
+    //     refresh_period, number_of_servers);
 
     bool getting_time = true;
     uint32_t socket_timeout = NTP_INITIAL_SOCKET_TIMEOUT;
@@ -457,6 +461,8 @@ static uint32_t ntpc_daemon(void)
                     getting_time = false;
                     MEADOW_TRACE_INFORMATION("Time received from server.\n");
                     ntpc_raise_time_changed_event(espcp_esp32_interfaces_wi_fi);
+                    // syslog(2, "Received time\n");
+
                 }
             }
             close(sd);
@@ -480,7 +486,14 @@ static uint32_t ntpc_daemon(void)
             }
         }
     }
-    return 0;
+
+    // Continue running with delay
+    // syslog(2, "Queuing NTP Work request\n");
+    work_cancel(LPWORK, &ntp_work_queue);
+    memset(&ntp_work_queue, 0, sizeof(struct work_s));
+    work_queue(LPWORK, &ntp_work_queue, ntp_worker,
+        NULL, SEC2TICK(refresh_period));
+    return;
 }
 
 /****************************************************************************
@@ -491,7 +504,7 @@ static uint32_t ntpc_daemon(void)
  * Name: ntpc_start
  *
  * Description:
- *  Start the NTP daemon.
+ *  Start reading NTP time.
  * 
  * Input Parameters:
  *  None.
@@ -505,13 +518,11 @@ static uint32_t ntpc_daemon(void)
  ****************************************************************************/
 int ntpc_start(void)
 {
-    hcom_nx_config_lock();
-    meadow_configuration_t *config = hcom_nx_config_get_pointer();
-    uint32_t refresh_period = config->ntp_refresh_period_seconds;
-    hcom_nx_config_unlock();
-
-    ntpc_daemon();      // Force the first time then leave it to the scheduler.
-    return(lps_add_handler(ntpc_daemon, refresh_period));
+    // Initial call
+    // syslog(2, "Initial LPWORK request\n");
+    work_cancel(LPWORK, &ntp_work_queue);
+    memset(&ntp_work_queue, 0, sizeof(struct work_s));
+    return(work_queue(LPWORK, &ntp_work_queue, ntp_worker, NULL, 0));
 }
 
 /****************************************************************************
@@ -532,5 +543,5 @@ int ntpc_start(void)
  ****************************************************************************/
 void ntpc_stop(void)
 {
-    lps_remove_handler(ntpc_daemon);
+    work_cancel(LPWORK, &ntp_work_queue);
 }

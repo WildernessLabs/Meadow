@@ -244,6 +244,8 @@
 #define USBHOST_TASK_NAME                           "USBHost"
 #define USBHOST_TASK_STACKSIZE                      1024
 
+// Note: The LPS #defines are here for the priority value which is used in
+// Meadow/apps/netutils/ntpclient/ntpclient.c.
 /**
  * The long period scheduler is used to execute tasks that need to be run regularly but 
  * over a long time base, i.e. they are infrequent.  Examples of this are the NTP time
