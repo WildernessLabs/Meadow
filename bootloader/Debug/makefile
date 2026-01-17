@@ -108,7 +108,7 @@ Meadow.BL.bin: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 
 # Other Targets
 clean:
-	-$(RM) $(SIZE_OUTPUT)$(OBJDUMP_LIST)$(EXECUTABLES)$(OBJS)$(S_DEPS)$(S_UPPER_DEPS)$(C_DEPS)$(OBJCOPY_BIN) Meadow.BL.elf
+	-$(RM) $(SIZE_OUTPUT) $(OBJDUMP_LIST) $(EXECUTABLES) $(OBJS) $(S_DEPS) $(S_UPPER_DEPS) $(C_DEPS) $(OBJCOPY_BIN) Meadow.BL.*
 	-@echo ' '
 
 secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST) $(OBJCOPY_BIN)
