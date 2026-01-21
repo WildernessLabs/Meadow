@@ -33,23 +33,14 @@
  *
  ****************************************************************************/
 
-#ifndef __ESPCP_EVENT_HANDLERS_H__
-#define __ESPCP_EVENT_HANDLERS_H__
+#pragma once
+
+#include <nuttx/config.h>
 
 #include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
-#include <errno.h>
-#include <debug.h>
-#include <fcntl.h>
 
-#include "espcp_wifi.h"
 #include "espcp_shared_enums.h"
 #include "espcp_message.h"
-#include "espcp_encoders.h"
-#include "espcp_system.h"
-#include "espcp_common.h"
 #include "espcp_usrsock.h"
 
 /****************************************************************************
@@ -81,5 +72,3 @@ espcp_message_t *espcp_get_event_data(uint32_t);
 void espcp_usrsock_poll_interrupt_handler(espcp_message_t *);   // Found in espcp_usrsock_sockif.c
 void espcp_dispatch_event(espcp_message_t *);
 void espcp_pass_to_managed_event_handler(espcp_message_t *);
-
-#endif /* __ESPCP_EVENT_HANDLERS_H__ */
