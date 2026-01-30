@@ -417,21 +417,58 @@ fi
 #   Package Meadow.OS
 #
 if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
-  MEADOW_OS_BIN=$scriptdir/nuttx/Meadow.OS.Update.bin
+  #
+  # Memory Layout for Meadow.OS.Update.bin (1792 KB total):
+  # --------------------------------------------------------
+  # 0x00000000 - nuttx.bin (kernel space)
+  # 0x00000200 - nuttx_user.bin (user space, starting at 512 bytes)
+  # 0x001BFFFC - CRC32 checksum (last 4 bytes)
+  #
+  MEADOW_OS_UPDATE_BIN=$scriptdir/nuttx/Meadow.OS.Update.bin
   MEADOW_BL_BIN=$scriptdir/bootloader/Debug/Meadow.BL.bin
-  MEADOW_OS_BL_BIN=$scriptdir/nuttx/Meadow.OS.bin
-  dd if=/dev/zero bs=1024 count=1792 of=${MEADOW_OS_BIN} 2> /dev/null
-  dd if=$scriptdir/nuttx/nuttx.bin bs=1024 of=${MEADOW_OS_BIN} conv=notrunc 2> /dev/null
-  dd if=$scriptdir/nuttx/nuttx_user.bin bs=512 skip=1 seek=1 count=2047 of=${MEADOW_OS_BIN} conv=notrunc 2> /dev/null
- 
-  # Generate CRC and overwrite to last 4 bytes of binary
-  srec_cat ${MEADOW_OS_BIN} -Binary -crop 0x00000000 0x001BFFFC -STM32 0x001BFFFC -o ${MEADOW_OS_BIN} -Binary
+  MEADOW_OS_BIN=$scriptdir/nuttx/Meadow.OS.bin
+  #
+  # Create a 1792 KB (1.75 MB) zero-filled buffer for the OS update image
+  #
+  dd if=/dev/zero bs=1024 count=1792 of=${MEADOW_OS_UPDATE_BIN} 2> /dev/null
+  #
+  # Copy the kernel binary (nuttx.bin) to the beginning of the update image
+  #
+  dd if=$scriptdir/nuttx/nuttx.bin bs=1024 of=${MEADOW_OS_UPDATE_BIN} conv=notrunc 2> /dev/null
+  #
+  # Copy the user space binary (nuttx_user.bin) starting at offset 512 bytes (1 block)
+  # Skip first 512 bytes of source, seek to position 512 in destination, copy 1023.5 KB (2047 blocks)
+  #
+  dd if=$scriptdir/nuttx/nuttx_user.bin bs=512 skip=1 seek=1 count=2047 of=${MEADOW_OS_UPDATE_BIN} conv=notrunc 2> /dev/null
+  #
+  # Generate CRC32 checksum for the entire image (excluding last 4 bytes) and write it to the last 4 bytes
+  # This uses STM32 CRC format and ensures image integrity during firmware updates
+  #
+  srec_cat ${MEADOW_OS_UPDATE_BIN} -Binary -crop 0x00000000 0x001BFFFC -STM32 0x001BFFFC -o ${MEADOW_OS_UPDATE_BIN} -Binary
 
-  # Merge Meadow.BL binary with Meadow.OS binary
-  srec_cat ${MEADOW_BL_BIN} -Binary ${MEADOW_OS_BIN} -Binary -offset 0x00040000 -o ${MEADOW_OS_BL_BIN} -Binary
+  #
+  # Memory Layout for Meadow.OS.bin (Complete System Image):
+  # ---------------------------------------------------------
+  # 0x00000000 - Meadow.BL.bin (bootloader, 256 KB)
+  # 0x00040000 - Meadow.OS.Update.bin (OS image offset by 256 KB)
+  #
+  # Merge the bootloader binary with the OS update binary at offset 0x00040000 (256 KB)
+  #
+  srec_cat ${MEADOW_BL_BIN} -Binary ${MEADOW_OS_UPDATE_BIN} -Binary -offset 0x00040000 -o ${MEADOW_OS_BIN} -Binary
 
+  #
+  # Create Meadow.OS.Runtime.bin (3072 KB):
+  # This contains the runtime portion of the user space binary
+  #
   MEADOW_OS_RUNTIME_BIN=$scriptdir/nuttx/Meadow.OS.Runtime.bin
+  #
+  # Create a 3072 KB (3 MB) zero-filled buffer for the runtime image
+  #
   dd if=/dev/zero bs=1024 count=3072 of=${MEADOW_OS_RUNTIME_BIN} 2> /dev/null
+  #
+  # Extract 3072 KB of runtime data from nuttx_user.bin starting at offset 3014400 KB
+  # This contains the .NET runtime and managed code execution environment
+  #
   dd if=$scriptdir/nuttx/nuttx_user.bin bs=1024 skip=3014400 seek=0 count=3072 of=${MEADOW_OS_RUNTIME_BIN} conv=notrunc 2> /dev/null
 fi
 
