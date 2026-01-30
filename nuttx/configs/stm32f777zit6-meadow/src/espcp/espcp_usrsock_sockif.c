@@ -272,7 +272,7 @@ static bool espcp_usrsock_poll_request_compare_fd_pointer(uint32_t key, void *it
  *                data.
  *  sockAddr - Pointer to the encoded espcp_sock_addr_t object holding the
  *             datafrom the ESP32.
- * 
+ *
  * Returns:
  *  None.
  *
@@ -738,22 +738,22 @@ int espcp_usrsock_bind(struct socket *psock, const struct sockaddr *addr, sockle
  * Name: espcp_usrsock_close
  *
  * Description:
- *  Closes a file descriptor, so that it no longer refers to any socket and 
+ *  Closes a file descriptor, so that it no longer refers to any socket and
  *  may be reused.
  *
  * Input Parameters:
  *   conn     usrsock socket connection structure
- * 
+ *
  * Returns:
  *  0 if successful, negated errno on error.
- * 
+ *
  *  EBADF
  *      fd isn't a valid open file descriptor.
  *  EIO
  *      An I/O error occurred.
  *  ENETDOWN
  *      Network down / not connected.
- * 
+ *
  ****************************************************************************/
 int espcp_usrsock_close(struct socket *psock)
 {
@@ -1189,8 +1189,8 @@ int espcp_usrsock_getsockname(struct socket *psock, struct sockaddr *addr, sockl
  *   psock      A pointer to a NuttX-specific, internal socket structure
  *   cmd        The ioctl command
  *   arg        The argument of the ioctl cmd
- *   arglen     Number of bytes 
- * 
+ *   arglen     Number of bytes
+ *
  * Returns:
  *  0 on success, negated errno on error.
  *
@@ -1317,8 +1317,8 @@ static int espcp_usrsock_send_ioctl_to_esp(struct socket *psock, int cmd, void *
  *   psock      A pointer to a NuttX-specific, internal socket structure
  *   cmd        The ioctl command
  *   arg        The argument of the ioctl cmd
- *   arglen     Number of bytes 
- * 
+ *   arglen     Number of bytes
+ *
  * Returns:
  *  0 on success, negated errno on error.
  *
@@ -1530,7 +1530,7 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
     espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
                                                             espcp_wi_fi_function_poll,
                                                             espcp_status_codes_completed_ok,
-                                                            request->setup_message_id, payload, payload_length);       
+                                                            request->setup_message_id, payload, payload_length);
     free(request);
     if (message == NULL)
     {
@@ -1602,7 +1602,7 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
  *
  * Returned Value:
  *  0 on success, negated errno on error.
- * 
+ *
  ****************************************************************************/
 static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
 {
@@ -1615,7 +1615,7 @@ static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
     int result = 0;
 
     espcp_lock_poll_requests_queue();
-    espcp_poll_request_list_item_t *pr = (espcp_poll_request_list_item_t *) gl_find_item(_espcp_poll_requests, 
+    espcp_poll_request_list_item_t *pr = (espcp_poll_request_list_item_t *) gl_find_item(_espcp_poll_requests,
                                                 (uint32_t) fds->fd, espcp_usrsock_poll_request_compare_fd_pointer);
     espcp_unlock_poll_requests_queue();
 
@@ -1654,7 +1654,7 @@ static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
         espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,
                                                                 espcp_wi_fi_function_poll,
                                                                 espcp_status_codes_completed_ok,
-                                                                espcp_get_next_message_id(), payload, payload_length);       
+                                                                espcp_get_next_message_id(), payload, payload_length);
         if (message == NULL)
         {
             free(payload);
@@ -1710,7 +1710,7 @@ void espcp_usrsock_poll_interrupt_handler(espcp_message_t *message)
     {
         request_id = ipr->setup_message_id;
         espcp_lock_poll_requests_queue();
-        espcp_poll_request_list_item_t *pr = (espcp_poll_request_list_item_t *) gl_find_item(_espcp_poll_requests, 
+        espcp_poll_request_list_item_t *pr = (espcp_poll_request_list_item_t *) gl_find_item(_espcp_poll_requests,
                                                     request_id, espcp_usrsock_poll_request_compare_message_id);
         if (pr != NULL)
         {
@@ -1797,7 +1797,7 @@ int espcp_usrsock_poll(struct socket *psock, struct pollfd *fds, bool setup)
  *   flags    Receive flags (ignored)
  *   from     Address of source (may be NULL)
  *   fromlen  The length of the address structure
- * 
+ *
  * Returns:
  *  0 on success, negated errno on error.
  *
@@ -1882,7 +1882,7 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
                                         sin.sin_port = sa->port;
                                         memcpy(&sin.sin_addr, &sa->ip4_address, sizeof(sin.sin_addr));
                                         if (*fromlen > (sizeof(struct sockaddr_in)))
-                                        {                                                
+                                        {
                                             *fromlen = sizeof(struct sockaddr);
                                         }
                                         memcpy(from, &sin, *fromlen);
@@ -1939,7 +1939,7 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
  *   flags    Send flags (ignored)
  *   to       Address of recipient
  *   tolen    The length of the address structure
- * 
+ *
  * Returns:
  *  0 on success, negated errno on error.
  *
@@ -2178,7 +2178,7 @@ static void espcp_log_socket_option_name(int level, int option)
  *   SOL_SOCKET.
  *
  *   See <sys/socket.h> a complete list of values for the 'option' argument.
- * 
+ *
  *   getsockopt is documented here: https://linux.die.net/man/3/getsockopt
  *
  * Input Parameters:
@@ -2190,7 +2190,7 @@ static void espcp_log_socket_option_name(int level, int option)
  *
  * Returns:
  *  0 on success, negated errno on error.
- * 
+ *
  *  -EINVAL: Value length is not large enough to store the result.
  *
  ****************************************************************************/
@@ -2394,7 +2394,7 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
                         result = -1;
                         break;
                 }
-            }                
+            }
         }
     }
 
@@ -2407,11 +2407,11 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
 
 /**
  * @brief Encode an integer value for the ESP32.
- * 
- * @param data 
+ *
+ * @param data
  *      Pointer to the integer value to be encoded.
- * 
- * @return uint8_t* 
+ *
+ * @return uint8_t*
  *      Buffer containing the encoded value or NULL if there was a problem.
  */
 static uint8_t *espcp_usrsock_encode_integer(const void *data)
@@ -2432,19 +2432,19 @@ static uint8_t *espcp_usrsock_encode_integer(const void *data)
 
 /**
  * @brief Encode a TCP option value for the ESP32.
- * 
+ *
  * @param request
  *      Pointer to a setsockopt request to be sent to the ESP32.
- * 
- * @param option 
+ *
+ * @param option
  *      Name of the option value to be encoded.
- * 
+ *
  * @param value
  *      Pointer to the option value data.
- * 
- * @param length 
+ *
+ * @param length
  *      Length of the option value data.
- *  
+ *
  * @return int
  *      0 on success or negated error code if there was a problem.
  */
@@ -2531,19 +2531,19 @@ static int espcp_usrsock_encode_socket_option_value(espcp_set_sock_opt_request_t
 
 /**
  * @brief Encode a TCP option value for the ESP32.
- * 
+ *
  * @param request
  *      Pointer to a setsockopt request to be sent to the ESP32.
- * 
- * @param option 
+ *
+ * @param option
  *      Name of the option value to be encoded.
- * 
+ *
  * @param value
  *      Pointer to the option value data.
- * 
- * @param length 
+ *
+ * @param length
  *      Length of the option value data.
- *  
+ *
  * @return int
  *      0 on success or negated error code if there was a problem.
  */
@@ -2592,7 +2592,7 @@ static int espcp_usrsock_encode_tcp_option_value(espcp_set_sock_opt_request_t *r
  *   options at the socket level, specify the level argument as SOL_SOCKET.
  *
  *   See <sys/socket.h> a complete list of values for the 'option' argument.
- * 
+ *
  *   According to the ESP32 documentation, the following socket option types
  *   are NOT supported:
  *      - SoDebug
@@ -2603,14 +2603,14 @@ static int espcp_usrsock_encode_tcp_option_value(espcp_set_sock_opt_request_t *r
  *      - SoSndBuf
  *      - SoSndLoWat
  *      - SoRcvLoWat
- * 
+ *
  * Input Parameters:
  *   psock     usrsock socket connection structure
  *   level     Protocol level to set the option
  *   option    identifies the option to set
  *   value     Points to the argument value
  *   value_len The length of the argument value
- * 
+ *
  * Returns:
  *  0 on success, negated errno on error.
  *
@@ -2870,15 +2870,15 @@ int espcp_usrsock_socket(int domain, int type, int protocol, struct socket *psoc
  * Description:
  *  Read the specified number of bytes from the socket and place them in the
  *  buffer.
- * 
+ *
  *  This method instructs the ESP32 to call the read method which will in
  *  turn call the equivalent LWIP method.
- * 
+ *
  * See:
  *  http://www.nongnu.org/lwip/2_0_x/group__socket.html#ga822040573319cf87bfe6758d511be57f
- * 
+ *
  * Input Parameters:
- * 
+ *
  *  psock - Pointer to the socket structure to read from
  *  buffer - Buffer to hold the results of the read
  *  count - Size of the buffer.
@@ -2987,9 +2987,9 @@ int32_t espcp_usrsock_read(struct socket *psock, const void *buffer, size_t coun
  *
  * Description:
  *  TODO: Implement this method and complete the comment header.
- * 
+ *
  * Input Parameters:
- * 
+ *
  *  old_psock - Pointer to the socket to duplicate.
  *  new_psock - Pointer to the duplicated socket.
  *
@@ -3011,9 +3011,9 @@ int espcp_usrsock_dup2(struct socket *old_psock, struct socket *new_psock)
  *
  * Description:
  *  TODO: Implement this method and complete the comment header.
- * 
+ *
  * Input Parameters:
- * 
+ *
  *  psock - Pointer to the socket structure to read from
  *  msg - Message to send.
  *  flags - Flags
@@ -3036,9 +3036,9 @@ size_t espcp_usrsock_sendmsg(struct socket *psock, const struct msghdr *msg, int
  *
  * Description:
  *  TODO: Implement this method and complete the comment header.
- * 
+ *
  * Input Parameters:
- * 
+ *
  *  psock - Pointer to the socket structure to read from
  *  how - Indicate how the socket should be shutdown.
  *
@@ -3060,12 +3060,12 @@ int espcp_usrsock_shutdown(struct socket *psock, int how)
  *
  * Description:
  *  TODO: Implement this method and complete the comment header.
- * 
+ *
  * Input Parameters:
- * 
+ *
  *  psock - Pointer to the socket structure to read from
  *  msg - Pointer to a block of memory that will receive the message.
- *  flags - 
+ *  flags -
  *
  * Returned Value:
  *  -1
@@ -3085,9 +3085,9 @@ size_t espcp_usrsock_recvmsg(struct socket *psock, struct msghdr *msg, int flags
  *
  * Description:
  *  TODO: Implement this method and complete the comment header.
- * 
+ *
  * Input Parameters:
- * 
+ *
  *
  * Returned Value:
  *  -1
@@ -3100,18 +3100,18 @@ int espcp_usrsock_getaddrinfo(const char *hostname, const char *servname,
                 const struct addrinfo *hint, struct addrinfo **res)
 {
     espcp_usrsock_not_implemented(__func__);
-    return(-1);    
+    return(-1);
 }
 
 /****************************************************************************
  * Name: espcp_usrsock_not_implemented
  *
  * Description:
- *  Output a message to the logs indicating that a method that is not 
+ *  Output a message to the logs indicating that a method that is not
  *  implemented has been called.
- * 
+ *
  * Input Parameters:
- * 
+ *
  *  source - Method that has been called.
  *
  * Returned Value:
