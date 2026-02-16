@@ -29,6 +29,7 @@ ENABLE_ASSERTS=false
 MAKE_OPTIONS=
 UNIT_TESTS=
 BOOTLOADER_OPTIONS=
+NUTTX_OPTIONS=
 
 for i in "$@"
 do
@@ -38,7 +39,8 @@ case $i in
     ;;
     -v|--verbose)
     VERBOSE=true
-    BOOTLOADER_OPTION+="--verbose "
+    NUTTX_OPTIONS="V=1"
+    BOOTLOADER_OPTIONS+="--verbose "
     ;;
     -f|--force)
     FORCE=true
@@ -46,11 +48,11 @@ case $i in
     ;;
     -c|--clean)
     CLEAN=true
-    BOOTLOADER_OPTIONs+="--clean "
+    BOOTLOADER_OPTIONS+="--clean "
     ;;
     --wlclean)
     WLCLEAN=true
-    BOOTLOADER_OPTIONs+="--wlclean "
+    BOOTLOADER_OPTIONS+="--wlclean "
     ;;
     -m|--mono)
     MONO=true
@@ -63,11 +65,11 @@ case $i in
     ;;
     --debug)
     DEBUG=true
-    BOOTLOADER_OPTIONs+="--debug "
+    BOOTLOADER_OPTIONS+="--debug "
     ;;
     -mfd|--makefiledebugging)
     MAKE_OPTIONS="--debug VERBOSE=1"
-    BOOTLOADER_OPTIONs+="--makefiledebugging "
+    BOOTLOADER_OPTIONS+="--makefiledebugging "
     ;;
     --esd)
     ENABLE_STACK_DUMP=true
@@ -191,7 +193,7 @@ NUTTX_CONFIG_FILE=$scriptdir/nuttx/.config
 if $FORCE; then
     if [ -r "$scriptdir/nuttx/.config" ]; then
         printf "Cleaning NuttX (already configured)..."
-        run_command "make -C $scriptdir/nuttx distclean -j8 $MAKE_OPTIONS"
+        run_command "make -C $scriptdir/nuttx distclean -j8 $MAKE_OPTIONS $NUTTX_OPTIONS"
         check_command_status
     fi
 fi
@@ -200,7 +202,7 @@ if [ ! -r "$scriptdir/nuttx/.config" ]; then
     printf "Configuring NuttX...\n"
     run_command "$scriptdir/nuttx/tools/configure.sh $NUTTX_CONFIG"
 
-    run_command "make -C $scriptdir/nuttx context"
+    run_command "make -C $scriptdir/nuttx context $NUTTX_OPTIONS"
     check_command_status
 fi
 
@@ -381,8 +383,8 @@ generate_build_info
 
 printf "Building NuttX (kernel pass)...\n"
 # Build mksyscall first due to issues with concurrency and makefile dependencies
-run_command "make -C $scriptdir/nuttx/tools $MAKE_OPTIONS -f Makefile.host mksyscall"
-run_command "make -C $scriptdir/nuttx $MEADOW_ADDITIONAL_MAKE_OPTIONS $MAKE_OPTIONS pass2"
+run_command "make -C $scriptdir/nuttx/tools $MAKE_OPTIONS $NUTTX_OPTIONS -f Makefile.host mksyscall"
+run_command "make -C $scriptdir/nuttx $MEADOW_ADDITIONAL_MAKE_OPTIONS $MAKE_OPTIONS $NUTTX_OPTIONS pass2"
 check_command_status
 
 #
@@ -401,7 +403,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-run_command "make -C $scriptdir/nuttx $MEADOW_ADDITIONAL_MAKE_OPTIONS $MAKE_OPTIONS pass1deps"
+run_command "make -C $scriptdir/nuttx $MEADOW_ADDITIONAL_MAKE_OPTIONS $MAKE_OPTIONS $NUTTX_OPTIONS pass1deps"
 check_command_status
 
 if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
@@ -409,7 +411,7 @@ if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
   if $NETCORE; then
     export ENABLE_NETCORE=1
   fi
-  run_command "make -C $scriptdir/nuttx $MEADOW_ADDITIONAL_MAKE_OPTIONS $MAKE_OPTIONS pass1"
+  run_command "make -C $scriptdir/nuttx $MEADOW_ADDITIONAL_MAKE_OPTIONS $MAKE_OPTIONS $NUTTX_OPTIONS pass1"
   check_command_status
 fi
 
