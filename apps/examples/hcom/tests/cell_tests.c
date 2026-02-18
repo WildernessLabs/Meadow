@@ -1,5 +1,5 @@
 /****************************************************************************
- * cell_modem_test.c
+ * /apps/examples/hcom/tests/cell_tests.c
  *
  *   Copyright (C) 2025 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
