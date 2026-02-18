@@ -24,7 +24,7 @@ config HCOM_COMMS_DEVICE_NAME
     default "/dev/ttyACM0"
 
 config MEADOW_CLOUD
-    string "Enables Meadow Cloud support"
+    bool "Enables Meadow Cloud support"
     default y
 
 config MEADOW_ETHNET_INCLUDE_IN_BUILD
