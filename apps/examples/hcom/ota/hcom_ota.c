@@ -452,7 +452,13 @@ int meadow_cloud_decrypt_buf(const unsigned char *encrypted_buf, int encrypted_l
 {
     unsigned char *private_key;
     int len, ret;
-    meadow_cloud_retrieve_private_key((const char**) &private_key, &len);
+
+    ret = meadow_cloud_retrieve_private_key((const char**) &private_key, &len);
+    if (ret != 0)
+    {
+        printf(" failed\n  ! meadow_cloud_retrieve_private_key returned an error\n");
+        return -1;
+    }
 
     mbedtls_pk_init( &key );
     mbedtls_ctr_drbg_init( &ctr_drbg );
