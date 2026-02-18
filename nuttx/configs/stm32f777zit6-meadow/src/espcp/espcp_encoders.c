@@ -35,6 +35,12 @@
 
 #include "espcp_encoders.h"
 
+//
+//  Temporarily undefine NDEBUG to be able to use assertions in this file.
+//
+// #undef NDEBUG
+#include <assert.h>
+
 /****************************************************************************
  * Name: espcp_calculate_spi_buffer_size
  *

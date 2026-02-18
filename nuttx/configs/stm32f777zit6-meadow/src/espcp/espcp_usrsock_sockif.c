@@ -42,7 +42,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdbool.h>
-#include <assert.h>
 #include <errno.h>
 #include <debug.h>
 #include <net/if.h>
@@ -63,8 +62,19 @@
 #include "espcp_event_handlers.h"
 #include "espcp_message_dispatcher.h"
 
+//
+//  Define USE_MEADOW_DEBUG_HELPERS to enable Meadow debug tracing in this file.
+//
+
 // #define USE_MEADOW_DEBUG_HELPERS
 #include <meadow/meadow_debug_helpers.h>
+
+//
+//  Temporarily undefine NDEBUG to be able to use assertions in this file.
+//
+// #undef NDEBUG
+#include <assert.h>
+
 #include <meadow/meadow_watchdog.h>
 
 /****************************************************************************
@@ -1555,6 +1565,7 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
 
         if (espcp_queue_message(message, true) == espcp_status_codes_completed_ok)
         {
+            DEBUGASSERT(message->payload != NULL);
             espcp_integer_and_errno_response_t *response = espcp_extract_integer_and_errno_response(message->payload);
             if (response == NULL)
             {
