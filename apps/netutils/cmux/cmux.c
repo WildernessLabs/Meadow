@@ -38,6 +38,7 @@
 #include <pthread.h>
 #include <sched.h>
 #include <pty.h>
+#include <crc8.h>
 
 #include "netutils/chat.h"
 #include "netutils/cmux.h"
@@ -66,10 +67,6 @@
 #define cmux_buffer_free(buf) \
   ((buf->readp > buf->writep) ? (buf->readp - buf->writep) : (CMUX_BUFFER_SZ - (buf->writep - buf->readp)))
 
-/* reversed, 8-bit, poly=0x07 */
-
-static const unsigned char g_cmux_crc_table[256] = CMUX_CRC_TABLE;
-
 struct cmux_ctl_s
 {
   int fd;
@@ -93,14 +90,7 @@ struct cmux_ctl_s
 
 static unsigned char cmux_calulate_fcs(const unsigned char *input, int count)
 {
-  unsigned char fcs = CMUX_FCS_MAX_VALUE;
-  int i;
-  for (i = 0; i < count; i++)
-    {
-      fcs = g_cmux_crc_table[fcs ^ input[i]];
-    }
-
-  return (CMUX_FCS_MAX_VALUE - fcs);
+  return crc8rohcpart(input, count, 0x00);
 }
 
 /****************************************************************************
@@ -202,6 +192,7 @@ static int cmux_decode_frame(struct cmux_stream_buffer_s *cmux_buffer,
           if (*cmux_buffer->readp == CMUX_OPEN_FLAG)
             {
               cmux_buffer->flag_found = 1;
+              syslog(1, "Open flag found.\n");
             }
 
           cmux_inc_buffer(cmux_buffer, cmux_buffer->readp);
@@ -209,6 +200,7 @@ static int cmux_decode_frame(struct cmux_stream_buffer_s *cmux_buffer,
 
       if (!cmux_buffer->flag_found)
         {
+          syslog(1, "Flag not found.\n");
           return ERROR;
         }
 
@@ -225,16 +217,18 @@ static int cmux_decode_frame(struct cmux_stream_buffer_s *cmux_buffer,
 
       data = cmux_buffer->readp;
       fcs = CMUX_FCS_MAX_VALUE;
-      cmux_parse->address = ((*data & CMUX_ADDR_FIELD_CHECK) >> 2);
-      fcs = g_cmux_crc_table[fcs ^ *data];
+      cmux_parse->address = ((*data &
+                              CMUX_ADDR_FIELD_CHECK) >> 2);
+      fcs = crc8rohcincr(*data, fcs);
       cmux_inc_buffer(cmux_buffer, data);
 
       cmux_parse->control = *data;
-      fcs = g_cmux_crc_table[fcs ^ *data];
+      fcs = crc8rohcincr(*data, fcs);
       cmux_inc_buffer(cmux_buffer, data);
 
-      cmux_parse->data_length = (*data & CMUX_LENGTH_FIELD_OPERATOR) >> 1;
-      fcs = g_cmux_crc_table[fcs ^ *data];
+      cmux_parse->data_length = (*data &
+                                CMUX_LENGTH_FIELD_OPERATOR) >> 1;
+      fcs = crc8rohcincr(*data, fcs);
 
       /* EA bit, should always have the value 1 */
 
@@ -242,12 +236,14 @@ static int cmux_decode_frame(struct cmux_stream_buffer_s *cmux_buffer,
         {
           cmux_buffer->readp = data;
           cmux_buffer->flag_found = 0;
+          syslog(1, "EA bit not found\n");
           continue;
         }
 
       length += cmux_parse->data_length;
       if (!(cmux_buffer_length(cmux_buffer) >= length))
         {
+          syslog(1, "Buffer length less than expected\n");
           return ERROR;
         }
 
@@ -261,7 +257,8 @@ static int cmux_decode_frame(struct cmux_stream_buffer_s *cmux_buffer,
               memcpy(cmux_parse->data, data, end);
               memcpy(cmux_parse->data + end, cmux_buffer->data,
                     cmux_parse->data_length - end);
-              data = cmux_buffer->data + (cmux_parse->data_length - end);
+              data = cmux_buffer->data +
+                    (cmux_parse->data_length - end);
             }
           else
             {
@@ -278,16 +275,17 @@ static int cmux_decode_frame(struct cmux_stream_buffer_s *cmux_buffer,
               int i;
               for (i = 0; i < cmux_parse->data_length; i++)
                 {
-                  fcs = g_cmux_crc_table[fcs ^ (cmux_parse->data[i])];
+                  fcs = crc8rohcincr(cmux_parse->data[i], fcs);
                 }
             }
         }
 
-      if (g_cmux_crc_table[fcs ^ (*data)] != CMUX_FCS_OPERATOR)
+      if (crc8rohcincr(*data, fcs) != CMUX_FCS_OPERATOR)
         {
           cmux_buffer->dropped_count++;
           cmux_buffer->readp = data;
           cmux_parse_reset(cmux_parse);
+          syslog(1, "CRC not matched\n");
           continue;
         }
 
@@ -297,12 +295,14 @@ static int cmux_decode_frame(struct cmux_stream_buffer_s *cmux_buffer,
           cmux_buffer->readp = data;
           cmux_buffer->dropped_count++;
           cmux_parse_reset(cmux_parse);
+          syslog(1, "Close flag not found.\n");
           continue;
         }
 
       cmux_buffer->received_count++;
       cmux_inc_buffer(cmux_buffer, data);
       cmux_buffer->readp = data;
+      syslog(1, "Inc buffer.\n");
       return OK;
     }
 
@@ -322,16 +322,13 @@ static int cmux_encode_frame(int fd, int channel, char *buffer,
 {
   int prefix_len = 4;
   unsigned char frame_prefix[CMUX_FRAME_PREFIX] = {
-  CMUX_OPEN_FLAG,
-  (CMUX_ADDR_FIELD_BIT_EA | CMUX_ADDR_FIELD_BIT_CR),
-  0x00,
-  0x00,
-  0x00
+    CMUX_OPEN_FLAG, (CMUX_ADDR_FIELD_BIT_EA | CMUX_ADDR_FIELD_BIT_CR),
+    0x00, 0x00, 0x00
   };
 
   unsigned char frame_posfix[CMUX_FRAME_POSFIX] = {
-  CMUX_FCS_MAX_VALUE,
-  CMUX_CLOSE_FLAG
+    CMUX_FCS_MAX_VALUE,
+    CMUX_CLOSE_FLAG
   };
 
   frame_prefix[CMUX_BIT1] = (frame_prefix[CMUX_BIT1] |
@@ -473,7 +470,7 @@ static int cmux_extract(struct cmux_ctl_s *ctl, char *input, int len)
 {
   int ret;
   int frames_extracted = 0;
-
+  syslog(1, "cmux_extract: Enter\n");
   if (!input)
     {
       return ERROR;
@@ -490,7 +487,11 @@ static int cmux_extract(struct cmux_ctl_s *ctl, char *input, int len)
       if (CMUX_FRAME_TYPE(CMUX_FRAME_TYPE_UI, ctl->parse) ||
           CMUX_FRAME_TYPE(CMUX_FRAME_TYPE_UIH, ctl->parse))
         {
-          if (ctl->parse->address > 0)
+
+          syslog(1, "Write parse data :%s | address : %d\n",
+            ctl->parse->data, ctl->parse->address);
+
+          // if (ctl->parse->address > 0)
             {
               /* Logic channel */
 
@@ -504,10 +505,10 @@ static int cmux_extract(struct cmux_ctl_s *ctl, char *input, int len)
                   continue;
                 }
             }
-          else
-            {
-              /* Control channel */
-            }
+          // else
+          //   {
+          //     /* Control channel */
+          //   }
         }
       else
         {
@@ -591,7 +592,8 @@ static int cmux_extract(struct cmux_ctl_s *ctl, char *input, int len)
     }
 
   cmux_parse_reset(ctl->parse);
-
+  syslog(1, "Frames extracted: %d\n", frames_extracted);
+  syslog(1, "cmux_extract: Exit\n");
   return frames_extracted;
 }
 
@@ -633,7 +635,7 @@ static void *cmux_thread(void *args)
   int ret = 0;
   fd_set rfds;
   struct timeval timeout;
-  char buffer[CMUX_BUFFER_SZ];
+  char buffer[CMUX_BUFFER_SZ] = {0x00};
 
   while (true)
     {
@@ -646,12 +648,17 @@ static void *cmux_thread(void *args)
           if (ctl->channels[i].active)
             {
               FD_SET(ctl->channels[i].master_fd, &rfds);
-              FD_SET(ctl->channels[i].slave_fd, &rfds);
+              // FD_SET(ctl->channels[i].slave_fd, &rfds);
 
               if (ctl->channels[i].master_fd > max_fd)
-                max_fd = ctl->channels[i].master_fd;
-              if (ctl->channels[i].slave_fd > max_fd)
-                max_fd = ctl->channels[i].slave_fd;
+                {
+                  max_fd = ctl->channels[i].master_fd;
+                }
+
+              // if (ctl->channels[i].slave_fd > max_fd)
+              //   {
+              //     max_fd = ctl->channels[i].slave_fd;
+              //   }
             }
         }
 
@@ -672,6 +679,8 @@ static void *cmux_thread(void *args)
                     {
                       perror("ERROR: Failed to extract frames \n");
                     }
+
+                  syslog(1, "Recv from uart buffer = %s \n", buffer);
                 }
             }
 
@@ -690,6 +699,8 @@ static void *cmux_thread(void *args)
                         {
                           nwarn("WANING: Retransmit from pty/%d\n", i);
                         }
+                        syslog(1, "Recv from virtual port %d, buffer = %s \n",
+                              i, buffer);
                     }
                 }
             }
@@ -741,7 +752,7 @@ int cmux_create(struct cmux_settings_s *settings)
   ctl.fd = cmux_ctl->fd;
   ctl.timeout = 30;
 
-  ret = chat(&ctl, settings->script, NULL);
+  ret = chat(&ctl, settings->script);
   if (ret < 0)
     {
       perror("ERROR:Failed to run cmux script\n");
@@ -775,7 +786,7 @@ int cmux_create(struct cmux_settings_s *settings)
     }
 
   cmux_ctl->stream = cmux_stream_buffer_create();
-  if (!cmux_ctl->stream)
+  if (cmux_ctl->stream == NULL)
     {
       perror("ERROR: Failed to allocate memory to stream\n");
       ret = -ENOMEM;

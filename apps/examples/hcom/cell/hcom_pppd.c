@@ -46,6 +46,7 @@
 #include "netutils/chat.h"
 #include "netutils/pppd.h"
 #include "netutils/ntpclient.h"
+#include "netutils/cmux.h"
 
 #include "hcom_pppd.h"
 #include "../misc/espcp_utils.h"
@@ -74,16 +75,24 @@ static bool cell_connected = false;
 static char *cell_at_cmds_output;
 static hcom_pppd_handler_t hcom_cell_handler;
 static hcom_cell_err_t cell_err;
+static char  g_cmux_script[] = 
+    "ECHO ON "
+    "TIMEOUT 30 "
+    "\"\" ATE0 PAUSE 3 OK "
+    "AT+IFC=2,2 PAUSE 3 OK "
+    "AT+IPR=115200 PAUSE 3 OK "
+    "AT+CMUX=0,0,5,127,10,3,30,10,2 PAUSE 3 OK "
+    "\\c";
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
-static void hcom_pppd_connected_event(void);
+// static void hcom_pppd_connected_event(void);
 static void hcom_pppd_disconnected_event(int err_base);
-static void hcom_pppd_at_cmd_event(int ret);
-static void hcom_pppd_retry_exceeded_event(void);
-static void hcom_pppd_connecting_event(void);
+// static void hcom_pppd_at_cmd_event(int ret);
+// static void hcom_pppd_retry_exceeded_event(void);
+// static void hcom_pppd_connecting_event(void);
 
 //====================================================================
 // This function is used to generate the connection and disconnection script
@@ -173,9 +182,7 @@ static int hcom_pppd_create_connect_scripts(cell_settings_t *cell_settings, char
       snprintf_chk(*connect_script, CONNECT_SCRIPT_MAX_SIZE, 
         "ECHO ON "
         "TIMEOUT %s "
-        "\"\" AT+CFUN=1,1 "
-        "PAUSE 15 "
-        "OK AT+CMEE=2 "
+        "\"\" AT+CMEE=2 "
         "PAUSE 3 "
         "OK AT+GSN "
         "PAUSE 3 "
@@ -226,11 +233,8 @@ static int hcom_pppd_create_connect_scripts(cell_settings_t *cell_settings, char
   }
 
   snprintf_chk(*disconnect_script, DISCONNECT_SCRIPT_MAX_SIZE,
-    "AT+CFUN=1,1 "
-    "PAUSE 10 "
-    "OK " "\"\" ATZ "
-    "OK \\c"
-  );
+    "\"\" ATZ "
+    "OK \\c" );
 
   free(authentication_cmd);
   free(operator_selection_cmd);
@@ -317,7 +321,7 @@ int hcom_pppd_raise_event(uint32_t function, uint32_t status_code,
   }
   return result;
 }
-
+/*
 static void hcom_pppd_connecting_event(void)
 {
   hcom_logging_syslog(LOG_INFO, "%s-%d-Cell network starts to connecting\n", thisFile, __LINE__);
@@ -378,7 +382,7 @@ static int hcom_pppd_create_handler(void)
 
   return OK;
 }
-
+*/
 //====================================================================
 // This is the PPPD (Point-to-Point Protocol Daemon) thread, which is 
 // responsible to send AT commands to the modem, through the chat app, 
@@ -390,6 +394,19 @@ static void *pppd_thread(void *cell_settings_ptr)
 #endif
 
     cell_settings_t *cell_settings = (cell_settings_t *) cell_settings_ptr;
+
+    struct cmux_settings_s hcom_cmux;
+    hcom_cmux.total_channels = (int) 3;
+    hcom_cmux.script = g_cmux_script;
+    hcom_cmux.tty_name = "/dev/ttyS1";
+
+    if (cmux_create(&hcom_cmux) < 0)
+    {
+        syslog(1, "%s-%d-Failed to start CMUX service.\n", thisFile, __LINE__);
+        return NULL;
+    }
+
+    syslog(1, "%s-%d-Cell CMUX created\n", thisFile, __LINE__);
 
     if (cell_settings == NULL)
     {
@@ -446,15 +463,15 @@ static void *pppd_thread(void *cell_settings_ptr)
         return NULL;
     }
 
-    ret = hcom_pppd_create_handler();
-    if (ret < 0)
-    {
-        hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to create pppd handler, ret=%d\n", thisFile, __LINE__, ret);
-        free(connect_script);
-        free(disconnect_script);
-        free(cell_at_cmds_output);
-        return NULL;
-    }
+    // ret = hcom_pppd_create_handler();
+    // if (ret < 0)
+    // {
+    //     hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to create pppd handler, ret=%d\n", thisFile, __LINE__, ret);
+    //     free(connect_script);
+    //     free(disconnect_script);
+    //     free(cell_at_cmds_output);
+    //     return NULL;
+    // }
 
     hcom_logging_syslog(LOG_INFO, "%s-%d-Chat scripts created: %s\n %s\n",
                         thisFile, __LINE__, connect_script, disconnect_script);
@@ -463,13 +480,13 @@ static void *pppd_thread(void *cell_settings_ptr)
     {
         .disconnect_script = disconnect_script,
         .connect_script = connect_script,
-        .ttyname = cell_settings->ttyname,
-        .connect_event = (void*)hcom_pppd_connected_event,
-        .disconnect_event = (void*)hcom_pppd_disconnected_event,
-        .connecting_event = (void *)hcom_pppd_connecting_event,
-        .retry_count_exceeded_event = (void *)hcom_pppd_retry_exceeded_event,
-        .cell_at_cmds_output = cell_at_cmds_output,
-        .cell_handler = &hcom_cell_handler,
+        .ttyname = "/dev/pts/1",
+        // .connect_event = (void*)hcom_pppd_connected_event,
+        // .disconnect_event = (void*)hcom_pppd_disconnected_event,
+        // .connecting_event = (void *)hcom_pppd_connecting_event,
+        // .retry_count_exceeded_event = (void *)hcom_pppd_retry_exceeded_event,
+        // .cell_at_cmds_output = cell_at_cmds_output,
+        // .cell_handler = &hcom_cell_handler,
 #ifdef CONFIG_NETUTILS_PPPD_PAP
             .pap_username = cell_settings->pap_user,
             .pap_password = cell_settings->pap_password,
@@ -543,7 +560,7 @@ int meadow_get_cell_error (void)
 {
   return (int)cell_err;
 }
-
+/*
 static void hcom_pppd_connected_event(void) 
 {
     hcom_logging_syslog(LOG_INFO, "%s-%d-Cell network has been successfully connected\n", thisFile, __LINE__);
@@ -575,7 +592,7 @@ static void hcom_pppd_connected_event(void)
     int result = espcp_queue_event_messages(encodedData);
     hcom_logging_syslog(LOG_INFO, "%s-%d-Cell connected event message result: %d\n", thisFile, __LINE__, result);
 }
-
+*/
 static void hcom_pppd_disconnected_event(int err_base) 
 {
     hcom_logging_syslog(LOG_INFO, "%s-%d-Cell network has been disconnected, error: %d\n", thisFile, __LINE__, err_base);

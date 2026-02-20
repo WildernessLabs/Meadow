@@ -42,7 +42,6 @@
 
 #include <nuttx/config.h>
 #include <time.h>
-#include "../../examples/hcom/cell/hcom_pppd.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -66,34 +65,19 @@ struct pppd_settings_s
 {
   /* Serial Interface */
 
-  char* ttyname;
+  char ttyname[TTYNAMSIZ];
 
 #ifdef CONFIG_NETUTILS_PPPD_PAP
   /* PAP Authentication Settings */
 
-  char* pap_username;
-  char* pap_password;
+  char pap_username[PAP_USERNAME_SIZE];
+  char pap_password[PAP_PASSWORD_SIZE];
 #endif /* CONFIG_NETUTILS_PPPD_PAP */
 
   /* Chat Scripts */
 
   FAR const char* connect_script;
   FAR const char* disconnect_script;
-
-  /* PPP outputs */
-
-  FAR char* cell_at_cmds_output;
-
-  /* PPP Callbacks */
-
-  void (* connect_event)(void); 
-  void (* disconnect_event)(int err_base);
-  void (* connecting_event)(void);
-  void (* retry_count_exceeded_event)(void);
-
-  /* Cell Handler*/
-
-  hcom_pppd_handler_t *cell_handler;
 };
 
   /****************************************************************************

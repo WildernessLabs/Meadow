@@ -413,6 +413,8 @@ struct cell_settings_s
    *  @brief Enable cell network scanner mode
   */
   uint32_t scan_mode;
+
+  char *ppp_ptsname;
 };
 typedef struct cell_settings_s cell_settings_t;
 

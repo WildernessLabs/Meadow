@@ -177,7 +177,7 @@ int openpty(FAR int *master, FAR int *slave, FAR char *name,
 
   if (win != NULL)
     {
-      ioctl(*slave, TIOCSWINSZ, win);
+      ioctl(*slave, TIOCSWINSZ, (unsigned long *)win);
     }
 
   return 0;

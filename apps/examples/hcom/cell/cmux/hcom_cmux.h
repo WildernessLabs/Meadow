@@ -56,6 +56,6 @@
  * Public Functions
  ****************************************************************************/
 
-
+int hcom_cmux_start(void);
 
 #endif //__CONFIGS_MEADOW_SRC_HCOM_CELL_CMUX__H

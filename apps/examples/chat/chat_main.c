@@ -374,7 +374,7 @@ int chat_main(int argc, FAR char** argv)
       goto with_tty_dev;
     }
 
-  ret = chat((FAR struct chat_ctl*) &priv.ctl, priv.script, NULL);
+  ret = chat((FAR struct chat_ctl*) &priv.ctl, priv.script);
 
 with_tty_dev:
   close(priv.ctl.fd);

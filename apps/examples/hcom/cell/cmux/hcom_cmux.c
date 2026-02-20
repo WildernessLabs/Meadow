@@ -55,44 +55,194 @@
 #include <meadow/hcom_protocol.h>
 #include <meadow/meadow_os.h>
 
-#include "hcom_cmux.h"
 #include "netutils/cmux.h"
+#include "hcom_cmux.h"
+#include "cell/hcom_pppd.h"
+#include "netutils/pppd.h"
 
-#define HCOM_CMUX_NUMBER_OF_PORTS   (4)
-#define HCOM_CMUX_TASK_STACKSIZE    (3078)
-#define HCOM_CMUX_TASK_PRIORITY     (150)
-#define HCOM_CMUX_TTY_DEVNODE ("/dev/ttyS1")
+#define HCOM_CMUX_NUMBER_OF_PORTS   (3)
+#define HCOM_CMUX_PPP_VIRTUAL_CHANNEL "/dev/pts/2"
+
 static char *thisFile = __FILE__;
 
 static char  g_cmux_script[] = 
-  "ECHO ON "
-  "TIMEOUT 30 "
-  "\"\" ATE0 "
-  "OK AT+IFC=2,2 "
-  "OK AT+IPR=115200 "
-  "OK AT+CMUX=0,0,5,127,10,3,30,10,2 "
+    "ECHO ON "
+    "TIMEOUT 30 "
+    "\"\" ATE0 PAUSE 3 OK "
+    "AT+IFC=2,2 PAUSE 3 OK "
+    "AT+IPR=115200 PAUSE 3 OK "
+    "AT+CMUX=0,0,5,127,10,3,30,10,2 PAUSE 3 OK "
+    "\\c";
+
+static FAR const char connect_script[] =
+  "ECHO ON " 
+        "TIMEOUT 30 "
+        "\"\" AT+CMEE=2 "
+        "PAUSE 3 "
+        "OK AT+GSN "
+        "PAUSE 3 "
+        "OK AT+CGDCONT=1,\\\"IP\\\",\\\"teal\\\" "
+        "PAUSE 3 "
+        "OK AT+QCSQ "
+        "PAUSE 3 "
+        "OK AT+CSQ "
+        "PAUSE 3 "
+        "OK AT+COPS=0 "
+        "PAUSE 3 "
+        "OK ATD*99# "
+        "CONNECT \\c";
+
+static FAR const char disconnect_script[] =
+  "\"\" ATZ "
   "OK \\c";
+
+static void *hcom_mux_thread(void *parameters)
+{
+    int ret = 0;
+    struct cmux_settings_s hcom_cmux;
+    cell_settings_t *cell_settings = NULL;
+    meadow_configuration_t *config = meadow_os_deep_copy_config();
+
+    cell_settings = malloc(sizeof(cell_settings_t));
+    if (cell_settings == NULL)
+    {
+        hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate cell settings struct\n", thisFile, __LINE__);
+        ret = -ENOMEM;
+        goto exit;
+    }
+    memcpy(cell_settings, config->default_cell_settings, sizeof(cell_settings_t));
+    
+
+    hcom_cmux.total_channels = (int) 2;
+    hcom_cmux.script = g_cmux_script;
+    hcom_cmux.tty_name = cell_settings->ttyname;
+
+    ret = cmux_create(&hcom_cmux);
+    if (ret < 0)
+    {
+        syslog(1, "%s-%d-Failed to start CMUX service.\n", thisFile, __LINE__);
+        goto exit;
+    }
+
+    hcom_logging_syslog(LOG_INFO, "%s-%d-Cell CMUX created: %d\n", thisFile, __LINE__, ret);
+
+    meadow_os_config_free_resources(config);
+    // cell_settings->ppp_ptsname = (char *)HCOM_CMUX_PPP_VIRTUAL_CHANNEL;
+
+    // const struct pppd_settings_s pppd_settings =
+    // {
+    //     .disconnect_script = disconnect_script,
+    //     .connect_script = connect_script,
+    //     .ttyname = "/dev/pts/1",
+    // #ifdef CONFIG_NETUTILS_PPPD_PAP
+    //     .pap_username = "user",
+    //     .pap_password = "pass",
+    // #endif
+
+    // };
+    
+    // ret = pppd(&pppd_settings);
+
+    exit:
+
+    if (cell_settings)
+    {
+        free(cell_settings);
+    }
+
+    syslog(1, "%s-%d-Falied to start CMUX service: %d\n", thisFile, __LINE__, ret);
+
+    return NULL;
+
+}
 
 int hcom_cmux_start(void)
 {
-    int ret = -ENODATA;
-    pthread_t cmux_thread_id;
-    struct cmux_settings_s hcom_cmux;
+    int ret = OK;
     meadow_configuration_t *config = meadow_os_deep_copy_config();
-
-    if ((config != NULL) && (config->default_interface != NULL))
+    
+    if ((config != NULL) &&
+    (config->default_interface != NULL))
     {
+        
         if (config->default_interface->interface_type != MEADOW_IFT_CELL)
         {
-            hcom_cmux.total_channels = (int) HCOM_CMUX_NUMBER_OF_PORTS;
-            hcom_cmux.script = g_cmux_script;
-            hcom_cmux.tty_name = HCOM_CMUX_TTY_DEVNODE;
-
-            ret = cmux_create(&hcom_cmux);
-            hcom_logging_syslog(LOG_INFO, "%s-%d-Cell CMUX created: %d\n", thisFile, __LINE__, ret);
+            return ret;
         }
+        syslog(1, "%s-%d-Starting CMUX.\n", thisFile, __LINE__);
+
+        // pthread_attr_t attr;
+        // struct sched_param param;
+        // pthread_t hcom_thread_id;
+        // size_t stack_size = 4098;
+
+        // pthread_attr_init(&attr);
+        // pthread_attr_setstacksize(&attr, stack_size);
+        // param.sched_priority = 190;
+        // pthread_attr_setschedparam(&attr, &param);
+
+        // ret = pthread_create(&hcom_thread_id, &attr, hcom_mux_thread, NULL);
+        // if (ret == OK)
+        // {
+        //     syslog(1, "%s@%d-Hcom Mux thread launched\n", thisFile, __LINE__);
+        // }
+
+        struct cmux_settings_s hcom_cmux;
+        cell_settings_t *cell_settings = NULL;
+        meadow_configuration_t *config = meadow_os_deep_copy_config();
+
+        cell_settings = malloc(sizeof(cell_settings_t));
+        if (cell_settings == NULL)
+        {
+            hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate cell settings struct\n", thisFile, __LINE__);
+            ret = -ENOMEM;
+            goto exit;
+        }
+        memcpy(cell_settings, config->default_cell_settings, sizeof(cell_settings_t));
+        
+
+        hcom_cmux.total_channels = (int) 2;
+        hcom_cmux.script = g_cmux_script;
+        hcom_cmux.tty_name = cell_settings->ttyname;
+
+        ret = cmux_create(&hcom_cmux);
+        if (ret < 0)
+        {
+            syslog(1, "%s-%d-Failed to start CMUX service.\n", thisFile, __LINE__);
+            goto exit;
+        }
+
+        hcom_logging_syslog(LOG_INFO, "%s-%d-Cell CMUX created: %d\n", thisFile, __LINE__, ret);
+        meadow_os_config_free_resources(config);
+
+        const struct pppd_settings_s pppd_settings =
+        {
+            .disconnect_script = disconnect_script,
+            .connect_script = connect_script,
+            .ttyname = "/dev/pts/1",
+        #ifdef CONFIG_NETUTILS_PPPD_PAP
+            .pap_username = "user",
+            .pap_password = "pass",
+        #endif
+
+        };
+
+        // //ret = hcom_pppd_start(cell_settings);
+        return pppd(&pppd_settings);
+
     }
+
     meadow_os_config_free_resources(config);
+    return ret;
+
+    exit:
+
+    // if (cell_settings)
+    // {
+    //     free(cell_settings);
+    // }
+
+    hcom_logging_syslog(LOG_ERR, "%s-%d-Falied to start CMUX service: %d\n", thisFile, __LINE__, ret);
 
     return ret;
 }
