@@ -90,34 +90,29 @@ static void hcom_pppd_connecting_event(void);
 // based on cell settings and is later passed to the pppd() function
 static int hcom_pppd_create_connect_scripts(cell_settings_t *cell_settings, char **connect_script, char **disconnect_script)
 {
-  char *authentication_cmd = (char *)malloc(AUTHENTICATION_CMD_MAX_SIZE * sizeof(char));
-  if (authentication_cmd == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate authentication\n", thisFile, __LINE__);
-    return -ENOMEM;
-  }
+  char authentication_cmd[AUTHENTICATION_CMD_MAX_SIZE];
+
+#ifdef CONFIG_NETUTILS_PPPD_PAP
+      snprintf_chk(authentication_cmd, AUTHENTICATION_CMD_MAX_SIZE,
+        cell_settings->pap_user[0] != '\0' && cell_settings->pap_password[0] != '\0'
+        ? "AT+CGAUTH=1,1,\\\"%s\\\",\\\"%s\\\" PAUSE 3 OK " : "",
+        cell_settings->pap_user, cell_settings->pap_password);
+#else
+    snprintf_chk(authentication_cmd, AUTHENTICATION_CMD_MAX_SIZE, "");
+#endif
 
   char *operator_selection_cmd = (char *)malloc(OPERATOR_SELECTION_CMD_MAX_SIZE * sizeof(char));
   if (operator_selection_cmd == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate operator\n", thisFile, __LINE__);
-    free(authentication_cmd);
     return -ENOMEM;
   }
-
-  snprintf_chk(authentication_cmd, AUTHENTICATION_CMD_MAX_SIZE,
-      cell_settings->pap_user[0] != '\0' && cell_settings->pap_password[0] != '\0'
-          ? "AT+CGAUTH=1,1,\\\"%s\\\",\\\"%s\\\" PAUSE 3 OK "
-          : "",
-      cell_settings->pap_user,
-      cell_settings->pap_password
-  );
 
   // If the carrier operator code or the network operator mode is missing, the 
   // automatic network selection will be used (AT+COPS=0)
   snprintf_chk(operator_selection_cmd, OPERATOR_SELECTION_CMD_MAX_SIZE,
       cell_settings->operator[0] != '\0' && cell_settings->mode[0] != '\0'
-          ? "AT+COPS=1,2,\\\"%s\\\",%s PAUSE 3 OK "
+          ? "AT+COPS=4,2,\\\"%s\\\",%s PAUSE 3 OK "
           : "AT+COPS=0 PAUSE 3 OK ",
       cell_settings->operator,
       cell_settings->mode
@@ -126,114 +121,55 @@ static int hcom_pppd_create_connect_scripts(cell_settings_t *cell_settings, char
   switch (cell_settings->module_id)
   {
     case CELL_BG770A_MODULE:
-        snprintf_chk(*connect_script, CONNECT_SCRIPT_MAX_SIZE, 
-          "ECHO ON " 
-          "TIMEOUT %s "
-          "\"\" AT+CMEE=2 "
-          "PAUSE 3 "
-          "OK AT+GSN "
-          "PAUSE 3 "
-          "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
-          "PAUSE 3 "
-          "OK %s"
-          "AT+QCSQ "
-          "PAUSE 3 "
-          "OK AT+CSQ "
-          "PAUSE 3 "
-          "OK %s"
-          "ATD*99# "
-          "CONNECT \\c",
-          cell_settings->timeout, 
-          cell_settings->apn,
-          authentication_cmd,
-          operator_selection_cmd
-      );
-    break;
-  
-    case CELL_M95_MODULE:
+
       snprintf_chk(*connect_script, CONNECT_SCRIPT_MAX_SIZE, 
-        "ECHO ON " 
+        "ECHO ON "
         "TIMEOUT %s "
-        "\"\" AT+QACCM=0,0 "
-        "PAUSE 3 "
-        "OK AT+GSN "
-        "PAUSE 3 "
-        "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
-        "PAUSE 3 "
-        "OK AT+CSQ "
-        "PAUSE 3 "
-        "OK ATD*99# "
-        "CONNECT \\c",
-        cell_settings->timeout, 
-        cell_settings->apn
-      );
+        "\"\" AT+CMEE=2 PAUSE 3 OK "
+        "%s"
+        "AT+CREG? PAUSE 3 OK "
+        "AT+QCSQ PAUSE 3 OK "
+        "AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" PAUSE 3 OK "
+        "%s"
+        "ATD*99# CONNECT \\c",
+        cell_settings->timeout,
+        operator_selection_cmd,
+        cell_settings->apn, authentication_cmd);
     break;
-    
+
+    case CELL_M95_MODULE:
+    case CELL_EG21GL_MODULE:
     case CELL_BG95M3_MODULE:
       snprintf_chk(*connect_script, CONNECT_SCRIPT_MAX_SIZE, 
         "ECHO ON "
         "TIMEOUT %s "
-        "\"\" AT+CFUN=1,1 "
-        "PAUSE 15 "
-        "OK AT+CMEE=2 "
-        "PAUSE 3 "
-        "OK AT+GSN "
-        "PAUSE 3 "
-        "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
-        "PAUSE 3 "
-        "OK AT+QCSQ "
-        "PAUSE 3 "
-        "OK AT+CSQ "
-        "PAUSE 3 "
-        "OK %s"
-        "ATD*99# "
-        "CONNECT \\c",
-        cell_settings->timeout, 
-        cell_settings->apn,
-        operator_selection_cmd
-      );
+        "\"\" AT+CMEE=2 PAUSE 3 OK "
+        "%s" /* Operator Selection */
+        "AT+CREG? PAUSE 3 OK "
+        "AT+QCSQ PAUSE 3 OK "
+        "AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" PAUSE 3 OK "
+        "ATD*99# CONNECT \\c",
+        cell_settings->timeout,
+        operator_selection_cmd,
+        cell_settings->apn);
     break;
 
-    case CELL_EG21GL_MODULE:
-      snprintf_chk(*connect_script, CONNECT_SCRIPT_MAX_SIZE,
-        "ECHO ON "
-        "TIMEOUT %s "
-        "\"\" AT+CMEE=2 "
-        "PAUSE 3 "
-        "OK AT+GSN "
-        "PAUSE 3 "
-        "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
-        "PAUSE 3 "
-        "OK AT+QCSQ "
-        "PAUSE 3 "
-        "OK AT+CSQ "
-        "PAUSE 3 "
-        "OK %s"
-        "ATD*99# "
-        "CONNECT \\c",
-        cell_settings->timeout, 
-        cell_settings->apn,
-        operator_selection_cmd
-      );
-    break;
-    
     default:
       hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting connect script\n", thisFile, __LINE__);
-      free(authentication_cmd);
       free(operator_selection_cmd);
       return -EINVAL;
     break;
   }
 
   snprintf_chk(*disconnect_script, DISCONNECT_SCRIPT_MAX_SIZE,
-    "AT+CFUN=1,1 "
-    "PAUSE 10 "
-    "OK " "\"\" ATZ "
+    "\"\" ATZ "
     "OK \\c"
   );
 
-  free(authentication_cmd);
-  free(operator_selection_cmd);
+  if (operator_selection_cmd)
+  {
+    free(operator_selection_cmd);
+  }
 
   return OK;
 }
