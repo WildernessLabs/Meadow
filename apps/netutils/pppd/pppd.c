@@ -69,7 +69,7 @@
  ****************************************************************************/
 
 #ifdef PPP_ARCH_HAVE_MODEM_RESET
-void ppp_arch_modem_reset(const char *tty);
+static void ppp_arch_modem_reset (FAR struct ppp_context_s *ctx);
 #endif
 
 /****************************************************************************
@@ -81,6 +81,26 @@ static char *thisFile = __FILE__;
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+
+ static void ppp_arch_modem_reset (FAR struct ppp_context_s *ctx)
+{
+  int ret = 0;
+  const struct pppd_settings_s *pppd_settings = ctx->settings;
+  if (pppd_settings->reset_script)
+    {
+      if (strlen(pppd_settings->reset_script) > 0)
+        {
+          hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                                    "Reseting the modem.\n", thisFile, __LINE__);
+          ret = chat(&ctx->ctl, pppd_settings->reset_script, pppd_settings->cell_at_cmds_output);
+          if (ret < 0)
+            {
+              hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                "Failed to execute the reset.\n", thisFile, __LINE__);
+            }
+        }
+    }
+}
 
 /****************************************************************************
  * Name: make_nonblock
@@ -264,10 +284,18 @@ void ppp_reconnect(FAR struct ppp_context_s *ctx)
                 "Cell connect script failed, retrying... Script:\n", thisFile, __LINE__);
               hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
                 pppd_settings->connect_script, thisFile, __LINE__);
-               hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                "Response:\n", thisFile, __LINE__);
-              hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                pppd_settings->cell_at_cmds_output, thisFile, __LINE__);
+              if (strlen(pppd_settings->cell_at_cmds_output) > 0)
+                {
+                  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                   "Script response:\n", thisFile, __LINE__);
+                 hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                   pppd_settings->cell_at_cmds_output, thisFile, __LINE__);
+                }
+              else 
+                {
+                  hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                    "No response.\n", thisFile, __LINE__);
+                }
 #endif
               debug_printf("ppp: connect script failed\n");
               --retry;
@@ -276,7 +304,7 @@ void ppp_reconnect(FAR struct ppp_context_s *ctx)
                   pppd_settings->retry_count_exceeded_event();
                   retry = PPP_MAX_CONNECT;
 #ifdef PPP_ARCH_HAVE_MODEM_RESET
-                  ppp_arch_modem_reset(pppd_settings->ttyname);
+                  ppp_arch_modem_reset(ctx);
 #endif
                   sleep(15);
                 }

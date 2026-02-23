@@ -57,8 +57,10 @@
 // Note:
 // These connection scripts are used by PPPD to send AT commands to the 
 // module to connect using cell network
-#define CONNECT_SCRIPT_MAX_SIZE 1024
-#define DISCONNECT_SCRIPT_MAX_SIZE 64
+#define CONNECT_SCRIPT_MAX_SIZE     (1024)
+#define DISCONNECT_SCRIPT_MAX_SIZE  (64)
+#define RESET_SCRIPT_MAX_SIZE       (64)
+
 #define AUTHENTICATION_CMD_MAX_SIZE 128
 #define OPERATOR_SELECTION_CMD_MAX_SIZE 128
 #define GPS_AT_CMD_TIMEOUT 600
@@ -88,7 +90,8 @@ static void hcom_pppd_connecting_event(void);
 //====================================================================
 // This function is used to generate the connection and disconnection script
 // based on cell settings and is later passed to the pppd() function
-static int hcom_pppd_create_connect_scripts(cell_settings_t *cell_settings, char **connect_script, char **disconnect_script)
+static int hcom_pppd_create_scripts(cell_settings_t *cell_settings, char **connect_script,
+                                    char **disconnect_script, char **reset_script)
 {
   char authentication_cmd[AUTHENTICATION_CMD_MAX_SIZE];
 
@@ -126,6 +129,7 @@ static int hcom_pppd_create_connect_scripts(cell_settings_t *cell_settings, char
         "ECHO ON "
         "TIMEOUT %s "
         "\"\" AT+CMEE=2 PAUSE 3 OK "
+        "AT+GSN PAUSE 2 OK "
         "%s"
         "AT+CREG? PAUSE 3 OK "
         "AT+QCSQ PAUSE 3 OK "
@@ -144,14 +148,20 @@ static int hcom_pppd_create_connect_scripts(cell_settings_t *cell_settings, char
         "ECHO ON "
         "TIMEOUT %s "
         "\"\" AT+CMEE=2 PAUSE 3 OK "
+        "AT+GSN PAUSE 2 OK " /* Request International Mobile Equipament a.k.a IMEI */
         "%s" /* Operator Selection */
         "AT+CREG? PAUSE 3 OK "
         "AT+QCSQ PAUSE 3 OK "
-        "AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" PAUSE 3 OK "
+        "AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" PAUSE 3 OK " /* Access Point Network a.k.a APN */
         "ATD*99# CONNECT \\c",
         cell_settings->timeout,
         operator_selection_cmd,
         cell_settings->apn);
+
+      snprintf_chk (*reset_script, RESET_SCRIPT_MAX_SIZE,
+        "\"\" AT+CFUN= 1,1 PAUSE 15 OK "
+        "AT+CPIN? PAUSE 3 OK \\c");
+
     break;
 
     default:
@@ -205,14 +215,17 @@ static void hcom_pppd_get_script(int state, char *script)
     case CELL_AT_CMD_SIGNAL_QUALITY:
       hcom_logging_syslog(LOG_INFO, "%s-%d-Cell Signal Quality\n", thisFile, __LINE__);
       snprintf_chk(hcom_cell_handler.script, CONNECT_SCRIPT_MAX_SIZE,
-        "TIMEOUT %d \"\" AT+CSQ PAUSE 3 OK \\c",
+        "TIMEOUT %d \"\" AT+QCSQ PAUSE 3 OK \\c",
         GET_CSQ_AT_CMD_TIMEOUT);
       break;
 
-    case CELL_AT_CMD_SCAN:
+      case CELL_AT_CMD_SCAN:
+      /* Depending on the area to be covered,
+      the coverage time varies between 3 and 15 seconds. */
       hcom_logging_syslog(LOG_INFO, "%s-%d-Cell Scan Network\n", thisFile, __LINE__);
       snprintf_chk(hcom_cell_handler.script, CONNECT_SCRIPT_MAX_SIZE,
-        "TIMEOUT %d \"\" AT+COPS=? PAUSE 3 OK \\c",
+        "TIMEOUT %d \"\" AT+CPIN? PAUSE 3 OK "
+        "AT+COPS=? PAUSE 15 OK \\c",
         NETWORK_SCAN_AT_CMD_TIMEOUT);
       break;
 
@@ -351,45 +364,43 @@ static void *pppd_thread(void *cell_settings_ptr)
     if (connect_script == NULL)
     {
         hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate memory for connect script\n", thisFile, __LINE__);
-        return NULL;
+        goto exit;
     }
 
     char *disconnect_script = (char *)malloc(DISCONNECT_SCRIPT_MAX_SIZE * sizeof(char));
     if (disconnect_script == NULL)
     {
-        free(connect_script);
         hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate memory for disconnect script\n", thisFile, __LINE__);
-        return NULL;
+        goto exit;
+    }
+
+    char *reset_script = (char *)malloc(RESET_SCRIPT_MAX_SIZE * sizeof(char));
+    if (reset_script == NULL)
+    {
+        hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate memory for reset script\n", thisFile, __LINE__);
+        goto exit;
     }
 
     cell_at_cmds_output = (char *)malloc(CONNECT_SCRIPT_OUTPUT_MAX_SIZE * sizeof(char));
     if (cell_at_cmds_output == NULL)
     {
-        free(connect_script);
-        free(disconnect_script);
         hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate memory for cell AT commands output\n", thisFile, __LINE__);
-        return NULL;
+        goto exit;
     }
 
     int ret;
-    ret = hcom_pppd_create_connect_scripts(cell_settings, &connect_script, &disconnect_script);
+    ret = hcom_pppd_create_scripts(cell_settings, &connect_script, &disconnect_script, &reset_script);
     if (ret < 0)
     {
         hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to generate connect scripts, ret=%d\n", thisFile, __LINE__, ret);
-        free(connect_script);
-        free(disconnect_script);
-        free(cell_at_cmds_output);
-        return NULL;
+        goto exit;
     }
 
     ret = hcom_pppd_create_handler();
     if (ret < 0)
     {
         hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to create pppd handler, ret=%d\n", thisFile, __LINE__, ret);
-        free(connect_script);
-        free(disconnect_script);
-        free(cell_at_cmds_output);
-        return NULL;
+        goto exit;
     }
 
     hcom_logging_syslog(LOG_INFO, "%s-%d-Chat scripts created: %s\n %s\n",
@@ -399,6 +410,7 @@ static void *pppd_thread(void *cell_settings_ptr)
     {
         .disconnect_script = disconnect_script,
         .connect_script = connect_script,
+        .reset_script = reset_script,
         .ttyname = cell_settings->ttyname,
         .connect_event = (void*)hcom_pppd_connected_event,
         .disconnect_event = (void*)hcom_pppd_disconnected_event,
@@ -416,6 +428,34 @@ static void *pppd_thread(void *cell_settings_ptr)
     pppd(&pppd_settings);
 
     sleep(20);
+
+    exit:
+
+    if (connect_script)
+    {
+      free(connect_script);
+    }
+
+    if (disconnect_script)
+    {
+      free(disconnect_script);
+    }
+
+    if (cell_at_cmds_output)
+    {
+      free(cell_at_cmds_output);
+    }
+
+    if (reset_script)
+    {
+      free(reset_script);
+    }
+
+    if (cell_settings)
+    {
+      free(cell_settings);
+    }
+
     hcom_logging_syslog(LOG_INFO, "%s-%d-Failed after starting PPPD\n", thisFile, __LINE__);
     hcom_pppd_disconnected_event(cell_err);
 
