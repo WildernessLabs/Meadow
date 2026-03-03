@@ -57,9 +57,6 @@
 // Note:
 // These connection scripts are used by PPPD to send AT commands to the 
 // module to connect using cell network
-#define CONNECT_SCRIPT_MAX_SIZE     (1024)
-#define DISCONNECT_SCRIPT_MAX_SIZE  (64)
-#define RESET_SCRIPT_MAX_SIZE       (64)
 
 #define AUTHENTICATION_CMD_MAX_SIZE 128
 #define OPERATOR_SELECTION_CMD_MAX_SIZE 128
@@ -73,7 +70,7 @@
 
 static char *thisFile = __FILE__;
 static bool cell_connected = false;
-static char *cell_at_cmds_output;
+static char *cell_at_cmds_output = NULL;
 static hcom_pppd_handler_t hcom_cell_handler;
 static hcom_cell_err_t cell_err;
 
@@ -176,11 +173,7 @@ static int hcom_pppd_create_scripts(cell_settings_t *cell_settings, char **conne
     "OK \\c"
   );
 
-  if (operator_selection_cmd)
-  {
-    free(operator_selection_cmd);
-  }
-
+  free(operator_selection_cmd);
   return OK;
 }
 
@@ -195,7 +188,7 @@ static void hcom_pppd_get_script(int state, char *script)
   {
     case CELL_AT_CMD_GPS:
       hcom_logging_syslog(LOG_INFO, "%s-%d-Cell GPS/GNSS\n", thisFile, __LINE__);
-      snprintf_chk(hcom_cell_handler.script, CONNECT_SCRIPT_MAX_SIZE,
+      snprintf_chk(hcom_cell_handler.script, CHAT_SCRIPT_MAX_SIZE,
         "TIMEOUT %d \"\" "
         "AT+QGPS=1,2,180,1 PAUSE 3 OK " 
         "AT+QCFG=\\\"gpio\\\",1,64,1,0,0,1 PAUSE 3 OK "
@@ -214,7 +207,7 @@ static void hcom_pppd_get_script(int state, char *script)
 
     case CELL_AT_CMD_SIGNAL_QUALITY:
       hcom_logging_syslog(LOG_INFO, "%s-%d-Cell Signal Quality\n", thisFile, __LINE__);
-      snprintf_chk(hcom_cell_handler.script, CONNECT_SCRIPT_MAX_SIZE,
+      snprintf_chk(hcom_cell_handler.script, CHAT_SCRIPT_MAX_SIZE,
         "TIMEOUT %d \"\" AT+QCSQ PAUSE 3 OK \\c",
         GET_CSQ_AT_CMD_TIMEOUT);
       break;
@@ -223,7 +216,7 @@ static void hcom_pppd_get_script(int state, char *script)
       /* Depending on the area to be covered,
       the coverage time varies between 3 and 15 seconds. */
       hcom_logging_syslog(LOG_INFO, "%s-%d-Cell Scan Network\n", thisFile, __LINE__);
-      snprintf_chk(hcom_cell_handler.script, CONNECT_SCRIPT_MAX_SIZE,
+      snprintf_chk(hcom_cell_handler.script, CHAT_SCRIPT_MAX_SIZE,
         "TIMEOUT %d \"\" AT+CPIN? PAUSE 3 OK "
         "AT+COPS=? PAUSE 15 OK \\c",
         NETWORK_SCAN_AT_CMD_TIMEOUT);
@@ -295,7 +288,7 @@ static void hcom_pppd_at_cmd_event(int ret)
     return;
   }
 
-  if (strlen(cell_at_cmds_output))
+  if (cell_at_cmds_output && strlen(cell_at_cmds_output))
   {
     hcom_logging_syslog(LOG_INFO, "%s-%d-Cell: %s \n", thisFile, __LINE__, cell_at_cmds_output);
     message.interface = ESPCP_CELL_INTERFACE;
@@ -317,7 +310,7 @@ static int hcom_pppd_create_handler(void)
 {
   hcom_cell_handler.state = CELL_RESUMED;
   hcom_cell_handler.callback = (void *)hcom_pppd_at_cmd_event;
-  hcom_cell_handler.script = (char *)malloc(CONNECT_SCRIPT_MAX_SIZE);
+  hcom_cell_handler.script = (char *)malloc(CHAT_SCRIPT_MAX_SIZE);
 
   if (hcom_cell_handler.script == NULL)
   {
@@ -339,6 +332,9 @@ static void *pppd_thread(void *cell_settings_ptr)
 #endif
 
     cell_settings_t *cell_settings = (cell_settings_t *) cell_settings_ptr;
+    char *connect_script = NULL,
+    *disconnect_script = NULL,
+    *reset_script = NULL;
 
     if (cell_settings == NULL)
     {
@@ -360,28 +356,28 @@ static void *pppd_thread(void *cell_settings_ptr)
         return NULL;
     }
 
-    char *connect_script = (char *)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
+    connect_script = (char *)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
     if (connect_script == NULL)
     {
         hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate memory for connect script\n", thisFile, __LINE__);
         goto exit;
     }
 
-    char *disconnect_script = (char *)malloc(DISCONNECT_SCRIPT_MAX_SIZE * sizeof(char));
+    disconnect_script = (char *)malloc(DISCONNECT_SCRIPT_MAX_SIZE * sizeof(char));
     if (disconnect_script == NULL)
     {
         hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate memory for disconnect script\n", thisFile, __LINE__);
         goto exit;
     }
 
-    char *reset_script = (char *)malloc(RESET_SCRIPT_MAX_SIZE * sizeof(char));
+   reset_script = (char *)malloc(RESET_SCRIPT_MAX_SIZE * sizeof(char));
     if (reset_script == NULL)
     {
         hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate memory for reset script\n", thisFile, __LINE__);
         goto exit;
     }
 
-    cell_at_cmds_output = (char *)malloc(CONNECT_SCRIPT_OUTPUT_MAX_SIZE * sizeof(char));
+    cell_at_cmds_output = (char *)malloc(CHAT_SCRIPT_MAX_SIZE * sizeof(char));
     if (cell_at_cmds_output == NULL)
     {
         hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate memory for cell AT commands output\n", thisFile, __LINE__);
@@ -509,10 +505,14 @@ void pppd_clear_state(hcom_pppd_handler_t *handler, int state)
 
 int meadow_get_cell_at_cmds_output(unsigned char *buf)
 {
-    size_t len = strlen(cell_at_cmds_output) + 1;
+  size_t len = 0; 
+  if (cell_at_cmds_output && buf)
+  {
+    len = strlen(cell_at_cmds_output) + 1;
     memcpy(buf, cell_at_cmds_output, len);
+  }
 
-    return len;
+  return len;
 }
 
 int meadow_get_cell_error (void)
