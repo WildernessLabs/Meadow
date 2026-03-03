@@ -86,18 +86,15 @@ static char *thisFile = __FILE__;
 {
   int ret = 0;
   const struct pppd_settings_s *pppd_settings = ctx->settings;
-  if (pppd_settings->reset_script)
+  if (pppd_settings->reset_script && strlen(pppd_settings->reset_script) > 0)
     {
-      if (strlen(pppd_settings->reset_script) > 0)
+      hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
+                                "Reseting the modem.\n", thisFile, __LINE__);
+      ret = chat(&ctx->ctl, pppd_settings->reset_script, pppd_settings->cell_at_cmds_output);
+      if (ret < 0)
         {
           hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                    "Reseting the modem.\n", thisFile, __LINE__);
-          ret = chat(&ctx->ctl, pppd_settings->reset_script, pppd_settings->cell_at_cmds_output);
-          if (ret < 0)
-            {
-              hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                "Failed to execute the reset.\n", thisFile, __LINE__);
-            }
+            "Failed to execute the reset.\n", thisFile, __LINE__);
         }
     }
 }
