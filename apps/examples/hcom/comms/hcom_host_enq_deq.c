@@ -1,7 +1,7 @@
 /****************************************************************************
  * \apps\examples\hcom\comms\hcom_host_enq_deq.c
  * 
- *   Copyright (C) 2019 - 2022 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2019 - 2026 Wilderness Labs. All rights reserved.
  *   Author:  Wilderness Labs
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,7 @@
 #include "../hcom_common.h"
 #include <meadow/hcom_protocol.h>
 #include <meadow/meadow_cirbuf.h>
+#include "semaphore.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -55,10 +56,8 @@
 static char *thisFile = __FILE__;
 
 static bool _shutting_down;
-static sem_t _lockCirBufSem;
 static sem_t _runProcSem;
 static sem_t _runRecvSem;
-static bool _FBFlag;      // State protected by _lockCirBufSem
 static host_com_cir_buffer_t *_hcom_cbuf;
 
 /****************************************************************************
@@ -74,10 +73,6 @@ int hcom_host_enq_deq_setup()
 {
   _shutting_down = false;
 
-  // Protects circular buffer
-  sem_init(&_lockCirBufSem, 0, 1);
-  sem_setprotocol(&_lockCirBufSem, SEM_PRIO_NONE);
-  
   // Notifies proc thread a message has been queued
   sem_init(&_runProcSem, 0, 0);
   sem_setprotocol(&_runProcSem, SEM_PRIO_NONE);
@@ -115,22 +110,16 @@ void hcom_host_enq_deq_shutdown()
   hcom_cirbuf_release_memory(_hcom_cbuf);
   free(_hcom_cbuf);
 
- sem_destroy(&_lockCirBufSem);
  sem_destroy(&_runProcSem);
  sem_destroy(&_runRecvSem);
 }
 
 //====================================================================
-// Called when watchdog is cleaning up after download stopped before completion
+// Called by watchdog to clean up after download stopped before completion
+// Calls hcom_cirbuf_clear_buffer() to clear buffer and returns success
 bool hcom_host_enq_deq_clear_buffer()
 {
-  bool returnVal;
-
-  sem_wait(&_lockCirBufSem);
-  returnVal = (hcom_cirbuf_clear_buffer(_hcom_cbuf) == HCOM_CIR_BUF_INIT_OK);
-  sem_post(&_lockCirBufSem);
-
-  return returnVal;
+  return (hcom_cirbuf_clear_buffer(_hcom_cbuf) == HCOM_CIR_BUF_INIT_OK);
 }
 
 // //====================================================================
@@ -165,9 +154,6 @@ int hcom_host_enq_deq_enqueue_rcvd_data(uint8_t recvBuff[], const ssize_t recvBy
 
   do
   {
-    // Gain exclusive access to circular buffer
-    sem_wait(&_lockCirBufSem);
-
     // Only possible return values: HCOM_CIR_BUF_ADD_SUCCESS,
     // HCOM_CIR_BUF_ADD_WONT_FIT and HCOM_CIR_BUF_ADD_BAD_ARG
     result = hcom_cirbuf_add_bytes(_hcom_cbuf, recvBuff, recvByteCnt);
@@ -175,13 +161,10 @@ int hcom_host_enq_deq_enqueue_rcvd_data(uint8_t recvBuff[], const ssize_t recvBy
     {
       case HCOM_CIR_BUF_ADD_SUCCESS:
         sem_post(&_runProcSem);         // Notify proc of message
-        sem_post(&_lockCirBufSem);      // Release lock on buffer
         return OK;                      // Return to read more data
 
       case HCOM_CIR_BUF_ADD_WONT_FIT:
-        _FBFlag = true;                 // Set Full Buffer Flag then free cir buff
         sem_post(&_runProcSem);         // Notify proc to read messages
-        sem_post(&_lockCirBufSem);      // Release lock on buffer
 
         // Read thread waits here for space in buffer
         sem_wait(&_runRecvSem);         // Wait for a message to be removed
@@ -189,12 +172,10 @@ int hcom_host_enq_deq_enqueue_rcvd_data(uint8_t recvBuff[], const ssize_t recvBy
 
       case HCOM_CIR_BUF_ADD_BAD_ARG:
         // Report error and return. The message is lost.
-        sem_post(&_lockCirBufSem);      // Release lock on buffer
         hcom_logging_syslog(LOG_ERR, "%s@%d-Bad argument to cir buf\n", thisFile, __LINE__);
         return OK;
 
       default:
-        sem_post(&_lockCirBufSem);      // Release lock on buffer
         hcom_logging_syslog(LOG_ERR, "%s@%d-Unknown return from hcom_cirbuf_add_bytes():%d\n",
                     thisFile, __LINE__, result);
         break;
@@ -215,9 +196,6 @@ int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf,
 
   do
   {
-    // Gain exclusive access to circular buffer
-    sem_wait(&_lockCirBufSem);
-
     // Only HCOM_CIR_BUF_GET_FOUND_MSG, HCOM_CIR_BUF_GET_NONE_FOUND and
     // HCOM_CIR_BUF_GET_DELETED_TOO_BIG can be returned
     result = hcom_cirbuf_get_next_packet(_hcom_cbuf, packet_dest_buf,
@@ -225,17 +203,10 @@ int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf,
     switch(result)
     {
       case HCOM_CIR_BUF_GET_FOUND_MSG:
-        if(_FBFlag)
-        {
-          _FBFlag = false;              // Full buffer flag did it's work
           sem_post(&_runRecvSem);       // Allow recv to retry to add
-        }
-        sem_post(&_lockCirBufSem);      // Release lock on circular buffer
         return OK;                      // Return to process message
 
-      case HCOM_CIR_BUF_GET_NONE_FOUND:
-        sem_post(&_lockCirBufSem);      // Release lock on circular buffer
-      
+      case HCOM_CIR_BUF_GET_NONE_FOUND:      
         // Thread waits to be notified that a message may be available. This
         // is also where the watchdog notification is detected.
         ret = hcom_host_enq_deq_wait_for_work();
@@ -248,13 +219,11 @@ int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf,
       case HCOM_CIR_BUF_GET_DELETED_TOO_BIG:
         // The message was too big and the bad message removed from the
         // circular buffer. So, report error and return.
-        sem_post(&_lockCirBufSem);      // Release lock on circular buffer
         hcom_logging_syslog(LOG_ERR, "%s@%d-Message too big, deleted, size:%d\n",
                   thisFile, __LINE__, *packetLength);
         break;                          // Try again to get the next message
 
       default:
-        sem_post(&_lockCirBufSem);      // Release lock on circular buffer
         hcom_logging_syslog(LOG_ERR, "%s@%d-Unknown return from hcom_cirbuf_get_next_packet():%d\n",
                   thisFile, __LINE__, result);
         break;

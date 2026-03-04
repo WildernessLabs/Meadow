@@ -61,6 +61,9 @@
 // Display time spent downloading via syslog
 #define HCOM_FILE_DNLD_F7_DEBUG_TIMING       (0)
 
+// While testing download behavior show Percent and Completed
+#define HCOM_FILE_DNLD_SYSLOG_FOR_TESTING    (1)
+
 // For no cache behavior, set the 2 following to '0'
 #define HCOM_FILE_DNLD_CREATE_MEMORY_CACHE   (0)   // Cache file then write
 #define HCOM_FILE_DNLD_CACHE_NO_FILE_ACCESS  (0)   // No file write (debug)
@@ -175,7 +178,7 @@ int hcom_file_dnld_stm32f7_file_begin(const HcomProtoHdrMsg_t *hdrMsg,
   dnldShared->dnldInitFileCrc = fileMsg->fileInfo.fileCheckSum;
 
   // Log some diagnostic information
-  hcom_logging_syslog(LOG_INFO, "%s@%d-Meadow download begin (FileLen:%d, Crc:0x%08x, Name:%s)\n",
+  hcom_logging_syslog(LOG_INFO, "%s@%d-Meadow download begin (FileLen:%ld, Crc:0x%08lx, Name:%s)\n",
           thisFile, __LINE__, dnldShared->dnldTotalFileSize,
           dnldShared->dnldInitFileCrc, dnldShared->dnldOrigPathName);
 
@@ -374,8 +377,9 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
     hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION,
               0, hostMsg, thisFile, __LINE__);
 
-    // syslog(LOG_MDIAG, "%s\n", hostMsg);
-
+#if HCOM_FILE_DNLD_SYSLOG_FOR_TESTING > 0
+    syslog(LOG_MDIAG, "%s\n", hostMsg);
+#endif
     free(hostMsg);
   }
 
@@ -516,6 +520,16 @@ int hcom_file_dnld_stm32f7_recvd_file_data(const HcomProtoDataMsg_t *hcomDataMsg
 
   dnldShared->dnldRecvdFileSize += binDataLen;
 
+// Note: To reduce CLI interaction the following test could be used to call
+// hcom_file_dnld_stm32f7_file_end() directly and the
+// HCOM_MDOW_REQUEST_END_FILE_TRANSFER from CLI could be deprecated.
+#if HCOM_FILE_DNLD_SYSLOG_FOR_TESTING > 0
+  if(dnldShared->dnldRecvdFileSize == dnldShared->dnldTotalFileSize)
+  {
+    syslog(LOG_MDIAG, "File 100%% downloaded\n");
+  }
+#endif
+
   // Ready for next download packet
   return OK;
 }
@@ -528,8 +542,12 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
   char* hostMsg = NULL;
   char *msgToSend;
   uint16_t requestType;
-
-  // hcom_logging_syslog(LOG_NOTICE, "EOF received from CLI\n");
+#if HCOM_FILE_DNLD_SYSLOG_FOR_TESTING > 0
+  // These strings are used in testing
+  char *downloadFailure = "Download failure\n";
+  char *downloadSuccess = "Download success\n";
+  bool dnldSuccess = true;
+#endif
 
   if(dnldShared->dnldCurrentState != HcomStm32F7DnldStateFileXfer)
   {
@@ -540,6 +558,9 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
 #endif
     hcom_file_dnld_cleanup_sdcard_buffer();
     dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+#if HCOM_FILE_DNLD_SYSLOG_FOR_TESTING > 0
+    syslog(LOG_MDIAG, "downloadFailure");
+#endif
     return -ENOTRECOVERABLE; // State not recoverable
   }
 
@@ -555,6 +576,9 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
               thisFile, __LINE__, dnldShared->dnldOrigPathName, ret);
     hcom_file_dnld_cleanup_cache_memory();
     dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+#if HCOM_FILE_DNLD_SYSLOG_FOR_TESTING > 0
+    syslog(LOG_MDIAG, downloadFailure);
+#endif
     return ret;
   }
 #endif
@@ -570,6 +594,9 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
                 thisFile, __LINE__, dnldShared->dnldOrigPathName, ret);
       hcom_file_dnld_cleanup_sdcard_buffer();
       dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+#if HCOM_FILE_DNLD_SYSLOG_FOR_TESTING > 0
+    syslog(LOG_MDIAG, downloadFailure);
+#endif
       return ret;
     }
 
@@ -591,6 +618,9 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-File %s close failed:%d\n",
               thisFile, __LINE__, dnldShared->dnldOrigPathName, ret);
+#if HCOM_FILE_DNLD_SYSLOG_FOR_TESTING > 0
+    dnldSuccess = false;
+#endif
     // Finish cleaning up even if error
   }
   // Calculate the CRC32
@@ -616,6 +646,9 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
     dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
+#if HCOM_FILE_DNLD_SYSLOG_FOR_TESTING > 0
+    syslog(LOG_MDIAG, downloadFailure);
+#endif
     return -ENOMEM;
   }
 
@@ -669,7 +702,14 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
   }
 
   if(requestType == HCOM_HOST_REQUEST_TEXT_ERROR)
+  {
     hcom_logging_syslog(LOG_ERR, "%s@%d-%s\n", thisFile, __LINE__, msgToSend);
+
+#if HCOM_FILE_DNLD_SYSLOG_FOR_TESTING > 0
+    // Indicate remaining errors
+    dnldSuccess = false;
+#endif
+  }
 
   // Send text message to host
   hcom_host_send_simple_string_msg(requestType, 0, msgToSend, thisFile, __LINE__);
@@ -681,6 +721,14 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
            thisFile, __LINE__, _dbgNumbPacketsRecvd, ((_dbgReceptionEndedAt - _dbgReceptionBeganAt) / 1000000),
            dnldShared->dnldCalcFileCrc);
 #endif
+
+#if HCOM_FILE_DNLD_SYSLOG_FOR_TESTING > 0
+  if(dnldSuccess)
+    syslog(LOG_MDIAG, downloadSuccess);
+  else
+    syslog(LOG_MDIAG, downloadFailure);
+#endif
+
   dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
 
   return OK;
