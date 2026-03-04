@@ -82,7 +82,6 @@ int hcom_host_enq_deq_setup()
   sem_setprotocol(&_runRecvSem, SEM_PRIO_NONE);
 
   _hcom_cbuf = (host_com_cir_buffer_t *)malloc(sizeof(host_com_cir_buffer_t));
-
   if (_hcom_cbuf == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-One of 2 allocations failed\n",
@@ -129,16 +128,14 @@ bool hcom_host_enq_deq_clear_buffer()
 // // has expired"
 // void hcom_host_enq_deq_dbg_info()
 // {
-//   int value_lockCirBufSem;
 //   int value_runProcSem;
 //   int value_runRecvSem;
 
-//   sem_getvalue(&_lockCirBufSem, &value_lockCirBufSem);
 //   sem_getvalue(&_runProcSem, &value_runProcSem);
 //   sem_getvalue(&_runRecvSem, &value_runRecvSem);
 
-//   syslog(LOG_MDIAG, "Error State: lockCirBufSem:%d, _runProcSem:%d, _runRecvSem:%d\n",
-//             value_lockCirBufSem, value_runProcSem, value_runRecvSem);
+//   syslog(LOG_MDIAG, "Error State: _runProcSem:%d, _runRecvSem:%d\n",
+//             value_runProcSem, value_runRecvSem);
 // }
 
 //=======================================================================
