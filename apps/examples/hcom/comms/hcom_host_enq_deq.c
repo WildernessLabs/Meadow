@@ -200,7 +200,7 @@ int hcom_host_enq_deq_dequeue_packet(uint8_t *packet_dest_buf,
     switch(result)
     {
       case HCOM_CIR_BUF_GET_FOUND_MSG:
-          sem_post(&_runRecvSem);       // Allow recv to retry to add
+        sem_post(&_runRecvSem);       // Allow recv to retry to add
         return OK;                      // Return to process message
 
       case HCOM_CIR_BUF_GET_NONE_FOUND:      

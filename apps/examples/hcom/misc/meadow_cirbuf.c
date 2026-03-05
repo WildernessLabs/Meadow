@@ -183,8 +183,8 @@ int hcom_cirbuf_get_next_packet(host_com_cir_buffer_t *hcbuf, uint8_t *packetDes
 
     // It will all fit we can copy and exit
     memcpy(packetDestBuf, hcbuf->tail, sizeFoundTop);
-    hcbuf->tail = found + 1;
     *packetLength = sizeFoundTop;     // Size found
+    hcbuf->tail = found + 1;
     return HCOM_CIR_BUF_GET_FOUND_MSG;
   }
 
@@ -206,7 +206,7 @@ int hcom_cirbuf_get_next_packet(host_com_cir_buffer_t *hcbuf, uint8_t *packetDes
 
   memcpy(packetDestBuf, hcbuf->tail, sizeFoundTop);
   memcpy(packetDestBuf + sizeFoundTop, hcbuf->bottom, sizeFoundBottom);
-  hcbuf->tail = found + 1;
   *packetLength = sizeFoundTop + sizeFoundBottom;
+  hcbuf->tail = found + 1;
   return HCOM_CIR_BUF_GET_FOUND_MSG;
 }
