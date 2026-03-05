@@ -62,7 +62,7 @@
 #define HCOM_FILE_DNLD_F7_DEBUG_TIMING       (0)
 
 // While testing download behavior show Percent and Completed
-#define HCOM_FILE_DNLD_SYSLOG_FOR_TESTING    (1)
+#define HCOM_FILE_DNLD_SYSLOG_FOR_TESTING    (0)
 
 // For no cache behavior, set the 2 following to '0'
 #define HCOM_FILE_DNLD_CREATE_MEMORY_CACHE   (0)   // Cache file then write
