@@ -559,7 +559,7 @@ int hcom_file_dnld_stm32f7_file_end(hcom_dnld_shared_t *dnldShared)
     hcom_file_dnld_cleanup_sdcard_buffer();
     dnldShared->dnldCurrentState = HcomStm32F7DnldStateNone;
 #if HCOM_FILE_DNLD_SYSLOG_FOR_TESTING > 0
-    syslog(LOG_MDIAG, "downloadFailure");
+    syslog(LOG_MDIAG, downloadFailure);
 #endif
     return -ENOTRECOVERABLE; // State not recoverable
   }
