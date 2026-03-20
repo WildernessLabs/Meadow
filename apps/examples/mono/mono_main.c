@@ -1,7 +1,11 @@
 /****************************************************************************
  * examples/mono/mono_main.c
  *
- *   Copyright (C) 2018-2020 Wilderness Labs. All rights reserved.
+ *   Copyright (C) 2018-2026 Wilderness Labs. All rights reserved.
+ *
+ *   .NET 10 monovm hosting API integration.
+ *   Replaces legacy Mono 6.9 entry point with monovm_initialize /
+ *   monovm_execute_assembly / monovm_shutdown.
  *
  ****************************************************************************/
 
@@ -25,9 +29,6 @@
 #include <syscall.h>
 #include <dirent.h>
 #include <sys/stat.h>
-#include <dlfcn.h>
-
-#include "../../../mono/config.h"
 
 #include <meadow/hcom_shared_common.h>
 #include "../hcom/hcom_common.h"
@@ -39,144 +40,225 @@
 
 #include "ota.h"
 
+/****************************************************************************
+ * P/Invoke mapping tables
+ *
+ * These are the same mapping tables from the legacy mono_main.c.
+ * They are now consumed by the pinvoke_override callback instead of
+ * mono_dl_register_library().
+ ****************************************************************************/
+
 typedef struct {
   const char *name;
   void *addr;
 } MonoDlMapping;
 
 #include "mappings-meadow.h"
-#include "mappings-system-native.h"
-#include "mappings-mbedtls.h"
+/* TODO Track 05+: System.Native PAL needs to be built for .NET 10/NuttX.
+ * The legacy mappings-system-native.h references SystemNative_* functions
+ * from the old corefx PAL library which is not yet ported.
+ * For now, the pinvoke_override callback returns NULL for "System.Native"
+ * and managed code that calls System.Native will fail at runtime.
+ */
+/* #include "mappings-system-native.h" */
+/* TODO Track 05+: mbedtls mappings need updating for .NET 10 */
+/* #include "mappings-mbedtls.h" */
 #if defined (CONFIG_EXAMPLES_MEADOW_SQLITE)
-#include "mappings-sqlite.h"
+/* #include "mappings-sqlite.h" */
 #endif
+
+/****************************************************************************
+ * .NET 10 monovm hosting API declarations
+ ****************************************************************************/
+
+extern int monovm_initialize(int propertyCount, const char **propertyKeys,
+                             const char **propertyValues);
+extern int monovm_execute_assembly(int argc, const char **argv,
+                                   const char *managedAssemblyPath,
+                                   unsigned int *exitCode);
+extern int monovm_shutdown(int *latchedExitCode);
+
 /****************************************************************************
  * External methods
  ****************************************************************************/
-extern int mono_main_driver(int, char **);
-extern void mono_set_assemblies_path(const char *);
-extern const char *monoeg_get_assertion_message(void);
+
+extern void symtab_initialize(void);
 
 /****************************************************************************
- * Local defintions.
+ * Local definitions
  ****************************************************************************/
 
 #define MONO_CRASH_FILE CRASH_DIR "/" "mono_error.txt"
 #define MONO_CRASH_FILE_SIZE 65536
 
+/* TPA list separator — colon on non-Windows */
+#define TPA_SEPARATOR ":"
+
+/* Max properties we pass to monovm_initialize */
+#define MAX_PROPERTIES 5
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
-/****************************************************************************
- * Local methods.
- ****************************************************************************/
+bool mono_should_run = true;
 
 /****************************************************************************
- * Name: induce_reset
+ * Name: meadow_pinvoke_override
  *
  * Description:
- *  Registered Mono error handler.  This will be registered with Mono in
- *  mono_main.
- * 
- *  The handler will eventually force the board to reset after the error
- *  message has been written to BKPSRAM and a file.
- * 
- *  Note that any issues recording the error message will result in the
- *  board being reset anyway.
+ *   P/Invoke override callback for the .NET 10 monovm hosting API.
+ *   Replaces the legacy mono_dl_register_library() mechanism.
+ *
+ *   When managed code does a DllImport("libname"), the runtime calls this
+ *   function to resolve native symbols. We walk the appropriate mapping
+ *   table based on the library name.
  *
  * Input Parameters:
- *  None.
+ *   libraryName   - The native library name from DllImport
+ *   entrypointName - The native function name to resolve
  *
  * Returned Value:
- *  None.
- *
- * Assumptions/Limitations:
- *  None.
+ *   Function pointer if found, NULL otherwise (runtime continues default search)
  *
  ****************************************************************************/
-static void induce_reset(void)
+
+static void *meadow_pinvoke_override(const char *libraryName,
+                                     const char *entrypointName)
 {
-  //
-  //  First we record that the run-time has errored and that we are attempting Phase 1
-  //  error recording.  This involves getting the full error message and writing as
-  //  much as possible to BKPSRAM (limited to 4096 bytes maximum).
-  //
-  uint32_t fault_status;
-  fault_status = (FAULT_LOGGING_RT_COMPONENT_ERRORED | FAULT_LOGGING_RT_PHASE1_STARTED);
-  meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
-  //
-  //  Now we actually start Phase 1.
-  //
-  const char *assertion_msg = monoeg_get_assertion_message();
-  if (assertion_msg == NULL)
-  {
-    assertion_msg = "No Mono error message available";
-  }
+  MonoDlMapping *mappings = NULL;
 
-  meadow_os_bbd_strdup_to_sram(assertion_msg);
-  fault_status |= FAULT_LOGGING_RT_PHASE1_COMPLETED | FAULT_LOGGING_RT_PHASE2_STARTED;
-  meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
-  //
-  //  Phase 1 marked as complete and Phase 2 marked as started. Start generating a file
-  //  containing the full error message.  This may be longer than 4096 bytes hence writing
-  //  to a file.
-  //
-  mkdir(CRASH_DIR, 0777);
-  FILE *crash_file = fopen(MONO_CRASH_FILE, "w");
-  if (crash_file)
-  {
-    if (assertion_msg)
+  if (strcmp(libraryName, "System.Native") == 0 ||
+      strcmp(libraryName, "libSystem.Native") == 0)
     {
-      //
-      //  Assume Phase 2 will complete successfully.
-      //
-      fault_status |= FAULT_LOGGING_RT_PHASE2_COMPLETED;
-      //
-      int chars_left = strnlen(assertion_msg, MONO_CRASH_FILE_SIZE);
-      char *p = (char *) assertion_msg;
-      const char *end = assertion_msg + chars_left;
-      while (p != end)
-      {
-        int write_count = fwrite(p, sizeof(char), chars_left, crash_file);
-        if (write_count < 1) 
-        {
-          //
-          //  Abandon on any error and record Phase 2 as possibly incomplete.
-          //
-          p = (char *) end;
-          fault_status &= ~FAULT_LOGGING_RT_PHASE2_COMPLETED;
-        }
-        else
-        {
-          p += write_count;
-          chars_left -= write_count;
-        }
-      }
+      /* TODO Track 05+: System.Native PAL not yet ported to .NET 10/NuttX */
+      syslog(LOG_WARNING, "P/Invoke: System.Native not yet available\n");
+      return NULL;
     }
-    fflush(crash_file);
-    fclose(crash_file);
-    meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
-  }
+  else if (strcmp(libraryName, "nuttx") == 0 ||
+           strcmp(libraryName, "libnuttx") == 0)
+    {
+      mappings = meadow_mappings;
+    }
+  else if (strcmp(libraryName, "mbedtls") == 0 ||
+           strcmp(libraryName, "libmbedtls") == 0)
+    {
+      /* TODO Track 05+: mbedtls mappings not yet ported */
+      return NULL;
+    }
+#if defined (CONFIG_EXAMPLES_MEADOW_SQLITE)
+  else if (strcmp(libraryName, "sqlite3") == 0 ||
+           strcmp(libraryName, "libsqlite3") == 0)
+    {
+      /* TODO Track 05+: sqlite mappings not yet ported */
+      return NULL;
+    }
+#endif
   else
-  {
-    fault_status |= FAULT_LOGGING_RT_FILE_ERROR;
-    meadow_os_bbd_register_set_value(HCOM_NX_MEADOW_RESET_SOURCE_INFO_BBR_NUM, fault_status);
-  }
-  //
-  //  Try to use syslog as well in case something is listening to the serial port.
-  //
-  syslog(LOG_ERR, "Mono error message: %s\n", assertion_msg);
+    {
+      return NULL;
+    }
 
-  // TODO: If the runtime is asking for an abort, it is unstable, and any further execution
-  // from any Mono thread is suspect, so waiting before resetting is a slight invitation for catastrophe.
-  // However, this allows for HCOM and the user to catch a glimpse of the abort reason.
-  // This should be removed when the Mono abort reason is saved across resets.
-  fprintf(stderr, "Unrecoverable .NET Runtime error. Meadow will restart in 5 seconds\n");
-  fflush (stderr);
-  sleep(5);
+  for (MonoDlMapping *m = mappings; m->name != NULL; m++)
+    {
+      if (strcmp(m->name, entrypointName) == 0)
+        {
+          return m->addr;
+        }
+    }
 
-  meadow_os_reset_board(0);
+  syslog(LOG_WARNING, "P/Invoke: '%s!%s' not found in mapping table\n",
+         libraryName, entrypointName);
+  return NULL;
+}
+
+/****************************************************************************
+ * Name: build_tpa_list
+ *
+ * Description:
+ *   Build the Trusted Platform Assemblies (TPA) list by enumerating all
+ *   .dll files in the given base directory. Returns a colon-separated
+ *   string of full paths suitable for the TRUSTED_PLATFORM_ASSEMBLIES
+ *   property.
+ *
+ * Input Parameters:
+ *   base_path - Directory to scan (e.g., "/meadow0")
+ *
+ * Returned Value:
+ *   Heap-allocated TPA string, or NULL on failure. Caller must free().
+ *
+ ****************************************************************************/
+
+static char *build_tpa_list(const char *base_path)
+{
+  DIR *dir;
+  struct dirent *entry;
+  size_t total_len = 0;
+  size_t base_len = strlen(base_path);
+  int count = 0;
+
+  dir = opendir(base_path);
+  if (dir == NULL)
+    {
+      syslog(LOG_ERR, "TPA: Cannot open directory '%s': %d\n",
+             base_path, errno);
+      return NULL;
+    }
+
+  /* First pass: calculate total string length needed */
+
+  while ((entry = readdir(dir)) != NULL)
+    {
+      size_t nlen = strlen(entry->d_name);
+      if (nlen > 4 && strcmp(entry->d_name + nlen - 4, ".dll") == 0)
+        {
+          /* base_path + "/" + filename + separator */
+          total_len += base_len + 1 + nlen + 1;
+          count++;
+        }
+    }
+
+  if (count == 0)
+    {
+      closedir(dir);
+      syslog(LOG_WARNING, "TPA: No .dll files found in '%s'\n", base_path);
+      return NULL;
+    }
+
+  char *tpa = (char *)malloc(total_len + 1);
+  if (tpa == NULL)
+    {
+      closedir(dir);
+      syslog(LOG_ERR, "TPA: Cannot allocate %zu bytes\n", total_len + 1);
+      return NULL;
+    }
+
+  tpa[0] = '\0';
+
+  /* Second pass: build the string */
+
+  rewinddir(dir);
+  int first = 1;
+  while ((entry = readdir(dir)) != NULL)
+    {
+      size_t nlen = strlen(entry->d_name);
+      if (nlen > 4 && strcmp(entry->d_name + nlen - 4, ".dll") == 0)
+        {
+          if (!first)
+            {
+              strcat(tpa, TPA_SEPARATOR);
+            }
+
+          strcat(tpa, base_path);
+          strcat(tpa, "/");
+          strcat(tpa, entry->d_name);
+          first = 0;
+        }
+    }
+
+  closedir(dir);
+  syslog(LOG_INFO, "TPA: Found %d assemblies in '%s'\n", count, base_path);
+  return tpa;
 }
 
 /****************************************************************************
@@ -184,126 +266,161 @@ static void induce_reset(void)
  ****************************************************************************/
 
 /****************************************************************************
- * mono_main
+ * Name: mono_main
+ *
+ * Description:
+ *   .NET 10 runtime entry point. Called by hcom_mono_ctrl_start_mono_main()
+ *   via task_create(). Replaces the legacy Mono 6.9 mono_main that called
+ *   mono_main_driver().
+ *
+ *   Initialization sequence:
+ *     1. Copy mono runtime binary to SDRAM (if needed)
+ *     2. Build TPA list from deployed assemblies
+ *     3. Set up monovm properties (TPA, APP_PATHS, PINVOKE_OVERRIDE)
+ *     4. Call monovm_initialize()
+ *     5. Notify HCOM that mono is running
+ *     6. Call monovm_execute_assembly() if app assembly exists
+ *     7. Call monovm_shutdown()
+ *
  ****************************************************************************/
-
-extern int mono_main (int argc, char* argv[]);
-extern void mono_dl_register_library(char *name, MonoDlMapping *mappings);
-extern void monoeg_assertion_disable_global (void * abort_func);
-
-extern void symtab_initialize(void);
-
-bool mono_should_run = true;
 
 #ifdef CONFIG_BUILD_KERNEL
 int main(int hcom_argc, FAR char *hcom_argv[])
 #else
-int mono_main(int hcom_argc, char *hcom_argv[])
+int meadow_mono_main(int hcom_argc, char *hcom_argv[])
 #endif
 {
-  // Normal mono startup follows
+  int ret;
+
+  syslog(LOG_NOTICE, "mono_main: .NET 10 monovm hosting API startup\n");
+
+  /* Initialize the symbol table */
+
   symtab_initialize();
 
+  /* Copy the mono runtime binary to SDRAM */
+
   if (hcom_via_nx_copy_mono_runtime_to_ram() < 0)
-  {
-    syslog(LOG_ERR, "Mono runtime is not present or is invalid.\n");
-    return -1;
-  }
+    {
+      syslog(LOG_ERR, "Mono runtime is not present or is invalid.\n");
+      return -1;
+    }
+
   syslog(LOG_INFO, "Mono runtime copied into RAM.\n");
 
-  int ret;
-  char app_path[] = MONO_MEADOW_EXECUTABLE_APP_EXE;
-#ifdef CONFIG_BUILD_KERNEL
-  char *mono_argv[] = {"mono", app_path};
-#else
-  char *mono_argv[] = {"mono", app_path};
-#endif
-
-  //
-  //  Modify this code to turn JIT or AOT on.  To turn interp off simply reduce hcom_argc by 1.
-  //  For JIT / AOT then modify hcom_mono_ctrl_extract_mono_options in hcom_mono_control.c
-  //  to add any required options.
-  //
-  if ((hcom_argc > 0) && (hcom_argv !=  NULL))
-  {
-    if (strcmp(hcom_argv[hcom_argc - 1], MONO_OPTION_JIT) == 0)
-    {
-      hcom_argc--;
-    }
-    else
-    {
-      if (strcmp(hcom_argv[hcom_argc -1], MONO_OPTION_AOT) == 0)
-      {
-        hcom_argc--;
-        // Do AOT stuff here.
-      }
-    }
-  }
-  
-  //
-  //  Now we need to put all of the arguments together for Mono.
-  //
-  int mono_argc = sizeof(mono_argv) / sizeof(mono_argv[0]);
-
-  // Combine the above hardcoded command line arguments with those provided by hcom
-  int finalArgc = hcom_argc + mono_argc;
-  char **finalArgv = (char **) malloc(finalArgc * sizeof(char *));
-  DEBUGASSERT(finalArgv != NULL);
-  int i, j;
-
-  // It appears that app_path needs to be last. So, copy all the hard code mono args
-  // except for app_path, then hcom args and last app_path.
-  for(i = 0; i < mono_argc - 1; i++)
-    finalArgv[i] = mono_argv[i];
-  for(j = 0; i < finalArgc - 1; i++, j++)
-    finalArgv[i] = hcom_argv[j];
-  finalArgv[i] = mono_argv[mono_argc - 1];
-
-  // for(int check = 0; check < finalArgc; check++)
-  // {
-  //   syslog(LOG_MTEST, "finalArgv[%d] is '%s'\n", check, finalArgv[check]);
-  // }
+  /* Set environment variables for the runtime */
 
   setenv("MONO_LOG_LEVEL", "warning", 1);
-  setenv("MONO_GC_PARAMS", "max-heap-size=16m,nursery-size=512k,soft-heap-limit=4m,major=marksweep", 1);
-  setenv("MONO_GC_DEBUG", "max-valloc-size=24M", 1);
-  setenv("MONO_TRACE_LISTENER", "Console.Out", 1);
-  setenv("TMPDIR", "/meadow0/Temp", 1); // Same as Meadow.Core's MeadowOS.FileSystem.TempDirectory circa Meadow 2.2
+  setenv("TMPDIR", "/meadow0/Temp", 1);
 
-#ifdef CONFIG_MTD_PARTITION
-  mono_set_assemblies_path("/meadow0");
-#else
-  mono_set_assemblies_path("/meadow");
-#endif
+  /* Build the Trusted Platform Assemblies list */
 
-  mono_dl_register_library("System.Native", system_native_mappings);
-  mono_dl_register_library("nuttx", meadow_mappings);
-  mono_dl_register_library("mbedtls", mbedtls_mappings);
-#if defined (CONFIG_EXAMPLES_MEADOW_SQLITE)
-  mono_dl_register_library("sqlite3", sqlite_mappings);
-#endif
+  char *tpa_list = build_tpa_list(MONO_MEADOW_EXECUTABLE_PARTITION_NAME);
+  if (tpa_list == NULL)
+    {
+      syslog(LOG_ERR, "Failed to build TPA list — no assemblies deployed?\n");
+      return -1;
+    }
 
-  // When mono runtime aborts, crash the device
-  monoeg_assertion_disable_global (induce_reset);
+  /* Convert the P/Invoke override function pointer to a string.
+   * monovm_initialize parses it back via strtoull().
+   */
 
-  // Note: This call may need to be somewhere within mono. However, it seems to work
-  // well here. So far, one of the above calls hang up this thread before reaching
-  // this point.
-  //
-  // Notify hcom that everything will run correctly. An error within this call
-  // will prevent mono from starting.
+  char pinvoke_override_str[32];
+  snprintf(pinvoke_override_str, sizeof(pinvoke_override_str),
+           "0x%lx", (unsigned long)(uintptr_t)meadow_pinvoke_override);
+
+  /* Set up properties for monovm_initialize */
+
+  const char *property_keys[] = {
+    "TRUSTED_PLATFORM_ASSEMBLIES",
+    "APP_PATHS",
+    "NATIVE_DLL_SEARCH_DIRECTORIES",
+    "PINVOKE_OVERRIDE",
+  };
+
+  const char *property_values[] = {
+    tpa_list,
+    MONO_MEADOW_EXECUTABLE_PARTITION_NAME,
+    MONO_MEADOW_EXECUTABLE_PARTITION_NAME,
+    pinvoke_override_str,
+  };
+
+  int property_count = sizeof(property_keys) / sizeof(property_keys[0]);
+
+  syslog(LOG_INFO, "Calling monovm_initialize with %d properties...\n",
+         property_count);
+  syslog(LOG_INFO, "  TPA: %s\n", tpa_list);
+  syslog(LOG_INFO, "  APP_PATHS: %s\n", MONO_MEADOW_EXECUTABLE_PARTITION_NAME);
+  syslog(LOG_INFO, "  PINVOKE_OVERRIDE: %s\n", pinvoke_override_str);
+
+  /* Initialize the .NET 10 monovm runtime */
+
+  ret = monovm_initialize(property_count, property_keys, property_values);
+  if (ret != 0)
+    {
+      syslog(LOG_ERR, "monovm_initialize failed: 0x%08x\n", ret);
+      free(tpa_list);
+      return -1;
+    }
+
+  syslog(LOG_NOTICE, "monovm_initialize succeeded\n");
+
+  /* Notify HCOM that mono appears to be running.
+   * This sets up stdout/stderr redirection, clears the lockup BBR bit,
+   * and reconfigures the blue LED.
+   */
+
   ret = hcom_mono_ctrl_mono_appears_to_be_running();
   if (ret < 0)
-    return ret;
+    {
+      syslog(LOG_ERR, "hcom_mono_ctrl_mono_appears_to_be_running failed: %d\n",
+             ret);
+      free(tpa_list);
+      return ret;
+    }
 
-  chdir("/meadow0/");
+  /* Change to the app directory */
 
-  // ret = mono_main_driver(mono_argc, mono_argv);
-  ret = mono_main_driver(finalArgc, finalArgv);
+  chdir(MONO_MEADOW_EXECUTABLE_PARTITION_NAME);
 
-  //
-  //  If we sort out the application exit then we need to think about tidying
-  //  up the memory allocations.
-  //
-  return ret;
+  /* Check if the app assembly exists before trying to execute it */
+
+  char *app_path = MONO_MEADOW_EXECUTABLE_APP_EXE;
+  int app_fd = open(app_path, O_RDONLY);
+  if (app_fd < 0)
+    {
+      syslog(LOG_WARNING, "App assembly '%s' not found — "
+             "runtime initialized but no app to execute\n", app_path);
+      /* Runtime initialized successfully, just no app to run.
+       * Shut down cleanly.
+       */
+    }
+  else
+    {
+      close(app_fd);
+      syslog(LOG_NOTICE, "Executing assembly: %s\n", app_path);
+
+      unsigned int exit_code = 0;
+      ret = monovm_execute_assembly(0, NULL, app_path, &exit_code);
+      if (ret != 0)
+        {
+          syslog(LOG_ERR, "monovm_execute_assembly failed: 0x%08x\n", ret);
+        }
+      else
+        {
+          syslog(LOG_NOTICE, "Assembly execution completed, exit code: %u\n",
+                 exit_code);
+        }
+    }
+
+  /* Shutdown the runtime */
+
+  int latched_exit_code = 0;
+  monovm_shutdown(&latched_exit_code);
+  syslog(LOG_NOTICE, "monovm_shutdown complete, latched exit code: %d\n",
+         latched_exit_code);
+
+  free(tpa_list);
+  return 0;
 }

@@ -48,7 +48,7 @@ STACKSIZE = $(CONFIG_EXAMPLES_MONO_STACKSIZE)
 
 MONO_DIR = ../../../mono/
 ASRCS =
-CSRCS = symtab.c
+CSRCS = symtab.c mono_nuttx_stubs.c
 MAINSRC = mono_main.c
 
 CONFIG_EXAMPLES_MONO_PROGNAME ?= mono$(EXEEXT)
