@@ -77,10 +77,19 @@ Mono native build output: `runtime/src/mono/build-nuttx-debug/`
       Confirmed `mini_init` reached on boot 1 via Renode breadcrumb hooks.
 - [x] Firmware rebuilt with BSS zeroing + interpreter mode (via `build-meadow.os-emulated.sh`)
       Build output in `build/dotnet10/`, hooks regenerated with new addresses.
-- [ ] **Investigate remaining reset loop after mini_init** — mono_main reaches mini_init
-      on boot 1, but then crashes (SYSRESETREQ). Need to trace what fails inside mini_init.
-      The crash is NOT the interpreter/BSS issue (both fixed in firmware). Likely a runtime
-      init failure during SPCL loading or type system setup.
+- [x] **Traced crash inside mini_init** — narrowed via Renode breadcrumbs:
+      `mini_init` → `mono_trampolines_init` → `create_trampoline_code` → `mono_arch_create_generic_trampoline`
+      Crash is in `mono_arch_create_generic_trampoline` (0xC01A0A5C) which emits ARM machine
+      code into a dynamically allocated buffer. This requires writable+executable (WX) memory.
+      On NuttX with MPU, WX memory allocation likely fails — `mono_code_manager_new()` allocates
+      via `mono_valloc` which falls back to `posix_memalign` (no PROT_EXEC on NuttX).
+- [ ] **Fix WX memory for trampoline code generation** — the runtime needs to emit small
+      trampolines even in interpreter mode. Options:
+      a) Configure NuttX MPU to allow execute from SDRAM heap region
+      b) Allocate trampolines in a pre-designated executable region
+      c) Use the interpreter's "no trampoline" mode if available
+      d) Stub out `mono_arch_create_generic_trampoline` for NuttX
+      This is a Track 02 (NuttX Platform Port) issue that needs revisiting.
 - [ ] Test graceful shutdown when app assembly is missing ("no app to execute" in syslog)
 
 ### Key findings
