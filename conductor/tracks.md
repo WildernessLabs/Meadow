@@ -5,8 +5,8 @@
 *Link: [./tracks/_archive/mono-upgrade-01-build/](./tracks/_archive/mono-upgrade-01-build/)*
 
 ---
-- [ ] **Track 02: NuttX Platform Port — Threading, Memory, Signals**
-*Link: [./tracks/mono-upgrade-02-nuttx/](./tracks/mono-upgrade-02-nuttx/)*
+- [x] **Track 02: NuttX Platform Port — Threading, Memory, Signals** *(archived)*
+*Link: [./tracks/_archive/mono-upgrade-02-nuttx/](./tracks/_archive/mono-upgrade-02-nuttx/)*
 
 ---
 - [x] **Track 03: Emulator Bring-Up — Build Pipeline + Renode Boot** *(archived)*
