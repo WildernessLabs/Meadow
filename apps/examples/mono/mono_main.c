@@ -308,6 +308,28 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
 
   syslog(LOG_INFO, "Mono runtime copied into RAM.\n");
 
+  /* Zero .mono_bss in SDRAM — Mono runtime static globals.
+   * This section is not covered by the regular .bss zeroing (which only
+   * handles internal SRAM).  Without this, stale pointers surviving a
+   * software reset cause heap corruption when monovm_initialize calls
+   * g_strfreev on dangling pointers from the previous boot.
+   */
+
+  {
+    extern uint32_t _s_mono_bss;
+    extern uint32_t _e_mono_bss;
+    uint32_t *mdest = &_s_mono_bss;
+    uint32_t *mend  = &_e_mono_bss;
+
+    while (mdest < mend)
+      {
+        *mdest++ = 0;
+      }
+
+    syslog(LOG_INFO, "Cleared .mono_bss: %u bytes\n",
+           (unsigned)((uint8_t *)mend - (uint8_t *)&_s_mono_bss));
+  }
+
   /* Set environment variables for the runtime */
 
   setenv("MONO_LOG_LEVEL", "warning", 1);
