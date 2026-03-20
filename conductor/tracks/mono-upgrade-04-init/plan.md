@@ -1,5 +1,15 @@
 # Implementation Plan: monovm Hosting API Integration
 
+## Repos and Branches
+
+| Repo | Branch | Path |
+|------|--------|------|
+| Meadow (NuttX firmware) | `Feature_NuttX_dotnet10` | `Wilderness_Labs/Meadow/` |
+| Meadow.OS.Emulator | `feature/dotnet10-emulator` | `Wilderness_Labs/Meadow.OS.Emulator/` |
+| runtime (.NET 10 Mono) | default | `Wilderness_Labs/runtime/` |
+
+Mono native build output: `runtime/src/mono/build-nuttx-debug/`
+
 ## Phase 1: Study the API ✅
 - [x] Read `monovm.c` in detail — understand `monovm_initialize`, `monovm_execute_assembly`, `monovm_shutdown`
 - [x] Read `mono-private-unstable-functions.h` — get the function declarations
