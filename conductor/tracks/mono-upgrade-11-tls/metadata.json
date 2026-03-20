@@ -1,0 +1,8 @@
+{
+  "track_id": "mono-upgrade-11-tls",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-03-19T00:00:00Z",
+  "updated_at": "2026-03-19T00:00:00Z",
+  "description": "Port Mbed TLS integration to .NET 10 Mono for HTTPS and secure networking"
+}

@@ -1,0 +1,8 @@
+{
+  "track_id": "mono-upgrade-04-init",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-03-19T00:00:00Z",
+  "updated_at": "2026-03-19T00:00:00Z",
+  "description": "Implement monovm hosting API initialization replacing legacy mono_jit_init entry point"
+}
