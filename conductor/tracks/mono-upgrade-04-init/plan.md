@@ -44,7 +44,7 @@ Mono native build output: `runtime/src/mono/build-nuttx-debug/`
 - [ ] Remove or update version matching logic (old mono version format may not apply)
 - [ ] Update `MONO_TASK_STACKSIZE` if needed (new mono may need more stack)
 
-## Phase 4: Emulator Validation ✅ (monovm_initialize succeeds, heap corruption blocks post-init)
+## Phase 4: Emulator Validation ✅ (monovm_initialize succeeds, mono loading SPCL)
 - [x] Extract `nuttx_user.bin`, `nuttx_kernel.bin`, `nuttx_vectors.bin`, `nuttx_mono.bin` for emulator
 - [x] Regenerate hook addresses from new ELFs (`extract-hook-addresses.py`)
 - [x] Remove BBR bit 0x800 mono-disable from `meadow-dotnet10-headless.resc`
@@ -63,19 +63,16 @@ Mono native build output: `runtime/src/mono/build-nuttx-debug/`
 - [x] Verify `monovm_initialize` succeeds — **PASS** (confirmed via GDB backtrace)
       GDB shows Mono task at `chdir("/meadow0")` = mono_main.c:385, PAST monovm_initialize
       monovm_initialize returned 0; code proceeded through `hcom_mono_ctrl_mono_appears_to_be_running()`
+- [x] Fix heap corruption on second boot (SYSRESETREQ) — **FIXED**
+      Root cause: `.mono_bss` in SDRAM not zeroed on reset. Mono statics (e.g.
+      `pinvoke_search_directories`, `assemblies_path`) retained stale heap pointers from boot 1.
+      On boot 2, `mono_set_pinvoke_search_directories` and `mono_set_assemblies_path_direct`
+      call `g_strfreev` on stale pointers, corrupting the freshly-reinitialized NuttX heap.
+      Fix: `sysbus LoadBinary @build/dotnet10/mono_bss_zero.bin 0xC025EC00` in reset macro.
+      Also needed: firmware startup code should zero .mono_bss for real hardware.
+- [x] Mono actively loading SPCL — 142K QSPI reads (36 MB) after 100s wall time
 - [ ] Test graceful shutdown when app assembly is missing ("no app to execute" in syslog)
-      **BLOCKED**: post-init heap corruption
-
-### BLOCKER: Heap corruption after monovm_initialize
-After monovm_initialize returns 0, the next `chdir("/meadow0")` → `strdup("/")` → `malloc` hangs
-in an infinite loop in `mm_addfreechunk`. Root cause: heap free list corruption.
-- Free list node at 0x20076a58 has circular `flink` (points to itself)
-- Adjacent chunk at 0x20076a68 has metadata overwritten with ASCII "/meadow0" text
-  (flink=0x61656d2f="aemd", blink=0x30776f64="0wod" = parts of "/meadow0" string)
-- Likely buffer overflow in Mono runtime's property parsing (APP_PATHS="/meadow0")
-- The overflow writes the path string into adjacent heap metadata, corrupting the free list
-- **Next step**: Investigate `parse_properties` or `parse_lookup_paths` in monovm.c for
-  buffer overflow when handling the APP_PATHS property
+      Mono is currently loading SPCL (slow under emulation) — needs longer run to verify
 
 ### Emulator notes
 - UART log only shows kernel init (15 lines to 26ms) — HCOM/user messages go to host, not USART1
@@ -84,6 +81,7 @@ in an infinite loop in `mm_addfreechunk`. Root cause: heap free list corruption.
 - Version stamps must be applied before build via `scripts/version_methods.sh`
 - `.NET 10` mono binary must be re-extracted from ELF when firmware is rebuilt:
   `arm-none-eabi-objcopy -O binary --only-section=.mono --only-section=.mono_data nuttx_user.elf nuttx_mono.bin`
+- `.mono_bss` must be zeroed on each boot/reset (660 KB at 0xC025EC00-0xC0300000)
 - `System.Private.CoreLib.dll` not yet built — needs `dotnet build` of `runtime/src/mono/System.Private.CoreLib/`
 
 ## Phase 5: P/Invoke Validation
