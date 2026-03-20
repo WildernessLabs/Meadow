@@ -33,7 +33,18 @@
 - [ ] Port profiler adjustments if any
 - [ ] Port any AOT compiler NuttX conditionals
 
-## Phase 6: Build Verification
+## Phase 6: Re-enable Sockets
+Track 01 disabled sockets (`DISABLE_SOCKETS=1`) and zeroed out all networking headers
+(`HAVE_SYS_SOCKET_H=0`, `HAVE_NETINET_IN_H=0`, `HAVE_NETDB_H=0`, etc.) because the
+NuttX headers weren't properly wired in and the debugger-networking code had unconditional
+references to `struct sockaddr_in` / `struct in_addr`. Now that the base build works:
+- [ ] Remove `DISABLE_SOCKETS=1` from build-nuttx.sh and verify NuttX socket headers are found
+- [ ] Re-enable `HAVE_SYS_SOCKET_H`, `HAVE_NETINET_IN_H`, `HAVE_ARPA_INET_H`, `HAVE_NETDB_H` in configure.cmake overrides
+- [ ] Fix any remaining socket-related compile errors (NuttX has POSIX sockets but may lack some Linux-specific extensions like `accept4`, `IP_PKTINFO`, etc.)
+- [ ] Revert the `HAVE_NETINET_IN_H` guards added to `debugger-networking.h/.c` in Track 01 (they should compile normally once headers are available)
+- [ ] Verify socket-related symbols resolve (may still have link-time unresolved symbols until NuttX libc is linked — that's OK)
+
+## Phase 7: Build Verification
 - [ ] Full rebuild with all NuttX patches applied
 - [ ] Verify no unresolved symbols from platform layer
 - [ ] Verify `libmonosgen.a` includes all NuttX platform objects

@@ -27,6 +27,7 @@ The current fork has these NuttX-specific files and patches:
 6. Port OS detection (`CONFIG_OS "nuttx"`)
 7. Add `#ifdef __NuttX__` guards matching the patterns in the old fork
 8. Ensure SGen GC works without virtual memory / MMU
+9. Re-enable sockets for NuttX — sockets were disabled in Track 01 (`DISABLE_SOCKETS=1`, `HAVE_SYS_SOCKET_H=0`, etc.) because NuttX headers weren't wired up. NuttX does have a POSIX socket API. This track should re-enable sockets by providing the correct NuttX networking headers and fixing any remaining socket-related compile issues. Needed for HCOM, usrsock, and eventually network-based debugging.
 
 ## Acceptance Criteria
 - [ ] All NuttX platform files compile in the new mono build
@@ -34,6 +35,7 @@ The current fork has these NuttX-specific files and patches:
 - [ ] SGen GC initializes with malloc-based allocation (no mmap calls)
 - [ ] Thread creation works with correct priority and scheduling policy
 - [ ] `libmonosgen.a` links cleanly with NuttX object files
+- [ ] Sockets compile and link (DISABLE_SOCKETS removed, NuttX socket headers found)
 
 ## Out of Scope
 - Mbed TLS integration (Track 11)
