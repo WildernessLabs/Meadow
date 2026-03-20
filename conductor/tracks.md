@@ -1,16 +1,16 @@
 # Tracks Registry: Mono Runtime Upgrade to .NET 10
 
 ---
-- [x] **Track 01: Build System — CMake + NuttX Cross-Compilation Target**
-*Link: [./tracks/mono-upgrade-01-build/](./tracks/mono-upgrade-01-build/)*
+- [x] **Track 01: Build System — CMake + NuttX Cross-Compilation Target** *(archived)*
+*Link: [./tracks/_archive/mono-upgrade-01-build/](./tracks/_archive/mono-upgrade-01-build/)*
 
 ---
 - [ ] **Track 02: NuttX Platform Port — Threading, Memory, Signals**
 *Link: [./tracks/mono-upgrade-02-nuttx/](./tracks/mono-upgrade-02-nuttx/)*
 
 ---
-- [x] **Track 03: Emulator Bring-Up — Build Pipeline + Renode Boot** *(All 5 phases complete: build from Meadow/nuttx, hooks extracted, HCOM on TCP:4242, CLI device info + file deploy verified. Mono disabled at runtime via BBR — .NET 10 Mono execution deferred to Track 04)*
-*Link: [./tracks/mono-upgrade-03-emulator/](./tracks/mono-upgrade-03-emulator/)*
+- [x] **Track 03: Emulator Bring-Up — Build Pipeline + Renode Boot** *(archived)*
+*Link: [./tracks/_archive/mono-upgrade-03-emulator/](./tracks/_archive/mono-upgrade-03-emulator/)*
 
 ---
 - [ ] **Track 04: Initialization — monovm Hosting API Integration**
