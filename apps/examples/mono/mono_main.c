@@ -333,6 +333,7 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
   /* Set environment variables for the runtime */
 
   setenv("MONO_LOG_LEVEL", "warning", 1);
+  setenv("MONO_ENV_OPTIONS", "--interpreter", 1);
   setenv("TMPDIR", "/meadow0/Temp", 1);
 
   /* Build the Trusted Platform Assemblies list */
