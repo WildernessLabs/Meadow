@@ -44,7 +44,7 @@ Mono native build output: `runtime/src/mono/build-nuttx-debug/`
 - [ ] Remove or update version matching logic (old mono version format may not apply)
 - [ ] Update `MONO_TASK_STACKSIZE` if needed (new mono may need more stack)
 
-## Phase 4: Emulator Validation ✅ (monovm_initialize succeeds, mono loading SPCL)
+## Phase 4: Emulator Validation (monovm_initialize succeeds, interpreter mode needed)
 - [x] Extract `nuttx_user.bin`, `nuttx_kernel.bin`, `nuttx_vectors.bin`, `nuttx_mono.bin` for emulator
 - [x] Regenerate hook addresses from new ELFs (`extract-hook-addresses.py`)
 - [x] Remove BBR bit 0x800 mono-disable from `meadow-dotnet10-headless.resc`
@@ -61,28 +61,41 @@ Mono native build output: `runtime/src/mono/build-nuttx-debug/`
 - [x] Fix stale `nuttx_mono.bin` — old binary had wrong code at monovm_initialize offset
       Re-extracted: `objcopy -O binary --only-section=.mono --only-section=.mono_data`
 - [x] Verify `monovm_initialize` succeeds — **PASS** (confirmed via GDB backtrace)
-      GDB shows Mono task at `chdir("/meadow0")` = mono_main.c:385, PAST monovm_initialize
-      monovm_initialize returned 0; code proceeded through `hcom_mono_ctrl_mono_appears_to_be_running()`
+      monovm_initialize returned 0; code proceeded through hcom_mono_ctrl_mono_appears_to_be_running
 - [x] Fix heap corruption on second boot (SYSRESETREQ) — **FIXED**
-      Root cause: `.mono_bss` in SDRAM not zeroed on reset. Mono statics (e.g.
-      `pinvoke_search_directories`, `assemblies_path`) retained stale heap pointers from boot 1.
-      On boot 2, `mono_set_pinvoke_search_directories` and `mono_set_assemblies_path_direct`
-      call `g_strfreev` on stale pointers, corrupting the freshly-reinitialized NuttX heap.
-      Fix: `sysbus LoadBinary @build/dotnet10/mono_bss_zero.bin 0xC025EC00` in reset macro.
-      Also needed: firmware startup code should zero .mono_bss for real hardware.
-- [x] Mono actively loading SPCL — 142K QSPI reads (36 MB) after 100s wall time
+      Root cause: `.mono_bss` stale pointers. Emulator fix: targeted WriteDoubleWord zeroing
+      of 8 key statics in reset macro. Firmware fix: .mono_bss zeroing in mono_main.c.
+- [x] Verify full init chain via GDB breadcrumbs:
+      monovm_initialize(0) → mono_appears_running → chdir → monovm_execute_assembly → mono_main
+- [x] Identify `mono_main` crash — **FOUND**: `exit(1)` at driver.c:~2445
+      Root cause: runtime built with `DISABLE_JIT` (interpreter/AOT only).
+      `mono_main` checks `mono_aot_only` (0xC0269F98) and `mono_use_interpreter` (0xC0269FC4).
+      Both are 0 → prints "This runtime has been configured with --enable-minimal=jit,
+      so the --full-aot command line option is required." → `exit(1)` → SYSRESETREQ.
+- [ ] **Fix: enable interpreter mode** — either pass `--interpreter` in argv to `mono_main`,
+      or set `mono_use_interpreter = 1` before `monovm_execute_assembly`, or configure via
+      a monovm property. Then verify mono_main reaches mini_init and loads SPCL.
 - [ ] Test graceful shutdown when app assembly is missing ("no app to execute" in syslog)
-      Mono is currently loading SPCL (slow under emulation) — needs longer run to verify
+
+### Key findings
+- `.mono_bss` stale pointers: on SYSRESETREQ reset, Mono static globals in SDRAM retain
+  values from previous boot. Must zero key statics (8 addresses) in Renode reset macro.
+  Firmware's mono_main.c zeroing handles this for real hardware.
+- `LoadBinary` of zero files in reset macro causes infinite reset loop (unknown Renode issue).
+  Workaround: use targeted `sysbus WriteDoubleWord` for specific addresses instead.
+- SPCL loading under emulation is slow (~260 bytes/QSPI read, ~500 reads/sec).
+  FileReadBypass.cs created (hooks mono_file_map_fileio) but disabled pending validation.
 
 ### Emulator notes
-- UART log only shows kernel init (15 lines to 26ms) — HCOM/user messages go to host, not USART1
-- CPU idle at `stm32_idle.c:123` when paused = boot completed successfully
+- UART log only shows kernel init — HCOM/user messages go to host on TCP:4242
 - HCOM responds with device info: OSVersion=2.5.7.0, Hardware=F7FeatherV2
 - Version stamps must be applied before build via `scripts/version_methods.sh`
 - `.NET 10` mono binary must be re-extracted from ELF when firmware is rebuilt:
   `arm-none-eabi-objcopy -O binary --only-section=.mono --only-section=.mono_data nuttx_user.elf nuttx_mono.bin`
-- `.mono_bss` must be zeroed on each boot/reset (660 KB at 0xC025EC00-0xC0300000)
-- `System.Private.CoreLib.dll` not yet built — needs `dotnet build` of `runtime/src/mono/System.Private.CoreLib/`
+- `.mono_bss` key statics zeroed via WriteDoubleWord in reset macro (8 addresses)
+- SPCL built via: `cd runtime && ./build.sh -c Debug -subset Mono.CoreLib` (5.76 MB output)
+- GDB profiling: use `nuttx.elf` for kernel frames, `nuttx_user.elf` for user/mono frames
+- Renode hooks for breadcrumb tracing: `cpu AddHook <addr> "self.Log(LogLevel.Error, \"msg\")"`
 
 ## Phase 5: P/Invoke Validation
 - [ ] Create a minimal test managed assembly that calls a P/Invoke function
