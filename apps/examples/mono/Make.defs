@@ -36,39 +36,29 @@
 
 ifeq ($(CONFIG_EXAMPLES_MONO),y)
   CONFIGURED_APPS += examples/mono
-  MONO_DIR = $(TOPDIR)/../mono/mono
   MBEDTLS_DIR = $(TOPDIR)/../mbedtls
 
   SQLITE_DIR =  $(TOPDIR)/../apps/examples/sqlite
   SQLITE_OBJS = $(SQLITE_DIR)/sqlite_compile_sqlite3.o
 
-  MONO_AOBJS = $(MONO_DIR)/sgen/.libs/libmonosgen.a \
-               $(MONO_DIR)/mini/.libs/libmini.a \
-               $(MONO_DIR)/mini/.libs/libmono-dbg.a \
-               $(MONO_DIR)/mini/.libs/libmono-ee-interp.a \
-               $(MONO_DIR)/eglib/.libs/libeglib.a \
-               $(MONO_DIR)/metadata/.libs/libmonoruntimesgen.a \
-               $(MONO_DIR)/metadata/.libs/libmonoruntime-config.a  \
-               $(MONO_DIR)/utils/.libs/libmonoutils.a \
-               $(MONO_DIR)/profiler/.libs/libmono-profiler-log.a \
-               $(MONO_DIR)/profiler/.libs/libmono-profiler-aot.a \
-               $(MONO_DIR)/profiler/.libs/libmono-profiler-coverage.a \
-               $(MONO_DIR)/zlib/.libs/libz.a
-MBEDTLS_AOBJS = $(MBEDTLS_DIR)/library/libmbedcrypto.a \
-               $(MBEDTLS_DIR)/library/libmbedtls.a \
-               $(MBEDTLS_DIR)/library/libmbedx509.a \
-               $(MONO_DIR)/mbedtls/.libs/libmono-mbedtls.a
-  MONO_SUPPORT_AOBJS = $(MONO_DIR)/metadata/.libs/libmonoruntime-support.a
+  # .NET 10 Mono runtime — single mega-library plus component plugins
+  MONO_BUILD_DIR = $(TOPDIR)/../../runtime/src/mono/build-nuttx-debug/mono
 
-  ifeq ($(ENABLE_NETCORE),1)
-    MONO_AOBJS += $(MONO_DIR)/../../runtime/src/libraries/Native/build/System.Native/System.Native.a
-  else
-    MONO_AOBJS += $(MONO_DIR)/dis/libmonodis.a \
-                  $(MONO_DIR)/native/.libs/libmono-native.a
-  endif
+  MONO_AOBJS = $(MONO_BUILD_DIR)/mini/libmonosgen-2.0.a \
+               $(MONO_BUILD_DIR)/mini/libmono-component-marshal-ilgen-static.a \
+               $(MONO_BUILD_DIR)/mini/libmono-component-hot_reload-stub-static.a \
+               $(MONO_BUILD_DIR)/mini/libmono-component-debugger-stub-static.a \
+               $(MONO_BUILD_DIR)/mini/libmono-component-diagnostics_tracing-stub-static.a \
+               $(MONO_BUILD_DIR)/minipal/minipal/libminipal.a \
+               $(MONO_BUILD_DIR)/minipal/minipal/libaotminipal.a \
+               $(MONO_BUILD_DIR)/sgen/libsgen_objects.a
+
+  MBEDTLS_AOBJS = $(MBEDTLS_DIR)/library/libmbedcrypto.a \
+               $(MBEDTLS_DIR)/library/libmbedtls.a \
+               $(MBEDTLS_DIR)/library/libmbedx509.a
+
   MONO_LIBM=
 else
-  MONO_DIR =
   MONO_AOBJS =
   MONO_LIBM=
 endif

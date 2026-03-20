@@ -49,6 +49,7 @@
 #include <meadow/meadow_apps_core_share.h>
 
 #include <string.h>
+#include <sys/wait.h>
 
 #include <termios.h>
 
@@ -114,7 +115,7 @@ static valid_mono_options_t _mono_options[] =
  * Private Function Prototypes
  ****************************************************************************/
 
-int mono_main(int argc, char *argv[]);
+int meadow_mono_main(int argc, char *argv[]);
 
 static bool hcom_mono_ctrl_are_needed_files_here(void);
 static bool hcom_mono_ctrl_should_mono_run(void);
@@ -406,7 +407,7 @@ int hcom_mono_ctrl_start_mono_main()
 #if defined(CONFIG_HCOM_MONO_REMOTE_DEBUGGING)
                          (main_t)mono_main_proxy,
 #else
-                         (main_t)mono_main,
+                         (main_t)meadow_mono_main,
 #endif
                          (FAR char *const *)argv);
   if (mono_pid > 0)
@@ -507,9 +508,7 @@ bool hcom_mono_ctrl_are_needed_files_here()
   int listCount = 0;
   char *neededApps[] =
       {
-          "mscorlib.dll",
-          "System.Core.dll",
-          "System.dll",
+          "System.Private.CoreLib.dll",
           "Meadow.dll",
           NULL};
 
@@ -889,7 +888,7 @@ int mono_main_proxy(int argcX, char *argvX[])
 #if HCOM_VS_DEBUGGING_TESTS_INCLUDE_IN_BUILD > 0
   MonoVsRemoteDebugTestSetup(argc, argv);
 #else
-  mono_main(argc, argv);
+  meadow_mono_main(argc, argv);
 #endif
 
   return OK;
