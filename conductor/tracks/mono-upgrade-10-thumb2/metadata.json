@@ -1,0 +1,8 @@
+{
+  "track_id": "mono-upgrade-10-thumb2",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-03-19T00:00:00Z",
+  "updated_at": "2026-03-19T00:00:00Z",
+  "description": "Port Thumb2 JIT backend from Mono 6.9.0 fork to .NET 10 Mono for Cortex-M7"
+}

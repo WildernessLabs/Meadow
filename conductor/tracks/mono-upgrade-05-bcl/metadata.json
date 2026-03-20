@@ -1,0 +1,8 @@
+{
+  "track_id": "mono-upgrade-05-bcl",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-03-19T00:00:00Z",
+  "updated_at": "2026-03-19T00:00:00Z",
+  "description": "Build and deploy .NET 10 BCL (System.Private.CoreLib + reference assemblies) for Meadow"
+}
