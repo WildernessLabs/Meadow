@@ -72,7 +72,11 @@ Mono native build output: `runtime/src/mono/build-nuttx-debug/`
       Also needed: firmware startup code should zero .mono_bss for real hardware.
 - [x] Mono actively loading SPCL — 142K QSPI reads (36 MB) after 100s wall time
 - [ ] Test graceful shutdown when app assembly is missing ("no app to execute" in syslog)
-      Mono is currently loading SPCL (slow under emulation) — needs longer run to verify
+      SPCL loading under emulation is very slow (~209K QSPI reads / 53 MB / 400s wall time and
+      still not complete). Bottleneck: LittleFS reads 256 bytes per QSPI call, each invoking the
+      QspiDmaBypass hook. Need longer run (20-30 min) or performance optimization.
+- [x] Firmware .mono_bss zeroing — added to `mono_main.c` before `monovm_initialize` (ea42cade174)
+      Ensures stale Mono globals are cleared on real hardware (not just emulator)
 
 ### Emulator notes
 - UART log only shows kernel init (15 lines to 26ms) — HCOM/user messages go to host, not USART1
@@ -82,7 +86,7 @@ Mono native build output: `runtime/src/mono/build-nuttx-debug/`
 - `.NET 10` mono binary must be re-extracted from ELF when firmware is rebuilt:
   `arm-none-eabi-objcopy -O binary --only-section=.mono --only-section=.mono_data nuttx_user.elf nuttx_mono.bin`
 - `.mono_bss` must be zeroed on each boot/reset (660 KB at 0xC025EC00-0xC0300000)
-- `System.Private.CoreLib.dll` not yet built — needs `dotnet build` of `runtime/src/mono/System.Private.CoreLib/`
+- SPCL built via: `cd runtime && ./build.sh -c Debug -subset Mono.CoreLib` (5.76 MB output)
 
 ## Phase 5: P/Invoke Validation
 - [ ] Create a minimal test managed assembly that calls a P/Invoke function
