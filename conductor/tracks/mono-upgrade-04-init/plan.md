@@ -83,14 +83,17 @@ Mono native build output: `runtime/src/mono/build-nuttx-debug/`
       code into a dynamically allocated buffer. This requires writable+executable (WX) memory.
       On NuttX with MPU, WX memory allocation likely fails — `mono_code_manager_new()` allocates
       via `mono_valloc` which falls back to `posix_memalign` (no PROT_EXEC on NuttX).
-- [ ] **Fix WX memory for trampoline code generation** — the runtime needs to emit small
-      trampolines even in interpreter mode. Options:
-      a) Configure NuttX MPU to allow execute from SDRAM heap region
-      b) Allocate trampolines in a pre-designated executable region
-      c) Use the interpreter's "no trampoline" mode if available
-      d) Stub out `mono_arch_create_generic_trampoline` for NuttX
-      This is a Track 02 (NuttX Platform Port) issue that needs revisiting.
+- [x] **Fix trampoline code generation** — `mono_arch_create_generic_trampoline` was stubbed
+      with `g_assert_not_reached()` (DISABLE_JIT build). Added `HOST_NUTTX` to `disable_tramps`
+      in `mono_trampolines_init` (same as WASM). Not a WX memory issue — trampolines not needed
+      in interpreter mode.
+- [x] **Fix signal number mismatch** — Mono compiled with Meadow.OS headers (SIGRTMIN=32,
+      MAX_SIGNO=63) but firmware only supports signals 0-31. `sigaction(33)` returned -EINVAL.
+      Added `HOST_NUTTX` signal selection (signals 20/21/22) in `mono-threads-posix-signals.c`.
+- [x] **mono_init (CORLIB load) reached** — confirmed via Renode breadcrumbs. No crashes,
+      no reset loop. System stable, Mono actively loading System.Private.CoreLib.dll.
 - [ ] Test graceful shutdown when app assembly is missing ("no app to execute" in syslog)
+      Mono is inside mono_init loading SPCL — needs longer run to complete.
 
 ### Key findings
 - `.mono_bss` stale pointers: on SYSRESETREQ, Mono statics in SDRAM retain values from
