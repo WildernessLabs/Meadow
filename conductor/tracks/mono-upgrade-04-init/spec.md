@@ -45,12 +45,17 @@ hcom_main() → hcom_mono_ctrl_start_mono_main() → task_create("mono", meadow_
 8. Re-enable the mono startup in `hcom_startup_manager.c` (remove `#if(0)`)
 
 ## Acceptance Criteria
-- [ ] `monovm_initialize()` returns 0 (success) in emulator
-- [ ] `System.Private.CoreLib.dll` loads successfully
-- [ ] Type system initializes (basic types resolve)
-- [ ] Runtime shuts down cleanly when no app assembly is present
-- [ ] HCOM remains responsive during and after mono init
-- [ ] P/Invoke resolution for `"nuttx"` library works (tested with a trivial managed call)
+- [ ] `monovm_initialize()` returns 0 (success) in emulator — **code written, needs emulator test**
+- [ ] `System.Private.CoreLib.dll` loads successfully — **needs emulator test**
+- [ ] Type system initializes (basic types resolve) — **needs emulator test**
+- [ ] Runtime shuts down cleanly when no app assembly is present — **code written, needs emulator test**
+- [ ] HCOM remains responsive during and after mono init — **needs emulator test**
+- [ ] P/Invoke resolution for `"nuttx"` library works (tested with a trivial managed call) — **Phase 5**
+
+## Implementation Status
+- **Phases 1-3 COMPLETE**: Code written, firmware links successfully
+- **Phase 4 IN PROGRESS**: Emulator validation needed
+- **Phase 5 TODO**: P/Invoke validation
 
 ## Out of Scope
 - Full BCL deployment (Track 5 — this track only needs SPCL)
