@@ -72,28 +72,36 @@ Mono native build output: `runtime/src/mono/build-nuttx-debug/`
       `mono_main` checks `mono_aot_only` (0xC0269F98) and `mono_use_interpreter` (0xC0269FC4).
       Both are 0 → prints "This runtime has been configured with --enable-minimal=jit,
       so the --full-aot command line option is required." → `exit(1)` → SYSRESETREQ.
-- [ ] **Fix: enable interpreter mode** — either pass `--interpreter` in argv to `mono_main`,
-      or set `mono_use_interpreter = 1` before `monovm_execute_assembly`, or configure via
-      a monovm property. Then verify mono_main reaches mini_init and loads SPCL.
+- [x] **Enable interpreter mode** — added `MONO_ENV_OPTIONS=--interpreter` in `mono_main.c` (9f9b5b7cd38)
+      Also set `mono_use_interpreter` via Renode WriteDoubleWord (emulator-only backup).
+      Confirmed `mini_init` reached on boot 1 via Renode breadcrumb hooks.
+- [x] Firmware rebuilt with BSS zeroing + interpreter mode (via `build-meadow.os-emulated.sh`)
+      Build output in `build/dotnet10/`, hooks regenerated with new addresses.
+- [ ] **Investigate remaining reset loop after mini_init** — mono_main reaches mini_init
+      on boot 1, but then crashes (SYSRESETREQ). Need to trace what fails inside mini_init.
+      The crash is NOT the interpreter/BSS issue (both fixed in firmware). Likely a runtime
+      init failure during SPCL loading or type system setup.
 - [ ] Test graceful shutdown when app assembly is missing ("no app to execute" in syslog)
 
 ### Key findings
-- `.mono_bss` stale pointers: on SYSRESETREQ reset, Mono static globals in SDRAM retain
-  values from previous boot. Must zero key statics (8 addresses) in Renode reset macro.
-  Firmware's mono_main.c zeroing handles this for real hardware.
-- `LoadBinary` of zero files in reset macro causes infinite reset loop (unknown Renode issue).
-  Workaround: use targeted `sysbus WriteDoubleWord` for specific addresses instead.
+- `.mono_bss` stale pointers: on SYSRESETREQ, Mono statics in SDRAM retain values from
+  previous boot. Fixed in firmware: `mono_main.c` zeros `_s_mono_bss.._e_mono_bss` before
+  `monovm_initialize`. Emulator initial boot zeros via `mono_bss_zero.bin` LoadBinary.
+- `LoadBinary` of zero files in reset macro causes infinite reset loop (Renode issue).
+  Not needed now — firmware handles BSS zeroing on every boot.
+- Interpreter mode: runtime built with `DISABLE_JIT`. Must set `--interpreter` or
+  `mono_use_interpreter=1`. Handled by `MONO_ENV_OPTIONS=--interpreter` in firmware.
 - SPCL loading under emulation is slow (~260 bytes/QSPI read, ~500 reads/sec).
   FileReadBypass.cs created (hooks mono_file_map_fileio) but disabled pending validation.
 
 ### Emulator notes
+- Build firmware: `cd Meadow.OS.Emulator && bash build-meadow.os-emulated.sh`
+  (handles toolchain, config, version stamps, extraction, hook generation — see workflow.md)
 - UART log only shows kernel init — HCOM/user messages go to host on TCP:4242
 - HCOM responds with device info: OSVersion=2.5.7.0, Hardware=F7FeatherV2
-- Version stamps must be applied before build via `scripts/version_methods.sh`
-- `.NET 10` mono binary must be re-extracted from ELF when firmware is rebuilt:
-  `arm-none-eabi-objcopy -O binary --only-section=.mono --only-section=.mono_data nuttx_user.elf nuttx_mono.bin`
-- `.mono_bss` key statics zeroed via WriteDoubleWord in reset macro (8 addresses)
-- SPCL built via: `cd runtime && ./build.sh -c Debug -subset Mono.CoreLib` (5.76 MB output)
+- SPCL built via: `cd runtime && ./build.sh -c Debug -subset Mono.CoreLib` (5.76 MB)
+- GDB debugging: use `nuttx.elf` for kernel, `nuttx_user.elf` for user/mono frames
+- Renode breadcrumb tracing: `cpu AddHook <addr> "self.Log(LogLevel.Error, \"msg\")"`
 - GDB profiling: use `nuttx.elf` for kernel frames, `nuttx_user.elf` for user/mono frames
 - Renode hooks for breadcrumb tracing: `cpu AddHook <addr> "self.Log(LogLevel.Error, \"msg\")"`
 
