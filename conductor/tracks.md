@@ -9,7 +9,7 @@
 *Link: [./tracks/mono-upgrade-02-nuttx/](./tracks/mono-upgrade-02-nuttx/)*
 
 ---
-- [ ] **Track 03: Emulator Bring-Up — Build Pipeline + Renode Boot**
+- [x] **Track 03: Emulator Bring-Up — Build Pipeline + Renode Boot** *(All 5 phases complete: build from Meadow/nuttx, hooks extracted, HCOM on TCP:4242, CLI device info + file deploy verified. Mono disabled at runtime via BBR — .NET 10 Mono execution deferred to Track 04)*
 *Link: [./tracks/mono-upgrade-03-emulator/](./tracks/mono-upgrade-03-emulator/)*
 
 ---
