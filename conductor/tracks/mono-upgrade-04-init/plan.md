@@ -92,19 +92,38 @@ Mono native build output: `runtime/src/mono/build-nuttx-debug/`
       Added `HOST_NUTTX` signal selection (signals 20/21/22) in `mono-threads-posix-signals.c`.
 - [x] **mono_init (CORLIB load) reached** — confirmed via Renode breadcrumbs. No crashes,
       no reset loop. System stable, Mono actively loading System.Private.CoreLib.dll.
+- [x] **Assembly pre-caching to tmpfs** — firmware copies DLLs from `/meadow0/` (QSPI/LFS)
+      to `/tmp/` (tmpfs in RAM) before `monovm_execute_assembly`. Same pattern as
+      `hcom_via_nx_copy_mono_runtime_to_ram` for the native binary. QSPI caching completes
+      in ~5 seconds under emulation. Requires `CONFIG_FS_TMPFS` (enabled in build script).
+- [x] **Identified sem_wait deadlock in mono_init_internal** — GDB stack dump shows Mono task
+      blocked in `sem_wait` inside `mono_init_internal` → `sgen_gc_init` → `sgen_thread_pool_start`.
+      Root cause: NuttX `pthread_create` holds `sched_lock()` while waiting for child thread to
+      signal, but child can't run because scheduler lock prevents context switching. Hard deadlock.
+      - Legacy Mono 6.9 avoided this: no GC threads created during `mini_init()`
+      - .NET 10 sgen creates worker threads eagerly in `sgen_gc_init()`
+      - NuttX `sched_lock` + `sem_wait` interaction is fundamentally incompatible with this pattern
+      - WASM handles same issue via `DISABLE_SGEN_MAJOR_MARKSWEEP_CONC=1` (compiles out thread pool)
+- [ ] **Fix: disable concurrent GC for NuttX** — add `DISABLE_SGEN_MAJOR_MARKSWEEP_CONC=1`
+      to `build-nuttx.sh`. This compiles out `sgen_thread_pool_start()` entirely. GC runs on the
+      main thread, which is correct for single-core Cortex-M7 (concurrent GC has no benefit on
+      single core). Alternative: `ENABLE_LAZY_GC_THREAD_CREATION=1` to defer thread creation.
 - [ ] Test graceful shutdown when app assembly is missing ("no app to execute" in syslog)
-      Mono is inside mono_init loading SPCL — needs longer run to complete.
 
 ### Key findings
 - `.mono_bss` stale pointers: on SYSRESETREQ, Mono statics in SDRAM retain values from
   previous boot. Fixed in firmware: `mono_main.c` zeros `_s_mono_bss.._e_mono_bss` before
   `monovm_initialize`. Emulator initial boot zeros via `mono_bss_zero.bin` LoadBinary.
-- `LoadBinary` of zero files in reset macro causes infinite reset loop (Renode issue).
-  Not needed now — firmware handles BSS zeroing on every boot.
 - Interpreter mode: runtime built with `DISABLE_JIT`. Must set `--interpreter` or
   `mono_use_interpreter=1`. Handled by `MONO_ENV_OPTIONS=--interpreter` in firmware.
-- SPCL loading under emulation is slow (~260 bytes/QSPI read, ~500 reads/sec).
-  FileReadBypass.cs created (hooks mono_file_map_fileio) but disabled pending validation.
+- Signal number mismatch: Meadow.OS headers (SIGRTMIN=32) vs legacy firmware (MAX_SIGNO=31).
+  Fixed with `HOST_NUTTX` signal selection (20/21/22) in `mono-threads-posix-signals.c`.
+- Trampoline stubs: `mono_arch_create_generic_trampoline` stubbed with `g_assert_not_reached()`
+  in DISABLE_JIT build. Fixed with `HOST_NUTTX` in `disable_tramps` (same as WASM).
+- NuttX `pthread_create` deadlock: `sched_lock()` held during `sem_wait` prevents child thread
+  from running. Affects any code that creates pthreads during init. Fix: disable concurrent GC.
+- Assembly pre-caching: firmware copies DLLs to tmpfs before Mono loads them. Eliminates
+  repeated QSPI reads. QSPI caching completes in ~5 seconds under emulation.
 
 ### Emulator notes
 - Build firmware: `cd Meadow.OS.Emulator && bash build-meadow.os-emulated.sh`
