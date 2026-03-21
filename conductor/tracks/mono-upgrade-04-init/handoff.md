@@ -9,99 +9,129 @@ the runtime initialization — getting `monovm_initialize` → `monovm_execute_a
 **Phases 1-3 are complete** — the firmware builds, links with .NET 10's libmonosgen-2.0.a,
 and the new `meadow_mono_main()` entry point calls the monovm hosting API.
 
-**Phase 4 (emulator validation) is ~90% complete.** The full init chain works:
+**Phase 4 (emulator validation) is ~95% complete.** The full init chain works:
 - `monovm_initialize()` returns 0 ✅
 - `monovm_execute_assembly()` reached ✅
 - `mono_main()` → `mini_init()` → `mono_init_internal()` reached ✅
 - System.Private.CoreLib.dll (SPCL) deployed on LFS and pre-cached to tmpfs ✅
 - HCOM responsive on TCP:4242 ✅
-- No crash, no reset loop ✅
+- `struct stat` ABI mismatch FIXED (see below) ✅
+- `g_file_test` correctly identifies SPCL as regular file ✅
+- `sgen_gc_init` → `alloc_nursery` reached with correct args ✅
+- `mono_pagesize()` returns 4096 (was returning -1) ✅
+- Concurrent GC disabled (`DISABLE_SGEN_MAJOR_MARKSWEEP_CONC=1`) ✅
 
-**BLOCKER:** Mono task deadlocks in `sem_wait` inside `mono_init_internal()`.
+**BLOCKER:** `mmap` stub crash — `munmap` → `free()` hits NULL pointer in `mm_free`.
 
-## The Deadlock (Root-Caused)
+## Current Crash (mmap/munmap stubs)
 
-`.NET 10 sgen GC creates worker threads during initialization:`
+The sgen GC init → marksweep init → lock-free allocator → `desc_alloc` → `mono_valloc`
+→ `mmap` (our stub). The `mmap` stub uses `posix_memalign` to allocate memory. But when
+Mono later calls `munmap` (via `mono_vfree` or `mono_file_unmap`), the `free()` crashes
+with a NULL pointer dereference at address `0x00000008` inside `mm_free`.
+
 ```
-mono_init_internal → mono_gc_base_init → sgen_gc_init → sgen_thread_pool_start
-  → pthread_create (for each GC worker thread)
+MMFAR: 00000008   ← NULL pointer + struct offset
+PC: 0x08055c92    ← mm_free
+Task: Mono
 ```
 
-NuttX's `pthread_create` calls `sched_lock()` before `task_activate()`, then calls
-`pthread_sem_take()` to wait for the child to signal it started. But the child can't
-run because `sched_lock()` prevents context switching. Hard deadlock.
+**Root cause hypothesis:** `mmap` returns aligned memory from `posix_memalign`, but
+`munmap` is called with a different address (e.g., interior pointer or MAP_FAILED).
+Check whether `mono_valloc` adjusts the returned pointer before storing it.
 
-Legacy Mono 6.9 avoided this — it didn't create GC threads during `mini_init()`.
+**Investigation steps:**
+1. Add logging to `mmap`/`munmap` stubs to see what addresses are passed
+2. Check if `mono_valloc_aligned` shifts the returned pointer
+3. Check if `mono_vfree` passes a different address than `mmap` returned
+4. Alternative: make `munmap` a no-op (leak memory) to see if init completes
 
-WASM has the same issue and solves it with `DISABLE_SGEN_MAJOR_MARKSWEEP_CONC=1`,
-which compiles out `sgen_thread_pool_start()` entirely.
+## Major Fix: struct stat ABI Mismatch (RESOLVED)
+
+Mono was compiled against `Meadow.OS/nuttx/include` (modern NuttX headers) but the
+running firmware uses `Meadow/nuttx/include` (legacy headers). Two critical differences:
+
+1. **struct stat field ordering**: Modern starts with `st_dev, st_ino, st_mode`; legacy
+   starts with `st_mode` at offset 0. Mono read `st_mode` from the wrong offset.
+
+2. **S_IFREG encoding**: Legacy = `5 << 11` = `0x2800`; modern = `8 << 12` = `0x8000`.
+   Even with correct layout, `S_ISREG()` used the wrong constant.
+
+**Fix:** Changed `build-nuttx.sh` to compile Mono against `Meadow/nuttx/include`.
+This required a compatibility layer for missing POSIX declarations — see `nuttx-compat.h`
+and `nuttx-include-overrides/errno.h` in the runtime repo.
+
+## Previous Blockers (All Resolved)
+
+- **sem_wait deadlock**: `DISABLE_SGEN_MAJOR_MARKSWEEP_CONC=1` (no GC worker threads)
+- **alloc_nursery garbage args**: Was from stale build; args are now 0/0/0 (correct)
+- **corlib assertion**: `g_file_test` returned FALSE due to struct stat mismatch (fixed)
+- **mono_pagesize() = -1**: NuttX `sysconf(_SC_PAGESIZE)` unsupported; fixed fallback
+- **lock-free alloc block_size assertion**: Caused by `mono_pagesize()` = -1 (fixed)
 
 ## Immediate Next Step
 
-Add `-DDISABLE_SGEN_MAJOR_MARKSWEEP_CONC=1` to `runtime/src/mono/build-nuttx.sh`.
-This makes `sgen_thread_pool_start()` an empty function — no `pthread_create` calls.
-GC runs on the main thread, which is correct for single-core Cortex-M7.
+Fix the `mmap`/`munmap` stub crash. The simplest approach to try first:
+1. Make `munmap` a no-op (just return 0, don't call `free`) — this leaks memory but
+   lets us see if the rest of GC init + SPCL loading works
+2. If that works, implement proper tracking (store mmap'd addresses in a list,
+   only free those in munmap)
 
-Then rebuild Mono and firmware, and test:
+Then rebuild and test:
 
 ```bash
-# 1. Rebuild Mono runtime
+# Rebuild Mono (if runtime source changed):
 cd runtime/src/mono/build-nuttx-debug
-cmake . -DDISABLE_SGEN_MAJOR_MARKSWEEP_CONC=ON
 cmake --build . -- -j8
 
-# 2. Rebuild firmware (uses the proper build script — NEVER run make directly)
+# Rebuild firmware (ALWAYS use the build script):
 cd Meadow.OS.Emulator
 bash build-meadow.os-emulated.sh
 
-# 3. Copy artifacts to emulator build dir
+# Copy artifacts to emulator:
 cp build/nuttx_*.bin build/nuttx*.elf build/hooks.resc build/sdram-patches.resc \
    build/addresses.resc build/reset-sdram-patches.resc build/dotnet10/
-
-# 4. Update mono_bss_zero.bin (BSS address may shift)
+# Update mono_bss_zero.bin:
 BSS_START=$(arm-none-eabi-nm build/dotnet10/nuttx_user.elf | awk '/_s_mono_bss/{print $1}')
 dd if=/dev/zero of=build/dotnet10/mono_bss_zero.bin bs=$((0xc0300000 - 0x$BSS_START)) count=1
-# Update the address in scripts/meadow-dotnet10-headless.resc if it changed
 
-# 5. Test
+# Test:
 bash -c '(sleep 600) | mono /Applications/Renode.app/Contents/MacOS/bin/Renode.exe \
   --console --disable-xwt -e "include @scripts/meadow-dotnet10-headless.resc; \
   machine StartGdbServer 3333"' &
-sleep 300
-arm-none-eabi-gdb -batch -ex "target remote localhost:3333" -ex "bt 15" -ex "detach" \
-  build/dotnet10/nuttx_user.elf
+sleep 20
+arm-none-eabi-gdb build/dotnet10/nuttx_user.elf -batch \
+  -ex "target remote localhost:3333" -ex "break abort" -ex "continue" \
+  -ex "bt 15" -ex "detach"
 ```
 
-**Expected result:** Mono should get past `sgen_gc_init` and proceed to load SPCL.
-If `monovm_shutdown` fires, Mono completed and exited (good). Check HCOM for status.
+## After the mmap Fix
 
-## After the GC Fix
-
-Once `mono_init_internal` completes:
-1. **Test graceful shutdown** — Meadow.dll is a 0-byte dummy. The code at `mono_main.c:488`
-   checks for it and calls `monovm_execute_assembly`. With a 0-byte PE, Mono should fail
-   to load it and exit cleanly via `monovm_shutdown`.
-2. **Phase 5: P/Invoke validation** — create a minimal managed assembly that does a
-   `DllImport("nuttx")` call, deploy it as Meadow.dll, verify the pinvoke override resolves.
+Once `sgen_gc_init` completes and SPCL loads:
+1. **Test graceful shutdown** — Meadow.dll is 0-byte; Mono should fail to load it
+   and exit cleanly via `monovm_shutdown`
+2. **Phase 5: P/Invoke validation** — minimal managed assembly with DllImport("nuttx")
 
 ## Repos and Branches
 
 | Repo | Branch | What's There |
 |------|--------|-------------|
-| `Wilderness_Labs/Meadow/` | `Feature_NuttX_dotnet10` | NuttX firmware with monovm hosting API, .mono_bss zeroing, interpreter mode, tmpfs caching |
-| `Wilderness_Labs/Meadow.OS.Emulator/` | `feature/dotnet10-emulator` | Renode scripts, hooks, build script with tmpfs/kconfig tweaks |
-| `Wilderness_Labs/runtime/` | `Feature_NuttX_dotnet10` | .NET 10 Mono with NuttX signal fix (20/21/22), trampoline skip, HOST_NUTTX guards |
+| `Wilderness_Labs/Meadow/` | `Feature_NuttX_dotnet10` | NuttX firmware with monovm hosting API, mmap stubs, .mono_bss zeroing |
+| `Wilderness_Labs/Meadow.OS.Emulator/` | `feature/dotnet10-emulator` | Renode scripts, hooks, build script |
+| `Wilderness_Labs/runtime/` | `Feature_NuttX_dotnet10` | .NET 10 Mono with NuttX ABI compat layer, signal fix, trampoline skip |
 
 ## Key Context
 
-- **NEVER run `make` directly in Meadow/nuttx/.** Always use `Meadow.OS.Emulator/build-meadow.os-emulated.sh`. See `conductor/workflow.md`.
-- **Use GDB for debugging.** Start Renode with `machine StartGdbServer 3333`, connect with `arm-none-eabi-gdb -batch -ex "target remote localhost:3333"`. Use `nuttx.elf` for kernel frames, `nuttx_user.elf` for user/mono frames.
-- **Mono runtime headers mismatch:** Mono is compiled against `Meadow.OS/nuttx/include` (MAX_SIGNO=63) but firmware uses `Meadow/nuttx/include` (MAX_SIGNO=31). Signal numbers are hardcoded to 20/21/22 to work around this.
-- **`.mono_bss` must be zeroed on every boot.** Firmware does it in `mono_main.c`. Emulator does initial zero via `mono_bss_zero.bin` LoadBinary. The `_s_mono_bss` address shifts when firmware is rebuilt.
-- **SPCL build:** `cd runtime && ./build.sh -c Debug -subset Mono.CoreLib` produces `artifacts/bin/mono/osx.arm64.Debug/System.Private.CoreLib.dll` (5.76 MB).
-- **LFS image:** `tools/build_lfs_v1_image /dev/null build/dotnet10/littlefs.bin build/dotnet10/assemblies` places DLLs at LFS root.
+- **NEVER run `make` directly in Meadow/nuttx/.** Always use `Meadow.OS.Emulator/build-meadow.os-emulated.sh`.
+- **Use GDB for debugging.** Start Renode with `machine StartGdbServer 3333`. Use `nuttx.elf` for kernel frames, `nuttx_user.elf` for user/mono frames.
+- **Use cercano MCP tools** for analyzing large files/logs locally instead of sending to cloud. `cercano_summarize`, `cercano_extract`, `cercano_explain` for code flow analysis.
+- **Mono runtime headers**: Now compiled against `Meadow/nuttx/include` (legacy headers). Compat layer in `runtime/src/mono/cmake/nuttx-compat.h` and `nuttx-include-overrides/errno.h`.
+- **`.mono_bss` must be zeroed on every boot.** BSS_START = 0xC0254800, BSS_END = 0xC0300000.
+- **SPCL build:** `cd runtime && ./build.sh -c Debug -subset Mono.CoreLib` (5.76 MB).
+- **Syslog**: UART output goes to `/tmp/renode-uart-dotnet10.txt` (USART1 file backend in Renode).
+- **Mono watchdog**: `monitor_mono_task` calls `meadow_os_reset_board(0)` when Mono task exits — this causes the SYSRESETREQ loop seen during crashes.
 
 ## Spec and Plan
 
 - Spec: `conductor/tracks/mono-upgrade-04-init/spec.md`
-- Plan: `conductor/tracks/mono-upgrade-04-init/plan.md` (comprehensive with all findings)
+- Plan: `conductor/tracks/mono-upgrade-04-init/plan.md`
