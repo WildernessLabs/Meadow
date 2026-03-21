@@ -1,8 +1,0 @@
-{
-  "track_id": "mono-upgrade-01-build",
-  "type": "feature",
-  "status": "new",
-  "created_at": "2026-03-19T00:00:00Z",
-  "updated_at": "2026-03-19T00:00:00Z",
-  "description": "Add NuttX ARM Cortex-M7 cross-compilation target to .NET 10 Mono CMake build system"
-}
