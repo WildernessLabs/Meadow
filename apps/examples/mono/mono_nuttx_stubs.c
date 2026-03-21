@@ -66,9 +66,80 @@ void mono_init_native_crash_info(void)
   /* No native crash info infrastructure on NuttX */
 }
 
-void mono_setmmapjit(int flag)
+/* mono_setmmapjit now provided by libmonosgen (mono-mmap.c) with HAVE_MMAP=1 */
+
+/* mmap/munmap stubs — NuttX doesn't have mmap in user space, but Mono
+ * requires it (HAVE_MMAP=1 for the fileio fallback path). We implement
+ * mmap using posix_memalign + read, and munmap using free.
+ * This handles both anonymous (MAP_ANONYMOUS) and file-backed mappings.
+ */
+
+#ifndef MAP_FAILED
+#define MAP_FAILED ((void *)-1)
+#endif
+#ifndef MAP_ANONYMOUS
+#define MAP_ANONYMOUS 0x20
+#endif
+#ifndef MAP_PRIVATE
+#define MAP_PRIVATE 0x02
+#endif
+
+void *mmap(void *addr, size_t length, int prot, int flags,
+           int fd, off_t offset)
 {
-  /* mmap-based JIT not applicable on NuttX (no MMU in this config) */
+  void *ptr = NULL;
+
+  if (length == 0)
+    return MAP_FAILED;
+
+  /* Allocate page-aligned memory */
+  if (posix_memalign(&ptr, 4096, length) != 0)
+    return MAP_FAILED;
+
+  if (flags & MAP_ANONYMOUS)
+    {
+      /* Anonymous mapping — just zero the memory */
+      memset(ptr, 0, length);
+    }
+  else
+    {
+      /* File-backed mapping — read the data */
+      off_t saved = lseek(fd, 0, SEEK_CUR);
+      lseek(fd, offset, SEEK_SET);
+
+      size_t total = 0;
+      while (total < length)
+        {
+          ssize_t n = read(fd, (char *)ptr + total, length - total);
+          if (n <= 0)
+            break;
+          total += n;
+        }
+
+      /* Zero remainder if file was shorter than requested */
+      if (total < length)
+        memset((char *)ptr + total, 0, length - total);
+
+      lseek(fd, saved, SEEK_SET);
+    }
+
+  return ptr;
+}
+
+int munmap(void *addr, size_t length)
+{
+  free(addr);
+  return 0;
+}
+
+int mprotect(void *addr, size_t len, int prot)
+{
+  return 0; /* no-op — no memory protection on Cortex-M7 */
+}
+
+int posix_madvise(void *addr, size_t len, int advice)
+{
+  return 0; /* no-op — no memory advice on NuttX */
 }
 
 int mono_thread_state_init_from_handle(MonoThreadUnwindState *tctx,
@@ -139,16 +210,36 @@ int putchar(int c)
   return c;
 }
 
+/* srand48/lrand48 — POSIX random number functions not in legacy NuttX.
+ * Mono's minipal random.c uses these as a fallback randomness source.
+ * Wrap to srand()/rand() which are available.
+ */
+
+void srand48(long int seedval)
+{
+  srand((unsigned int)seedval);
+}
+
+long int lrand48(void)
+{
+  /* rand() returns 0..RAND_MAX; lrand48 returns 0..2^31-1 */
+  return (long int)rand();
+}
+
 /****************************************************************************
  * NuttX internal functions needed by mono
  ****************************************************************************/
 
-/* __errno — NuttX user-space errno access */
+/* __errno — NuttX user-space errno access.
+ * Returns a pointer so Mono can both read and write errno as an lvalue
+ * (*__errno() = val). In protected mode, NuttX's actual errno is only
+ * accessible via get_errno()/set_errno() syscalls, not as a direct pointer.
+ * We use a static variable here; Mono's libc wrappers will sync it
+ * with NuttX's errno as needed.
+ */
 static int _mono_errno_val;
 int *__errno(void)
 {
-  /* Use the thread's errno from NuttX via the errno macro if available,
-   * otherwise fall back to a static variable */
   return &_mono_errno_val;
 }
 
