@@ -104,10 +104,17 @@ Mono native build output: `runtime/src/mono/build-nuttx-debug/`
       - .NET 10 sgen creates worker threads eagerly in `sgen_gc_init()`
       - NuttX `sched_lock` + `sem_wait` interaction is fundamentally incompatible with this pattern
       - WASM handles same issue via `DISABLE_SGEN_MAJOR_MARKSWEEP_CONC=1` (compiles out thread pool)
-- [ ] **Fix: disable concurrent GC for NuttX** — add `DISABLE_SGEN_MAJOR_MARKSWEEP_CONC=1`
-      to `build-nuttx.sh`. This compiles out `sgen_thread_pool_start()` entirely. GC runs on the
-      main thread, which is correct for single-core Cortex-M7 (concurrent GC has no benefit on
-      single core). Alternative: `ENABLE_LAZY_GC_THREAD_CREATION=1` to defer thread creation.
+- [x] **Fix: disable concurrent GC for NuttX** — added `DISABLE_SGEN_MAJOR_MARKSWEEP_CONC=1`
+      to `build-nuttx.sh`. GC runs on main thread (correct for single-core Cortex-M7).
+- [x] **Fix: struct stat ABI mismatch** — Mono compiled against wrong NuttX headers.
+      Switched `build-nuttx.sh` to use `Meadow/nuttx/include` (firmware headers).
+      Added compat layer: `nuttx-compat.h`, `nuttx-include-overrides/errno.h`.
+- [x] **Fix: mono_pagesize() returning -1** — NuttX `sysconf(_SC_PAGESIZE)` unsupported.
+      Fixed fallback to save the default value (4096) instead of returning it without caching.
+- [x] **Fix: HAVE_MMAP=1 with mmap/munmap stubs** — Required for `mono_file_map_fileio`
+      fallback. Stubs in `mono_nuttx_stubs.c` use `posix_memalign`+`read`/`free`.
+- [ ] **Fix: munmap crash in mm_free** — `munmap` → `free()` hits NULL pointer (MMFAR=0x8).
+      Likely `mono_vfree` passes wrong address. Try making munmap a no-op first.
 - [ ] Test graceful shutdown when app assembly is missing ("no app to execute" in syslog)
 
 ### Key findings
