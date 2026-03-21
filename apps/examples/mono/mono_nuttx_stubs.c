@@ -128,7 +128,14 @@ void *mmap(void *addr, size_t length, int prot, int flags,
 
 int munmap(void *addr, size_t length)
 {
-  free(addr);
+  /* No-op: Mono's mono_valloc_aligned calls munmap on sub-regions of a
+   * single mmap allocation (prefix/suffix trimming). Real munmap can unmap
+   * partial regions, but our mmap stub uses posix_memalign — free() only
+   * works on the exact pointer returned by memalign, not interior pointers.
+   * Leak the memory for now to let init complete; proper tracking TBD.
+   */
+  (void)addr;
+  (void)length;
   return 0;
 }
 
