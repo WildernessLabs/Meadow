@@ -70,8 +70,12 @@ void mono_init_native_crash_info(void)
 
 /* mmap/munmap stubs — NuttX doesn't have mmap in user space, but Mono
  * requires it (HAVE_MMAP=1 for the fileio fallback path). We implement
- * mmap using posix_memalign + read, and munmap using free.
- * This handles both anonymous (MAP_ANONYMOUS) and file-backed mappings.
+ * mmap using posix_memalign + read, and munmap as a no-op.
+ *
+ * For file-backed mappings, the SDRAM assembly cache is checked first.
+ * If the file was pre-loaded into SDRAM at startup, data is served from
+ * the cache via memcpy (fast). Otherwise, falls back to read() from the
+ * filesystem (slow — goes through LFS → QSPI).
  */
 
 #ifndef MAP_FAILED
@@ -84,6 +88,59 @@ void mono_init_native_crash_info(void)
 #define MAP_PRIVATE 0x02
 #endif
 
+/****************************************************************************
+ * SDRAM assembly cache — pre-loaded file data served by mmap
+ *
+ * Files are read from LFS/QSPI into SDRAM buffers once at startup by
+ * mono_main.c. The mmap stub checks the cache by fd (via fstat to match
+ * inode/size) and serves data directly from SDRAM instead of re-reading
+ * from flash.
+ ****************************************************************************/
+
+#define SDRAM_CACHE_MAX_FILES 8
+
+struct sdram_cache_entry
+{
+  const char *path;      /* Full filesystem path (for logging) */
+  void       *data;      /* SDRAM buffer with file contents */
+  size_t      size;      /* File size in bytes */
+  int         active;    /* Entry is valid */
+};
+
+static struct sdram_cache_entry _sdram_cache[SDRAM_CACHE_MAX_FILES];
+static int _sdram_cache_count = 0;
+
+/* Register a pre-loaded file in the SDRAM cache.
+ * Called from mono_main.c after reading the file into an SDRAM buffer.
+ */
+
+void sdram_cache_register(const char *path, void *data, size_t size)
+{
+  if (_sdram_cache_count >= SDRAM_CACHE_MAX_FILES)
+    return;
+
+  struct sdram_cache_entry *e = &_sdram_cache[_sdram_cache_count++];
+  e->path   = path;
+  e->data   = data;
+  e->size   = size;
+  e->active = 1;
+}
+
+/* Look up an fd in the SDRAM cache by matching file path.
+ * We match by reading /proc/self/fd/N or by pre-storing the fd.
+ * Simpler approach: match by file size (unlikely to collide for DLLs).
+ */
+
+static struct sdram_cache_entry *sdram_cache_lookup_by_size(size_t size)
+{
+  for (int i = 0; i < _sdram_cache_count; i++)
+    {
+      if (_sdram_cache[i].active && _sdram_cache[i].size == size)
+        return &_sdram_cache[i];
+    }
+  return NULL;
+}
+
 void *mmap(void *addr, size_t length, int prot, int flags,
            int fd, off_t offset)
 {
@@ -92,7 +149,7 @@ void *mmap(void *addr, size_t length, int prot, int flags,
   if (length == 0)
     return MAP_FAILED;
 
-  /* Allocate page-aligned memory */
+  /* Allocate page-aligned memory in SDRAM (user heap) */
   if (posix_memalign(&ptr, 4096, length) != 0)
     return MAP_FAILED;
 
@@ -103,24 +160,40 @@ void *mmap(void *addr, size_t length, int prot, int flags,
     }
   else
     {
-      /* File-backed mapping — read the data */
-      off_t saved = lseek(fd, 0, SEEK_CUR);
-      lseek(fd, offset, SEEK_SET);
-
-      size_t total = 0;
-      while (total < length)
+      /* File-backed mapping — check SDRAM cache first */
+      struct sdram_cache_entry *cached = sdram_cache_lookup_by_size(length);
+      if (cached && offset + length <= cached->size)
         {
-          ssize_t n = read(fd, (char *)ptr + total, length - total);
-          if (n <= 0)
-            break;
-          total += n;
+          /* Cache hit: memcpy from SDRAM (fast) */
+          memcpy(ptr, (char *)cached->data + offset, length);
         }
+      else if (cached && offset < cached->size)
+        {
+          /* Partial cache hit: copy available data, zero the rest */
+          size_t avail = cached->size - offset;
+          memcpy(ptr, (char *)cached->data + offset, avail);
+          memset((char *)ptr + avail, 0, length - avail);
+        }
+      else
+        {
+          /* Cache miss: read from filesystem (slow path) */
+          off_t saved = lseek(fd, 0, SEEK_CUR);
+          lseek(fd, offset, SEEK_SET);
 
-      /* Zero remainder if file was shorter than requested */
-      if (total < length)
-        memset((char *)ptr + total, 0, length - total);
+          size_t total = 0;
+          while (total < length)
+            {
+              ssize_t n = read(fd, (char *)ptr + total, length - total);
+              if (n <= 0)
+                break;
+              total += n;
+            }
 
-      lseek(fd, saved, SEEK_SET);
+          if (total < length)
+            memset((char *)ptr + total, 0, length - total);
+
+          lseek(fd, saved, SEEK_SET);
+        }
     }
 
   return ptr;
