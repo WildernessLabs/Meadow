@@ -328,6 +328,50 @@ struct tm *localtime_r(const time_t *timer, struct tm *result)
 }
 
 /****************************************************************************
+ * Dynamic loading stubs
+ *
+ * Mono calls dlopen(NULL) to get a handle to the main program (POSIX
+ * standard behavior). NuttX's dlopen doesn't handle NULL — it dereferences
+ * file[0] immediately. Return a sentinel handle for NULL.
+ ****************************************************************************/
+
+#include <dlfcn.h>
+
+static int _dlopen_self_sentinel;
+
+/* Override NuttX dlopen to handle NULL (self-reference) */
+void *dlopen(const char *file, int mode)
+{
+  if (file == NULL)
+    return &_dlopen_self_sentinel;
+
+  /* For named libraries, return the sentinel too — NuttX doesn't
+   * support loading shared objects at runtime. Mono will fall back
+   * to its pinvoke_override mechanism.
+   */
+  return &_dlopen_self_sentinel;
+}
+
+void *dlsym(void *handle, const char *name)
+{
+  /* Symbol lookup not supported on NuttX — Mono uses pinvoke_override */
+  (void)handle;
+  (void)name;
+  return NULL;
+}
+
+int dlclose(void *handle)
+{
+  (void)handle;
+  return 0;
+}
+
+char *dlerror(void)
+{
+  return "dlopen/dlsym not supported on NuttX";
+}
+
+/****************************************************************************
  * POSIX file stubs
  ****************************************************************************/
 

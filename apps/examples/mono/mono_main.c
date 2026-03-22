@@ -340,69 +340,19 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
   setenv("MONO_ENV_OPTIONS", "--interpreter", 1);
   setenv("TMPDIR", "/meadow0/Temp", 1);
 
-  /* Pre-cache assemblies from QSPI flash (/meadow0/) to RAM (/tmp/).
-   * Same pattern as hcom_via_nx_copy_mono_runtime_to_ram — QSPI is slow,
-   * RAM is fast. Mono reads assemblies multiple times during init
-   * (metadata, type resolution, IL code), so caching saves minutes
-   * under emulation and milliseconds on real hardware.
+  /* NOTE: Assembly caching to tmpfs removed — NuttX tmpfs uses kernel heap
+   * (limited SRAM) which can't hold multi-MB assemblies. Mono's mmap stub
+   * reads files directly from LFS/QSPI and allocates into user heap (SDRAM),
+   * which has plenty of space. The QSPI DMA bypass hook in Renode keeps
+   * emulator performance acceptable.
+   *
+   * TODO: For real hardware, consider caching to SDRAM via a custom VFS
+   * if QSPI read latency becomes a bottleneck.
    */
 
-  {
-    /* Mount tmpfs at /tmp for RAM-backed assembly cache */
+  /* Build TPA from assemblies on the filesystem */
 
-    mkdir("/tmp", 0777);
-    mount(NULL, "/tmp", "tmpfs", 0, NULL);
-
-    DIR *dir = opendir(MONO_MEADOW_EXECUTABLE_PARTITION_NAME);
-    if (dir != NULL)
-      {
-        struct dirent *entry;
-        while ((entry = readdir(dir)) != NULL)
-          {
-            size_t nlen = strlen(entry->d_name);
-            if (nlen > 4 && strcmp(entry->d_name + nlen - 4, ".dll") == 0)
-              {
-                char src[128], dst[128];
-                snprintf(src, sizeof(src), "%s/%s",
-                         MONO_MEADOW_EXECUTABLE_PARTITION_NAME, entry->d_name);
-                snprintf(dst, sizeof(dst), "/tmp/%s", entry->d_name);
-
-                int fdin = open(src, O_RDONLY);
-                if (fdin < 0)
-                  continue;
-
-                struct stat st;
-                fstat(fdin, &st);
-
-                void *buf = malloc(st.st_size);
-                if (buf == NULL)
-                  {
-                    close(fdin);
-                    continue;
-                  }
-
-                read(fdin, buf, st.st_size);
-                close(fdin);
-
-                int fdout = open(dst, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-                if (fdout >= 0)
-                  {
-                    write(fdout, buf, st.st_size);
-                    close(fdout);
-                    syslog(LOG_INFO, "Cached %s → %s (%ld bytes)\n",
-                           src, dst, (long)st.st_size);
-                  }
-
-                free(buf);
-              }
-          }
-        closedir(dir);
-      }
-  }
-
-  /* Build TPA from cached copies in /tmp/ (RAM-backed tmpfs) */
-
-  char *tpa_list = build_tpa_list("/tmp");
+  char *tpa_list = build_tpa_list(MONO_MEADOW_EXECUTABLE_PARTITION_NAME);
   if (tpa_list == NULL)
     {
       syslog(LOG_ERR, "Failed to build TPA list — no assemblies deployed?\n");
@@ -428,8 +378,8 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
 
   const char *property_values[] = {
     tpa_list,
-    "/tmp",
-    "/tmp",
+    MONO_MEADOW_EXECUTABLE_PARTITION_NAME,
+    MONO_MEADOW_EXECUTABLE_PARTITION_NAME,
     pinvoke_override_str,
   };
 
