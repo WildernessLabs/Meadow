@@ -340,15 +340,85 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
   setenv("MONO_ENV_OPTIONS", "--interpreter", 1);
   setenv("TMPDIR", "/meadow0/Temp", 1);
 
-  /* NOTE: Assembly caching to tmpfs removed — NuttX tmpfs uses kernel heap
-   * (limited SRAM) which can't hold multi-MB assemblies. Mono's mmap stub
-   * reads files directly from LFS/QSPI and allocates into user heap (SDRAM),
-   * which has plenty of space. The QSPI DMA bypass hook in Renode keeps
-   * emulator performance acceptable.
-   *
-   * TODO: For real hardware, consider caching to SDRAM via a custom VFS
-   * if QSPI read latency becomes a bottleneck.
+  /* Pre-load assemblies from LFS (QSPI flash) into SDRAM.
+   * QSPI reads are slow; SDRAM access is fast. We read each assembly
+   * once into an SDRAM buffer (user heap at 0xC0300000+, ~29MB available).
+   * The mmap stub then serves data from these buffers via memcpy instead
+   * of re-reading from flash on every mono_file_map call.
    */
+
+  {
+    extern void sdram_cache_register(const char *path, void *data,
+                                     size_t size);
+
+    DIR *dir = opendir(MONO_MEADOW_EXECUTABLE_PARTITION_NAME);
+    if (dir != NULL)
+      {
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL)
+          {
+            size_t nlen = strlen(entry->d_name);
+            if (nlen > 4 && strcmp(entry->d_name + nlen - 4, ".dll") == 0)
+              {
+                char path[128];
+                snprintf(path, sizeof(path), "%s/%s",
+                         MONO_MEADOW_EXECUTABLE_PARTITION_NAME,
+                         entry->d_name);
+
+                int fd = open(path, O_RDONLY);
+                if (fd < 0)
+                  continue;
+
+                struct stat st;
+                if (fstat(fd, &st) < 0 || st.st_size == 0)
+                  {
+                    close(fd);
+                    continue;
+                  }
+
+                /* Allocate in SDRAM (user heap) */
+
+                void *buf = malloc(st.st_size);
+                if (buf == NULL)
+                  {
+                    syslog(LOG_ERR, "SDRAM cache: malloc(%ld) failed for %s\n",
+                           (long)st.st_size, entry->d_name);
+                    close(fd);
+                    continue;
+                  }
+
+                /* Read entire file from LFS/QSPI into SDRAM */
+
+                size_t total = 0;
+                while (total < (size_t)st.st_size)
+                  {
+                    ssize_t n = read(fd, (char *)buf + total,
+                                     st.st_size - total);
+                    if (n <= 0)
+                      break;
+                    total += n;
+                  }
+
+                close(fd);
+
+                if (total == (size_t)st.st_size)
+                  {
+                    sdram_cache_register(path, buf, st.st_size);
+                    syslog(LOG_INFO, "SDRAM cache: %s (%ld bytes)\n",
+                           entry->d_name, (long)st.st_size);
+                  }
+                else
+                  {
+                    syslog(LOG_ERR, "SDRAM cache: short read %s "
+                           "(%zu of %ld)\n",
+                           entry->d_name, total, (long)st.st_size);
+                    free(buf);
+                  }
+              }
+          }
+        closedir(dir);
+      }
+  }
 
   /* Build TPA from assemblies on the filesystem */
 
