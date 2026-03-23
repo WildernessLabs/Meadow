@@ -340,6 +340,15 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
   setenv("MONO_ENV_OPTIONS", "--interpreter", 1);
   setenv("TMPDIR", "/meadow0/Temp", 1);
 
+  /* Constrain GC heap for limited SDRAM (~29MB user heap).
+   * Default GC allocates 8MB×2 = 16MB for nursery/major, which combined
+   * with SPCL (6MB) and interpreter stack (1MB) exhausts available memory.
+   * Legacy firmware used: max-heap-size=8m,nursery-size=512k,soft-heap-limit=4m
+   */
+  setenv("MONO_GC_PARAMS",
+         "max-heap-size=8m,nursery-size=512k,soft-heap-limit=4m,"
+         "major=marksweep", 1);
+
   /* Pre-load assemblies from LFS (QSPI flash) into SDRAM.
    * QSPI reads are slow; SDRAM access is fast. We read each assembly
    * once into an SDRAM buffer (user heap at 0xC0300000+, ~29MB available).
