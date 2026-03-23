@@ -1,47 +1,53 @@
-# Implementation Plan: BCL Deployment
+# Implementation Plan: Interp-to-Native Trampoline
 
-## Status from Track 4
+## Phase 1: Understand the Interface
 
-Several items originally scoped for Track 5 were completed during Track 4:
-- [x] SPCL built: `cd runtime && ./build.sh -c Debug -subset Mono.CoreLib` (5.76 MB)
-- [x] SPCL deployed to emulator via pre-baked LittleFS image
-- [x] SPCL loads successfully — `mono_assembly_load_corlib` passes
-- [x] TPA list builder works (`build_tpa_list` enumerates `/meadow0/*.dll`)
-- [x] Assembly preload hook resolves SPCL correctly
-- [x] SDRAM assembly cache pre-loads assemblies from LFS to SDRAM at startup
+Study the existing trampoline implementations to understand exactly what the bridge needs
+to do:
 
-## Phase 1: Build System.Private.CoreLib ✅ (done in Track 4)
-- [x] SPCL built via `./build.sh -c Debug -subset Mono.CoreLib`
-- [x] Output: `artifacts/bin/mono/net10.0-none-Debug/System.Private.CoreLib.dll` (5.76 MB)
-- [x] Compatible with our NuttX Mono runtime build
+- [ ] Read the ARM JIT trampoline (`tramp-arm.c:845-1050`) — what does the generated code do?
+- [ ] Read the WASM implementation (`aot-runtime-wasm.c`) — how does cookie dispatch work?
+- [ ] Read `ves_pinvoke_method` in `interp.c` — how are args marshaled for the trampoline?
+- [ ] Document the `InterpMethodArguments` struct layout
+- [ ] Document the `BuildArgsFromSigInfo` / `build_args_from_sig` calling convention
+- [ ] Identify all icall signatures hit during runtime init (use GDB to log each trampoline call)
 
-## Phase 2: Identify Required Assemblies
-- [ ] Determine which reference assemblies are needed beyond SPCL for basic execution
-- [ ] Check if a minimal Hello World needs System.Runtime.dll, System.Console.dll, etc.
-- [ ] Check if reference assemblies can come from standard .NET 10 SDK output
-- [ ] Document the full assembly list with sizes
-- **Note:** The interpreter needs the interp-to-native trampoline (Track 6 blocker) before
-  we can test if any assemblies beyond SPCL are actually needed at runtime.
+## Phase 2: Create NuttX Trampoline Infrastructure
 
-## Phase 3: Deploy to Emulator via Meadow.CLI
-- [ ] Configure Meadow.CLI for emulator: `meadow config route socket://localhost:4242`
-- [ ] Test basic file operations: `meadow file list`, `meadow file write`
-- [ ] Deploy SPCL via CLI (currently baked into LFS image — CLI deployment is the proper path)
-- [ ] Deploy app assembly (Meadow.dll or Hello World)
-- [ ] Verify files visible on device filesystem
-- **Current workaround:** SPCL baked into `littlefs.bin` via `tools/build_lfs_v1_image`.
-  CLI deployment replaces this with the proper production workflow.
+- [ ] Create `runtime/src/mono/mono/mini/aot-runtime-nuttx.c`
+- [ ] Implement `mono_nuttx_get_interp_to_native_trampoline(MonoMethodSignature *sig)`
+- [ ] Add `#ifdef HOST_NUTTX` path in `ves_pinvoke_method` (interp.c:1790, alongside HOST_WASM)
+- [ ] Wire up per-signature cache (same `WasmPInvokeCacheData` pattern, rename to generic)
+- [ ] Add to CMake build (`build-nuttx.sh` or CMakeLists.txt)
 
-## Phase 4: TPA Integration ✅ (done in Track 4)
-- [x] TPA list builder enumerates `/meadow0/*.dll` with colon separators
-- [x] `monovm_initialize` receives TPA via `TRUSTED_PLATFORM_ASSEMBLIES` property
-- [x] `mono_core_preload_hook` resolves SPCL from TPA path
-- [x] APP_PATHS and NATIVE_DLL_SEARCH_DIRECTORIES set to `/meadow0/`
+## Phase 3: Implement Signature Trampolines
 
-## Phase 5: Validation
-- [ ] Create a minimal .NET 10 console app targeting Mono
-- [ ] Deploy via Meadow.CLI
-- [ ] Execute via monovm_execute_assembly
-- [ ] Verify output visible via HCOM
-- **Blocked by:** Track 6 interp-to-native trampoline (interpreter can't call native
-  methods without it)
+Implement C trampolines for each signature pattern needed. ARM AAPCS rules:
+- Integer/pointer args: R0, R1, R2, R3, then stack
+- Float/double args: S0-S15 / D0-D7 (VFP)
+- Return: R0 (int/ptr), R0+R1 (int64), S0/D0 (float/double)
+
+Start with the signatures needed for runtime init, then expand:
+
+- [ ] `void()` — no args, no return
+- [ ] `ptr(ptr)` — one pointer arg, pointer return (most icalls)
+- [ ] `ptr(ptr,ptr)` — two pointer args
+- [ ] `ptr(ptr,ptr,ptr)` — three pointer args
+- [ ] `void(ptr)`, `void(ptr,ptr)` — void return variants
+- [ ] `int(ptr)`, `int(ptr,ptr)` — int return variants
+- [ ] `ptr(ptr,int)`, `ptr(ptr,ptr,int)` — mixed arg types
+- [ ] Generic fallback for signatures not yet covered (log and abort with signature info)
+
+## Phase 4: Test and Iterate
+
+- [ ] Rebuild runtime + firmware
+- [ ] Boot emulator, verify no trampoline abort during init
+- [ ] If new signature patterns are needed, add them and rebuild
+- [ ] Repeat until runtime init completes cleanly
+- [ ] Verify `monovm_execute_assembly` proceeds to assembly loading
+
+## Phase 5: Validate native-to-interp (reverse direction)
+
+The reverse trampoline (native code calling back into managed code) may also be needed:
+- [ ] Check if `mono_arch_get_native_to_interp_trampoline` is called
+- [ ] Implement if needed (same pattern, opposite direction)
