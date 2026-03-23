@@ -1,36 +1,42 @@
-# Implementation Plan: Interpreter
+# Implementation Plan: Hello World + CLI Deployment
 
-## Phase 1: Enable Interpreter
-- [ ] Verify `MONO_ARCH_INTERPRETER_SUPPORTED` is set for ARM in CMake
-- [ ] Ensure interpreter source files (`src/mono/mono/mini/interp/`) are included in the build
-- [ ] Rebuild `libmonosgen.a` with interpreter enabled
-- [ ] Verify no new link errors from interpreter code
+## Phase 1: Build Test Assembly
 
-## Phase 2: Configure Interpreter Mode
-- [ ] Set `MONO_AOT_MODE_INTERP_ONLY` in the hosting initialization
-- [ ] Option A: Pass `--interpreter` in mono options (if using mono_main-style entry)
-- [ ] Option B: Set via runtime property in monovm_initialize
-- [ ] Verify the runtime starts in interpreter-only mode (check syslog for interpreter init messages)
+- [ ] Create minimal .NET 10 console app (`dotnet new console -n MeadowHello`)
+- [ ] Target `net10.0`, reference only System.Runtime and System.Console
+- [ ] Build: `dotnet publish -c Release -r linux-arm` (or appropriate RID for Mono)
+- [ ] Identify all required assemblies from publish output
+- [ ] Document sizes: SPCL + reference assemblies + app = total flash footprint
 
-## Phase 3: Hello World Test
-- [ ] Create a minimal .NET 10 console app: `Console.WriteLine("Hello from Meadow!")`
-- [ ] Compile for `net10.0` targeting Mono
-- [ ] Deploy to emulator via Meadow.CLI
-- [ ] Execute via monovm_execute_assembly
-- [ ] Verify output appears on HCOM or syslog
-- [ ] Debug any crashes (likely candidates: missing types, P/Invoke resolution, stack issues)
+## Phase 2: Deploy via Baked LFS
 
-## Phase 4: Feature Validation
-- [ ] Test string operations (concatenation, formatting, StringBuilder)
-- [ ] Test collections (List<T>, Dictionary<K,V>)
-- [ ] Test exception handling (try/catch/finally, nested exceptions)
-- [ ] Test async/await (Task, Task<T>)
-- [ ] Test basic P/Invoke: open("/dev/upd"), ioctl with a simple command
-- [ ] Test GC: allocate objects in a loop, verify no OOM or corruption
-- [ ] Test threading: create a pthread from managed code
+- [ ] Update `tools/build_lfs_v1_image` to package: SPCL + reference assemblies + MeadowHello.dll
+- [ ] Replace the 0-byte Meadow.dll placeholder with the real test assembly
+- [ ] Rebuild LFS image, update Renode script
+- [ ] Boot emulator, verify assembly loads
 
-## Phase 5: Stability
-- [ ] Run Hello World 10 times consecutively without crashes
-- [ ] Monitor memory usage during interpretation
-- [ ] Check for memory leaks (SGen heap growth)
-- [ ] Document interpreter performance baseline (time to execute Hello World)
+## Phase 3: Execute Hello World
+
+- [ ] Verify `monovm_execute_assembly` reaches managed Main()
+- [ ] Debug any missing icall trampolines (add to Track 5's trampoline set)
+- [ ] Debug any missing reference assemblies (add to LFS image)
+- [ ] Verify Console.WriteLine output appears on HCOM
+- [ ] Verify `monovm_shutdown` completes cleanly
+- [ ] Verify no reset loop after app exits (watchdog handles Mono exit correctly)
+
+## Phase 4: Meadow.CLI Deployment
+
+- [ ] Configure CLI: `meadow config route socket://localhost:4242`
+- [ ] Test `meadow device info` over socket connection
+- [ ] Test `meadow file list` — verify LFS contents visible
+- [ ] Deploy test assembly: `meadow app deploy` or `meadow file write`
+- [ ] Verify deployed files persist across Mono restarts
+- [ ] Document CLI workflow for emulator testing
+
+## Phase 5: Graceful Lifecycle
+
+- [ ] Verify Mono startup → execute → shutdown → clean exit
+- [ ] Verify monitor_mono_task detects Mono exit and handles it
+- [ ] Test with missing app assembly (no Meadow.dll) — should not crash
+- [ ] Test with invalid assembly (corrupt .dll) — should report error
+- [ ] Run Hello World 5 times consecutively without issues

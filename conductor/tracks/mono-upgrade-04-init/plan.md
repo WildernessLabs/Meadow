@@ -113,9 +113,25 @@ Mono native build output: `runtime/src/mono/build-nuttx-debug/`
       Fixed fallback to save the default value (4096) instead of returning it without caching.
 - [x] **Fix: HAVE_MMAP=1 with mmap/munmap stubs** — Required for `mono_file_map_fileio`
       fallback. Stubs in `mono_nuttx_stubs.c` use `posix_memalign`+`read`/`free`.
-- [ ] **Fix: munmap crash in mm_free** — `munmap` → `free()` hits NULL pointer (MMFAR=0x8).
-      Likely `mono_vfree` passes wrong address. Try making munmap a no-op first.
+- [x] **Fix: munmap crash in mm_free** — Root cause: `mono_valloc_aligned` calls munmap on
+      sub-regions (prefix/suffix trimming). Our `mmap` stub uses `posix_memalign` but `free()`
+      only works on the exact pointer returned. Fix: munmap is a no-op (leaks memory).
+- [x] **Fix: tmpfs caching failure (st_size=0)** — NuttX tmpfs uses kernel heap (limited SRAM,
+      ~200KB) which can't hold 6MB SPCL. `write()` returned -1 silently. Fix: removed tmpfs,
+      assemblies pre-loaded into SDRAM (user heap at 0xC0300000+, ~29MB) at startup.
+- [x] **Fix: exception trampoline asserts** — `DISABLE_JIT` stubs hit `g_assert_not_reached()`
+      in arch-stubs.c and exceptions-arm.c. Fix: set `mono_llvm_only = TRUE` for NuttX in
+      INTERP_ONLY path (functionally equivalent to INTERP_LLVMONLY). Also added HOST_NUTTX
+      stubs returning NULL in arch-stubs.c and exceptions-arm.c.
+- [x] **Fix: dlopen(NULL) crash** — Mono calls `dlopen(NULL)` for self-reference; NuttX
+      dereferences NULL. Fix: dlopen/dlsym/dlclose/dlerror stubs in mono_nuttx_stubs.c.
+- [x] **Fix: GC heap exhausts SDRAM** — Default sgen allocates 8MB×2 = 16MB for nursery/major.
+      Combined with SPCL (6MB), SDRAM cache (6MB), interpreter stack (1MB), exhausted ~29MB heap.
+      Fix: `MONO_GC_PARAMS="max-heap-size=8m,nursery-size=512k,soft-heap-limit=4m,major=marksweep"`
+      matching legacy firmware.
+- [x] **HCOM confirms "Meadow successfully started MONO"** — System stable, no reset loop.
 - [ ] Test graceful shutdown when app assembly is missing ("no app to execute" in syslog)
+- [ ] Deploy real .NET 10 app assembly via Meadow.CLI over TCP:4242
 
 ### Key findings
 - `.mono_bss` stale pointers: on SYSRESETREQ, Mono statics in SDRAM retain values from
@@ -129,19 +145,23 @@ Mono native build output: `runtime/src/mono/build-nuttx-debug/`
   in DISABLE_JIT build. Fixed with `HOST_NUTTX` in `disable_tramps` (same as WASM).
 - NuttX `pthread_create` deadlock: `sched_lock()` held during `sem_wait` prevents child thread
   from running. Affects any code that creates pthreads during init. Fix: disable concurrent GC.
-- Assembly pre-caching: firmware copies DLLs to tmpfs before Mono loads them. Eliminates
-  repeated QSPI reads. QSPI caching completes in ~5 seconds under emulation.
+- `mono_llvm_only = TRUE` for NuttX interpreter mode: skips all JIT trampoline/icall code.
+  Exception handling uses llvmonly path (interpreter's own unwinding).
+- SDRAM assembly cache: assemblies pre-read from LFS/QSPI into SDRAM buffers at startup.
+  mmap stub serves from cache via memcpy instead of re-reading from flash.
+- SDRAM is 32MB (FMC: 2^13 rows × 2^9 cols × 4 banks × 16-bit). Linker uses 3MB for Mono
+  sections; remaining ~29MB is user heap (CONFIG_HEAP2_BASE=0xC0300000).
+- munmap is a no-op (leaks memory). Not urgent for init but needs proper tracking for
+  long-running apps.
 
 ### Emulator notes
 - Build firmware: `cd Meadow.OS.Emulator && bash build-meadow.os-emulated.sh`
   (handles toolchain, config, version stamps, extraction, hook generation — see workflow.md)
 - UART log only shows kernel init — HCOM/user messages go to host on TCP:4242
-- HCOM responds with device info: OSVersion=2.5.7.0, Hardware=F7FeatherV2
+- HCOM responds with "Meadow successfully started MONO", device info: OSVersion=2.5.7.0
 - SPCL built via: `cd runtime && ./build.sh -c Debug -subset Mono.CoreLib` (5.76 MB)
 - GDB debugging: use `nuttx.elf` for kernel, `nuttx_user.elf` for user/mono frames
 - Renode breadcrumb tracing: `cpu AddHook <addr> "self.Log(LogLevel.Error, \"msg\")"`
-- GDB profiling: use `nuttx.elf` for kernel frames, `nuttx_user.elf` for user/mono frames
-- Renode hooks for breadcrumb tracing: `cpu AddHook <addr> "self.Log(LogLevel.Error, \"msg\")"`
 
 ## Phase 5: P/Invoke Validation
 - [ ] Create a minimal test managed assembly that calls a P/Invoke function
