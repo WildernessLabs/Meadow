@@ -159,45 +159,34 @@ static int32_t sysn_can_get_hidden_flag(void)
 
 static int32_t sysn_write(intptr_t fd, const void *buffer, int32_t bufferSize)
 {
-  /* Mirror stdout/stderr to syslog for debugging.
-   * The primary output path is: fd 1/2 → HCOM FIFO → MonoStdxxx thread
-   * → UART4 → TCP:4242 → Meadow CLI.  Syslog mirror lets us see it
-   * in the USART1 capture too. */
-  if (((int)fd == 1 || (int)fd == 2) && bufferSize > 0 && bufferSize < 512)
-    {
-      char tmp[513];
-      int len = bufferSize < 512 ? bufferSize : 512;
-      memcpy(tmp, buffer, len);
-      tmp[len] = '\0';
-      /* Strip trailing newline for cleaner syslog */
-      if (len > 0 && tmp[len - 1] == '\n') tmp[len - 1] = '\0';
-      syslog(LOG_NOTICE, "[mono stdout] %s\n", tmp);
-    }
-
   /* stdout/stderr → HCOM FIFO → MonoStdxxx thread → UART4 → CLI.
    * FIFOs are O_NONBLOCK: write returns EAGAIN if the 1KB buffer is full
    * (no CLI client connected, or reader can't keep up).  Retry briefly
-   * to give the MonoStdxxx thread time to drain, then return partial count. */
+   * to give the MonoStdxxx thread time to drain. */
+
   ssize_t count;
   int retries = 5;
+
   do {
     count = write((int)fd, buffer, (size_t)bufferSize);
     if (count >= 0)
       return (int32_t)count;
     if (errno == EINTR)
       continue;
-    if (errno == EAGAIN && --retries > 0) {
-      usleep(1000); /* 1ms — let MonoStdxxx thread drain the FIFO */
-      continue;
-    }
+    if (errno == EAGAIN && --retries > 0)
+      {
+        usleep(1000); /* 1ms — let MonoStdxxx thread drain the FIFO */
+        continue;
+      }
     break;
   } while (1);
-  /* EAGAIN: FIFO full, no reader.  EBADF: emulator has no USB host
-   * (CDCACM device), so fd 1/2 writes fail.  In both cases return
-   * bufferSize to prevent IOException — output is already mirrored
-   * to syslog above, so no data is truly lost. */
-  if (errno == EAGAIN || errno == EBADF)
+
+  /* EAGAIN: FIFO full / no CLI client draining.  Return bufferSize to
+   * prevent managed IOException — data is lost but app continues. */
+
+  if (errno == EAGAIN)
     return bufferSize;
+
   return (int32_t)count;
 }
 
@@ -1156,34 +1145,80 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
 
   g_mono_stage = 2; /* mono_appears_to_be_running returned OK */
 
-  /* The HCOM call above redirects stdout/stderr to FIFOs (1024-byte
-   * buffer).  The Mono runtime writes warnings/errors to stderr during
-   * init.  In the headless emulator there is no HCOM client on TCP:4242
-   * to drain the FIFOs, so the write blocks when the buffer fills.
+  /* Ensure stdout/stderr are redirected to HCOM FIFOs.
    *
-   * Set O_NONBLOCK on both FIFOs so writes return EAGAIN instead of
-   * blocking.  The FIFOs stay open (no POLLHUP for the HCOM reader).
-   * Mono's important output goes to syslog (MONO_LOG_DEST=syslog).
+   * The HCOM subsystem creates /dev/monostdout and /dev/monostderr FIFOs
+   * and starts a MonoStdxxx reader thread that polls them, forwarding
+   * data over UART4 → TCP:4242 → Meadow CLI ("meadow listen").
+   *
+   * Normally hcom_mono_ctrl_mono_appears_to_be_running() does the dup2
+   * redirect, but in the Renode emulator a hook skips that function
+   * (it also touches GPIOs and BBR registers that don't exist in emu).
+   * We do the redirect explicitly here so it works in both environments.
+   *
+   * Note: hcom_mono_open_mono_fifo has a bug — it always dup2's to
+   * STDOUT_FILENO regardless of the stdxxxFileNo parameter.  We fix
+   * that here by dup2'ing to the correct fd.
    */
 
   {
-    int flags;
+    int fd, flags;
+    struct stat st;
 
-    /* Make stdout/stderr FIFOs non-blocking so writes return EAGAIN
-     * instead of hanging.  Mono's g_log/g_printerr are patched to use
-     * syslog on NuttX, so important messages still reach the UART.
+    /* Check if stdout is already a FIFO (redirect already happened) */
+    if (fstat(STDOUT_FILENO, &st) < 0 || !S_ISFIFO(st.st_mode))
+      {
+        syslog(LOG_NOTICE, "stdout is not a FIFO — redirecting to HCOM\n");
+
+        fd = open("/dev/monostdout", O_WRONLY | O_NONBLOCK);
+        if (fd >= 0)
+          {
+            dup2(fd, STDOUT_FILENO);
+            if (fd > STDERR_FILENO)
+              close(fd);
+            syslog(LOG_NOTICE, "stdout → /dev/monostdout (HCOM)\n");
+          }
+        else
+          {
+            syslog(LOG_WARNING, "open /dev/monostdout failed: errno=%d "
+                   "(HCOM reader not running?)\n", errno);
+          }
+
+        fd = open("/dev/monostderr", O_WRONLY | O_NONBLOCK);
+        if (fd >= 0)
+          {
+            dup2(fd, STDERR_FILENO);
+            if (fd > STDERR_FILENO)
+              close(fd);
+            syslog(LOG_NOTICE, "stderr → /dev/monostderr (HCOM)\n");
+          }
+        else
+          {
+            syslog(LOG_WARNING, "open /dev/monostderr failed: errno=%d\n",
+                   errno);
+          }
+      }
+    else
+      {
+        syslog(LOG_NOTICE, "stdout already a FIFO — HCOM redirect OK\n");
+      }
+
+    /* Make FIFOs non-blocking so writes return EAGAIN instead of hanging
+     * when the FIFO buffer fills (no CLI client, or reader can't keep up).
+     * Mono runtime output also goes to syslog (MONO_LOG_DEST=syslog).
      */
-    flags = fcntl(1, F_GETFL, 0);
-    if (flags >= 0)
-      fcntl(1, F_SETFL, flags | O_NONBLOCK);
 
-    flags = fcntl(2, F_GETFL, 0);
+    flags = fcntl(STDOUT_FILENO, F_GETFL, 0);
     if (flags >= 0)
-      fcntl(2, F_SETFL, flags | O_NONBLOCK);
+      fcntl(STDOUT_FILENO, F_SETFL, flags | O_NONBLOCK);
+
+    flags = fcntl(STDERR_FILENO, F_GETFL, 0);
+    if (flags >= 0)
+      fcntl(STDERR_FILENO, F_SETFL, flags | O_NONBLOCK);
   }
 
-  g_mono_stage = 3; /* O_NONBLOCK set, about to syslog */
-  syslog(LOG_NOTICE, "stdout/stderr set to O_NONBLOCK (stage %d)\n",
+  g_mono_stage = 3; /* HCOM redirect + O_NONBLOCK set */
+  syslog(LOG_NOTICE, "stdout/stderr HCOM redirect complete (stage %d)\n",
          g_mono_stage);
 
   g_mono_stage = 4; /* About to chdir */
