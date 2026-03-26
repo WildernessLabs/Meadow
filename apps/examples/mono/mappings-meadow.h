@@ -28,6 +28,7 @@ extern int meadow_read_file_total_free_flash_size(uint32_t *totalBytes,  uint32_
 extern int statfs(FAR const char *path, FAR struct statfs *buf);
 extern int pwrmgmt_most_recent_wakeup_reason(void);
 int shim_open_void(char *pathname, int flags);
+
 extern uint32_t meadow_os_power_cycle_count(void);
 extern uint32_t meadow_os_reset_cycle_count(void);
 extern uint32_t meadow_os_reset_reason(void);
