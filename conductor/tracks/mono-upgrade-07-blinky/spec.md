@@ -5,6 +5,18 @@ Get the Blinky sample application running on the Meadow emulator using the inter
 
 ## Background
 
+### System.Native PAL Dependency (Critical)
+
+Meadow.Core uses `System.Threading`, `System.IO`, `System.Timers`, `System.Collections.Concurrent`,
+and `System.Net` — all of which internally P/Invoke into `libSystem.Native`. Track 06 only
+implemented 26 of the 265 System.Native functions (enough for Console.WriteLine). Blinky will
+need substantially more, particularly threading (CreateThread, LowLevelMonitor_*), timers
+(GetTimestamp, GetSystemTimeAsTicks), and expanded file I/O.
+
+The upstream System.Native source is at `runtime/src/native/libs/System.Native/pal_*.c`.
+Most functions are standard POSIX and should work on NuttX with minimal changes.
+See `plan.md` Phase 1 for the full analysis.
+
 ### Blinky App
 Located at `Meadow.Samples/Source/Meadow F7/Blinky/BlinkyCS/`. It:
 - Inherits from `App<F7FeatherV2>` (or `App<F7CoreComputeV2>`)
