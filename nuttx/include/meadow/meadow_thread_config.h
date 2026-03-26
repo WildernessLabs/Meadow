@@ -272,6 +272,10 @@
  */
 #define MONO_TASK_PRIORITY                          80
 #define MONO_TASK_NAME                              "Mono"
+#ifdef CONFIG_EXAMPLES_MONO_STACKSIZE
+#define MONO_TASK_STACKSIZE                         CONFIG_EXAMPLES_MONO_STACKSIZE
+#else
 #define MONO_TASK_STACKSIZE                         CONFIG_PTHREAD_STACK_DEFAULT
+#endif
 
 #endif // __MEADOW_THREAD_CONFIG_H
