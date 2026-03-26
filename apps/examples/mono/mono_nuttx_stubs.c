@@ -285,8 +285,8 @@ int posix_memalign(void **memptr, size_t alignment, size_t size)
 
 int putchar(int c)
 {
-  char ch = (char)c;
-  write(1, &ch, 1);
+  /* Discard — stdout may be a blocking FIFO */
+  (void)c;
   return c;
 }
 
@@ -328,6 +328,22 @@ void __assert(const char *file, int line, const char *expr)
 {
   syslog(LOG_EMERG, "ASSERT: %s:%d: %s\n", file, line, expr);
   for (;;); /* hang rather than crash unpredictably */
+}
+
+/* abort — intercept to log before dying */
+void abort(void)
+{
+  syslog(LOG_EMERG, "ABORT called! LR=%p\n",
+         __builtin_return_address(0));
+  for (;;); /* hang so we can debug */
+}
+
+/* exit — intercept to log task exit */
+void _exit(int status)
+{
+  syslog(LOG_EMERG, "EXIT(%d) called! LR=%p\n",
+         status, __builtin_return_address(0));
+  for (;;); /* hang so we can debug */
 }
 
 /* lib_get_stream — NuttX internal for FILE* by fd index.
