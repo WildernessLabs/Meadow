@@ -13,15 +13,15 @@
 *Link: [./tracks/_archive/mono-upgrade-03-emulator/](./tracks/_archive/mono-upgrade-03-emulator/)*
 
 ---
-- [ ] **Track 04: Initialization — monovm Hosting API Integration**
+- [x] **Track 04: Initialization — monovm Hosting API Integration** *(complete)*
 *Link: [./tracks/mono-upgrade-04-init/](./tracks/mono-upgrade-04-init/)*
 
 ---
-- [ ] **Track 05: BCL Deployment — System.Private.CoreLib + TPA**
+- [x] **Track 05: BCL Deployment — Interp-to-Native + Native-to-Interp Trampolines** *(complete)*
 *Link: [./tracks/mono-upgrade-05-bcl/](./tracks/mono-upgrade-05-bcl/)*
 
 ---
-- [ ] **Track 06: Interpreter — Managed Code Running Interpreted**
+- [x] **Track 06: System.Native PAL + Hello World Execution** *(complete)*
 *Link: [./tracks/mono-upgrade-06-interp/](./tracks/mono-upgrade-06-interp/)*
 
 ---
