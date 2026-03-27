@@ -51,7 +51,8 @@ ifeq ($(CONFIG_EXAMPLES_MONO),y)
                $(MONO_BUILD_DIR)/mini/libmono-component-diagnostics_tracing-stub-static.a \
                $(MONO_BUILD_DIR)/minipal/minipal/libminipal.a \
                $(MONO_BUILD_DIR)/minipal/minipal/libaotminipal.a \
-               $(MONO_BUILD_DIR)/sgen/libsgen_objects.a
+               $(MONO_BUILD_DIR)/sgen/libsgen_objects.a \
+               $(MONO_BUILD_DIR)/../system_native/libSystem.Native.a
 
   MBEDTLS_AOBJS = $(MBEDTLS_DIR)/library/libmbedcrypto.a \
                $(MBEDTLS_DIR)/library/libmbedtls.a \
