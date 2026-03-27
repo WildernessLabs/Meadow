@@ -37,7 +37,7 @@
       <HintPath>/Users/lexas/Meadow.Foundation/Source/Meadow.Foundation.Libraries_and_Frameworks/Serialization.MicroJson/Driver/bin/Release/net9.0/MicroJson.dll</HintPath>
     </Reference>
     <Reference Include="NetEscapades.Configuration.Yaml">
-      <HintPath>/Users/lexas/Meadow.Core/source/implementations/f7/Meadow.F7/bin/Release/net9.0/NetEscapades.Configuration.Yaml.dll</HintPath>
+      <HintPath>/Users/lexas/Meadow.Core/source/Meadow.Core/bin/Release/net9.0/NetEscapades.Configuration.Yaml.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -49,5 +49,22 @@
     <TrimmerRootAssembly Include="Meadow.Logging" />
     <TrimmerRootAssembly Include="Meadow.Units" />
     <TrimmerRootAssembly Include="MicroJson" />
+    <!-- Framework assemblies used by Meadow.Core via reflection / dynamic dispatch.
+         The trimmer can't trace through pre-built DLL references, so root these explicitly. -->
+    <TrimmerRootAssembly Include="System.Linq" />
+    <TrimmerRootAssembly Include="System.Collections" />
+    <TrimmerRootAssembly Include="System.Collections.Concurrent" />
+    <TrimmerRootAssembly Include="System.ComponentModel.TypeConverter" />
+    <TrimmerRootAssembly Include="System.Net.NetworkInformation" />
+    <TrimmerRootAssembly Include="System.Net.Primitives" />
+    <TrimmerRootAssembly Include="System.Net.Sockets" />
+    <TrimmerRootAssembly Include="System.Threading" />
+    <TrimmerRootAssembly Include="System.Threading.Thread" />
+    <TrimmerRootAssembly Include="System.Threading.ThreadPool" />
+    <TrimmerRootAssembly Include="System.Console" />
+    <TrimmerRootAssembly Include="System.IO.Compression" />
+    <TrimmerRootAssembly Include="System.Text.RegularExpressions" />
+    <TrimmerRootAssembly Include="NetEscapades.Configuration.Yaml" />
+    <TrimmerRootAssembly Include="YamlDotNet" />
   </ItemGroup>
 </Project>
