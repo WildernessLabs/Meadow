@@ -1,104 +1,96 @@
 # Track 07: Blinky on Interpreter — Handoff
 
-## Status: Phase 4D Complete (Meadow.F7 DigitalOutputPort Blink)
+## Status: COMPLETE
+
+Full Meadow.Core Blinky running on .NET 10 Mono interpreter in Renode emulator.
+`MeadowOS.Main()` → `FindAppType()` → `App<F7FeatherV2>` → DigitalOutputPort → 10 LED blink cycles.
 
 ### What Works
 
-1. **Direct GPIO blink via P/Invoke** (Phase 2) — `stm32_configgpio()` + `stm32_gpiowrite()` through `DllImport("nuttx")`. PA2 toggles.
+1. **Full MeadowOS.Main → App<F7FeatherV2>** — Platform detection, app type discovery, F7 device initialization, GPIO via UPD driver, managed Console.WriteLine via HCOM.
 
-2. **Meadow.F7 DigitalOutputPort blink** (Phase 4D) — SimplifiedBlinky.dll creates `F7FeatherV2` directly, creates `DigitalOutputPort(OnboardLedRed)`, toggles 10× at 500ms. Full managed stack: .NET 10 Mono → Meadow.F7 → UPD emulation → GPIO registers. Exit code 42.
+2. **Threading** — .NET thread pool (gate thread, worker threads, hill climbing), `Thread.Sleep`, `LowLevelMonitor_*` (pthread condition variables), `CreateThread`.
 
-3. **UPD driver emulation** — `open("/dev/upd")` returns fake fd 999 via shim in `mono_main.c`. Ioctl handlers for GetSetConfig (returns F7FeatherV2 platform), SetRegister, GetRegister, UpdateRegister, GetLastError, RegisterGpioIrq.
+3. **Assembly reflection** — `Assembly.GetTypes()` works on all deployed assemblies (Meadow.Contracts: 454 types, Meadow.F7: 208 types, App.dll: 2 types). Fixed by scalar vtype interpreter fix.
 
-4. **Thread.Sleep** — Uses `LowLevelMonitor_TimedWait` path. Works correctly for 500ms intervals.
+4. **80 framework assemblies deployed** (~41MB on flash), including System.Net.*, System.Security.Cryptography.*, System.Text.*, System.Data.Common, System.Private.Xml.
 
-5. **Console.WriteLine via HCOM** — Output to TCP:4242 works reliably.
+5. **Console.WriteLine via HCOM** — stdout/stderr redirected to `/dev/monostdout` FIFO → HCOM TCP:4242.
 
-6. **APP_CONTEXT_BASE_DIRECTORY** — Set to `/meadow0/` in monovm properties.
+### Key Fixes This Track
 
-7. **Incremental build** — `--clean` flag for full rebuild.
-
-### What Doesn't Work Yet
-
-1. **Full MeadowOS.Main() → App<F7FeatherV2> path** — `Assembly.GetTypes()` on assemblies containing types that reference the Meadow.F7 type hierarchy throws `NullReferenceException` in the Mono interpreter's type loader. This blocks `FindAppType()` which scans for `IApp` implementations. Root cause is likely a Mono interpreter bug with complex generic type resolution (`App<F7FeatherV2>` where `F7FeatherV2 : F7FeatherBase : F7MicroBase`).
-
-2. **UPD driver in emulator** — **Root cause found**: The UPD driver (`meadow-upd.c`) only defines `.open`/`.close`/`.ioctl` in `file_operations` — no `.read` or `.write`. NuttX VFS `inode_checkflags()` returns EACCES when opening with `O_RDONLY`(1) or `O_RDWR`(3) because the driver lacks those handlers. Meadow.Core opens with `DriverFlags.DontCare=0` which passes because NuttX `O_RDONLY=1` (not POSIX 0), so flags=0 means "no access mode requested". The diagnostic C test was using `O_RDWR` which caused the EACCES. The emulation shim is still useful because real UPD ioctl handlers talk to STM32 hardware not present in Renode.
-
-3. **GPIO register read/write in emulator** — UPD register operations (SetRegister/GetRegister) are no-ops in the emulation. Direct GPIO via `stm32_configgpio`/`stm32_gpiowrite` syscalls works instead.
-
-### Key Fixes This Session
-
-| Fix | File | Description |
-|-----|------|-------------|
-| UPD EACCES root cause | `fs_open.c`, `meadow-upd.c` | UPD driver has no .read/.write in file_operations. NuttX O_RDONLY=1 (not 0), so flags=0 (DontCare) passes inode_checkflags(). Shim removed — emulation belongs in Renode peripherals. |
-| Assembly name conflict | `DiagWrapper.csproj` | Changed to `MeadowDiag` to avoid "Meadow" identity conflict with MeadowCore |
-| --root flag | `mono_main.c` | Firmware passes `--root /meadow0` to monovm_execute_assembly so MeadowOS.FindAppType searches for App.dll on disk |
-| SimplifiedBlinky entry | `mono_main.c` | Firmware checks for `/meadow0/SimplifiedBlinky.dll` before falling back to `Meadow.dll` |
+| Fix | Repo | File(s) | Description |
+|-----|------|---------|-------------|
+| Scalar vtype interpreter fix | runtime | `interp/interp.c` | `mini_interp_is_scalar_vtype()` detects single-field value type structs (e.g. ObjectHandleOnStack) and classifies as PINVOKE_ARG_SCALAR_VTYPE. Gated on `__NuttX__ && DISABLE_JIT`. |
+| NuttX platform detection | Meadow.Core | `MeadowOS.cs` | Check `RuntimeInformation.OSDescription.StartsWith("NuttX")` before Linux check. .NET 10 SPCL reports NuttX as Linux. |
+| Thread stack size | runtime | `CMakeLists.txt` | Reduce MONO_DEFAULT_STACKSIZE from 1MB to 256KB on NuttX (32MB SDRAM is tight). |
+| net9.0 multi-targeting | Meadow.Core | `.csproj` files | Meadow.Core + Meadow.F7 build for both netstandard2.1 and net9.0. Cloud/sqlite/MQTTnet conditionally excluded. |
+| Exception handling guards | runtime | `mini-exceptions.c`, `reflection.c` | NULL guards for captured_traces walk and mono_method_get_object_handle. |
+| System.Native PAL expansion | Meadow | `mono_main.c` | ReadDir, ChDir, RmDir, FChMod, PRead, PWrite, signal stubs, Stat/LStat/FStat aliases. |
+| LILI trampoline | runtime | `nuttx_m2n_invoke.g.h` | For `lseek(int, int64, int) -> int64`. |
 
 ### Assembly Layout
 
 ```
-/meadow0/
-├── SimplifiedBlinky.dll    (entry assembly, identity "SimplifiedBlinky")
-├── Meadow.dll              (MeadowCore, identity "Meadow")
+/meadow0/  (80 assemblies, ~41MB on QSPI flash)
+├── App.dll                 (BlinkyCS: MeadowApp : App<F7FeatherV2>)
+├── Meadow.dll              (Meadow.Core — entry assembly)
 ├── Meadow.Contracts.dll
 ├── Meadow.F7.dll
 ├── Meadow.Logging.dll
 ├── Meadow.Units.dll
 ├── MicroJson.dll
-├── App.dll                 (BlinkyCS, for future MeadowOS.Main path)
 ├── System.Private.CoreLib.dll
 ├── System.Console.dll
-├── ... (58 framework assemblies total)
+├── System.Net.NetworkInformation.dll
+├── System.Net.Primitives.dll
+├── System.Security.Cryptography.dll
+├── ... (68 more framework assemblies)
 └── meadow.config.yaml     (MonoControl: --interp)
 ```
 
-### Important Gotchas
+### Memory Budget
 
-1. **mappings-meadow.h comment block** — Lines 119+ are `/* ... */` commented. Only ~70 entries active. New mappings BEFORE line 119.
+| Resource | Value | Notes |
+|----------|-------|-------|
+| GC heap | max=8MB | marksweep, no concurrent |
+| Thread stacks | 256KB each | Main=1MB, workers=256KB |
+| Assemblies on flash | ~41MB | Only loaded to SDRAM on demand |
+| SDRAM selective caching | Skip 100KB-1MB | Saves SDRAM for GC/threads |
+| Total SDRAM | 32MB | Tight but functional |
 
-2. **Stale LFS images** — After changing any DLL, MUST rebuild with `tools/build_lfs_v1_image`.
+### Known Issues
 
-3. **Assembly naming** — Entry assembly filename is always `/meadow0/Meadow.dll` (hardcoded). If entry != MeadowCore, use SimplifiedBlinky.dll fallback mechanism.
+1. **Cloud services throw** — `NotSupportedException("Cloud services not available on this target")` — expected, gated behind `#if NETSTANDARD2_1`.
 
-4. **Incremental build failures** — After changing `mono_main.c` or headers, incremental often fails with `Error 2`. Use `--clean`.
+2. **sysconf() warning** — "Your operating system's sysconf (3) function doesn't correctly report physical memory size!" — cosmetic, doesn't affect operation.
 
-5. **Syslog truncation** — After `LowLevelMonitor_Wait`, syslog stops. Use HCOM (TCP:4242) for managed output.
+3. **`app.config.yaml` missing** — Falls back to defaults. No impact.
 
-6. **UPD open flags** — UPD driver has no `.read`/`.write` handlers. Must open with flags=0 (Meadow.Core's `DriverFlags.DontCare`). Opening with O_RDONLY(1) or O_RDWR(3) returns EACCES.
+4. **LFS image stores assemblies at root only** — Use `mkdir -p /tmp/empty_bcl && tools/build_lfs_v1_image /tmp/empty_bcl <output> <app_dir>` to avoid doubling.
 
-### Next Steps
-
-1. **Debug MeadowOS.Main GetTypes() NullRef** — The Mono interpreter crashes during type resolution of complex generic hierarchies. May need runtime-level debugging (GDB on Mono internals).
-
-2. **Phase 3: Library retarget** — Meadow.Contracts/Core/F7 are already built for net9.0. Verify all work correctly.
-
-3. **Phase 5: Documentation** — Document System.Native coverage, assembly list, SDRAM budget.
-
-### Test Commands
+### Build & Test Commands
 
 ```bash
-# Build firmware (clean — recommended after header changes)
+# Rebuild Mono library (after runtime changes)
+cd runtime/src/mono/build-nuttx-debug && cmake --build . -- -j$(sysctl -n hw.ncpu)
+
+# Rebuild firmware
 cd Meadow.OS.Emulator && bash build-meadow.os-emulated.sh --clean
 
-# Build SimplifiedBlinky
-cd conductor/tracks/mono-upgrade-07-blinky/simplified-blinky
-dotnet build SimplifiedBlinky.csproj -c Release
+# Rebuild Meadow.Core (after MeadowOS.cs changes)
+cd Meadow.Core && dotnet build source/Meadow.Core/Meadow.Core.csproj -c Release
 
-# Deploy assemblies
-cp bin/Release/net9.0/SimplifiedBlinky.dll ../../Meadow.OS.Emulator/build/dotnet10/assemblies/
-# Ensure Meadow.dll = MeadowCore (NOT the entry app)
-cp Meadow.Core/source/Meadow.Core/obj/Release/net9.0/Meadow.dll Meadow.OS.Emulator/build/dotnet10/assemblies/
-
-# Build LFS
-cd Meadow.OS.Emulator
-tools/build_lfs_v1_image build/dotnet10/assemblies build/dotnet10/littlefs.bin build/dotnet10/assemblies
+# Build LFS (assemblies at root only)
+mkdir -p /tmp/empty_bcl
+tools/build_lfs_v1_image /tmp/empty_bcl build/dotnet10/littlefs.bin build/dotnet10/assemblies
 
 # Run in Renode
-/Users/lexas/renode/renode --port 9999 --disable-xwt \
-  -e "path set '/Users/lexas/Meadow.OS.Emulator'; include @scripts/meadow-dotnet10-headless.resc; start"
+cd Meadow.OS.Emulator
+/Users/lexas/renode/renode --disable-gui --port 43399 --plain \
+    -e "i @scripts/meadow-dotnet10-headless.resc" > /tmp/renode-console.log 2>&1 &
 
 # Check output
-tail -f /tmp/renode-uart-dotnet10.txt    # syslog
-nc localhost 4242                         # HCOM (managed Console.WriteLine)
+tail -f /tmp/renode-uart-dotnet10.txt            # syslog
+cat /tmp/renode-uart4-raw.txt | strings          # HCOM managed output
 ```
