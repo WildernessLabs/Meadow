@@ -30,14 +30,16 @@ Read these files first:
 - **P/Invoke**: All native function resolution goes through `meadow_pinvoke_override` in `mono_main.c`. No dlopen on NuttX.
 - **NuttX errno**: Use `set_errno()`/`get_errno()`, not direct `errno` assignment (doesn't compile on NuttX).
 
-## Current State (as of Track 06 completion)
+## Current State (as of Track 07 completion)
 
-- **Tracks 01-06: COMPLETE** (build, platform port, emulator, monovm init, trampolines, System.Native PAL + Hello World)
-- **Track 07: NEXT** (Blinky — Meadow.Core retarget + GPIO via interpreter)
-- Console.WriteLine("Hello from Meadow!") works end-to-end with exit code 42
-- 26 System.Native P/Invoke functions implemented in `mono_main.c`
-- 13 framework assemblies deployed (~8.3MB), memory is tight (32MB SDRAM)
+- **Tracks 01-07: COMPLETE** (build, platform port, emulator, monovm init, trampolines, System.Native PAL, Blinky)
+- **Track 08: NEXT** (Hardware Validation — physical board testing)
+- Full MeadowOS.Main → App<F7FeatherV2> → DigitalOutputPort → LED blink in Renode
+- ~40 System.Native P/Invoke functions implemented in `mono_main.c`
+- 80 framework assemblies deployed (~41MB on flash), selective SDRAM caching
 - Invariant globalization enabled, UseSystemResourceKeys=true
+- .NET thread pool working (gate thread, workers, hill climbing)
+- Meadow.Core + Meadow.F7 multi-targeted for netstandard2.1 + net9.0
 
 ### Memory Configuration
 
@@ -68,8 +70,8 @@ on NuttX it must be statically linked via the P/Invoke override.
 
 **Upstream source**: `runtime/src/native/libs/System.Native/pal_*.c`
 
-**Current state**: 26 functions implemented as stubs in `mono_main.c` (Track 06, Console.WriteLine only).
-The remaining ~240 functions are served by a catch-all no-op stub that returns 0.
+**Current state**: ~40 functions implemented in `mono_main.c` (Track 07, Blinky).
+The remaining ~225 functions are served by a catch-all no-op stub that returns 0.
 
 **What triggers them**: Not Meadow.Core directly, but the BCL assemblies it depends on.
 `System.Threading`, `System.IO`, `System.Net`, `System.Collections`, etc. all call System.Native
