@@ -27,8 +27,6 @@ extern int meadow_adc_read_temp_vbat(double *batteryVoltage, double *temperature
 extern int meadow_read_file_total_free_flash_size(uint32_t *totalBytes,  uint32_t *freeBytes);
 extern int statfs(FAR const char *path, FAR struct statfs *buf);
 extern int pwrmgmt_most_recent_wakeup_reason(void);
-int shim_open_void(char *pathname, int flags);
-
 extern uint32_t meadow_os_power_cycle_count(void);
 extern uint32_t meadow_os_reset_cycle_count(void);
 extern uint32_t meadow_os_reset_reason(void);
@@ -40,6 +38,9 @@ extern int meadow_measure_freq_return_freq_info(void* mdwFreqReturnData);
 extern int meadow_rotary_encoder_config(void* rotencCfg);
 extern int meadow_rotary_encoder_read_count(uint32_t encoderNumb, int32_t *encoderCount, uint32_t *encoderChanged, uint32_t *rotClockWise);
 extern int meadow_rotary_encoder_set_count(uint32_t encoderNumb, int32_t encoderCount);
+extern int stm32_configgpio(uint32_t cfgset);
+extern void stm32_gpiowrite(uint32_t pinset, bool value);
+extern int stm32_unconfiggpio(uint32_t cfgset);
 
 MonoDlMapping meadow_mappings[] = {
        { "open", open },
@@ -110,7 +111,9 @@ MonoDlMapping meadow_mappings[] = {
        { "meadow_rotary_encoder_read_count", meadow_rotary_encoder_read_count},
        { "meadow_rotary_encoder_set_count", meadow_rotary_encoder_set_count},
 //       { "poll", poll },
-
+       { "stm32_configgpio", stm32_configgpio },
+       { "stm32_gpiowrite", stm32_gpiowrite },
+       { "stm32_unconfiggpio", stm32_unconfiggpio },
 /*
        { "clock_initialize", clock_initialize },
        { "clock_inittime", clock_inittime },

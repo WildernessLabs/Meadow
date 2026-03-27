@@ -113,6 +113,15 @@ extern void symtab_initialize(void);
 
 bool mono_should_run = true;
 
+/* UPD emulation shim removed — emulation belongs in Renode peripheral drivers.
+ *
+ * Root cause of the EACCES was: UPD driver only defines .open/.close/.ioctl
+ * (no .read/.write) in file_operations. NuttX O_RDONLY=1, so opening with
+ * flags=0 (DriverFlags.DontCare) works fine — the VFS inode_checkflags()
+ * only rejects when a read/write mode is requested but the driver lacks
+ * the corresponding handler. Meadow.Core always opens with flags=0.
+ */
+
 /****************************************************************************
  * Name: meadow_pinvoke_noop_stub
  *
@@ -261,6 +270,8 @@ static int32_t sysn_get_window_size(intptr_t fd, struct WinSize *winSize)
 static intptr_t sysn_open(const char *path, int32_t flags, int32_t mode)
 {
   int fd = open(path, flags, mode);
+  syslog(LOG_NOTICE, "Open(\"%s\", 0x%x, 0%o) => %d (errno=%d)\n",
+         path, flags, mode, fd, get_errno());
   return (intptr_t)fd;
 }
 
@@ -319,16 +330,21 @@ static int32_t sysn_fstat(intptr_t fd, struct FileStatus *output)
 static int32_t sysn_stat2(const char *path, struct FileStatus *output)
 {
   struct stat s;
-  if (stat(path, &s) != 0)
+  if (stat(path, &s) != 0) {
+    syslog(LOG_NOTICE, "Stat(\"%s\") => -1 (errno=%d)\n", path, get_errno());
     return -1;
+  }
   convert_stat(&s, output);
+  syslog(LOG_NOTICE, "Stat(\"%s\") => 0 (size=%lld)\n", path, (long long)s.st_size);
   return 0;
 }
 
 static int32_t sysn_lstat2(const char *path, struct FileStatus *output)
 {
   /* NuttX doesn't have symlinks typically — fall through to stat */
-  return sysn_stat2(path, output);
+  int32_t ret = sysn_stat2(path, output);
+  syslog(LOG_NOTICE, "LStat(\"%s\") => %d (errno=%d)\n", path, ret, get_errno());
+  return ret;
 }
 
 static int64_t sysn_lseek(intptr_t fd, int64_t offset, int32_t whence)
@@ -483,6 +499,47 @@ static int32_t sysn_closedir(intptr_t dir)
   return closedir((DIR *)dir);
 }
 
+/* ReadDir — fills a DirectoryEntry struct for the managed side */
+struct DirectoryEntry {
+  const char *Name;
+  int32_t NameLength;
+  int32_t InodeType;
+};
+
+/* PAL NodeType values (from pal_io.h) */
+#define PAL_DT_UNKNOWN 0
+#define PAL_DT_FIFO    1
+#define PAL_DT_CHR     2
+#define PAL_DT_DIR     4
+#define PAL_DT_BLK     6
+#define PAL_DT_REG     8
+#define PAL_DT_LNK    10
+#define PAL_DT_SOCK   12
+
+static int32_t sysn_d_type_to_pal(uint8_t d_type)
+{
+  switch (d_type) {
+    case DTYPE_FILE:      return PAL_DT_REG;
+    case DTYPE_DIRECTORY: return PAL_DT_DIR;
+    case DTYPE_CHR:       return PAL_DT_CHR;
+    case DTYPE_BLK:       return PAL_DT_BLK;
+    default:              return PAL_DT_UNKNOWN;
+  }
+}
+
+static int32_t sysn_readdir(intptr_t dir, struct DirectoryEntry *output)
+{
+  set_errno(0);
+  struct dirent *entry = readdir((DIR *)dir);
+  if (entry == NULL) {
+    return (get_errno() == 0) ? -1 : get_errno();
+  }
+  output->Name       = entry->d_name;
+  output->NameLength = (int32_t)strlen(entry->d_name);
+  output->InodeType  = sysn_d_type_to_pal(entry->d_type);
+  return 0;
+}
+
 static int32_t sysn_fsync(intptr_t fd)
 {
   return fsync((int)fd);
@@ -508,6 +565,82 @@ static int32_t sysn_chmod(const char *path, int32_t mode)
 static int32_t sysn_rename(const char *oldPath, const char *newPath)
 {
   return rename(oldPath, newPath);
+}
+
+/* Additional file/process stubs for Mono CoreLib */
+
+static int32_t sysn_chdir(const char *path)
+{
+  return chdir(path);
+}
+
+static int32_t sysn_rmdir(const char *path)
+{
+  return rmdir(path);
+}
+
+static int32_t sysn_fchmod(intptr_t fd, int32_t mode)
+{
+  (void)fd; (void)mode;
+  return 0; /* NuttX has no fchmod in user space */
+}
+
+static int32_t sysn_file_system_supports_locking(intptr_t fd)
+{
+  (void)fd;
+  return 0; /* No file locking on NuttX */
+}
+
+static int32_t sysn_sysconf(int32_t name)
+{
+  (void)name;
+  return -1; /* Not available */
+}
+
+static char **sysn_get_environ(void)
+{
+  /* Return a minimal empty environment — just a NULL pointer list */
+  static char *empty_environ[] = { NULL };
+  return empty_environ;
+}
+
+static void sysn_free_environ(char **environ)
+{
+  (void)environ;
+  /* no-op — our static environ doesn't need freeing */
+}
+
+static void sysn_disable_posix_signal_handling(int32_t signalCode)
+{
+  (void)signalCode;
+}
+
+static int32_t sysn_handle_noncanceled_posix_signal(int32_t signalCode)
+{
+  (void)signalCode;
+  return 1; /* Handled */
+}
+
+static int32_t sysn_get_sid(int32_t pid)
+{
+  (void)pid;
+  return 1; /* Return session ID 1 */
+}
+
+static int32_t sysn_get_groups(int32_t gidsetsize, uint32_t *grouplist)
+{
+  (void)gidsetsize; (void)grouplist;
+  return 0; /* No supplementary groups */
+}
+
+static int32_t sysn_pread(intptr_t fd, void *buf, int32_t count, int64_t offset)
+{
+  return (int32_t)pread((int)fd, buf, (size_t)count, (off_t)offset);
+}
+
+static int32_t sysn_pwrite(intptr_t fd, const void *buf, int32_t count, int64_t offset)
+{
+  return (int32_t)pwrite((int)fd, buf, (size_t)count, (off_t)offset);
 }
 
 /****************************************************************************
@@ -604,8 +737,11 @@ static MonoDlMapping system_native_mappings[] = {
   { "SystemNative_Open",                      (void *)sysn_open },
   { "SystemNative_Close",                     (void *)sysn_close },
   { "SystemNative_FStat2",                    (void *)sysn_fstat },
+  { "SystemNative_FStat",                     (void *)sysn_fstat },
   { "SystemNative_Stat2",                     (void *)sysn_stat2 },
+  { "SystemNative_Stat",                      (void *)sysn_stat2 },
   { "SystemNative_LStat2",                    (void *)sysn_lstat2 },
+  { "SystemNative_LStat",                     (void *)sysn_lstat2 },
   { "SystemNative_LSeek",                     (void *)sysn_lseek },
   { "SystemNative_FcntlSetFdFlags",           (void *)sysn_fcntl_set_fd_flags },
   { "SystemNative_FcntlGetFdFlags",           (void *)sysn_fcntl_get_fd_flags },
@@ -620,6 +756,7 @@ static MonoDlMapping system_native_mappings[] = {
   { "SystemNative_Access",                    (void *)sysn_access },
   { "SystemNative_ReadLink",                  (void *)sysn_readlink },
   { "SystemNative_OpenDir",                   (void *)sysn_opendir },
+  { "SystemNative_ReadDir",                   (void *)sysn_readdir },
   { "SystemNative_CloseDir",                  (void *)sysn_closedir },
   { "SystemNative_FSync",                     (void *)sysn_fsync },
   { "SystemNative_FTruncate",                 (void *)sysn_ftruncate },
@@ -696,6 +833,8 @@ static MonoDlMapping system_native_mappings[] = {
   /* Signal stubs */
   { "SystemNative_SetPosixSignalHandler",     (void *)sysn_set_posix_signal_handler },
   { "SystemNative_EnablePosixSignalHandling", (void *)sysn_enable_posix_signal_handling },
+  { "SystemNative_DisablePosixSignalHandling",(void *)sysn_disable_posix_signal_handling },
+  { "SystemNative_HandleNonCanceledPosixSignal",(void *)sysn_handle_noncanceled_posix_signal },
   { "SystemNative_GetPlatformSignalNumber",   (void *)sysn_get_platform_signal_number },
 
   /* UID/GID stubs */
@@ -704,6 +843,21 @@ static MonoDlMapping system_native_mappings[] = {
   { "SystemNative_SetEUid",                   (void *)sysn_set_euid },
   { "SystemNative_GetPwUidR",                 (void *)sysn_get_pw_uid_r },
   { "SystemNative_GetHostName",               (void *)sysn_get_hostname },
+  { "SystemNative_GetSid",                    (void *)sysn_get_sid },
+  { "SystemNative_GetGroups",                 (void *)sysn_get_groups },
+
+  /* Additional file operations */
+  { "SystemNative_ChDir",                     (void *)sysn_chdir },
+  { "SystemNative_RmDir",                     (void *)sysn_rmdir },
+  { "SystemNative_FChMod",                    (void *)sysn_fchmod },
+  { "SystemNative_FileSystemSupportsLocking", (void *)sysn_file_system_supports_locking },
+  { "SystemNative_PRead",                     (void *)sysn_pread },
+  { "SystemNative_PWrite",                    (void *)sysn_pwrite },
+
+  /* Environment */
+  { "SystemNative_GetEnviron",                (void *)sysn_get_environ },
+  { "SystemNative_FreeEnviron",               (void *)sysn_free_environ },
+  { "SystemNative_SysConf",                   (void *)sysn_sysconf },
 
   { NULL, NULL }
 };
@@ -958,7 +1112,9 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
   setenv("TMPDIR", "/meadow0/Temp", 1);
   setenv("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT", "1", 1);
   /* Use raw resource keys instead of loading .resources files.
-   * This avoids ResourceManager initialization which can fail on NuttX. */
+   * This avoids ResourceManager initialization which can fail on NuttX.
+   * Disabling this causes mono_get_restore_context() assertion failure
+   * because interpreter-only mode doesn't set up restore_context_func. */
   setenv("DOTNET_SYSTEM_RESOURCES_USESYSTEMRESOURCEKEYS", "true", 1);
   /* Skip ConsolePal terminal/signal initialization.  NuttX has no terminal;
    * the initialization path crashes in the Mono interpreter due to
@@ -1090,6 +1246,7 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
     "PINVOKE_OVERRIDE",
     "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT",
     "System.Resources.UseSystemResourceKeys",
+    "APP_CONTEXT_BASE_DIRECTORY",
   };
 
   const char *property_values[] = {
@@ -1099,6 +1256,7 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
     pinvoke_override_str,
     "1",
     "true",
+    MONO_MEADOW_EXECUTABLE_PARTITION_NAME "/",
   };
 
   int property_count = sizeof(property_keys) / sizeof(property_keys[0]);
@@ -1108,6 +1266,11 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
   syslog(LOG_INFO, "  TPA: %s\n", tpa_list);
   syslog(LOG_INFO, "  APP_PATHS: %s\n", MONO_MEADOW_EXECUTABLE_PARTITION_NAME);
   syslog(LOG_INFO, "  PINVOKE_OVERRIDE: %s\n", pinvoke_override_str);
+
+  /* UPD driver note: Meadow.Core opens /dev/upd with DriverFlags.DontCare=0.
+   * This works because NuttX O_RDONLY=1 (not POSIX 0), so flags=0 passes
+   * inode_checkflags(). The UPD driver only has .open/.close/.ioctl — no
+   * .read/.write — so O_RDONLY(1) or O_RDWR(3) would return EACCES. */
 
   /* Initialize the .NET 10 monovm runtime */
 
@@ -1232,6 +1395,7 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
   /* Check if the app assembly exists before trying to execute it */
 
   char *app_path = MONO_MEADOW_EXECUTABLE_APP_EXE;
+  syslog(LOG_NOTICE, "Entry assembly: %s\n", app_path);
   int app_fd = open(app_path, O_RDONLY);
   if (app_fd < 0)
     {
@@ -1249,8 +1413,10 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
       g_mono_stage = 7; /* About to execute assembly */
       syslog(LOG_NOTICE, "Executing assembly: %s\n", app_path);
 
+      /* Pass --root so MeadowOS.FindAppType searches for App.dll on disk */
       unsigned int exit_code = 0;
-      ret = monovm_execute_assembly(0, NULL, app_path, &exit_code);
+      const char *managed_args[] = { "--root", MONO_MEADOW_EXECUTABLE_PARTITION_NAME };
+      ret = monovm_execute_assembly(2, managed_args, app_path, &exit_code);
       g_mono_exec_ret = ret;
       g_mono_exit_code = exit_code;
 
