@@ -51,26 +51,16 @@ ASRCS =
 CSRCS = symtab.c mono_nuttx_stubs.c
 MAINSRC = mono_main.c
 
-# ---------- Upstream System.Native PAL (from dotnet/runtime) ----------
-# These compile the real .NET PAL implementations for NuttX instead of
-# hand-writing stubs. Only the subset needed for threading/time/memory/etc.
+# ---------- System.Native PAL headers (library built via CMake) ----------
+# The PAL .c files are compiled into libSystem.Native.a by the Mono CMake
+# build (see runtime/src/mono/CMakeLists.txt). mono_main.c needs the headers
+# for extern declarations of upstream SystemNative_* functions.
 
 RUNTIME_NATIVE = ../../../../runtime/src/native
 PAL_SYSN_DIR   = $(RUNTIME_NATIVE)/libs/System.Native
 PAL_COMMON_DIR = $(RUNTIME_NATIVE)/libs/Common
-PAL_MINIPAL_DIR = $(RUNTIME_NATIVE)/minipal
 
-# Add upstream PAL sources to VPATH so make can find them
-VPATH += $(PAL_SYSN_DIR)
-
-# PAL source files (basename only — VPATH resolves the directory)
-CSRCS += pal_threading.c pal_time.c pal_memory.c pal_random.c
-CSRCS += pal_errno.c pal_string.c pal_runtimeinformation.c pal_log.c
-CSRCS += pal_datetime.c
-
-# Include paths for PAL headers
 CFLAGS += -I$(PAL_SYSN_DIR) -I$(PAL_COMMON_DIR) -I$(RUNTIME_NATIVE)
-# -D flags needed by PAL code
 CFLAGS += -DTARGET_UNIX=1 -D__NuttX__=1
 
 CONFIG_EXAMPLES_MONO_PROGNAME ?= mono$(EXEEXT)

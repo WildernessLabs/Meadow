@@ -50,6 +50,167 @@ extern int mount(const char *source, const char *target,
 
 #include "ota.h"
 
+/* Upstream pal_io.c function declarations — we can't include pal_io.h directly
+ * because pal_io_common.h uses `errno = X` which NuttX doesn't support (errno
+ * is a macro expanding to get_errno(), not an assignable lvalue). Instead, we
+ * declare the subset of functions needed for the P/Invoke mapping table. */
+#include <dirent.h>
+/* Forward declarations for pal_io.c types (defined in pal_io.h) */
+typedef struct {
+    int32_t  Flags;
+    int32_t  Mode;
+    uint32_t Uid;
+    uint32_t Gid;
+    int64_t  Size;
+    int64_t  ATime;
+    int64_t  ATimeNsec;
+    int64_t  MTime;
+    int64_t  MTimeNsec;
+    int64_t  CTime;
+    int64_t  CTimeNsec;
+    int64_t  BirthTime;
+    int64_t  BirthTimeNsec;
+    int64_t  Dev;
+    int64_t  RDev;
+    int64_t  Ino;
+    uint32_t UserFlags;
+} FileStatus;
+
+typedef struct {
+    const char *Name;
+    int32_t NameLength;
+    int32_t InodeType;
+} DirectoryEntry;
+
+/* pal_io.c functions (from libSystem.Native.a) */
+extern int32_t  SystemNative_Stat(const char *path, FileStatus *output);
+extern int32_t  SystemNative_FStat(intptr_t fd, FileStatus *output);
+extern int32_t  SystemNative_LStat(const char *path, FileStatus *output);
+extern intptr_t SystemNative_Open(const char *path, int32_t flags, int32_t mode);
+extern int32_t  SystemNative_Close(intptr_t fd);
+extern intptr_t SystemNative_Dup(intptr_t oldfd);
+extern int32_t  SystemNative_Unlink(const char *path);
+extern int32_t  SystemNative_ReadDir(DIR *dir, DirectoryEntry *outputEntry);
+extern DIR     *SystemNative_OpenDir(const char *path);
+extern int32_t  SystemNative_CloseDir(DIR *dir);
+extern int32_t  SystemNative_Pipe(int32_t pipefd[2], int32_t flags);
+extern int32_t  SystemNative_FcntlSetFD(intptr_t fd, int32_t flags);
+extern int32_t  SystemNative_FcntlGetFD(intptr_t fd);
+extern int32_t  SystemNative_FcntlCanGetSetPipeSz(void);
+extern int32_t  SystemNative_FcntlGetPipeSz(intptr_t fd);
+extern int32_t  SystemNative_FcntlSetPipeSz(intptr_t fd, int32_t size);
+extern int32_t  SystemNative_FcntlSetIsNonBlocking(intptr_t fd, int32_t isNonBlocking);
+extern int32_t  SystemNative_FcntlGetIsNonBlocking(intptr_t fd, int32_t *isNonBlocking);
+extern int32_t  SystemNative_MkDir(const char *path, int32_t mode);
+extern int32_t  SystemNative_ChMod(const char *path, int32_t mode);
+extern int32_t  SystemNative_FChMod(intptr_t fd, int32_t mode);
+extern int32_t  SystemNative_FSync(intptr_t fd);
+extern int32_t  SystemNative_FLock(intptr_t fd, int32_t operation);
+extern int32_t  SystemNative_ChDir(const char *path);
+extern int32_t  SystemNative_Access(const char *path, int32_t mode);
+extern int64_t  SystemNative_LSeek(intptr_t fd, int64_t offset, int32_t whence);
+extern int32_t  SystemNative_Link(const char *source, const char *linkTarget);
+extern int32_t  SystemNative_SymLink(const char *target, const char *linkPath);
+extern void     SystemNative_GetDeviceIdentifiers(uint64_t dev, uint32_t *majorNumber, uint32_t *minorNumber);
+extern int32_t  SystemNative_MkNod(const char *pathName, uint32_t mode, uint32_t major, uint32_t minor);
+extern int32_t  SystemNative_MkFifo(const char *pathName, uint32_t mode);
+extern char    *SystemNative_MkdTemp(char *pathTemplate);
+extern intptr_t SystemNative_MksTemps(char *pathTemplate, int32_t suffixLength);
+extern void    *SystemNative_MMap(void *address, uint64_t length, int32_t protection, int32_t flags, intptr_t fd, int64_t offset);
+extern int32_t  SystemNative_MUnmap(void *address, uint64_t length);
+extern int32_t  SystemNative_MProtect(void *address, uint64_t length, int32_t protection);
+extern int32_t  SystemNative_MAdvise(void *address, uint64_t length, int32_t advice);
+extern int32_t  SystemNative_MSync(void *address, uint64_t length, int32_t flags);
+extern int64_t  SystemNative_SysConf(int32_t name);
+extern int32_t  SystemNative_FTruncate(intptr_t fd, int64_t length);
+extern int32_t  SystemNative_Poll(void *pollEvents, uint32_t eventCount, int32_t milliseconds, uint32_t *triggered);
+extern int32_t  SystemNative_PosixFAdvise(intptr_t fd, int64_t offset, int64_t length, int32_t advice);
+extern int32_t  SystemNative_FAllocate(intptr_t fd, int64_t offset, int64_t length);
+extern int32_t  SystemNative_Read(intptr_t fd, void *buffer, int32_t bufferSize);
+extern int32_t  SystemNative_ReadFromNonblocking(intptr_t fd, void *buffer, int32_t bufferSize);
+extern int32_t  SystemNative_Write(intptr_t fd, const void *buffer, int32_t bufferSize);
+extern int32_t  SystemNative_WriteToNonblocking(intptr_t fd, const void *buffer, int32_t bufferSize);
+extern int32_t  SystemNative_ReadLink(const char *path, char *buffer, int32_t bufferSize);
+extern int32_t  SystemNative_Rename(const char *oldPath, const char *newPath);
+extern int32_t  SystemNative_RmDir(const char *path);
+extern void     SystemNative_Sync(void);
+extern int32_t  SystemNative_CopyFile(intptr_t sourceFd, intptr_t destinationFd, int64_t sourceLength);
+extern intptr_t SystemNative_INotifyInit(void);
+extern int32_t  SystemNative_INotifyAddWatch(intptr_t fd, const char *pathName, uint32_t mask);
+extern int32_t  SystemNative_INotifyRemoveWatch(intptr_t fd, int32_t wd);
+extern char    *SystemNative_RealPath(const char *path);
+extern uint32_t SystemNative_FileSystemSupportsLocking(intptr_t fd, int32_t lockOperation, int32_t accessWrite);
+extern int32_t  SystemNative_LockFileRegion(intptr_t fd, int64_t offset, int64_t length, int16_t lockType);
+extern int32_t  SystemNative_LChflags(const char *path, uint32_t flags);
+extern int32_t  SystemNative_FChflags(intptr_t fd, uint32_t flags);
+extern int32_t  SystemNative_LChflagsCanSetHiddenFlag(void);
+extern int32_t  SystemNative_CanGetHiddenFlag(void);
+extern int32_t  SystemNative_PRead(intptr_t fd, void *buffer, int32_t bufferSize, int64_t fileOffset);
+extern int32_t  SystemNative_PWrite(intptr_t fd, void *buffer, int32_t bufferSize, int64_t fileOffset);
+
+/* pal_networking.c functions (from libSystem.Native.a) */
+extern int32_t  SystemNative_GetHostEntryForName(const uint8_t *address, int32_t addressFamily, void *entry);
+extern void     SystemNative_FreeHostEntry(void *entry);
+extern int32_t  SystemNative_GetNameInfo(const uint8_t *address, int32_t addressLength, int8_t isIPv6,
+                    uint8_t *host, int32_t hostLength, uint8_t *service, int32_t serviceLength, int32_t flags);
+extern int32_t  SystemNative_GetDomainName(uint8_t *name, int32_t nameLength);
+extern int32_t  SystemNative_GetHostName(uint8_t *name, int32_t nameLength);
+extern int32_t  SystemNative_GetSocketAddressSizes(int32_t *ipv4, int32_t *ipv6, int32_t *uds, int32_t *max);
+extern int32_t  SystemNative_GetAddressFamily(const uint8_t *sa, int32_t saLen, int32_t *af);
+extern int32_t  SystemNative_SetAddressFamily(uint8_t *sa, int32_t saLen, int32_t af);
+extern int32_t  SystemNative_GetPort(const uint8_t *sa, int32_t saLen, uint16_t *port);
+extern int32_t  SystemNative_SetPort(uint8_t *sa, int32_t saLen, uint16_t port);
+extern int32_t  SystemNative_GetIPv4Address(const uint8_t *sa, int32_t saLen, uint32_t *address);
+extern int32_t  SystemNative_SetIPv4Address(uint8_t *sa, int32_t saLen, uint32_t address);
+extern int32_t  SystemNative_GetIPv6Address(const uint8_t *sa, int32_t saLen, uint8_t *addr, int32_t addrLen, uint32_t *scopeId);
+extern int32_t  SystemNative_SetIPv6Address(uint8_t *sa, int32_t saLen, uint8_t *addr, int32_t addrLen, uint32_t scopeId);
+extern int32_t  SystemNative_GetControlMessageBufferSize(int32_t isIPv4, int32_t isIPv6);
+extern int32_t  SystemNative_TryGetIPPacketInformation(void *messageHeader, int32_t isIPv4, void *packetInfo);
+extern int32_t  SystemNative_GetIPv4MulticastOption(intptr_t socket, int32_t multicastOption, void *option);
+extern int32_t  SystemNative_SetIPv4MulticastOption(intptr_t socket, int32_t multicastOption, void *option);
+extern int32_t  SystemNative_GetIPv6MulticastOption(intptr_t socket, int32_t multicastOption, void *option);
+extern int32_t  SystemNative_SetIPv6MulticastOption(intptr_t socket, int32_t multicastOption, void *option);
+extern int32_t  SystemNative_GetLingerOption(intptr_t socket, void *option);
+extern int32_t  SystemNative_SetLingerOption(intptr_t socket, void *option);
+extern int32_t  SystemNative_SetReceiveTimeout(intptr_t socket, int32_t millisecondsTimeout);
+extern int32_t  SystemNative_SetSendTimeout(intptr_t socket, int32_t millisecondsTimeout);
+extern int32_t  SystemNative_Receive(intptr_t socket, void *buffer, int32_t bufferLen, int32_t flags, int32_t *received);
+extern int32_t  SystemNative_ReceiveMessage(intptr_t socket, void *messageHeader, int32_t flags, int64_t *received);
+extern int32_t  SystemNative_ReceiveSocketError(intptr_t socket, void *messageHeader);
+extern int32_t  SystemNative_Send(intptr_t socket, void *buffer, int32_t bufferLen, int32_t flags, int32_t *sent);
+extern int32_t  SystemNative_SendMessage(intptr_t socket, void *messageHeader, int32_t flags, int64_t *sent);
+extern int32_t  SystemNative_Accept(intptr_t socket, uint8_t *socketAddress, int32_t *socketAddressLen, intptr_t *acceptedSocket);
+extern int32_t  SystemNative_Bind(intptr_t socket, int32_t protocolType, uint8_t *socketAddress, int32_t socketAddressLen);
+extern int32_t  SystemNative_Connect(intptr_t socket, uint8_t *socketAddress, int32_t socketAddressLen);
+extern int32_t  SystemNative_Connectx(intptr_t socket, uint8_t *socketAddress, int32_t socketAddressLen, uint8_t *data, int32_t dataLen, int32_t tfo, int *sent);
+extern int32_t  SystemNative_GetPeerName(intptr_t socket, uint8_t *socketAddress, int32_t *socketAddressLen);
+extern int32_t  SystemNative_GetSockName(intptr_t socket, uint8_t *socketAddress, int32_t *socketAddressLen);
+extern int32_t  SystemNative_Listen(intptr_t socket, int32_t backlog);
+extern int32_t  SystemNative_Shutdown(intptr_t socket, int32_t socketShutdown);
+extern int32_t  SystemNative_GetSocketErrorOption(intptr_t socket, int32_t *error);
+extern int32_t  SystemNative_GetSockOpt(intptr_t socket, int32_t optLevel, int32_t optName, uint8_t *optValue, int32_t *optLen);
+extern int32_t  SystemNative_GetRawSockOpt(intptr_t socket, int32_t optLevel, int32_t optName, uint8_t *optValue, int32_t *optLen);
+extern int32_t  SystemNative_SetSockOpt(intptr_t socket, int32_t optLevel, int32_t optName, uint8_t *optValue, int32_t optLen);
+extern int32_t  SystemNative_SetRawSockOpt(intptr_t socket, int32_t optLevel, int32_t optName, uint8_t *optValue, int32_t optLen);
+extern int32_t  SystemNative_Socket(int32_t addressFamily, int32_t socketType, int32_t protocolType, intptr_t *createdSocket);
+extern int32_t  SystemNative_GetSocketType(intptr_t socket, int32_t *af, int32_t *type, int32_t *proto, int32_t *isListening);
+extern int32_t  SystemNative_GetAtOutOfBandMark(intptr_t socket, int32_t *available);
+extern int32_t  SystemNative_GetBytesAvailable(intptr_t socket, int32_t *available);
+extern int32_t  SystemNative_GetWasiSocketDescriptor(intptr_t socket, void **entry);
+extern int32_t  SystemNative_CreateSocketEventPort(intptr_t *port);
+extern int32_t  SystemNative_CloseSocketEventPort(intptr_t port);
+extern int32_t  SystemNative_CreateSocketEventBuffer(int32_t count, void **buffer);
+extern int32_t  SystemNative_FreeSocketEventBuffer(void *buffer);
+extern int32_t  SystemNative_TryChangeSocketEventRegistration(intptr_t port, intptr_t socket, int32_t currentEvents, int32_t newEvents, uintptr_t data);
+extern int32_t  SystemNative_WaitForSocketEvents(intptr_t port, void *buffer, int32_t *count);
+extern int32_t  SystemNative_PlatformSupportsDualModeIPv4PacketInfo(void);
+extern void     SystemNative_GetDomainSocketSizes(int32_t *pathOffset, int32_t *pathSize, int32_t *addressSize);
+extern int32_t  SystemNative_GetMaximumAddressSize(void);
+extern int32_t  SystemNative_SendFile(intptr_t out_fd, intptr_t in_fd, int64_t offset, int64_t count, int64_t *sent);
+extern int32_t  SystemNative_Disconnect(intptr_t socket);
+extern uint32_t SystemNative_InterfaceNameToIndex(char *interfaceName);
+extern int32_t  SystemNative_Select(int *readFds, int readFdsCount, int *writeFds, int writeFdsCount, int *errorFds, int errorFdsCount, int32_t microseconds, int32_t maxFd, int *triggered);
+
 /****************************************************************************
  * P/Invoke mapping tables
  *
@@ -152,18 +313,6 @@ static const char *sysn_getenv(const char *name)
   return val;
 }
 
-static int32_t sysn_lchflags_can_set_hidden_flag(void)
-{
-  syslog(LOG_NOTICE, "SystemNative_LChflagsCanSetHiddenFlag() => 0\n");
-  return 0; /* No HFS+ on NuttX */
-}
-
-static int32_t sysn_can_get_hidden_flag(void)
-{
-  syslog(LOG_NOTICE, "SystemNative_CanGetHiddenFlag() => 0\n");
-  return 0;
-}
-
 /* Console I/O — wraps NuttX POSIX calls */
 
 static int32_t sysn_write(intptr_t fd, const void *buffer, int32_t bufferSize)
@@ -196,13 +345,6 @@ static int32_t sysn_write(intptr_t fd, const void *buffer, int32_t bufferSize)
   if (errno == EAGAIN)
     return bufferSize;
 
-  return (int32_t)count;
-}
-
-static int32_t sysn_read(intptr_t fd, void *buffer, int32_t bufferSize)
-{
-  ssize_t count;
-  while ((count = read((int)fd, buffer, (size_t)bufferSize)) < 0 && errno == EINTR);
   return (int32_t)count;
 }
 
@@ -265,120 +407,6 @@ static int32_t sysn_get_window_size(intptr_t fd, struct WinSize *winSize)
   return 0; /* success */
 }
 
-/* File descriptor operations */
-
-static intptr_t sysn_open(const char *path, int32_t flags, int32_t mode)
-{
-  int fd = open(path, flags, mode);
-  syslog(LOG_NOTICE, "Open(\"%s\", 0x%x, 0%o) => %d (errno=%d)\n",
-         path, flags, mode, fd, get_errno());
-  return (intptr_t)fd;
-}
-
-static int32_t sysn_close(intptr_t fd)
-{
-  return close((int)fd);
-}
-
-/* Stat structures — .NET expects a specific layout */
-struct FileStatus
-{
-  int32_t  Flags;    /* FileStatusFlags */
-  int32_t  Mode;     /* mode_t */
-  uint32_t Uid;
-  uint32_t Gid;
-  int64_t  Size;
-  int64_t  ATime;
-  int64_t  ATimeNsec;
-  int64_t  MTime;
-  int64_t  MTimeNsec;
-  int64_t  CTime;
-  int64_t  CTimeNsec;
-  int64_t  BirthTime;
-  int64_t  BirthTimeNsec;
-  int64_t  Dev;
-  int64_t  RDev;
-  int64_t  Ino;
-  uint32_t UserFlags;
-};
-
-static void convert_stat(const struct stat *src, struct FileStatus *dst)
-{
-  memset(dst, 0, sizeof(*dst));
-  dst->Mode  = (int32_t)src->st_mode;
-  /* NuttX minimal stat: no st_uid/st_gid/st_ino/st_dev/st_rdev */
-  dst->Uid   = 0;
-  dst->Gid   = 0;
-  dst->Size  = (int64_t)src->st_size;
-  dst->ATime = (int64_t)src->st_atime;
-  dst->MTime = (int64_t)src->st_mtime;
-  dst->CTime = (int64_t)src->st_ctime;
-  dst->Ino   = 0;
-  dst->Dev   = 0;
-  dst->RDev  = 0;
-}
-
-static int32_t sysn_fstat(intptr_t fd, struct FileStatus *output)
-{
-  struct stat s;
-  if (fstat((int)fd, &s) != 0)
-    return -1;
-  convert_stat(&s, output);
-  return 0;
-}
-
-static int32_t sysn_stat2(const char *path, struct FileStatus *output)
-{
-  struct stat s;
-  if (stat(path, &s) != 0) {
-    syslog(LOG_NOTICE, "Stat(\"%s\") => -1 (errno=%d)\n", path, get_errno());
-    return -1;
-  }
-  convert_stat(&s, output);
-  syslog(LOG_NOTICE, "Stat(\"%s\") => 0 (size=%lld)\n", path, (long long)s.st_size);
-  return 0;
-}
-
-static int32_t sysn_lstat2(const char *path, struct FileStatus *output)
-{
-  /* NuttX doesn't have symlinks typically — fall through to stat */
-  int32_t ret = sysn_stat2(path, output);
-  syslog(LOG_NOTICE, "LStat(\"%s\") => %d (errno=%d)\n", path, ret, get_errno());
-  return ret;
-}
-
-static int64_t sysn_lseek(intptr_t fd, int64_t offset, int32_t whence)
-{
-  return (int64_t)lseek((int)fd, (off_t)offset, whence);
-}
-
-static int32_t sysn_fcntl_set_fd_flags(intptr_t fd, int32_t flags)
-{
-  return fcntl((int)fd, F_SETFD, flags);
-}
-
-static int32_t sysn_fcntl_get_fd_flags(intptr_t fd)
-{
-  return fcntl((int)fd, F_GETFD);
-}
-
-static int32_t sysn_fcntl_get_is_nonblocking(intptr_t fd, int32_t *isNonBlocking)
-{
-  if (!isNonBlocking) return -1;
-  int flags = fcntl((int)fd, F_GETFL);
-  if (flags == -1) return -1;
-  *isNonBlocking = (flags & O_NONBLOCK) != 0 ? 1 : 0;
-  return 0;
-}
-
-static int32_t sysn_fcntl_set_is_nonblocking(intptr_t fd, int32_t isNonBlocking)
-{
-  int flags = fcntl((int)fd, F_GETFL);
-  if (flags == -1) return -1;
-  if (isNonBlocking) flags |= O_NONBLOCK; else flags &= ~O_NONBLOCK;
-  return fcntl((int)fd, F_SETFL, flags);
-}
-
 /* Process / diagnostics — NuttX-specific stubs */
 
 static void sysn_syslog(int32_t priority, const char *message, const char *arg1)
@@ -423,15 +451,6 @@ static int32_t sysn_get_pw_uid_r(uint32_t uid, void *pwd, char *buf,
   return -1;
 }
 
-static int32_t sysn_get_hostname(char *name, int32_t nameLength)
-{
-  if (name && nameLength > 0)
-    {
-      strncpy(name, "meadow", nameLength - 1);
-      name[nameLength - 1] = '\0';
-    }
-  return 0;
-}
 
 /* Process path — fixed for NuttX */
 static const char *sysn_get_process_path(void)
@@ -445,156 +464,16 @@ static int32_t sysn_fork_and_exec_process(void)
   return -1;
 }
 
-/* Expanded I/O — NuttX POSIX wrappers */
-
-static int32_t sysn_pipe(int32_t *fds)
-{
-  return pipe((int *)fds);
-}
-
-static int32_t sysn_dup(intptr_t oldFd)
-{
-  return dup((int)oldFd);
-}
-
+/* Dup2 — not in upstream pal_io.c */
 static int32_t sysn_dup2(intptr_t oldFd, intptr_t newFd)
 {
   return dup2((int)oldFd, (int)newFd);
 }
 
-static int32_t sysn_unlink(const char *path)
+/* GetCwd — in pal_process.c (not compiled yet) */
+static char *sysn_getcwd(char *buf, int32_t size)
 {
-  return unlink(path);
-}
-
-static int32_t sysn_mkdir(const char *path, int32_t mode)
-{
-  return mkdir(path, (mode_t)mode);
-}
-
-static int32_t sysn_getcwd(char *buf, int32_t size)
-{
-  return getcwd(buf, (size_t)size) != NULL ? 0 : -1;
-}
-
-static int32_t sysn_access(const char *path, int32_t mode)
-{
-  return access(path, mode);
-}
-
-static int32_t sysn_readlink(const char *path, char *buf, int32_t bufSize)
-{
-  (void)path; (void)buf; (void)bufSize;
-  set_errno(ENOTSUP); /* No symlinks on NuttX */
-  return -1;
-}
-
-static intptr_t sysn_opendir(const char *path)
-{
-  return (intptr_t)opendir(path);
-}
-
-static int32_t sysn_closedir(intptr_t dir)
-{
-  return closedir((DIR *)dir);
-}
-
-/* ReadDir — fills a DirectoryEntry struct for the managed side */
-struct DirectoryEntry {
-  const char *Name;
-  int32_t NameLength;
-  int32_t InodeType;
-};
-
-/* PAL NodeType values (from pal_io.h) */
-#define PAL_DT_UNKNOWN 0
-#define PAL_DT_FIFO    1
-#define PAL_DT_CHR     2
-#define PAL_DT_DIR     4
-#define PAL_DT_BLK     6
-#define PAL_DT_REG     8
-#define PAL_DT_LNK    10
-#define PAL_DT_SOCK   12
-
-static int32_t sysn_d_type_to_pal(uint8_t d_type)
-{
-  switch (d_type) {
-    case DTYPE_FILE:      return PAL_DT_REG;
-    case DTYPE_DIRECTORY: return PAL_DT_DIR;
-    case DTYPE_CHR:       return PAL_DT_CHR;
-    case DTYPE_BLK:       return PAL_DT_BLK;
-    default:              return PAL_DT_UNKNOWN;
-  }
-}
-
-static int32_t sysn_readdir(intptr_t dir, struct DirectoryEntry *output)
-{
-  set_errno(0);
-  struct dirent *entry = readdir((DIR *)dir);
-  if (entry == NULL) {
-    return (get_errno() == 0) ? -1 : get_errno();
-  }
-  output->Name       = entry->d_name;
-  output->NameLength = (int32_t)strlen(entry->d_name);
-  output->InodeType  = sysn_d_type_to_pal(entry->d_type);
-  return 0;
-}
-
-static int32_t sysn_fsync(intptr_t fd)
-{
-  return fsync((int)fd);
-}
-
-static int32_t sysn_ftruncate(intptr_t fd, int64_t length)
-{
-  return ftruncate((int)fd, (off_t)length);
-}
-
-static int32_t sysn_flock(intptr_t fd, int32_t operation)
-{
-  (void)fd; (void)operation;
-  return 0; /* No file locking on NuttX */
-}
-
-static int32_t sysn_chmod(const char *path, int32_t mode)
-{
-  (void)path; (void)mode;
-  return 0; /* NuttX has no chmod in user space */
-}
-
-static int32_t sysn_rename(const char *oldPath, const char *newPath)
-{
-  return rename(oldPath, newPath);
-}
-
-/* Additional file/process stubs for Mono CoreLib */
-
-static int32_t sysn_chdir(const char *path)
-{
-  return chdir(path);
-}
-
-static int32_t sysn_rmdir(const char *path)
-{
-  return rmdir(path);
-}
-
-static int32_t sysn_fchmod(intptr_t fd, int32_t mode)
-{
-  (void)fd; (void)mode;
-  return 0; /* NuttX has no fchmod in user space */
-}
-
-static int32_t sysn_file_system_supports_locking(intptr_t fd)
-{
-  (void)fd;
-  return 0; /* No file locking on NuttX */
-}
-
-static int32_t sysn_sysconf(int32_t name)
-{
-  (void)name;
-  return -1; /* Not available */
+  return getcwd(buf, (size_t)size);
 }
 
 static char **sysn_get_environ(void)
@@ -633,21 +512,13 @@ static int32_t sysn_get_groups(int32_t gidsetsize, uint32_t *grouplist)
   return 0; /* No supplementary groups */
 }
 
-static int32_t sysn_pread(intptr_t fd, void *buf, int32_t count, int64_t offset)
-{
-  return (int32_t)pread((int)fd, buf, (size_t)count, (off_t)offset);
-}
-
-static int32_t sysn_pwrite(intptr_t fd, const void *buf, int32_t count, int64_t offset)
-{
-  return (int32_t)pwrite((int)fd, buf, (size_t)count, (off_t)offset);
-}
 
 /****************************************************************************
  * Upstream System.Native PAL — extern declarations
  *
- * These functions are compiled from the upstream pal_*.c files in
- * runtime/src/native/libs/System.Native/ (added via Makefile VPATH).
+ * pal_io.h is included at top of file (provides all pal_io.c declarations).
+ * The remaining PAL functions are from other pal_*.c files compiled into
+ * libSystem.Native.a via CMake.
  ****************************************************************************/
 
 /* pal_threading.c */
@@ -715,63 +586,87 @@ extern int64_t SystemNative_GetSystemTimeAsTicks(void);
  ****************************************************************************/
 
 static MonoDlMapping system_native_mappings[] = {
-  /* Environment */
-  { "SystemNative_GetEnv",                    (void *)sysn_getenv },
-  { "SystemNative_LChflagsCanSetHiddenFlag",  (void *)sysn_lchflags_can_set_hidden_flag },
-  { "SystemNative_CanGetHiddenFlag",          (void *)sysn_can_get_hidden_flag },
-
-  /* Console I/O */
-  { "SystemNative_Write",                     (void *)sysn_write },
-  { "SystemNative_Read",                      (void *)sysn_read },
-  { "SystemNative_IsATty",                    (void *)sysn_isatty },
-
-  /* Terminal handling (NuttX stubs) */
-  { "SystemNative_InitializeTerminalAndSignalHandling", (void *)sysn_initialize_terminal_and_signal_handling },
-  { "SystemNative_SetKeypadXmit",             (void *)sysn_set_keypad_xmit },
-  { "SystemNative_SetTerminalInvalidationHandler", (void *)sysn_set_terminal_invalidation_handler },
-  { "SystemNative_UninitializeTerminal",      (void *)sysn_uninitialize_terminal },
-  { "SystemNative_GetControlCharacters",      (void *)sysn_get_control_characters },
-  { "SystemNative_GetWindowSize",             (void *)sysn_get_window_size },
-
-  /* File operations (NuttX wrappers) */
-  { "SystemNative_Open",                      (void *)sysn_open },
-  { "SystemNative_Close",                     (void *)sysn_close },
-  { "SystemNative_FStat2",                    (void *)sysn_fstat },
-  { "SystemNative_FStat",                     (void *)sysn_fstat },
-  { "SystemNative_Stat2",                     (void *)sysn_stat2 },
-  { "SystemNative_Stat",                      (void *)sysn_stat2 },
-  { "SystemNative_LStat2",                    (void *)sysn_lstat2 },
-  { "SystemNative_LStat",                     (void *)sysn_lstat2 },
-  { "SystemNative_LSeek",                     (void *)sysn_lseek },
-  { "SystemNative_FcntlSetFdFlags",           (void *)sysn_fcntl_set_fd_flags },
-  { "SystemNative_FcntlGetFdFlags",           (void *)sysn_fcntl_get_fd_flags },
-  { "SystemNative_FcntlGetIsNonBlocking",    (void *)sysn_fcntl_get_is_nonblocking },
-  { "SystemNative_FcntlSetIsNonBlocking",    (void *)sysn_fcntl_set_is_nonblocking },
-  { "SystemNative_Pipe",                      (void *)sysn_pipe },
-  { "SystemNative_Dup",                       (void *)sysn_dup },
-  { "SystemNative_Dup2",                      (void *)sysn_dup2 },
-  { "SystemNative_Unlink",                    (void *)sysn_unlink },
-  { "SystemNative_MkDir",                     (void *)sysn_mkdir },
+  /* ---- pal_io.c (upstream, from libSystem.Native.a) ---- */
+  { "SystemNative_Open",                      (void *)SystemNative_Open },
+  { "SystemNative_Close",                     (void *)SystemNative_Close },
+  { "SystemNative_FStat2",                    (void *)SystemNative_FStat },
+  { "SystemNative_FStat",                     (void *)SystemNative_FStat },
+  { "SystemNative_Stat2",                     (void *)SystemNative_Stat },
+  { "SystemNative_Stat",                      (void *)SystemNative_Stat },
+  { "SystemNative_LStat2",                    (void *)SystemNative_LStat },
+  { "SystemNative_LStat",                     (void *)SystemNative_LStat },
+  { "SystemNative_LSeek",                     (void *)SystemNative_LSeek },
+  { "SystemNative_Read",                      (void *)SystemNative_Read },
+  { "SystemNative_ReadFromNonblocking",       (void *)SystemNative_ReadFromNonblocking },
+  { "SystemNative_Write",                     (void *)sysn_write },  /* HCOM FIFO retry */
+  { "SystemNative_WriteToNonblocking",        (void *)SystemNative_WriteToNonblocking },
+  { "SystemNative_FcntlSetFD",               (void *)SystemNative_FcntlSetFD },
+  { "SystemNative_FcntlGetFD",               (void *)SystemNative_FcntlGetFD },
+  { "SystemNative_FcntlSetFdFlags",           (void *)SystemNative_FcntlSetFD },     /* legacy name */
+  { "SystemNative_FcntlGetFdFlags",           (void *)SystemNative_FcntlGetFD },     /* legacy name */
+  { "SystemNative_FcntlGetIsNonBlocking",     (void *)SystemNative_FcntlGetIsNonBlocking },
+  { "SystemNative_FcntlSetIsNonBlocking",     (void *)SystemNative_FcntlSetIsNonBlocking },
+  { "SystemNative_FcntlCanGetSetPipeSz",      (void *)SystemNative_FcntlCanGetSetPipeSz },
+  { "SystemNative_FcntlGetPipeSz",            (void *)SystemNative_FcntlGetPipeSz },
+  { "SystemNative_FcntlSetPipeSz",            (void *)SystemNative_FcntlSetPipeSz },
+  { "SystemNative_Pipe",                      (void *)SystemNative_Pipe },
+  { "SystemNative_Dup",                       (void *)SystemNative_Dup },
+  { "SystemNative_Dup2",                      (void *)sysn_dup2 },  /* no upstream */
+  { "SystemNative_Unlink",                    (void *)SystemNative_Unlink },
+  { "SystemNative_MkDir",                     (void *)SystemNative_MkDir },
   { "SystemNative_GetCwd",                    (void *)sysn_getcwd },
-  { "SystemNative_Access",                    (void *)sysn_access },
-  { "SystemNative_ReadLink",                  (void *)sysn_readlink },
-  { "SystemNative_OpenDir",                   (void *)sysn_opendir },
-  { "SystemNative_ReadDir",                   (void *)sysn_readdir },
-  { "SystemNative_CloseDir",                  (void *)sysn_closedir },
-  { "SystemNative_FSync",                     (void *)sysn_fsync },
-  { "SystemNative_FTruncate",                 (void *)sysn_ftruncate },
-  { "SystemNative_FLock",                     (void *)sysn_flock },
-  { "SystemNative_ChMod",                     (void *)sysn_chmod },
-  { "SystemNative_Rename",                    (void *)sysn_rename },
+  { "SystemNative_Access",                    (void *)SystemNative_Access },
+  { "SystemNative_ReadLink",                  (void *)SystemNative_ReadLink },
+  { "SystemNative_RealPath",                  (void *)SystemNative_RealPath },
+  { "SystemNative_OpenDir",                   (void *)SystemNative_OpenDir },
+  { "SystemNative_ReadDir",                   (void *)SystemNative_ReadDir },
+  { "SystemNative_CloseDir",                  (void *)SystemNative_CloseDir },
+  { "SystemNative_FSync",                     (void *)SystemNative_FSync },
+  { "SystemNative_FTruncate",                 (void *)SystemNative_FTruncate },
+  { "SystemNative_FLock",                     (void *)SystemNative_FLock },
+  { "SystemNative_ChMod",                     (void *)SystemNative_ChMod },
+  { "SystemNative_FChMod",                    (void *)SystemNative_FChMod },
+  { "SystemNative_ChDir",                     (void *)SystemNative_ChDir },
+  { "SystemNative_RmDir",                     (void *)SystemNative_RmDir },
+  { "SystemNative_Rename",                    (void *)SystemNative_Rename },
+  { "SystemNative_Sync",                      (void *)SystemNative_Sync },
+  { "SystemNative_Link",                      (void *)SystemNative_Link },
+  { "SystemNative_SymLink",                   (void *)SystemNative_SymLink },
+  { "SystemNative_MkNod",                     (void *)SystemNative_MkNod },
+  { "SystemNative_MkFifo",                    (void *)SystemNative_MkFifo },
+  { "SystemNative_MkdTemp",                   (void *)SystemNative_MkdTemp },
+  { "SystemNative_MksTemps",                  (void *)SystemNative_MksTemps },
+  { "SystemNative_GetDeviceIdentifiers",      (void *)SystemNative_GetDeviceIdentifiers },
+  { "SystemNative_PRead",                     (void *)SystemNative_PRead },
+  { "SystemNative_PWrite",                    (void *)SystemNative_PWrite },
+  { "SystemNative_Poll",                      (void *)SystemNative_Poll },
+  { "SystemNative_PosixFAdvise",              (void *)SystemNative_PosixFAdvise },
+  { "SystemNative_FAllocate",                 (void *)SystemNative_FAllocate },
+  { "SystemNative_CopyFile",                  (void *)SystemNative_CopyFile },
+  { "SystemNative_SysConf",                   (void *)SystemNative_SysConf },
+  { "SystemNative_LChflagsCanSetHiddenFlag",  (void *)SystemNative_LChflagsCanSetHiddenFlag },
+  { "SystemNative_CanGetHiddenFlag",          (void *)SystemNative_CanGetHiddenFlag },
+  { "SystemNative_LChflags",                  (void *)SystemNative_LChflags },
+  { "SystemNative_FChflags",                  (void *)SystemNative_FChflags },
+  { "SystemNative_FileSystemSupportsLocking", (void *)SystemNative_FileSystemSupportsLocking },
+  { "SystemNative_LockFileRegion",            (void *)SystemNative_LockFileRegion },
+  { "SystemNative_MMap",                      (void *)SystemNative_MMap },
+  { "SystemNative_MUnmap",                    (void *)SystemNative_MUnmap },
+  { "SystemNative_MProtect",                  (void *)SystemNative_MProtect },
+  { "SystemNative_MAdvise",                   (void *)SystemNative_MAdvise },
+  { "SystemNative_MSync",                     (void *)SystemNative_MSync },
+  { "SystemNative_INotifyInit",               (void *)SystemNative_INotifyInit },
+  { "SystemNative_INotifyAddWatch",           (void *)SystemNative_INotifyAddWatch },
+  { "SystemNative_INotifyRemoveWatch",        (void *)SystemNative_INotifyRemoveWatch },
 
-  /* errno helpers (upstream pal_errno.c) */
+  /* ---- pal_errno.c (upstream) ---- */
   { "SystemNative_SetErrNo",                  (void *)SystemNative_SetErrNo },
   { "SystemNative_GetErrNo",                  (void *)SystemNative_GetErrNo },
   { "SystemNative_ConvertErrorPlatformToPal", (void *)SystemNative_ConvertErrorPlatformToPal },
   { "SystemNative_ConvertErrorPalToPlatform", (void *)SystemNative_ConvertErrorPalToPlatform },
   { "SystemNative_StrErrorR",                 (void *)SystemNative_StrErrorR },
 
-  /* Threading (upstream pal_threading.c) */
+  /* ---- pal_threading.c (upstream) ---- */
   { "SystemNative_LowLevelMonitor_Create",    (void *)SystemNative_LowLevelMonitor_Create },
   { "SystemNative_LowLevelMonitor_Destroy",   (void *)SystemNative_LowLevelMonitor_Destroy },
   { "SystemNative_LowLevelMonitor_Acquire",   (void *)SystemNative_LowLevelMonitor_Acquire },
@@ -784,7 +679,7 @@ static MonoDlMapping system_native_mappings[] = {
   { "SystemNative_GetUInt64OSThreadId",       (void *)SystemNative_GetUInt64OSThreadId },
   { "SystemNative_TryGetUInt32OSThreadId",    (void *)SystemNative_TryGetUInt32OSThreadId },
 
-  /* Time (upstream pal_time.c) */
+  /* ---- pal_time.c (upstream) ---- */
   { "SystemNative_GetTimestamp",              (void *)SystemNative_GetTimestamp },
   { "SystemNative_GetLowResolutionTimestamp", (void *)SystemNative_GetLowResolutionTimestamp },
   { "SystemNative_GetBootTimeTicks",          (void *)SystemNative_GetBootTimeTicks },
@@ -792,7 +687,7 @@ static MonoDlMapping system_native_mappings[] = {
   { "SystemNative_UTimensat",                 (void *)SystemNative_UTimensat },
   { "SystemNative_FUTimens",                  (void *)SystemNative_FUTimens },
 
-  /* Memory (upstream pal_memory.c) */
+  /* ---- pal_memory.c (upstream) ---- */
   { "SystemNative_AlignedAlloc",              (void *)SystemNative_AlignedAlloc },
   { "SystemNative_AlignedFree",               (void *)SystemNative_AlignedFree },
   { "SystemNative_AlignedRealloc",            (void *)SystemNative_AlignedRealloc },
@@ -801,28 +696,106 @@ static MonoDlMapping system_native_mappings[] = {
   { "SystemNative_Malloc",                    (void *)SystemNative_Malloc },
   { "SystemNative_Realloc",                   (void *)SystemNative_Realloc },
 
-  /* Random (upstream pal_random.c) */
+  /* ---- pal_random.c (upstream) ---- */
   { "SystemNative_GetNonCryptographicallySecureRandomBytes", (void *)SystemNative_GetNonCryptographicallySecureRandomBytes },
   { "SystemNative_GetCryptographicallySecureRandomBytes",    (void *)SystemNative_GetCryptographicallySecureRandomBytes },
 
-  /* String (upstream pal_string.c) */
+  /* ---- pal_string.c (upstream) ---- */
   { "SystemNative_SNPrintF",                  (void *)SystemNative_SNPrintF },
   { "SystemNative_SNPrintF_1S",               (void *)SystemNative_SNPrintF_1S },
   { "SystemNative_SNPrintF_1I",               (void *)SystemNative_SNPrintF_1I },
 
-  /* Runtime info (upstream pal_runtimeinformation.c) */
+  /* ---- pal_runtimeinformation.c (upstream) ---- */
   { "SystemNative_GetUnixRelease",            (void *)SystemNative_GetUnixRelease },
   { "SystemNative_GetUnixVersion",            (void *)SystemNative_GetUnixVersion },
   { "SystemNative_GetOSArchitecture",         (void *)SystemNative_GetOSArchitecture },
 
-  /* Logging (upstream pal_log.c) */
+  /* ---- pal_log.c (upstream) ---- */
   { "SystemNative_Log",                       (void *)SystemNative_Log },
   { "SystemNative_LogError",                  (void *)SystemNative_LogError },
 
-  /* DateTime (upstream pal_datetime.c) */
+  /* ---- pal_datetime.c (upstream) ---- */
   { "SystemNative_GetSystemTimeAsTicks",      (void *)SystemNative_GetSystemTimeAsTicks },
 
-  /* Process / diagnostics (NuttX stubs) */
+  /* ---- pal_networking.c (upstream) ---- */
+  { "SystemNative_GetHostEntryForName",       (void *)SystemNative_GetHostEntryForName },
+  { "SystemNative_FreeHostEntry",             (void *)SystemNative_FreeHostEntry },
+  { "SystemNative_GetNameInfo",               (void *)SystemNative_GetNameInfo },
+  { "SystemNative_GetDomainName",             (void *)SystemNative_GetDomainName },
+  { "SystemNative_GetHostName",               (void *)SystemNative_GetHostName },
+  { "SystemNative_GetSocketAddressSizes",     (void *)SystemNative_GetSocketAddressSizes },
+  { "SystemNative_GetAddressFamily",          (void *)SystemNative_GetAddressFamily },
+  { "SystemNative_SetAddressFamily",          (void *)SystemNative_SetAddressFamily },
+  { "SystemNative_GetPort",                   (void *)SystemNative_GetPort },
+  { "SystemNative_SetPort",                   (void *)SystemNative_SetPort },
+  { "SystemNative_GetIPv4Address",            (void *)SystemNative_GetIPv4Address },
+  { "SystemNative_SetIPv4Address",            (void *)SystemNative_SetIPv4Address },
+  { "SystemNative_GetIPv6Address",            (void *)SystemNative_GetIPv6Address },
+  { "SystemNative_SetIPv6Address",            (void *)SystemNative_SetIPv6Address },
+  { "SystemNative_GetControlMessageBufferSize", (void *)SystemNative_GetControlMessageBufferSize },
+  { "SystemNative_TryGetIPPacketInformation", (void *)SystemNative_TryGetIPPacketInformation },
+  { "SystemNative_GetIPv4MulticastOption",    (void *)SystemNative_GetIPv4MulticastOption },
+  { "SystemNative_SetIPv4MulticastOption",    (void *)SystemNative_SetIPv4MulticastOption },
+  { "SystemNative_GetIPv6MulticastOption",    (void *)SystemNative_GetIPv6MulticastOption },
+  { "SystemNative_SetIPv6MulticastOption",    (void *)SystemNative_SetIPv6MulticastOption },
+  { "SystemNative_GetLingerOption",           (void *)SystemNative_GetLingerOption },
+  { "SystemNative_SetLingerOption",           (void *)SystemNative_SetLingerOption },
+  { "SystemNative_SetReceiveTimeout",         (void *)SystemNative_SetReceiveTimeout },
+  { "SystemNative_SetSendTimeout",            (void *)SystemNative_SetSendTimeout },
+  { "SystemNative_Receive",                   (void *)SystemNative_Receive },
+  { "SystemNative_ReceiveMessage",            (void *)SystemNative_ReceiveMessage },
+  { "SystemNative_ReceiveSocketError",        (void *)SystemNative_ReceiveSocketError },
+  { "SystemNative_Send",                      (void *)SystemNative_Send },
+  { "SystemNative_SendMessage",               (void *)SystemNative_SendMessage },
+  { "SystemNative_Accept",                    (void *)SystemNative_Accept },
+  { "SystemNative_Bind",                      (void *)SystemNative_Bind },
+  { "SystemNative_Connect",                   (void *)SystemNative_Connect },
+  { "SystemNative_Connectx",                  (void *)SystemNative_Connectx },
+  { "SystemNative_GetPeerName",               (void *)SystemNative_GetPeerName },
+  { "SystemNative_GetSockName",               (void *)SystemNative_GetSockName },
+  { "SystemNative_Listen",                    (void *)SystemNative_Listen },
+  { "SystemNative_Shutdown",                  (void *)SystemNative_Shutdown },
+  { "SystemNative_GetSocketErrorOption",      (void *)SystemNative_GetSocketErrorOption },
+  { "SystemNative_GetSockOpt",               (void *)SystemNative_GetSockOpt },
+  { "SystemNative_GetRawSockOpt",            (void *)SystemNative_GetRawSockOpt },
+  { "SystemNative_SetSockOpt",               (void *)SystemNative_SetSockOpt },
+  { "SystemNative_SetRawSockOpt",            (void *)SystemNative_SetRawSockOpt },
+  { "SystemNative_Socket",                    (void *)SystemNative_Socket },
+  { "SystemNative_GetSocketType",             (void *)SystemNative_GetSocketType },
+  { "SystemNative_GetAtOutOfBandMark",        (void *)SystemNative_GetAtOutOfBandMark },
+  { "SystemNative_GetBytesAvailable",         (void *)SystemNative_GetBytesAvailable },
+  { "SystemNative_GetWasiSocketDescriptor",   (void *)SystemNative_GetWasiSocketDescriptor },
+  { "SystemNative_CreateSocketEventPort",     (void *)SystemNative_CreateSocketEventPort },
+  { "SystemNative_CloseSocketEventPort",      (void *)SystemNative_CloseSocketEventPort },
+  { "SystemNative_CreateSocketEventBuffer",   (void *)SystemNative_CreateSocketEventBuffer },
+  { "SystemNative_FreeSocketEventBuffer",     (void *)SystemNative_FreeSocketEventBuffer },
+  { "SystemNative_TryChangeSocketEventRegistration", (void *)SystemNative_TryChangeSocketEventRegistration },
+  { "SystemNative_WaitForSocketEvents",       (void *)SystemNative_WaitForSocketEvents },
+  { "SystemNative_PlatformSupportsDualModeIPv4PacketInfo", (void *)SystemNative_PlatformSupportsDualModeIPv4PacketInfo },
+  { "SystemNative_GetDomainSocketSizes",      (void *)SystemNative_GetDomainSocketSizes },
+  { "SystemNative_GetMaximumAddressSize",     (void *)SystemNative_GetMaximumAddressSize },
+  { "SystemNative_SendFile",                  (void *)SystemNative_SendFile },
+  { "SystemNative_Disconnect",                (void *)SystemNative_Disconnect },
+  { "SystemNative_InterfaceNameToIndex",      (void *)SystemNative_InterfaceNameToIndex },
+  { "SystemNative_Select",                    (void *)SystemNative_Select },
+
+  /* ---- NuttX-specific stubs (no upstream equivalent) ---- */
+
+  /* Console / terminal */
+  { "SystemNative_IsATty",                    (void *)sysn_isatty },
+  { "SystemNative_InitializeTerminalAndSignalHandling", (void *)sysn_initialize_terminal_and_signal_handling },
+  { "SystemNative_SetKeypadXmit",             (void *)sysn_set_keypad_xmit },
+  { "SystemNative_SetTerminalInvalidationHandler", (void *)sysn_set_terminal_invalidation_handler },
+  { "SystemNative_UninitializeTerminal",      (void *)sysn_uninitialize_terminal },
+  { "SystemNative_GetControlCharacters",      (void *)sysn_get_control_characters },
+  { "SystemNative_GetWindowSize",             (void *)sysn_get_window_size },
+
+  /* Environment */
+  { "SystemNative_GetEnv",                    (void *)sysn_getenv },
+  { "SystemNative_GetEnviron",                (void *)sysn_get_environ },
+  { "SystemNative_FreeEnviron",               (void *)sysn_free_environ },
+
+  /* Process / diagnostics */
   { "SystemNative_SysLog",                    (void *)sysn_syslog },
   { "SystemNative_Abort",                     (void *)SystemNative_Abort },
   { "SystemNative_Exit",                      (void *)SystemNative_Exit },
@@ -830,34 +803,23 @@ static MonoDlMapping system_native_mappings[] = {
   { "SystemNative_GetProcessPath",            (void *)sysn_get_process_path },
   { "SystemNative_ForkAndExecProcess",        (void *)sysn_fork_and_exec_process },
 
-  /* Signal stubs */
+  /* Signals */
   { "SystemNative_SetPosixSignalHandler",     (void *)sysn_set_posix_signal_handler },
   { "SystemNative_EnablePosixSignalHandling", (void *)sysn_enable_posix_signal_handling },
   { "SystemNative_DisablePosixSignalHandling",(void *)sysn_disable_posix_signal_handling },
   { "SystemNative_HandleNonCanceledPosixSignal",(void *)sysn_handle_noncanceled_posix_signal },
   { "SystemNative_GetPlatformSignalNumber",   (void *)sysn_get_platform_signal_number },
 
-  /* UID/GID stubs */
+  /* UID/GID */
   { "SystemNative_GetEUid",                   (void *)sysn_get_euid },
   { "SystemNative_GetEGid",                   (void *)sysn_get_egid },
   { "SystemNative_SetEUid",                   (void *)sysn_set_euid },
   { "SystemNative_GetPwUidR",                 (void *)sysn_get_pw_uid_r },
-  { "SystemNative_GetHostName",               (void *)sysn_get_hostname },
   { "SystemNative_GetSid",                    (void *)sysn_get_sid },
   { "SystemNative_GetGroups",                 (void *)sysn_get_groups },
 
-  /* Additional file operations */
-  { "SystemNative_ChDir",                     (void *)sysn_chdir },
-  { "SystemNative_RmDir",                     (void *)sysn_rmdir },
-  { "SystemNative_FChMod",                    (void *)sysn_fchmod },
-  { "SystemNative_FileSystemSupportsLocking", (void *)sysn_file_system_supports_locking },
-  { "SystemNative_PRead",                     (void *)sysn_pread },
-  { "SystemNative_PWrite",                    (void *)sysn_pwrite },
-
-  /* Environment */
-  { "SystemNative_GetEnviron",                (void *)sysn_get_environ },
-  { "SystemNative_FreeEnviron",               (void *)sysn_free_environ },
-  { "SystemNative_SysConf",                   (void *)sysn_sysconf },
+  /* Misc */
+  { "SystemNative_Dup2",                      (void *)sysn_dup2 },
 
   { NULL, NULL }
 };
