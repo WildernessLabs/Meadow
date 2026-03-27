@@ -241,9 +241,7 @@ extern char    *SystemNative_GetProcessPath(void);
 /****************************************************************************
  * P/Invoke mapping tables
  *
- * These are the same mapping tables from the legacy mono_main.c.
- * They are now consumed by the pinvoke_override callback instead of
- * mono_dl_register_library().
+ * Consumed by meadow_pinvoke_override() to resolve DllImport calls.
  ****************************************************************************/
 
 typedef struct {
@@ -252,18 +250,6 @@ typedef struct {
 } MonoDlMapping;
 
 #include "mappings-meadow.h"
-/* TODO Track 05+: System.Native PAL needs to be built for .NET 10/NuttX.
- * The legacy mappings-system-native.h references SystemNative_* functions
- * from the old corefx PAL library which is not yet ported.
- * For now, the pinvoke_override callback returns NULL for "System.Native"
- * and managed code that calls System.Native will fail at runtime.
- */
-/* #include "mappings-system-native.h" */
-/* TODO Track 05+: mbedtls mappings need updating for .NET 10 */
-/* #include "mappings-mbedtls.h" */
-#if defined (CONFIG_EXAMPLES_MEADOW_SQLITE)
-/* #include "mappings-sqlite.h" */
-#endif
 
 /****************************************************************************
  * .NET 10 monovm hosting API declarations
@@ -314,10 +300,9 @@ bool mono_should_run = true;
  * Name: meadow_pinvoke_noop_stub
  *
  * Description:
- *   Generic no-op stub for unimplemented System.Native P/Invoke functions.
- *   Returns 0 (which typically means "success" or "false" depending on
- *   context). This lets the runtime get past initialization while we
- *   identify which functions actually need real implementations.
+ *   Fallback for unmapped P/Invoke functions. Logs a warning and returns 0.
+ *   Any function hitting this stub should be added to the mapping table
+ *   with a real implementation or an explicit NuttX stub.
  ****************************************************************************/
 
 static int meadow_pinvoke_noop_stub(void)
@@ -342,8 +327,6 @@ static int32_t sysn_write(intptr_t fd, const void *buffer, int32_t bufferSize)
    * (no CLI client connected, or reader can't keep up).  Retry briefly
    * to give the MonoStdxxx thread time to drain. */
 
-  syslog(LOG_NOTICE, "sysn_write(fd=%d, size=%d)\n", (int)fd, (int)bufferSize);
-
   ssize_t count;
   int retries = 5;
 
@@ -351,9 +334,9 @@ static int32_t sysn_write(intptr_t fd, const void *buffer, int32_t bufferSize)
     count = write((int)fd, buffer, (size_t)bufferSize);
     if (count >= 0)
       return (int32_t)count;
-    if (errno == EINTR)
+    if (get_errno() == EINTR)
       continue;
-    if (errno == EAGAIN && --retries > 0)
+    if (get_errno() == EAGAIN && --retries > 0)
       {
         usleep(1000); /* 1ms — let MonoStdxxx thread drain the FIFO */
         continue;
@@ -365,13 +348,8 @@ static int32_t sysn_write(intptr_t fd, const void *buffer, int32_t bufferSize)
    * prevent managed IOException — data is lost but app continues. */
 
   if (get_errno() == EAGAIN)
-    {
-      syslog(LOG_WARNING, "sysn_write: EAGAIN, fd=%d — data lost\n", (int)fd);
       return bufferSize;
-    }
 
-  syslog(LOG_WARNING, "sysn_write: error fd=%d errno=%d count=%d\n",
-         (int)fd, get_errno(), (int)count);
   return (int32_t)count;
 }
 
@@ -381,7 +359,6 @@ static int32_t sysn_isatty(intptr_t fd)
   /* After HCOM redirect, fd 1/2 are FIFOs (/dev/monostdout, /dev/monostderr),
    * not terminals.  Returning 0 makes .NET ConsolePal use the simple stream
    * write path instead of trying tcgetattr/terminal init (which crashes on FIFOs). */
-  syslog(LOG_NOTICE, "SystemNative_IsATty(fd=%d) => 0\n", (int)fd);
   return 0;
 }
 
@@ -389,7 +366,6 @@ static int32_t sysn_isatty(intptr_t fd)
 
 static int32_t sysn_initialize_terminal_and_signal_handling(void)
 {
-  syslog(LOG_NOTICE, "SystemNative_InitializeTerminalAndSignalHandling() => 1\n");
   return 1; /* success */
 }
 
@@ -467,15 +443,11 @@ static int32_t sysn_get_pw_uid_r(uint32_t uid, void *pwd, char *buf,
   return -1;
 }
 
-
-
 /* Dup2 — not in upstream pal_io.c */
 static int32_t sysn_dup2(intptr_t oldFd, intptr_t newFd)
 {
   return dup2((int)oldFd, (int)newFd);
 }
-
-
 
 static void sysn_disable_posix_signal_handling(int32_t signalCode)
 {
@@ -488,7 +460,6 @@ static int32_t sysn_handle_noncanceled_posix_signal(int32_t signalCode)
   return 1; /* Handled */
 }
 
-
 static int32_t sysn_get_groups(int32_t gidsetsize, uint32_t *grouplist)
 {
   (void)gidsetsize; (void)grouplist;
@@ -499,9 +470,8 @@ static int32_t sysn_get_groups(int32_t gidsetsize, uint32_t *grouplist)
 /****************************************************************************
  * Upstream System.Native PAL — extern declarations
  *
- * pal_io.h is included at top of file (provides all pal_io.c declarations).
- * The remaining PAL functions are from other pal_*.c files compiled into
- * libSystem.Native.a via CMake.
+ * These functions are compiled into libSystem.Native.a via CMake
+ * (runtime/src/native/libs/System.Native/).
  ****************************************************************************/
 
 /* pal_threading.c */
@@ -811,9 +781,6 @@ static MonoDlMapping system_native_mappings[] = {
   { "SystemNative_GetPwUidR",                 (void *)sysn_get_pw_uid_r },
   { "SystemNative_GetGroups",                 (void *)sysn_get_groups },
 
-  /* Misc */
-  { "SystemNative_Dup2",                      (void *)sysn_dup2 },
-
   { NULL, NULL }
 };
 
@@ -842,9 +809,6 @@ static void *meadow_pinvoke_override(const char *libraryName,
 {
   MonoDlMapping *mappings = NULL;
 
-  syslog(LOG_NOTICE, "P/Invoke resolve: %s::%s\n",
-         libraryName, entrypointName);
-
   if (strcmp(libraryName, "System.Native") == 0 ||
       strcmp(libraryName, "libSystem.Native") == 0)
     {
@@ -858,22 +822,22 @@ static void *meadow_pinvoke_override(const char *libraryName,
   else if (strcmp(libraryName, "mbedtls") == 0 ||
            strcmp(libraryName, "libmbedtls") == 0)
     {
-      /* TODO Track 05+: mbedtls mappings not yet ported */
+      /* TODO: mbedtls mappings not yet ported (Track 11) */
       return NULL;
     }
 #if defined (CONFIG_EXAMPLES_MEADOW_SQLITE)
   else if (strcmp(libraryName, "sqlite3") == 0 ||
            strcmp(libraryName, "libsqlite3") == 0)
     {
-      /* TODO Track 05+: sqlite mappings not yet ported */
+      /* TODO: sqlite mappings not yet ported */
       return NULL;
     }
 #endif
   else
     {
-      syslog(LOG_NOTICE, "P/Invoke: %s::%s — unknown library, returning stub\n",
+      syslog(LOG_WARNING, "P/Invoke: unknown library '%s' (looking for '%s')\n",
              libraryName, entrypointName);
-      return (void *)meadow_pinvoke_noop_stub;
+      return NULL;
     }
 
   for (MonoDlMapping *m = mappings; m->name != NULL; m++)
@@ -891,12 +855,12 @@ static void *meadow_pinvoke_override(const char *libraryName,
   if (strcmp(libraryName, "System.Native") == 0 ||
       strcmp(libraryName, "libSystem.Native") == 0)
     {
-      syslog(LOG_NOTICE, "P/Invoke: System.Native::%s — UNMAPPED, returning noop stub\n",
+      syslog(LOG_WARNING, "P/Invoke: System.Native::%s — UNMAPPED, returning noop stub\n",
              entrypointName);
       return (void *)meadow_pinvoke_noop_stub;
     }
 
-  syslog(LOG_NOTICE, "P/Invoke: '%s!%s' not found in mapping table\n",
+  syslog(LOG_WARNING, "P/Invoke: '%s!%s' not found in mapping table\n",
          libraryName, entrypointName);
   return NULL;
 }
@@ -930,7 +894,7 @@ static char *build_tpa_list(const char *base_path)
   if (dir == NULL)
     {
       syslog(LOG_ERR, "TPA: Cannot open directory '%s': %d\n",
-             base_path, errno);
+             base_path, get_errno());
       return NULL;
     }
 
@@ -1299,7 +1263,7 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
         else
           {
             syslog(LOG_WARNING, "open /dev/monostdout failed: errno=%d "
-                   "(HCOM reader not running?)\n", errno);
+                   "(HCOM reader not running?)\n", get_errno());
           }
 
         fd = open("/dev/monostderr", O_WRONLY | O_NONBLOCK);
@@ -1313,7 +1277,7 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
         else
           {
             syslog(LOG_WARNING, "open /dev/monostderr failed: errno=%d\n",
-                   errno);
+                   get_errno());
           }
       }
     else
