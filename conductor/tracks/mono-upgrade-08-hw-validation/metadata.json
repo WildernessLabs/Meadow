@@ -1,8 +1,8 @@
 {
   "track_id": "mono-upgrade-08-hw-validation",
   "type": "chore",
-  "status": "new",
+  "status": "complete",
   "created_at": "2026-03-19T00:00:00Z",
-  "updated_at": "2026-03-19T00:00:00Z",
-  "description": "Manual hardware validation of Blinky on interpreter on physical F7FeatherV2/CCMv2"
+  "updated_at": "2026-03-27T00:00:00Z",
+  "description": "Hardware validation of .NET 10 Blinky on F7CoreComputeV2"
 }
