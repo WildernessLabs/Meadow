@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <AssemblyName>SimplifiedBlinky</AssemblyName>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Meadow.Contracts">
+      <HintPath>/Users/lexas/Meadow.OS.Emulator/build/dotnet10/assemblies/Meadow.Contracts.dll</HintPath>
+    </Reference>
+    <Reference Include="Meadow">
+      <HintPath>/Users/lexas/Meadow.Core/source/Meadow.Core/obj/Release/net9.0/Meadow.dll</HintPath>
+    </Reference>
+    <Reference Include="Meadow.F7">
+      <HintPath>/Users/lexas/Meadow.OS.Emulator/build/dotnet10/assemblies/Meadow.F7.dll</HintPath>
+    </Reference>
+    <Reference Include="Meadow.Logging">
+      <HintPath>/Users/lexas/Meadow.OS.Emulator/build/dotnet10/assemblies/Meadow.Logging.dll</HintPath>
+    </Reference>
+    <Reference Include="Meadow.Units">
+      <HintPath>/Users/lexas/Meadow.OS.Emulator/build/dotnet10/assemblies/Meadow.Units.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>
