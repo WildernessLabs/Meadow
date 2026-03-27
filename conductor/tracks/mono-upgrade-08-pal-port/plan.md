@@ -12,12 +12,29 @@ The catch-all no-op stub silently returns 0 for ~160 unimplemented functions. Th
 - Maintainable code that tracks upstream changes
 - Foundation for TLS/networking (Track 11)
 
-## Current State
+## Current State (updated 2026-03-27)
 
-- **102 functions** stubbed in `apps/examples/mono/mono_main.c` (lines ~100-1500)
-- **~160 functions** served by catch-all no-op returning 0
-- **`__NuttX__` guards already exist** in upstream pal_time.c, pal_errno.c, pal_memory.c, pal_threading.c
-- No upstream CMake support for NuttX target yet
+### Completed
+- **Phase 1 (Build System)**: DONE — System.Native compiles as `libSystem.Native.a` via CMake, linked into firmware
+- **Phase 2 (pal_io.c)**: DONE — 69 functions, NuttX shim header (`pal_io_nuttx.h`), Blinky verified
+- **Phase 3 (pal_networking.c)**: DONE — 54 functions, errno guards, missing socket option `#ifdef`s, Blinky verified
+- **Upstream PAL files now compiled**: pal_io.c, pal_networking.c, pal_threading.c, pal_time.c, pal_memory.c, pal_random.c, pal_errno.c, pal_string.c, pal_runtimeinformation.c, pal_log.c, pal_datetime.c, pal_autoreleasepool.c, pal_searchpath.c, pal_iossupportversion.c
+- **~20 stubs removed** from mono_main.c, replaced by upstream implementations
+
+### Remaining
+- **Phase 4 (pal_process.c + pal_environment.c)**: DONE — 17 process functions, 3 environment functions, Blinky verified
+- **Phase 4 (pal_console.c)**: SKIPPED — depends on pal_signal.c, no real terminal on Meadow, existing stubs adequate
+- **Phase 5**: Final stub cleanup — remove catch-all no-op, reduce mono_main.c to dispatcher only
+
+### Upstream PAL files now compiled (17 total)
+pal_io.c, pal_networking.c, pal_process.c, pal_threading.c, pal_time.c, pal_memory.c,
+pal_random.c, pal_errno.c, pal_string.c, pal_runtimeinformation.c, pal_log.c,
+pal_datetime.c, pal_environment.c, pal_autoreleasepool.c, pal_searchpath.c,
+pal_iossupportversion.c
+
+### Remaining stubs in mono_main.c (~15 functions)
+Console (IsATty, InitializeTerminal, SetKeypadXmit, etc.), Signals (SetPosixSignalHandler,
+EnablePosixSignalHandling, etc.), UID/GID (GetEUid, GetEGid, etc.), Dup2, GetGroups
 
 ## Architecture Decision: Compile Upstream vs. Maintain Stubs
 

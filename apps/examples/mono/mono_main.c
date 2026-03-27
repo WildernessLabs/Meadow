@@ -342,6 +342,8 @@ static int32_t sysn_write(intptr_t fd, const void *buffer, int32_t bufferSize)
    * (no CLI client connected, or reader can't keep up).  Retry briefly
    * to give the MonoStdxxx thread time to drain. */
 
+  syslog(LOG_NOTICE, "sysn_write(fd=%d, size=%d)\n", (int)fd, (int)bufferSize);
+
   ssize_t count;
   int retries = 5;
 
@@ -362,9 +364,14 @@ static int32_t sysn_write(intptr_t fd, const void *buffer, int32_t bufferSize)
   /* EAGAIN: FIFO full / no CLI client draining.  Return bufferSize to
    * prevent managed IOException — data is lost but app continues. */
 
-  if (errno == EAGAIN)
-    return bufferSize;
+  if (get_errno() == EAGAIN)
+    {
+      syslog(LOG_WARNING, "sysn_write: EAGAIN, fd=%d — data lost\n", (int)fd);
+      return bufferSize;
+    }
 
+  syslog(LOG_WARNING, "sysn_write: error fd=%d errno=%d count=%d\n",
+         (int)fd, get_errno(), (int)count);
   return (int32_t)count;
 }
 
