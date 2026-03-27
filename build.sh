@@ -15,10 +15,8 @@ check_if_interactive
 VERBOSE=true
 FORCE=false
 CLEAN=false
-MONO=false
 CONFIGURE_ONLY=false
 CONFIG=mono
-NETCORE=false
 WLCLEAN=false
 DEBUG=false
 DEBUG_BL_CDC=false
@@ -53,12 +51,6 @@ case $i in
     --wlclean)
     WLCLEAN=true
     BOOTLOADER_OPTIONS+="--wlclean "
-    ;;
-    -m|--mono)
-    MONO=true
-    ;;
-    --netcore)
-    NETCORE=true
     ;;
     --configure)
     CONFIGURE_ONLY=true
@@ -105,13 +97,11 @@ if [ "$HELP" = true ]; then
   echo "  -f|--force                   Force build"
   echo "  -c|--clean                   Clean build"
   echo "  --wlclean                    Clean the Wilderness Labs object files"
-  echo "  -m|--mono                    Build with Mono"
-  echo "  --netcore                    Build with .NET Core"
   echo "  --configure                  Configure the build"
   echo "  --debug                      Build with debug symbols"
   echo "  --esd                        Enable stack dumps to be sent to USART1 (COM1)"
   echo "  --enableasserts|-ea          Enable runtime asserts (default is to reset the board)"
-  echo "  --config=mono|netcore        Select Mono or .NET Core builds (default Mono)"
+  echo "  --config=<name>              Select NuttX config (default mono)"
   echo "  -mfd|--makefiledebugging     Turn on debug options for make"
   echo "  -u|--unittests=*             Build the specified unit tests into the system"
   exit 0
@@ -196,6 +186,16 @@ if $FORCE; then
         run_command "make -C $scriptdir/nuttx distclean -j8 $MAKE_OPTIONS $NUTTX_OPTIONS"
         check_command_status
     fi
+fi
+
+#
+# Guard: detect if .config was left by the emulator build (USB disabled).
+# The device build requires CONFIG_USBDEV=y for CDC-ACM communication.
+#
+if [ -r "$scriptdir/nuttx/.config" ] && ! grep -q "^CONFIG_USBDEV=y" "$scriptdir/nuttx/.config"; then
+    printf "WARNING: .config has USB disabled (likely from emulator build). Reconfiguring...\n"
+    run_command "make -C $scriptdir/nuttx distclean -j8 $MAKE_OPTIONS $NUTTX_OPTIONS"
+    rm -f "$scriptdir/nuttx/.config"
 fi
 
 if [ ! -r "$scriptdir/nuttx/.config" ]; then
@@ -388,11 +388,26 @@ run_command "make -C $scriptdir/nuttx $MEADOW_ADDITIONAL_MAKE_OPTIONS $MAKE_OPTI
 check_command_status
 
 #
-#   Build Mono
+#   Build .NET 10 Mono runtime (from sibling runtime/ repo via CMake).
+#   The runtime libraries are linked via Make.defs (MONO_BUILD_DIR).
 #
-$scriptdir/build-mono.sh "$@"
-if [ $? -ne 0 ]; then
-    exit 1
+RUNTIME_DIR="$scriptdir/../runtime"
+# Always use Debug — Make.defs hardcodes the build-nuttx-debug path.
+# For Release builds, update MONO_BUILD_DIR in Make.defs too.
+MONO_BUILD_TYPE="Debug"
+MONO_LIB_DIR="$RUNTIME_DIR/src/mono/build-nuttx-debug"
+MONO_LIB="$MONO_LIB_DIR/mono/mini/libmonosgen-2.0.a"
+
+if [ ! -f "$MONO_LIB" ] || [ "$FORCE" = true ]; then
+    printf "Building .NET 10 Mono runtime...\n"
+    export NUTTX_INCLUDE_DIR="$scriptdir/nuttx/include"
+    "$RUNTIME_DIR/src/mono/build-nuttx.sh" "$MONO_BUILD_TYPE"
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
+else
+    printf ".NET 10 Mono runtime already built (use --force to rebuild)\n"
+    printf "  Library: $MONO_LIB\n"
 fi
 
 #
@@ -408,9 +423,6 @@ check_command_status
 
 if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
   printf "Building NuttX (user pass)..."
-  if $NETCORE; then
-    export ENABLE_NETCORE=1
-  fi
   run_command "make -C $scriptdir/nuttx $MEADOW_ADDITIONAL_MAKE_OPTIONS $MAKE_OPTIONS $NUTTX_OPTIONS pass1"
   check_command_status
 fi
