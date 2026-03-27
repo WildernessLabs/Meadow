@@ -29,11 +29,11 @@
 *Link: [./tracks/mono-upgrade-07-blinky/](./tracks/mono-upgrade-07-blinky/)*
 
 ---
-- [ ] **Track 08-PAL: System.Native PAL Port — Upstream pal_*.c for NuttX**
+- [x] **Track 08-PAL: System.Native PAL Port — Upstream pal_*.c for NuttX** *(complete)*
 *Link: [./tracks/mono-upgrade-08-pal-port/](./tracks/mono-upgrade-08-pal-port/)*
 
 ---
-- [ ] **Track 08: Hardware Validation (Interpreter) — Physical Board Testing**
+- [x] **Track 08: Hardware Validation (Interpreter) — Physical Board Testing** *(complete)*
 *Link: [./tracks/mono-upgrade-08-hw-validation/](./tracks/mono-upgrade-08-hw-validation/)*
 
 ---
