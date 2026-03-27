@@ -211,6 +211,33 @@ extern int32_t  SystemNative_Disconnect(intptr_t socket);
 extern uint32_t SystemNative_InterfaceNameToIndex(char *interfaceName);
 extern int32_t  SystemNative_Select(int *readFds, int readFdsCount, int *writeFds, int writeFdsCount, int *errorFds, int errorFdsCount, int32_t microseconds, int32_t maxFd, int *triggered);
 
+/* pal_environment.c functions (from libSystem.Native.a) */
+extern char    *SystemNative_GetEnv(const char *variable);
+extern char   **SystemNative_GetEnviron(void);
+extern void     SystemNative_FreeEnviron(char **envp);
+
+/* pal_process.c functions (from libSystem.Native.a) */
+extern int32_t  SystemNative_ForkAndExecProcess(const char *filename, char *const argv[],
+                    char *const envp[], const char *cwd, int32_t redirectStdin,
+                    int32_t redirectStdout, int32_t redirectStderr, int32_t setCredentials,
+                    uint32_t userId, uint32_t groupId, uint32_t *groups, int32_t groupsLength,
+                    int32_t *childPid, int32_t *stdinFd, int32_t *stdoutFd, int32_t *stderrFd);
+extern int32_t  SystemNative_GetRLimit(int32_t resourceType, void *limits);
+extern int32_t  SystemNative_SetRLimit(int32_t resourceType, const void *limits);
+extern int32_t  SystemNative_Kill(int32_t pid, int32_t signal);
+extern int32_t  SystemNative_GetPid(void);
+extern int32_t  SystemNative_GetSid(int32_t pid);
+extern void     SystemNative_SysLog(int32_t priority, const char *message, const char *arg1);
+extern int32_t  SystemNative_WaitIdAnyExitedNoHangNoWait(void);
+extern int32_t  SystemNative_WaitPidExitedNoHang(int32_t pid, int32_t *exitCode);
+extern int64_t  SystemNative_PathConf(const char *path, int32_t name);
+extern int32_t  SystemNative_GetPriority(int32_t which, int32_t who);
+extern int32_t  SystemNative_SetPriority(int32_t which, int32_t who, int32_t nice);
+extern char    *SystemNative_GetCwd(char *buffer, int32_t bufferSize);
+extern int32_t  SystemNative_SchedSetAffinity(int32_t pid, intptr_t *mask);
+extern int32_t  SystemNative_SchedGetAffinity(int32_t pid, intptr_t *mask);
+extern char    *SystemNative_GetProcessPath(void);
+
 /****************************************************************************
  * P/Invoke mapping tables
  *
@@ -305,13 +332,6 @@ static int meadow_pinvoke_noop_stub(void)
  * runtime initialization and Hello World execution.
  ****************************************************************************/
 
-static const char *sysn_getenv(const char *name)
-{
-  const char *val = getenv(name);
-  syslog(LOG_NOTICE, "SystemNative_GetEnv(\"%s\") => %s\n",
-         name ? name : "(null)", val ? val : "(null)");
-  return val;
-}
 
 /* Console I/O — wraps NuttX POSIX calls */
 
@@ -407,17 +427,6 @@ static int32_t sysn_get_window_size(intptr_t fd, struct WinSize *winSize)
   return 0; /* success */
 }
 
-/* Process / diagnostics — NuttX-specific stubs */
-
-static void sysn_syslog(int32_t priority, const char *message, const char *arg1)
-{
-  syslog(LOG_USER | (priority & 0x7), message, arg1);
-}
-
-static int32_t sysn_get_pid(void)
-{
-  return (int32_t)getpid();
-}
 
 /* Signal stubs — NuttX signal support is limited */
 
@@ -452,17 +461,6 @@ static int32_t sysn_get_pw_uid_r(uint32_t uid, void *pwd, char *buf,
 }
 
 
-/* Process path — fixed for NuttX */
-static const char *sysn_get_process_path(void)
-{
-  return "/meadow0/Meadow";
-}
-
-/* Fork stub — not supported on NuttX */
-static int32_t sysn_fork_and_exec_process(void)
-{
-  return -1;
-}
 
 /* Dup2 — not in upstream pal_io.c */
 static int32_t sysn_dup2(intptr_t oldFd, intptr_t newFd)
@@ -470,24 +468,7 @@ static int32_t sysn_dup2(intptr_t oldFd, intptr_t newFd)
   return dup2((int)oldFd, (int)newFd);
 }
 
-/* GetCwd — in pal_process.c (not compiled yet) */
-static char *sysn_getcwd(char *buf, int32_t size)
-{
-  return getcwd(buf, (size_t)size);
-}
 
-static char **sysn_get_environ(void)
-{
-  /* Return a minimal empty environment — just a NULL pointer list */
-  static char *empty_environ[] = { NULL };
-  return empty_environ;
-}
-
-static void sysn_free_environ(char **environ)
-{
-  (void)environ;
-  /* no-op — our static environ doesn't need freeing */
-}
 
 static void sysn_disable_posix_signal_handling(int32_t signalCode)
 {
@@ -500,11 +481,6 @@ static int32_t sysn_handle_noncanceled_posix_signal(int32_t signalCode)
   return 1; /* Handled */
 }
 
-static int32_t sysn_get_sid(int32_t pid)
-{
-  (void)pid;
-  return 1; /* Return session ID 1 */
-}
 
 static int32_t sysn_get_groups(int32_t gidsetsize, uint32_t *grouplist)
 {
@@ -614,7 +590,6 @@ static MonoDlMapping system_native_mappings[] = {
   { "SystemNative_Dup2",                      (void *)sysn_dup2 },  /* no upstream */
   { "SystemNative_Unlink",                    (void *)SystemNative_Unlink },
   { "SystemNative_MkDir",                     (void *)SystemNative_MkDir },
-  { "SystemNative_GetCwd",                    (void *)sysn_getcwd },
   { "SystemNative_Access",                    (void *)SystemNative_Access },
   { "SystemNative_ReadLink",                  (void *)SystemNative_ReadLink },
   { "SystemNative_RealPath",                  (void *)SystemNative_RealPath },
@@ -790,18 +765,30 @@ static MonoDlMapping system_native_mappings[] = {
   { "SystemNative_GetControlCharacters",      (void *)sysn_get_control_characters },
   { "SystemNative_GetWindowSize",             (void *)sysn_get_window_size },
 
-  /* Environment */
-  { "SystemNative_GetEnv",                    (void *)sysn_getenv },
-  { "SystemNative_GetEnviron",                (void *)sysn_get_environ },
-  { "SystemNative_FreeEnviron",               (void *)sysn_free_environ },
+  /* ---- pal_environment.c (upstream) ---- */
+  { "SystemNative_GetEnv",                    (void *)SystemNative_GetEnv },
+  { "SystemNative_GetEnviron",                (void *)SystemNative_GetEnviron },
+  { "SystemNative_FreeEnviron",               (void *)SystemNative_FreeEnviron },
 
-  /* Process / diagnostics */
-  { "SystemNative_SysLog",                    (void *)sysn_syslog },
+  /* ---- pal_process.c (upstream) ---- */
+  { "SystemNative_SysLog",                    (void *)SystemNative_SysLog },
   { "SystemNative_Abort",                     (void *)SystemNative_Abort },
   { "SystemNative_Exit",                      (void *)SystemNative_Exit },
-  { "SystemNative_GetPid",                    (void *)sysn_get_pid },
-  { "SystemNative_GetProcessPath",            (void *)sysn_get_process_path },
-  { "SystemNative_ForkAndExecProcess",        (void *)sysn_fork_and_exec_process },
+  { "SystemNative_GetPid",                    (void *)SystemNative_GetPid },
+  { "SystemNative_GetProcessPath",            (void *)SystemNative_GetProcessPath },
+  { "SystemNative_ForkAndExecProcess",        (void *)SystemNative_ForkAndExecProcess },
+  { "SystemNative_GetSid",                    (void *)SystemNative_GetSid },
+  { "SystemNative_Kill",                      (void *)SystemNative_Kill },
+  { "SystemNative_GetRLimit",                 (void *)SystemNative_GetRLimit },
+  { "SystemNative_SetRLimit",                 (void *)SystemNative_SetRLimit },
+  { "SystemNative_WaitIdAnyExitedNoHangNoWait", (void *)SystemNative_WaitIdAnyExitedNoHangNoWait },
+  { "SystemNative_WaitPidExitedNoHang",       (void *)SystemNative_WaitPidExitedNoHang },
+  { "SystemNative_PathConf",                  (void *)SystemNative_PathConf },
+  { "SystemNative_GetPriority",               (void *)SystemNative_GetPriority },
+  { "SystemNative_SetPriority",               (void *)SystemNative_SetPriority },
+  { "SystemNative_GetCwd",                    (void *)SystemNative_GetCwd },
+  { "SystemNative_SchedSetAffinity",          (void *)SystemNative_SchedSetAffinity },
+  { "SystemNative_SchedGetAffinity",          (void *)SystemNative_SchedGetAffinity },
 
   /* Signals */
   { "SystemNative_SetPosixSignalHandler",     (void *)sysn_set_posix_signal_handler },
@@ -815,7 +802,6 @@ static MonoDlMapping system_native_mappings[] = {
   { "SystemNative_GetEGid",                   (void *)sysn_get_egid },
   { "SystemNative_SetEUid",                   (void *)sysn_set_euid },
   { "SystemNative_GetPwUidR",                 (void *)sysn_get_pw_uid_r },
-  { "SystemNative_GetSid",                    (void *)sysn_get_sid },
   { "SystemNative_GetGroups",                 (void *)sysn_get_groups },
 
   /* Misc */
