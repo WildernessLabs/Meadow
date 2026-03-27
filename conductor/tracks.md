@@ -25,8 +25,12 @@
 *Link: [./tracks/mono-upgrade-06-interp/](./tracks/mono-upgrade-06-interp/)*
 
 ---
-- [ ] **Track 07: Blinky on Interpreter — End-to-End App Validation**
+- [x] **Track 07: Blinky on Interpreter — End-to-End App Validation** *(complete)*
 *Link: [./tracks/mono-upgrade-07-blinky/](./tracks/mono-upgrade-07-blinky/)*
+
+---
+- [ ] **Track 08-PAL: System.Native PAL Port — Upstream pal_*.c for NuttX**
+*Link: [./tracks/mono-upgrade-08-pal-port/](./tracks/mono-upgrade-08-pal-port/)*
 
 ---
 - [ ] **Track 08: Hardware Validation (Interpreter) — Physical Board Testing**

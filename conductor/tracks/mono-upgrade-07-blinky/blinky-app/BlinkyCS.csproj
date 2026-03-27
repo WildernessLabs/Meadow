@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <AssemblyName>BlinkyCS</AssemblyName>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="/Users/lexas/Meadow.Core/source/implementations/f7/Meadow.F7/Meadow.F7.csproj" />
+  </ItemGroup>
+</Project>
