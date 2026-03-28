@@ -21,9 +21,9 @@
 
 **7 CLEAN suites** (basic, calls, float, long, objects, generics, gshared near-clean).
 
-### Remaining 4 Failures (all known/expected)
+### Remaining 4 Failures (all known/expected — not actionable)
 
-1. **`test_0_intptr_array_cast`** — IntPtr array cast returns 1 instead of 0
+1. **`test_0_intptr_array_cast`** — Test expects .NET Framework behavior (`int[] is IntPtr[]` == true on 32-bit). Modern .NET (.NET 7+) changed this: `IntPtr[]` is its own type, never compatible with `int[]` or `long[]`. Upstream commit `5a0eb6e93c6` ("[mono] Use correct cast_class for IntPtr[]") already applied in our fork. Verified on desktop .NET: all casts return false. **Test is stale, our result is correct.**
 2. **`test_0_atan_precision`** — ARM atan2 precision edge case
 3. **`test_0_ldflda_null_pointer`** — NullRef in exception-expecting test
 4. **`test_0_begin_end_invoke`** — PlatformNotSupported (correct: .NET removed BeginInvoke)
