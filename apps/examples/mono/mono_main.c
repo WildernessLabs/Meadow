@@ -1341,22 +1341,9 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
 
   g_mono_stage = 5; /* About to open app */
 
-  /* Check if App.dll exists as a standalone exe first (test runner mode),
-   * otherwise fall back to Meadow.dll (normal Meadow app lifecycle). */
+  /* Check if the app assembly exists before trying to execute it */
 
-  char *app_path = MONO_MEADOW_EXECUTABLE_PARTITION_NAME "/App.dll";
-  int probe_fd = open(app_path, O_RDONLY);
-  if (probe_fd >= 0)
-    {
-      close(probe_fd);
-      /* Check if App.dll is an Exe (has entry point) by checking for MZ header.
-       * For now, just try App.dll first — if it fails, monovm returns error. */
-      syslog(LOG_NOTICE, "Found standalone App.dll — executing directly\n");
-    }
-  else
-    {
-      app_path = MONO_MEADOW_EXECUTABLE_APP_EXE;
-    }
+  char *app_path = MONO_MEADOW_EXECUTABLE_APP_EXE;
   syslog(LOG_NOTICE, "Entry assembly: %s\n", app_path);
   int app_fd = open(app_path, O_RDONLY);
   if (app_fd < 0)
