@@ -318,6 +318,19 @@ static int meadow_pinvoke_noop_stub(void)
  ****************************************************************************/
 
 
+/* Direct syslog write for managed code — bypasses HCOM, goes straight to USART1.
+ * Called from managed via [DllImport("System.Native")] SystemNative_SyslogWrite. */
+static void sysn_syslog_write(const void *buffer, int32_t length)
+{
+  if (buffer && length > 0 && length < 1024)
+    {
+      char tmp[1025];
+      memcpy(tmp, buffer, length);
+      tmp[length] = '\0';
+      syslog(LOG_ERR, "%s", tmp);
+    }
+}
+
 /* Console I/O — wraps NuttX POSIX calls */
 
 static int32_t sysn_write(intptr_t fd, const void *buffer, int32_t bufferSize)
@@ -326,6 +339,21 @@ static int32_t sysn_write(intptr_t fd, const void *buffer, int32_t bufferSize)
    * FIFOs are O_NONBLOCK: write returns EAGAIN if the 1KB buffer is full
    * (no CLI client connected, or reader can't keep up).  Retry briefly
    * to give the MonoStdxxx thread time to drain. */
+
+  /* Mirror managed stdout/stderr to syslog so it appears in USART1 console.
+   * Needed for Renode testing where no HCOM CLI client is connected. */
+  if (bufferSize > 0 && bufferSize < 512)
+    {
+      char tmp[513];
+      int len = bufferSize < 512 ? bufferSize : 512;
+      memcpy(tmp, buffer, len);
+      /* Strip trailing newline for syslog */
+      while (len > 0 && (tmp[len-1] == '\n' || tmp[len-1] == '\r'))
+        len--;
+      tmp[len] = '\0';
+      if (len > 0)
+        syslog(LOG_INFO, "[mono] %s\n", tmp);
+    }
 
   ssize_t count;
   int retries = 5;
@@ -539,6 +567,8 @@ extern int64_t SystemNative_GetSystemTimeAsTicks(void);
  ****************************************************************************/
 
 static MonoDlMapping system_native_mappings[] = {
+  /* ---- test syslog (direct USART1 output for Renode) ---- */
+  { "SystemNative_SyslogWrite",               (void *)sysn_syslog_write },
   /* ---- pal_io.c (upstream, from libSystem.Native.a) ---- */
   { "SystemNative_Open",                      (void *)SystemNative_Open },
   { "SystemNative_Close",                     (void *)SystemNative_Close },
@@ -1311,9 +1341,22 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
 
   g_mono_stage = 5; /* About to open app */
 
-  /* Check if the app assembly exists before trying to execute it */
+  /* Check if App.dll exists as a standalone exe first (test runner mode),
+   * otherwise fall back to Meadow.dll (normal Meadow app lifecycle). */
 
-  char *app_path = MONO_MEADOW_EXECUTABLE_APP_EXE;
+  char *app_path = MONO_MEADOW_EXECUTABLE_PARTITION_NAME "/App.dll";
+  int probe_fd = open(app_path, O_RDONLY);
+  if (probe_fd >= 0)
+    {
+      close(probe_fd);
+      /* Check if App.dll is an Exe (has entry point) by checking for MZ header.
+       * For now, just try App.dll first — if it fails, monovm returns error. */
+      syslog(LOG_NOTICE, "Found standalone App.dll — executing directly\n");
+    }
+  else
+    {
+      app_path = MONO_MEADOW_EXECUTABLE_APP_EXE;
+    }
   syslog(LOG_NOTICE, "Entry assembly: %s\n", app_path);
   int app_fd = open(app_path, O_RDONLY);
   if (app_fd < 0)
