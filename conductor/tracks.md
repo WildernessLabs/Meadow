@@ -37,7 +37,7 @@
 *Link: [./tracks/mono-upgrade-08-hw-validation/](./tracks/mono-upgrade-08-hw-validation/)*
 
 ---
-- [x] **Track 09: Mono Tests (Interpreter) — Test Suite Validation** *(735 tests, 713 pass, 97.0%)*
+- [x] **Track 09: Mono Tests (Interpreter) — Test Suite Validation** *(735 tests, 731 pass, 99.5%)*
 *Link: [./tracks/mono-upgrade-09-tests/](./tracks/mono-upgrade-09-tests/)*
 
 ---
