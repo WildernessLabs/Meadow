@@ -2,14 +2,14 @@
 
 ## Status: COMPLETE (2026-03-28)
 
-### Final Results: Phase 4 — Scalar Vtype Fix
+### Final Results: Phase 5 — Revalidation (2026-03-28)
 
-**10 suites, 735 tests, 4 failures — 99.5% pass rate**
+**10 suites, 735 tests, 3 failures — 99.6% pass rate**
 
 | Suite | Tests | Failed | Notes |
 |-------|-------|--------|-------|
 | basic | 134 | 0 | CLEAN |
-| arrays | 36 | 1 | `intptr_array_cast` (wrong result) |
+| arrays | 36 | 0 | CLEAN (`intptr_array_cast` now passes) |
 | basic-calls | 27 | 0 | CLEAN |
 | basic-float | 58 | 0 | CLEAN |
 | basic-long | 97 | 0 | CLEAN |
@@ -19,14 +19,17 @@
 | generics | 78 | 0 | CLEAN |
 | gshared | 87 | 1 | `begin_end_invoke` (PlatformNotSupported, expected) |
 
-**7 CLEAN suites** (basic, calls, float, long, objects, generics, gshared near-clean).
+**8 CLEAN suites** (basic, arrays, calls, float, long, objects, generics).
 
-### Remaining 4 Failures (all known/expected — not actionable)
+### Remaining 3 Failures (all known/expected — not actionable)
 
-1. **`test_0_intptr_array_cast`** — Test expects .NET Framework behavior (`int[] is IntPtr[]` == true on 32-bit). Modern .NET (.NET 7+) changed this: `IntPtr[]` is its own type, never compatible with `int[]` or `long[]`. Upstream commit `5a0eb6e93c6` ("[mono] Use correct cast_class for IntPtr[]") already applied in our fork. Verified on desktop .NET: all casts return false. **Test is stale, our result is correct.**
-2. **`test_0_atan_precision`** — ARM atan2 precision edge case
-3. **`test_0_ldflda_null_pointer`** — NullRef in exception-expecting test
-4. **`test_0_begin_end_invoke`** — PlatformNotSupported (correct: .NET removed BeginInvoke)
+1. **`test_0_atan_precision`** — ARM atan2 precision edge case
+2. **`test_0_ldflda_null_pointer`** — NullRef in exception-expecting test
+3. **`test_0_begin_end_invoke`** — PlatformNotSupported (correct: .NET removed BeginInvoke)
+
+Note: `test_0_intptr_array_cast` previously failed but now passes. The C# compiler (targeting net9.0
+on the build host) likely resolves the `is IntPtr[]` checks at compile time, matching the modern .NET
+semantics where `IntPtr[]` is its own type.
 
 ### Phase 4: ObjectHandleOnStack / Scalar Vtype Fix (2026-03-28)
 
