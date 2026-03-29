@@ -340,20 +340,9 @@ static int32_t sysn_write(intptr_t fd, const void *buffer, int32_t bufferSize)
    * (no CLI client connected, or reader can't keep up).  Retry briefly
    * to give the MonoStdxxx thread time to drain. */
 
-  /* Mirror managed stdout/stderr to syslog so it appears in USART1 console.
-   * Needed for Renode testing where no HCOM CLI client is connected. */
-  if (bufferSize > 0 && bufferSize < 512)
-    {
-      char tmp[513];
-      int len = bufferSize < 512 ? bufferSize : 512;
-      memcpy(tmp, buffer, len);
-      /* Strip trailing newline for syslog */
-      while (len > 0 && (tmp[len-1] == '\n' || tmp[len-1] == '\r'))
-        len--;
-      tmp[len] = '\0';
-      if (len > 0)
-        syslog(LOG_INFO, "[mono] %s\n", tmp);
-    }
+  /* Note: syslog mirroring removed — hcom_logging_syslog has a semaphore leak
+   * that permanently deadlocks syslog when malloc fails. Use SyslogWrite P/Invoke
+   * for direct USART1 output from managed code instead. */
 
   ssize_t count;
   int retries = 5;

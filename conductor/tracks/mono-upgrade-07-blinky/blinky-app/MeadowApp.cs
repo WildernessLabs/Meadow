@@ -1,6 +1,7 @@
-// Blinky — Track 08 Hardware Validation
-// Full Meadow stack: App<F7CoreComputeV2> on real hardware
-// LEDs: PA0=Blue, PA1=Green, PA2=Red (active LOW on CoreCompute)
+// Blinky — Emulator: F7FeatherV2, Hardware: F7CoreComputeV2
+// Change device type below to match target platform.
+// F7FeatherV2: LED on PA2 (active LOW)
+// F7CoreComputeV2: LEDs PA0=Blue, PA1=Green, PA2=Red (active LOW)
 
 using System;
 using System.Threading.Tasks;
@@ -8,18 +9,16 @@ using Meadow;
 using Meadow.Devices;
 using Meadow.Hardware;
 
-public class MeadowApp : App<F7CoreComputeV2>
+public class MeadowApp : App<F7FeatherV2>
 {
-    IDigitalOutputPort ledR, ledG, ledB;
+    IDigitalOutputPort ledR;
 
     public override Task Initialize()
     {
-        Console.WriteLine("BlinkyCS: Initialize (F7CoreComputeV2)");
+        Console.WriteLine("BlinkyCS: Initialize (F7FeatherV2)");
 
-        ledB = Device.CreateDigitalOutputPort(Device.Pins.PA0, false);
-        ledG = Device.CreateDigitalOutputPort(Device.Pins.PA1_ETH_REF_CLK, false);
-        ledR = Device.CreateDigitalOutputPort(Device.Pins.PA2_ETH_MDIO, false);
-        Console.WriteLine("BlinkyCS: LED ports created (R=PA2, G=PA1, B=PA0)");
+        ledR = Device.CreateDigitalOutputPort(Device.Pins.OnboardLedRed, false);
+        Console.WriteLine("BlinkyCS: LED port created (OnboardLedRed = PA2)");
 
         return Task.CompletedTask;
     }
@@ -30,25 +29,12 @@ public class MeadowApp : App<F7CoreComputeV2>
 
         for (int i = 0; i < 10; i++)
         {
-            // Red
             ledR.State = true;
-            Console.WriteLine($"  [{i}] RED");
-            await Task.Delay(300);
+            Console.WriteLine($"  [{i}] LED ON");
+            await Task.Delay(500);
             ledR.State = false;
-
-            // Green
-            ledG.State = true;
-            Console.WriteLine($"  [{i}] GREEN");
-            await Task.Delay(300);
-            ledG.State = false;
-
-            // Blue
-            ledB.State = true;
-            Console.WriteLine($"  [{i}] BLUE");
-            await Task.Delay(300);
-            ledB.State = false;
-
-            await Task.Delay(100);
+            Console.WriteLine($"  [{i}] LED OFF");
+            await Task.Delay(500);
         }
 
         Console.WriteLine("BlinkyCS: Blink complete!");
