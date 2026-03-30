@@ -1125,7 +1125,9 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
 
   setenv("MONO_LOG_LEVEL", "info", 1);
   setenv("MONO_LOG_DEST", "syslog", 1);
-  /* JIT mode: no --interpreter flag; Thumb2 codegen via thumb-codegen.h */
+  /* JIT mode: meadow.config.yaml can override with --interp if needed.
+   * The ARM/Thumb2 JIT codegen bugs (Dictionary OverflowException) are
+   * worked around in AppContext.cs (catch block). */
   setenv("TMPDIR", "/meadow0/Temp", 1);
   setenv("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT", "1", 1);
   /* Use raw resource keys instead of loading .resources files.
@@ -1257,22 +1259,22 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
   /* Set up properties for monovm_initialize */
 
   const char *property_keys[] = {
+    "System.Globalization.Invariant",
+    "System.Resources.UseSystemResourceKeys",
     "TRUSTED_PLATFORM_ASSEMBLIES",
     "APP_PATHS",
     "NATIVE_DLL_SEARCH_DIRECTORIES",
     "PINVOKE_OVERRIDE",
-    "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT",
-    "System.Resources.UseSystemResourceKeys",
     "APP_CONTEXT_BASE_DIRECTORY",
   };
 
   const char *property_values[] = {
+    "true",
+    "true",
     tpa_list,
     MONO_MEADOW_EXECUTABLE_PARTITION_NAME,
     MONO_MEADOW_EXECUTABLE_PARTITION_NAME,
     pinvoke_override_str,
-    "1",
-    "true",
     MONO_MEADOW_EXECUTABLE_PARTITION_NAME "/",
   };
 

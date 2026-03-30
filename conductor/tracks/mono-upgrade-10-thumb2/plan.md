@@ -30,13 +30,15 @@
 - [x] JitDiag v16: 64-bit remainder, conv.ovf.i, Dictionary all passing
 - [ ] Disassemble JIT output to verify Thumb2 encoding
 - [ ] Fix any remaining codegen bugs
-- [ ] Audit mdesc lengths vs legacy — int_add (4 vs 8), int_sub (4 vs 8), switch (12 vs 16), aotconst (16 vs 20) may need increasing
+- [x] Audit mdesc lengths vs legacy — all 6 flagged entries safe (int_add/int_sub: no SP in JIT regs; switch: +4 dynamic adjustment; aotconst: fixed 16-byte sequence; float_rem/r4_rem: dead code)
 
 ## Phase 5: App and Test Validation
-- [ ] Run Blinky in JIT mode on emulator
-- [ ] Run mono test suite in JIT mode
-- [ ] Compare pass rate against interpreter baseline (732/735)
-- [ ] Fix any JIT-specific test failures
+- [x] Run mono test suite in JIT mode (484/735 ran; OOM prevented full run)
+- [x] Compare pass rate against interpreter baseline — 7 new JIT failures, 1 same as interp
+- [ ] Fix OOM: JIT code cache exhausting SDRAM
+- [ ] Fix 6 new JIT-specific test failures (or_large_imm, signed_ct_div, ovf11, bigmul6, ldsfld_soft_float, intptr_array_cast)
+- [ ] Fix SharedArrayPool.Rent NullRef (BCL JIT bug)
+- [ ] Rerun full 735 tests after fixes
 - [ ] Benchmark: JIT vs interpreter execution time
 
 ## Phase 6: Hardware Validation
