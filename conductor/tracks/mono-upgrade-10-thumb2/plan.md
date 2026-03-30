@@ -1,36 +1,41 @@
 # Implementation Plan: Thumb2 JIT
 
 ## Phase 1: Diff Analysis
-- [ ] Diff old `mini-arm.c` (6.9.0 fork) against new `.NET 10 mini-arm.c`
-- [ ] Identify all Thumb2-specific changes in the old fork
+- [x] Diff old `mini-arm.c` (6.9.0 fork) against new `.NET 10 mini-arm.c`
+- [x] Identify all Thumb2-specific changes in the old fork
 - [ ] Diff old `tramp-arm.c` against new
 - [ ] Diff old `exceptions-arm.c` against new
 - [ ] Catalog every change that needs porting (with old/new line references)
 
 ## Phase 2: Codegen Integration
-- [ ] Copy `thumb-codegen.h` and `thumb-offsets.h` to `src/mono/mono/arch/arm/`
-- [ ] Add `#include "thumb-codegen.h"` in appropriate locations
-- [ ] Add `thumb2_supported` boolean to `mini-arm.c`
-- [ ] Wire `thumb2_supported` detection via `mono_hwcap_arm_has_thumb2`
-- [ ] Modify instruction emission to use Thumb2 macros when `thumb2_supported` is true
-- [ ] Update `cpu-arm.mdesc` if new instruction patterns are needed
+- [x] Copy `thumb-codegen.h` and `thumb-offsets.h` to `src/mono/mono/arch/arm/`
+- [x] Add `#include "thumb-codegen.h"` in appropriate locations
+- [x] Add `thumb2_supported` boolean to `mini-arm.c`
+- [x] Wire `thumb2_supported` detection via `mono_hwcap_arm_has_thumb2`
+- [x] Modify instruction emission to use Thumb2 macros when `thumb2_supported` is true
+- [x] Update `cpu-arm.mdesc` — arm_rsc_imm: 4→16, float/r4 comparison lengths increased
+- [x] Fix Thumb2 condition code codegen — ARM_GET_CC for integer comparisons, ARMCOND_AL for float
+- [x] Fix preprocessor guards — `__thumb2__` not `__THUMB__`
 
 ## Phase 3: Trampolines and Exceptions
+- [x] P/Invoke trampolines: per-signature C trampolines via nuttx_m2n_invoke.g.h (done in prior session)
 - [ ] Port Thumb2 SDB trampolines to new `tramp-arm.c`
 - [ ] Port exception handling changes to new `exceptions-arm.c`
 - [ ] Port any `mini-arm-gsharedvt.c` changes
 - [ ] Verify trampoline code emits valid Thumb2
 
 ## Phase 4: Build and Basic Validation
-- [ ] Rebuild `libmonosgen.a` with Thumb2 JIT enabled
-- [ ] Run Hello World in JIT mode (not interpreter)
+- [x] Rebuild `libmonosgen.a` with Thumb2 JIT enabled
+- [x] Run Hello World in JIT mode (not interpreter)
+- [x] JitDiag v16: 64-bit remainder, conv.ovf.i, Dictionary all passing
 - [ ] Disassemble JIT output to verify Thumb2 encoding
-- [ ] Fix any codegen bugs (incorrect encodings, wrong register usage, etc.)
+- [ ] Fix any remaining codegen bugs
+- [ ] Audit mdesc lengths vs legacy — int_add (4 vs 8), int_sub (4 vs 8), switch (12 vs 16), aotconst (16 vs 20) may need increasing
 
 ## Phase 5: App and Test Validation
 - [ ] Run Blinky in JIT mode on emulator
 - [ ] Run mono test suite in JIT mode
-- [ ] Compare pass rate against interpreter baseline
+- [ ] Compare pass rate against interpreter baseline (732/735)
 - [ ] Fix any JIT-specific test failures
 - [ ] Benchmark: JIT vs interpreter execution time
 
