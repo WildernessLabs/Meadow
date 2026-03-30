@@ -41,7 +41,7 @@ class Program
 
         foreach (var suite in suites)
         {
-            Log($"=== Running: {suite.Name} ===");
+            Log("=== Running: " + suite.Name + " ===");
             try
             {
                 var reporter = new TestDriverReporter();
@@ -50,18 +50,18 @@ class Program
                 totalRan += reporter.ExecutedTests;
                 totalFailed += reporter.FailedTests;
                 totalSkipped += reporter.SkippedTests;
-                Log($"--- {suite.Name}: {reporter.ExecutedTests} ran, {reporter.SkippedTests} skipped, {reporter.FailedTests} failed ---");
+                Log("--- " + suite.Name + ": " + reporter.ExecutedTests + " ran, " + reporter.SkippedTests + " skipped, " + reporter.FailedTests + " failed ---");
             }
             catch (Exception ex)
             {
-                Log($"!!! {suite.Name} CRASHED: {ex.GetType().Name}: {ex.Message}");
+                Log("!!! " + suite.Name + " CRASHED: " + ex.GetType().Name + ": " + ex.Message);
                 for (var inner = ex.InnerException; inner != null; inner = inner.InnerException)
-                    Log($"    Inner: {inner.GetType().Name}: {inner.Message}");
+                    Log("    Inner: " + inner.GetType().Name + ": " + inner.Message);
                 totalFailed++;
             }
         }
 
-        Log($"=== TOTAL: {totalRan} ran, {totalSkipped} skipped, {totalFailed} failed ===");
+        Log("=== TOTAL: " + totalRan + " ran, " + totalSkipped + " skipped, " + totalFailed + " failed ===");
         Log("=== Test Runner Complete ===");
     }
 }

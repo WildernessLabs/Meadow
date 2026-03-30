@@ -33,21 +33,60 @@ GetBucketLike(0-10) = all correct
 Dict.Add(0-5) = ALL OK (was IndexOutOfRangeException)
 ```
 
+### 5. mdesc instruction length audit — all clear
+Audited all 6 instructions where .NET 10 has smaller mdesc lengths than legacy Mono:
+
+| Instruction | .NET 10 | Legacy | Verdict |
+|---|---|---|---|
+| `int_add` | 4 | 8 | Safe — JIT allocator never uses SP; worst non-SP path is 4 bytes |
+| `int_sub` | 4 | 8 | Safe — same reasoning |
+| `switch` | 12 | 16 | Safe — `max_len += 4` under `#ifdef __thumb2__` compensates dynamically |
+| `aotconst` | 16 | 20 | Safe — fixed 16-byte sequence (LDR+B+literal+LDR), no variable paths |
+| `float_rem` | 16 | 122 | Dead code — `g_assert_not_reached()`, decomposed to helper call |
+| `r4_rem` | 16 | 122 | Dead code — OP_RREM not even present in mini-arm.c |
+
+### 6. JIT test suite — first run (Phase 5)
+Fixed test runner crash (replaced string interpolation `$"..."` with concatenation to avoid
+`SharedArrayPool<Char>.Rent` NullRef). Ran 484/735 tests (7 complete suites + partial exceptions).
+
+**Results: 484 tests, 8 failures (1 same as interpreter)**
+
+| # | Test | Suite | Got→Expected | Category |
+|---|------|-------|-------------|----------|
+| 1 | `or_large_imm` | basic | 0x10000000→0x10000002 | OR imm encoding |
+| 2 | `or_large_imm2` | basic | 0x10000000→0x10000003 | OR imm encoding |
+| 3 | `signed_ct_div` | basic | 3→0 | Division optimization |
+| 4 | `intptr_array_cast` | arrays | 1→0 | IntPtr[] isinst on 32-bit |
+| 5 | `bigmul6` | basic-long | 0→1 | Unsigned widening mul |
+| 6 | `atan_precision` | basic-math | 1→0 | (same as interp) |
+| 7 | `ldsfld_soft_float` | objects | 1→0 | Static R4 field compare |
+| 8 | `ovf11` | exceptions | 1→0 | Checked decrement false ovf |
+
+**OOM abort** during `test_5_regalloc` in exceptions suite — "Could not allocate 136 bytes".
+JIT code buffers exhaust memory; generics/gshared suites (~250 tests) never ran.
+
+`SharedArrayPool.Rent` NullRef remains — BCL JIT bug affecting string interpolation.
+
 ## What's next
 
-### Immediate (Phase 4 completion)
-1. **Audit remaining mdesc length mismatches** — `int_add` (4 vs legacy 8), `int_sub` (4 vs 8), `switch` (12 vs 16), `aotconst` (16 vs 20) may cause buffer overflows for certain register/immediate combinations
-2. **Remove temporary CCTOR diagnostic logging** from `object.c` (still uncommitted)
-3. **Run Blinky in JIT mode** — swap Meadow.dll back to BlinkyCS, rebuild LFS, test
+### Phase 5 continued: Fix JIT test failures
+1. **OOM**: Investigate JIT code cache memory usage, possibly increase limits or add trimming
+2. **or_large_imm**: Trace ARM rotated immediate → Thumb2 modified immediate encoding path
+3. **signed_ct_div**: Check magic-number division optimization for constants near INT_MAX
+4. **ovf11**: Checked decrement near INT_MIN — false overflow from SUB.S condition codes
+5. **bigmul6**: Unsigned widening multiply (UMULL) codegen
+6. **ldsfld_soft_float**: Static R4 field load/compare path
+7. **intptr_array_cast**: IntPtr[] `isinst` on 32-bit platform
+8. **SharedArrayPool.Rent**: Static initialization or generic JIT bug in BCL
 
-### Phase 5: Test suite in JIT mode
-4. Run the 735 mono tests in JIT mode (baseline: 732/735 pass on interpreter)
-5. Fix JIT-specific failures — likely more Thumb2 instruction length or codegen bugs
+### Phase 4 remaining (lower priority)
+9. **Remove temporary CCTOR diagnostic logging** from `object.c`
+10. Disassemble JIT output to verify Thumb2 encoding
 
 ### Phase 6: Hardware
-6. Flash JIT firmware to physical F7 board and validate
+11. Flash JIT firmware to physical F7 board and validate
 
 ### Known risks
-- **float_rem/r4_rem**: .NET 10 has len:16 vs legacy len:122. If the JIT emits a software FP remainder sequence rather than a helper call, this will overflow badly. Needs investigation.
 - **Trampoline/exception handling**: Not yet ported from legacy. SDB trampolines and exception unwinding may need Thumb2 fixes for debugging support.
 - The `object.c` CCTOR diagnostic is useful for debugging .cctor failures but should be removed or gated before production.
+- **JIT memory pressure**: JIT code buffers + GC heap + SDRAM caching compete for 32MB SDRAM. May need to limit code cache size.
