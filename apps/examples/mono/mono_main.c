@@ -551,9 +551,81 @@ extern void SystemNative_LogError(uint8_t *buffer, int32_t length);
 /* pal_datetime.c */
 extern int64_t SystemNative_GetSystemTimeAsTicks(void);
 
+/* Diagnostic wrapper for SystemNative_GetEnv — logs globalization queries */
+static char *sysn_getenv_diag(const char *variable)
+{
+  char *result = SystemNative_GetEnv(variable);
+  /* Log any GLOBAL/INVARIANT env var lookups to diagnose invariant mode */
+  if (variable && (strstr(variable, "GLOBAL") || strstr(variable, "INVARIANT")))
+    syslog(LOG_ERR, "DIAG GetEnv('%s') = '%s'\n", variable, result ? result : "(null)");
+  return result;
+}
+
 /****************************************************************************
  * System.Native mapping table
  ****************************************************************************/
+
+/****************************************************************************
+ * System.Globalization.Native stubs
+ *
+ * With DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1, most globalization paths
+ * should be skipped. However, some code paths (e.g. CompareInfo.InitSort)
+ * still attempt ICU calls. Provide minimal stubs that return success with
+ * dummy values so the managed code doesn't crash on null handles.
+ ****************************************************************************/
+
+/* Dummy sort handle — just a non-null sentinel */
+static int g_dummy_sort_handle;
+
+static int glob_get_sort_handle(const char *localeName, void **ppSortHandle)
+{
+  syslog(LOG_ERR, "GLOB: GetSortHandle('%s') called — should not happen in invariant mode!\n",
+         localeName ? localeName : "(null)");
+  if (ppSortHandle)
+    *ppSortHandle = NULL;
+  return 3; /* UnknownError */
+}
+
+static void glob_close_sort_handle(void *pSortHandle)
+{
+  /* no-op — dummy handle */
+}
+
+static int glob_load_icu(void)
+{
+  syslog(LOG_ERR, "GLOB: LoadICU called — invariant mode should skip this!\n");
+  /* Return 1 = success to prevent FailFast.
+   * On NuttX we have no ICU, but returning success prevents
+   * Environment.FailFast("Couldn't find a valid ICU package...") */
+  return 1;
+}
+
+/* GetDefaultLocaleName: write empty string (invariant mode). Return length. */
+static int32_t glob_get_default_locale_name(uint16_t *value, int32_t valueLength)
+{
+  if (value && valueLength > 0)
+    value[0] = 0;
+  return 0;
+}
+
+/* GetLocaleName: copy empty string (invariant mode). Return length. */
+static int32_t glob_get_locale_name(const uint16_t *localeName, uint16_t *value,
+                                    int32_t valueLength)
+{
+  (void)localeName;
+  if (value && valueLength > 0)
+    value[0] = 0;
+  return 0;
+}
+
+static MonoDlMapping globalization_native_mappings[] = {
+  { "GlobalizationNative_GetSortHandle",        (void *)glob_get_sort_handle },
+  { "GlobalizationNative_CloseSortHandle",      (void *)glob_close_sort_handle },
+  { "GlobalizationNative_LoadICU",              (void *)glob_load_icu },
+  { "GlobalizationNative_GetDefaultLocaleName", (void *)glob_get_default_locale_name },
+  { "GlobalizationNative_GetLocaleName",        (void *)glob_get_locale_name },
+  { NULL, NULL }
+};
 
 static MonoDlMapping system_native_mappings[] = {
   /* ---- test syslog (direct USART1 output for Renode) ---- */
@@ -761,8 +833,8 @@ static MonoDlMapping system_native_mappings[] = {
   { "SystemNative_GetControlCharacters",      (void *)sysn_get_control_characters },
   { "SystemNative_GetWindowSize",             (void *)sysn_get_window_size },
 
-  /* ---- pal_environment.c (upstream) ---- */
-  { "SystemNative_GetEnv",                    (void *)SystemNative_GetEnv },
+  /* ---- pal_environment.c (upstream, with diag wrapper) ---- */
+  { "SystemNative_GetEnv",                    (void *)sysn_getenv_diag },
   { "SystemNative_GetEnviron",                (void *)SystemNative_GetEnviron },
   { "SystemNative_FreeEnviron",               (void *)SystemNative_FreeEnviron },
 
@@ -838,6 +910,11 @@ static void *meadow_pinvoke_override(const char *libraryName,
     {
       mappings = meadow_mappings;
     }
+  else if (strcmp(libraryName, "System.Globalization.Native") == 0 ||
+           strcmp(libraryName, "libSystem.Globalization.Native") == 0)
+    {
+      mappings = globalization_native_mappings;
+    }
   else if (strcmp(libraryName, "mbedtls") == 0 ||
            strcmp(libraryName, "libmbedtls") == 0)
     {
@@ -872,10 +949,12 @@ static void *meadow_pinvoke_override(const char *libraryName,
    * For other libraries, return NULL (runtime continues default search).
    */
   if (strcmp(libraryName, "System.Native") == 0 ||
-      strcmp(libraryName, "libSystem.Native") == 0)
+      strcmp(libraryName, "libSystem.Native") == 0 ||
+      strcmp(libraryName, "System.Globalization.Native") == 0 ||
+      strcmp(libraryName, "libSystem.Globalization.Native") == 0)
     {
-      syslog(LOG_WARNING, "P/Invoke: System.Native::%s — UNMAPPED, returning noop stub\n",
-             entrypointName);
+      syslog(LOG_WARNING, "P/Invoke: %s::%s — UNMAPPED, returning noop stub\n",
+             libraryName, entrypointName);
       return (void *)meadow_pinvoke_noop_stub;
     }
 
@@ -1046,7 +1125,7 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
 
   setenv("MONO_LOG_LEVEL", "info", 1);
   setenv("MONO_LOG_DEST", "syslog", 1);
-  setenv("MONO_ENV_OPTIONS", "--interpreter", 1);
+  /* JIT mode: no --interpreter flag; Thumb2 codegen via thumb-codegen.h */
   setenv("TMPDIR", "/meadow0/Temp", 1);
   setenv("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT", "1", 1);
   /* Use raw resource keys instead of loading .resources files.
