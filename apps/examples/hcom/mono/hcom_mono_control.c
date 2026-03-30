@@ -467,14 +467,14 @@ bool hcom_mono_ctrl_should_mono_run()
   }
 
   // Did mono run correctly the last time?
+  // NOTE: Bypassed during .NET 10 bringup — GDB/OpenOCD connections
+  // disrupt mono execution which leaves the lockup bit set, creating
+  // a boot loop.  Re-enable once hardware debugging is complete.
   bool run_mono = hcom_mono_ctrl_did_mono_run_last_time();
   if (!run_mono)
   {
-    char *noStartReason = "Runtime will not start, it did not run correctly last time";
-    hcom_logging_syslog(LOG_WARNING, "%s@%d-%s\n", thisFile, __LINE__, noStartReason);
-    hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                     noStartReason, thisFile, __LINE__);
-    return false;
+    hcom_logging_syslog(LOG_WARNING, "%s@%d-Lockup bit was set (cleared). "
+                        "Continuing anyway (.NET 10 bringup)\n", thisFile, __LINE__);
   }
 
   return true;

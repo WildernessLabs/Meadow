@@ -458,7 +458,7 @@ bool hcom_host_send_is_host_xmit_blocked()
     ret = hcom_host_send_open_transmit_connection();
     if(ret < 0)
     {
-      // This is where message are ignored if there's no host 
+      // This is where message are ignored if there's no host
       // PC connected. Can't connect.
       return true;    // Report blocked
     }
@@ -475,7 +475,7 @@ bool hcom_host_send_is_host_xmit_blocked()
     _lastXmitBlocked = false;
     return false;   // Not blocked
   }
-  
+
   // This is where we exit if the host PC exists but CLI (or equal)
   // is not running (i.e. not consuming characters).
   _lastXmitBlocked = true;

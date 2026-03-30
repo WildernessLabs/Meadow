@@ -1119,6 +1119,51 @@ static int cdcacm_setconfig(FAR struct cdcacm_dev_s *priv, uint8_t config)
 
   priv->config = config;
 
+  /* Send initial Serial State notification with DCD and DSR asserted.
+   * macOS AppleUSBACMData driver requires this before it will complete
+   * an open() on the serial port.  Inlined here because
+   * cdcacm_serialstate() is only available with IFLOWCONTROL.
+   */
+
+  {
+    FAR struct cdcacm_wrreq_s *wrcontainer;
+    FAR struct cdc_notification_s *notify;
+    uint8_t sstate = CDCACM_UART_DSR | CDCACM_UART_DCD;
+
+    wrcontainer = (FAR struct cdcacm_wrreq_s *)sq_remfirst(&priv->txfree);
+    if (wrcontainer != NULL)
+      {
+        FAR struct usbdev_req_s *notifyreq = wrcontainer->req;
+
+        priv->nwrq--;
+
+        notify               = (FAR struct cdc_notification_s *)notifyreq->buf;
+        notify->type         = (USB_REQ_DIR_IN | USB_REQ_TYPE_CLASS |
+                                USB_REQ_RECIPIENT_INTERFACE);
+        notify->notification = ACM_SERIAL_STATE;
+        notify->value[0]     = 0;
+        notify->value[1]     = 0;
+        notify->index[0]     = 0;
+        notify->index[1]     = 0;
+        notify->len[0]       = 2;
+        notify->len[1]       = 0;
+        notify->data[0]      = sstate;
+        notify->data[1]      = 0;
+
+        notifyreq->len       = SIZEOF_NOTIFICATION_S(2);
+        notifyreq->priv      = wrcontainer;
+        notifyreq->flags     = USBDEV_REQFLAGS_NULLPKT;
+
+        if (EP_SUBMIT(priv->epintin, notifyreq) < 0)
+          {
+            /* Return the request to the free list on failure */
+
+            sq_addlast((FAR sq_entry_t *)wrcontainer, &priv->txfree);
+            priv->nwrq++;
+          }
+      }
+  }
+
   /* Inform the "upper half" driver that we are "open for business" */
 
 #ifdef CONFIG_SERIAL_REMOVABLE
