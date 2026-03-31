@@ -22,13 +22,13 @@ steps:
   displayName: 'Checkout submodules'
 
 - script: |
-    ./build-mono-bcl.sh --clean --verbose
-  displayName: 'Build the BCL'
+    ./build-mono-bcl.sh --clean --verbose --force
+  displayName: 'Package .NET 10 BCL assemblies'
 
 - task: CopyFiles@2
   inputs:
     contents: |
-      monobcl/libs/bcl/**
+      bcl/*.dll
     targetFolder: "$(Build.ArtifactStagingDirectory)/meadow_assemblies"
     flattenFolders: true
 

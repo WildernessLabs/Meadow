@@ -140,8 +140,42 @@ verifies the modern behavior (IntPtr[] is NOT castable to int[]/long[]).
 | gshared | 85 | 2 | 0 |
 | **TOTAL** | **733** | **2** | **1** |
 
+### 11. Fixed dlmalloc ABORT — NuttX sysconf(_SC_PAGE_SIZE) returns -1
+
+**Root cause**: Mono's internal `dlmalloc` calls `sysconf(_SC_PAGE_SIZE)` to get the page size.
+NuttX's `sysconf()` only handles `_SC_OPEN_MAX` — returns -1 for everything else. Cast to
+`size_t`, this becomes 0xFFFFFFFF which fails dlmalloc's power-of-2 sanity check → `abort()`.
+
+**Why it wasn't hit before**: JIT code allocation uses mmap-based `codechunk_valloc`, not dlmalloc.
+dlmalloc is only used for **dynamic** code managers (trampolines). The `arm64_vtype_stack_args` test
+triggers gsharedvt dynamic trampoline allocation — the first-ever dlmalloc call.
+
+**Fix**: Define `malloc_getpagesize` to `((size_t)4096U)` in `nuttx-compat.h` (force-included in
+all Mono TUs). This bypasses the broken sysconf path. dlmalloc's `#ifndef malloc_getpagesize` guard
+respects the pre-definition.
+
+### 12. Fixed Thumb2 instruction patching for dynamic trampolines
+
+Two related fixes for Thumb2 JIT code patching:
+
+1. **`arm_patch_general` — LDR literal pool**: Dynamic trampolines use `LDR Rd,[PC,#imm]` + `BX Rd`
+   for indirect branches. The existing patcher only handled B/BL/B.W branch instructions. Added
+   recognition of `LDR Rt,[PC,#imm12]` (T2 encoding, hw1=0xF8DF) — patches the literal pool entry
+   instead of the instruction.
+
+2. **`mono_arch_patch_callsite` — Thumb bit misalignment**: `code_ptr` arrives with the Thumb bit
+   set (bit 0=1). The BL check stripped it for `insn` but the BLX check used raw `code_ptr - 2`,
+   reading from an odd address and missing the BLX instruction. Fixed by stripping the Thumb bit
+   from `code_ptr` at the function entry. Also added literal pool patching for BLX reg callsites
+   (looks backward for the preceding LDR.W that loaded the target address).
+
+**Result**: dlmalloc initializes successfully, dynamic trampolines patch correctly. However,
+`arm64_vtype_stack_args` still crashes with a null pointer in the gsharedvt trampoline assembly
+codegen (struct argument marshaling on Thumb2). This is a deeper issue in `tramp-arm-gsharedvt.c`
+that requires GDB to debug. Test remains excluded.
+
 **2 excluded tests** (not bugs):
-- `arm64_vtype_stack_args` — ARM64-only gsharedvt test, N/A on ARM32
+- `arm64_vtype_stack_args` — gsharedvt Thumb2 trampoline crashes on struct stack args (needs GDB debug)
 - `begin_end_invoke` — APM (BeginInvoke/EndInvoke) unsupported in modern .NET
 
 ## What's next
@@ -149,8 +183,14 @@ verifies the modern behavior (IntPtr[] is NOT castable to int[]/long[]).
 ### Remaining test failure
 1. **ldflda_null_pointer**: NullReferenceException — may need null-check trampoline on Thumb2
 
+### Remaining excluded test
+2. **arm64_vtype_stack_args**: Gsharedvt trampoline crash when passing large structs on stack via
+   generic interface. Infrastructure fixed (dlmalloc, patching), but the trampoline assembly codegen
+   in `tramp-arm-gsharedvt.c` has a null pointer issue. Needs GDB stepping through the dynamically
+   generated trampoline at ~0xc1469xxx.
+
 ### Phase 6: Hardware
-2. Flash JIT firmware to physical F7 board and validate
+3. Flash JIT firmware to physical F7 board and validate
 
 ### Known risks
 - **JIT memory pressure**: Card table fix saved 8MB, but JIT code buffers + GC heap still compete for 32MB SDRAM.
