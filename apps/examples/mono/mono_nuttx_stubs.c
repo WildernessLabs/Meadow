@@ -126,16 +126,54 @@ void sdram_cache_register(const char *path, void *data, size_t size)
   e->active = 1;
 }
 
-/* Look up an fd in the SDRAM cache by matching file path.
- * We match by reading /proc/self/fd/N or by pre-storing the fd.
- * Simpler approach: match by file size (unlikely to collide for DLLs).
+/* fd-to-path tracking — allows mmap to identify which file an fd belongs to.
+ * mono_file_map_open() calls open(); we intercept via sdram_cache_track_fd().
  */
 
-static struct sdram_cache_entry *sdram_cache_lookup_by_size(size_t size)
+#define SDRAM_FD_MAP_MAX 32
+
+struct sdram_fd_entry
 {
+  int   fd;
+  char  path[128];
+};
+
+static struct sdram_fd_entry _fd_map[SDRAM_FD_MAP_MAX];
+static int _fd_map_count = 0;
+
+void sdram_cache_track_fd(int fd, const char *path)
+{
+  if (_fd_map_count >= SDRAM_FD_MAP_MAX || fd < 0)
+    return;
+  struct sdram_fd_entry *e = &_fd_map[_fd_map_count++];
+  e->fd = fd;
+  strncpy(e->path, path, sizeof(e->path) - 1);
+  e->path[sizeof(e->path) - 1] = '\0';
+}
+
+/* Look up an fd in the SDRAM cache by matching file path.
+ * First find the path from fd tracking, then match against cached entries.
+ */
+
+static struct sdram_cache_entry *sdram_cache_lookup_by_fd(int fd)
+{
+  /* Find path for this fd */
+  const char *path = NULL;
+  for (int i = 0; i < _fd_map_count; i++)
+    {
+      if (_fd_map[i].fd == fd)
+        {
+          path = _fd_map[i].path;
+          break;
+        }
+    }
+  if (!path)
+    return NULL;
+
+  /* Match by path */
   for (int i = 0; i < _sdram_cache_count; i++)
     {
-      if (_sdram_cache[i].active && _sdram_cache[i].size == size)
+      if (_sdram_cache[i].active && strcmp(_sdram_cache[i].path, path) == 0)
         return &_sdram_cache[i];
     }
   return NULL;
@@ -169,8 +207,8 @@ void *mmap(void *addr, size_t length, int prot, int flags,
     }
   else
     {
-      /* File-backed mapping — check SDRAM cache first */
-      struct sdram_cache_entry *cached = sdram_cache_lookup_by_size(length);
+      /* File-backed mapping — check SDRAM cache first (matched by fd → path) */
+      struct sdram_cache_entry *cached = sdram_cache_lookup_by_fd(fd);
       if (cached && offset + length <= cached->size)
         {
           /* Cache hit: memcpy from SDRAM (fast) */
