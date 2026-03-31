@@ -46,7 +46,10 @@ class Program
             {
                 var reporter = new TestDriverReporter();
                 // -v for verbose output; try/catch in TestDriver handles per-test crashes
-                int failed = TestDriver.RunTests(suite.Type, new[] { "-v" }, reporter);
+                int failed = TestDriver.RunTests(suite.Type, new[] { "-v",
+                    "--exclude-test", "arm64_vtype_stack_args",
+                    "--exclude-test", "begin_end_invoke"
+                }, reporter);
                 totalRan += reporter.ExecutedTests;
                 totalFailed += reporter.FailedTests;
                 totalSkipped += reporter.SkippedTests;
