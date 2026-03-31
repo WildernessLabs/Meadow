@@ -102,16 +102,56 @@ an infinite loop in `mm_addfreechunk`.
 pre-existing failures), 2 skipped. TypeInitializationException handling is no longer a
 production risk.
 
+### 9. Fixed atan_precision — NuttX libm workaround in Mono
+
+**Root cause**: NuttX libm `atan()` computes `asin(x / sqrt(x*x + 1))`, which produces NaN for
+±∞ inputs (∞/∞ = NaN). IEEE 754 requires `atan(±∞) = ±π/2`.
+
+**Fix**: Added `#ifdef HOST_NUTTX` guards in two places in the runtime:
+1. `sysmath.c:ves_icall_System_Math_Atan` — handles runtime icall path
+2. `intrinsics.c` OP_ATAN case — handles JIT constant-folding path (the actual codepath
+   hit by the test, since `Math.Atan(double.NegativeInfinity)` is a compile-time constant)
+
+Both check `isinf(x)` and return `copysign(M_PI_2, x)` before calling NuttX's `atan()`.
+
+**Note**: Fixing NuttX's `lib_atan.c` directly was attempted but makes the user ELF ~72 bytes
+larger, which shifts function addresses and triggers a crash in `test_0_throw_unwind` (likely a
+latent memory/alignment issue in the emulator). The Mono-level fix avoids changing NuttX layout.
+
+### 10. Fixed intptr_array_cast — modern .NET semantics
+
+Updated `test_0_intptr_array_cast` in `arrays.cs`. Modern .NET (commit `5a0eb6e93c6`) intentionally
+changed IntPtr[] to no longer be assignable to int[]/long[] regardless of pointer size. Test now
+verifies the modern behavior (IntPtr[] is NOT castable to int[]/long[]).
+
+## Test results (733 ran, 2 skipped, 1 failed — 99.86% pass)
+
+| Suite | Ran | Skipped | Failed |
+|-------|-----|---------|--------|
+| basic | 134 | 0 | 0 |
+| arrays | 36 | 0 | 0 |
+| basic-calls | 27 | 0 | 0 |
+| basic-float | 58 | 0 | 0 |
+| basic-long | 97 | 0 | 0 |
+| basic-math | 27 | 0 | 0 |
+| objects | 105 | 0 | 0 |
+| exceptions | 86 | 0 | 1 (ldflda_null_pointer — NullRef in emulator) |
+| generics | 78 | 0 | 0 |
+| gshared | 85 | 2 | 0 |
+| **TOTAL** | **733** | **2** | **1** |
+
+**2 excluded tests** (not bugs):
+- `arm64_vtype_stack_args` — ARM64-only gsharedvt test, N/A on ARM32
+- `begin_end_invoke` — APM (BeginInvoke/EndInvoke) unsupported in modern .NET
+
 ## What's next
 
-### Remaining test failures (low priority)
-1. **intptr_array_cast**: IntPtr[] `isinst` on 32-bit platform — runtime issue
-2. **atan_precision**: Math precision — same in interpreter, likely FPU precision difference
-3. **ldflda_null_pointer**: NullReferenceException — may need null-check trampoline on Thumb2
+### Remaining test failure
+1. **ldflda_null_pointer**: NullReferenceException — may need null-check trampoline on Thumb2
 
 ### Phase 6: Hardware
-4. Flash JIT firmware to physical F7 board and validate
+2. Flash JIT firmware to physical F7 board and validate
 
 ### Known risks
 - **JIT memory pressure**: Card table fix saved 8MB, but JIT code buffers + GC heap still compete for 32MB SDRAM.
-- **arm64_vtype_stack_args**: gsharedvt vtype-on-stack passing may have ARM32-specific issues.
+- **NuttX binary layout sensitivity**: `test_0_throw_unwind` crashes if NuttX user ELF layout changes (e.g., adding ~72 bytes to libm). Likely a latent memory/alignment issue. Avoid modifying NuttX libc unless necessary.
