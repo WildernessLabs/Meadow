@@ -250,6 +250,7 @@ typedef struct {
 } MonoDlMapping;
 
 #include "mappings-meadow.h"
+#include "mappings-crypto-native.h"
 
 /****************************************************************************
  * .NET 10 monovm hosting API declarations
@@ -329,6 +330,14 @@ static void sysn_syslog_write(const void *buffer, int32_t length)
       tmp[length] = '\0';
       syslog(LOG_ERR, "%s", tmp);
     }
+}
+
+/* Simple diagnostic marker — takes a single int, no marshaling complexity.
+ * Call from managed: [DllImport("libSystem.Native", EntryPoint = "SystemNative_DiagMark")]
+ *                    static extern void DiagMark(int marker); */
+static void sysn_diag_mark(int32_t marker)
+{
+  syslog(LOG_ERR, "[DIAG] marker=%d\n", marker);
 }
 
 /* Console I/O — wraps NuttX POSIX calls */
@@ -630,6 +639,7 @@ static MonoDlMapping globalization_native_mappings[] = {
 static MonoDlMapping system_native_mappings[] = {
   /* ---- test syslog (direct USART1 output for Renode) ---- */
   { "SystemNative_SyslogWrite",               (void *)sysn_syslog_write },
+  { "SystemNative_DiagMark",                  (void *)sysn_diag_mark },
   /* ---- pal_io.c (upstream, from libSystem.Native.a) ---- */
   { "SystemNative_Open",                      (void *)SystemNative_Open },
   { "SystemNative_Close",                     (void *)SystemNative_Close },
@@ -918,8 +928,12 @@ static void *meadow_pinvoke_override(const char *libraryName,
   else if (strcmp(libraryName, "mbedtls") == 0 ||
            strcmp(libraryName, "libmbedtls") == 0)
     {
-      /* TODO: mbedtls mappings not yet ported (Track 11) */
-      return NULL;
+      mappings = mbedtls_mappings;
+    }
+  else if (strcmp(libraryName, "System.Security.Cryptography.Native.OpenSsl") == 0 ||
+           strcmp(libraryName, "libSystem.Security.Cryptography.Native.OpenSsl") == 0)
+    {
+      mappings = crypto_native_mappings;
     }
 #if defined (CONFIG_EXAMPLES_MEADOW_SQLITE)
   else if (strcmp(libraryName, "sqlite3") == 0 ||
@@ -951,7 +965,9 @@ static void *meadow_pinvoke_override(const char *libraryName,
   if (strcmp(libraryName, "System.Native") == 0 ||
       strcmp(libraryName, "libSystem.Native") == 0 ||
       strcmp(libraryName, "System.Globalization.Native") == 0 ||
-      strcmp(libraryName, "libSystem.Globalization.Native") == 0)
+      strcmp(libraryName, "libSystem.Globalization.Native") == 0 ||
+      strcmp(libraryName, "System.Security.Cryptography.Native.OpenSsl") == 0 ||
+      strcmp(libraryName, "libSystem.Security.Cryptography.Native.OpenSsl") == 0)
     {
       syslog(LOG_WARNING, "P/Invoke: %s::%s — UNMAPPED, returning noop stub\n",
              libraryName, entrypointName);
@@ -1030,6 +1046,7 @@ static char *build_tpa_list(const char *base_path)
 
   rewinddir(dir);
   int first = 1;
+  int pass2_count = 0;
   while ((entry = readdir(dir)) != NULL)
     {
       size_t nlen = strlen(entry->d_name);
@@ -1044,11 +1061,13 @@ static char *build_tpa_list(const char *base_path)
           strcat(tpa, "/");
           strcat(tpa, entry->d_name);
           first = 0;
+          pass2_count++;
         }
     }
 
   closedir(dir);
-  syslog(LOG_INFO, "TPA: Found %d assemblies in '%s'\n", count, base_path);
+  syslog(LOG_ERR, "TPA: Found %d assemblies (pass2: %d) in '%s'\n",
+         count, pass2_count, base_path);
   return tpa;
 }
 
@@ -1438,6 +1457,51 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
       close(app_fd);
 
       g_mono_stage = 7; /* About to execute assembly */
+
+      /* Diagnostic: verify critical assembly files are accessible and check stat modes */
+      {
+        const char *check_files[] = {
+          "/meadow0/Microsoft.Win32.Primitives.dll",
+          "/meadow0/System.Threading.ThreadPool.dll",
+          "/meadow0/System.Console.dll",
+          "/meadow0/System.Runtime.dll",
+          NULL
+        };
+        for (int ci = 0; check_files[ci]; ci++)
+          {
+            struct stat cst;
+            int sr = stat(check_files[ci], &cst);
+            if (sr == 0)
+              {
+                syslog(LOG_ERR,
+                       "FILE CHECK: %s => size=%d, mode=0x%x, S_ISREG=%d\n",
+                       check_files[ci], (int)cst.st_size,
+                       (unsigned)cst.st_mode, S_ISREG(cst.st_mode) ? 1 : 0);
+                /* Dump first 256 bytes to verify file content identity */
+                int dfd = open(check_files[ci], O_RDONLY);
+                if (dfd >= 0) {
+                  uint8_t hdr[256];
+                  ssize_t nr = read(dfd, hdr, sizeof(hdr));
+                  close(dfd);
+                  if (nr > 0) {
+                    /* Find assembly name string - scan for "Microsoft" or "System" after PE header */
+                    syslog(LOG_ERR, "FILE DUMP: %s first 16 bytes: %02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x\n",
+                           check_files[ci],
+                           hdr[0], hdr[1], hdr[2], hdr[3],
+                           hdr[4], hdr[5], hdr[6], hdr[7],
+                           hdr[8], hdr[9], hdr[10], hdr[11],
+                           hdr[12], hdr[13], hdr[14], hdr[15]);
+                  }
+                }
+              }
+            else
+              {
+                syslog(LOG_ERR, "FILE CHECK: %s => stat FAILED (errno=%d)\n",
+                       check_files[ci], get_errno());
+              }
+          }
+      }
+
       syslog(LOG_NOTICE, "Executing assembly: %s\n", app_path);
 
       /* Pass --root so MeadowOS.FindAppType searches for App.dll on disk */

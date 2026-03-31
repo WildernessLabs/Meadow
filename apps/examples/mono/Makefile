@@ -48,7 +48,7 @@ STACKSIZE = $(CONFIG_EXAMPLES_MONO_STACKSIZE)
 
 MONO_DIR = ../../../mono/
 ASRCS =
-CSRCS = symtab.c mono_nuttx_stubs.c
+CSRCS = symtab.c mono_nuttx_stubs.c mono_mbedtls.c pal_ssl_mbedtls.c
 MAINSRC = mono_main.c
 
 # ---------- System.Native PAL headers (library built via CMake) ----------
@@ -60,7 +60,10 @@ RUNTIME_NATIVE = ../../../../runtime/src/native
 PAL_SYSN_DIR   = $(RUNTIME_NATIVE)/libs/System.Native
 PAL_COMMON_DIR = $(RUNTIME_NATIVE)/libs/Common
 
+MBEDTLS_DIR   = $(TOPDIR)/../mbedtls/include
+
 CFLAGS += -I$(PAL_SYSN_DIR) -I$(PAL_COMMON_DIR) -I$(RUNTIME_NATIVE)
+CFLAGS += -I$(MBEDTLS_DIR)
 CFLAGS += -DTARGET_UNIX=1 -D__NuttX__=1
 
 CONFIG_EXAMPLES_MONO_PROGNAME ?= mono$(EXEEXT)
