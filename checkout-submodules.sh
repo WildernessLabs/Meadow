@@ -75,6 +75,24 @@ git submodule
 checkout_submodule "https://bitbucket.org/nuttx/tools.git" "tools"
 checkout_submodule_github "WildernessLabs/mbedtls" "mbedtls"
 
+#
+# Clone the dotnet/runtime fork (sibling directory, not a submodule).
+# The build scripts expect it at ../runtime relative to this repo.
+#
+RUNTIME_REPO="WildernessLabs/runtime"
+RUNTIME_DIR="$scriptdir/../runtime"
+echo "Cloning or updating runtime repo into $RUNTIME_DIR"
+git clone "https://${GITHUB_PERSONAL_ACCESS_TOKEN}@github.com/${RUNTIME_REPO}.git" "$RUNTIME_DIR" 2>/dev/null || git -C "$RUNTIME_DIR" fetch
+# Check out the branch that matches this Meadow branch, or fall back to main
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+if git -C "$RUNTIME_DIR" rev-parse --verify "origin/$CURRENT_BRANCH" &>/dev/null; then
+  git -C "$RUNTIME_DIR" checkout "$CURRENT_BRANCH"
+  git -C "$RUNTIME_DIR" pull origin "$CURRENT_BRANCH"
+else
+  git -C "$RUNTIME_DIR" checkout main
+  git -C "$RUNTIME_DIR" pull origin main
+fi
+
 clean_submodule .
 
 git submodule

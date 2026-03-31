@@ -47,9 +47,7 @@ jobs:
     - task: CopyFiles@2
       inputs:
         contents: |
-          mono/netcore/System.Private.CoreLib/bin/arm/System.Private.CoreLib.dll
-          mono/netcore/System.Private.CoreLib/bin/arm/System.Private.CoreLib.pdb
-          mono/netcore/System.Private.CoreLib/bin/arm/armSystem.Private.CoreLib.xml
+          bcl/System.Private.CoreLib.dll
         targetFolder: "$(Build.ArtifactStagingDirectory)"
         flattenFolders: true
     - task: PublishBuildArtifacts@1

@@ -10,6 +10,17 @@ set_os_name
 check_if_interactive
 
 #
+# Check for required sibling runtime repo
+#
+RUNTIME_DIR="$scriptdir/../runtime"
+if [ ! -d "$RUNTIME_DIR" ]; then
+  printf "${red}WARNING: ../runtime directory not found.${reset}\n"
+  printf "The .NET 10 Mono build requires the dotnet/runtime fork as a sibling directory.\n"
+  printf "Clone it with: git clone <runtime-repo-url> ../runtime\n"
+  printf "The build will fail at the Mono runtime step without it.\n\n"
+fi
+
+#
 # Setup some of the variables used by this script.
 #
 VERBOSE=true
@@ -388,26 +399,18 @@ run_command "make -C $scriptdir/nuttx $MEADOW_ADDITIONAL_MAKE_OPTIONS $MAKE_OPTI
 check_command_status
 
 #
-#   Build .NET 10 Mono runtime (from sibling runtime/ repo via CMake).
+#   Build .NET 10 Mono runtime (via build-mono.sh).
 #   The runtime libraries are linked via Make.defs (MONO_BUILD_DIR).
 #
-RUNTIME_DIR="$scriptdir/../runtime"
-# Always use Debug — Make.defs hardcodes the build-nuttx-debug path.
-# For Release builds, update MONO_BUILD_DIR in Make.defs too.
-MONO_BUILD_TYPE="Debug"
-MONO_LIB_DIR="$RUNTIME_DIR/src/mono/build-nuttx-debug"
-MONO_LIB="$MONO_LIB_DIR/mono/mini/libmonosgen-2.0.a"
+MONO_BUILD_OPTS=""
+if $VERBOSE; then MONO_BUILD_OPTS="$MONO_BUILD_OPTS --verbose"; fi
+if $FORCE;   then MONO_BUILD_OPTS="$MONO_BUILD_OPTS --force"; fi
+if $CLEAN;   then MONO_BUILD_OPTS="$MONO_BUILD_OPTS --clean"; fi
+if $DEBUG;   then MONO_BUILD_OPTS="$MONO_BUILD_OPTS --debug"; fi
 
-if [ ! -f "$MONO_LIB" ] || [ "$FORCE" = true ]; then
-    printf "Building .NET 10 Mono runtime...\n"
-    export NUTTX_INCLUDE_DIR="$scriptdir/nuttx/include"
-    "$RUNTIME_DIR/src/mono/build-nuttx.sh" "$MONO_BUILD_TYPE"
-    if [ $? -ne 0 ]; then
-        exit 1
-    fi
-else
-    printf ".NET 10 Mono runtime already built (use --force to rebuild)\n"
-    printf "  Library: $MONO_LIB\n"
+$scriptdir/build-mono.sh $MONO_BUILD_OPTS
+if [ $? -ne 0 ]; then
+    exit 1
 fi
 
 #
