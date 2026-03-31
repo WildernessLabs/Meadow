@@ -1148,8 +1148,16 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
    * .NET 10 needs more: heavier type system + ThreadPool infrastructure.
    */
   setenv("MONO_GC_PARAMS",
-         "max-heap-size=16m,nursery-size=512k,soft-heap-limit=8m,"
+         "max-heap-size=8m,nursery-size=512k,soft-heap-limit=4m,"
          "major=marksweep", 1);
+
+  /* Also set via direct API — NuttX getenv() may not see setenv() in
+   * protected mode (kernel-managed env vs user-space libc). */
+  {
+    extern void mono_gc_params_set(const char *options);
+    mono_gc_params_set("max-heap-size=8m,nursery-size=512k,"
+                       "soft-heap-limit=4m,major=marksweep");
+  }
 
   /* Pre-load assemblies from LFS (QSPI flash) into SDRAM.
    * QSPI reads are slow; SDRAM access is fast. We read each assembly

@@ -141,6 +141,9 @@ static struct sdram_cache_entry *sdram_cache_lookup_by_size(size_t size)
   return NULL;
 }
 
+static size_t _mmap_total = 0;
+static int _mmap_count = 0;
+
 void *mmap(void *addr, size_t length, int prot, int flags,
            int fd, off_t offset)
 {
@@ -148,6 +151,12 @@ void *mmap(void *addr, size_t length, int prot, int flags,
 
   if (length == 0)
     return MAP_FAILED;
+
+  _mmap_count++;
+  _mmap_total += length;
+  syslog(LOG_ERR, "mmap #%d: %ld bytes (total %ld KB, %s)\n",
+         _mmap_count, (long)length, (long)(_mmap_total / 1024),
+         (flags & MAP_ANONYMOUS) ? "anon" : "file");
 
   /* Allocate page-aligned memory in SDRAM (user heap) */
   if (posix_memalign(&ptr, 4096, length) != 0)
@@ -201,13 +210,11 @@ void *mmap(void *addr, size_t length, int prot, int flags,
 
 int munmap(void *addr, size_t length)
 {
-  /* No-op: Mono's mono_valloc_aligned calls munmap on sub-regions of a
-   * single mmap allocation (prefix/suffix trimming). Real munmap can unmap
-   * partial regions, but our mmap stub uses posix_memalign — free() only
-   * works on the exact pointer returned by memalign, not interior pointers.
-   * Leak the memory for now to let init complete; proper tracking TBD.
-   */
-  (void)addr;
+  /* mono_valloc/mono_vfree now bypass mmap/munmap on NuttX (handled in
+   * mono-mmap.c via memalign/free directly), so the main callers of this
+   * stub are mono_file_map/mono_file_unmap for assembly file mappings.
+   * Those pass the exact pointer from posix_memalign, so free() is safe. */
+  free(addr);
   (void)length;
   return 0;
 }
