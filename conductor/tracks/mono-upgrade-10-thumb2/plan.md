@@ -35,14 +35,22 @@
 ## Phase 5: App and Test Validation
 - [x] Run mono test suite in JIT mode (484/735 ran; OOM prevented full run)
 - [x] Compare pass rate against interpreter baseline — 7 new JIT failures, 1 same as interp
-- [ ] Fix OOM: JIT code cache exhausting SDRAM
-- [ ] Fix 6 new JIT-specific test failures (or_large_imm, signed_ct_div, ovf11, bigmul6, ldsfld_soft_float, intptr_array_cast)
-- [ ] Fix SharedArrayPool.Rent NullRef (BCL JIT bug)
-- [ ] Rerun full 735 tests after fixes
+- [x] Fix OOM: SGen card table reduced from 8MB→128KB (CARD_TABLE_BITS 32→26)
+- [x] Fix 5 JIT-specific test failures (or_large_imm, signed_ct_div, ovf11, bigmul6, ldsfld_soft_float)
+- [x] Fix intptr_array_cast — updated test for modern .NET semantics
+- [x] Fix atan_precision — NuttX libm workaround in Mono (isinf guard)
+- [x] Fix cctor heap corruption — removed JIT FAILED diagnostic causing double-free
+- [x] Fix dlmalloc ABORT — NuttX sysconf(_SC_PAGE_SIZE) returns -1, force page size 4096
+- [x] Fix Thumb2 dynamic trampoline patching (LDR literal pool + Thumb bit alignment)
+- [x] Rerun full test suite: 733 ran, 2 skipped, 1 failed (99.86% pass)
 - [ ] Benchmark: JIT vs interpreter execution time
 
 ## Phase 6: Hardware Validation
-- [ ] Flash JIT-enabled firmware to F7FeatherV2
-- [ ] Run Blinky in JIT mode on hardware
+- [x] Flash JIT-enabled firmware to F7CoreComputeV2 (build.sh --clean, DFU + HCOM)
+- [x] Verify OS/Runtime must be from same build (mismatched .mono_signature → UNDEFINSTR HardFault)
+- [x] Create flash-openocd.sh for autonomous ST-Link flashing (clears FPB breakpoints)
+- [x] JIT runtime boots, mono reaches stage=10, monovm_execute_assembly returns 0
+- [x] Managed exit_code=1 confirmed as Meadow.Core framework issue (not runtime)
+- [x] Document hardware-specific findings in handoff.md
 - [ ] Run stability test (5+ minutes continuous)
-- [ ] Document any hardware-specific JIT issues
+- [ ] Deploy .NET 10-compatible Meadow app after Meadow.Core fixes

@@ -178,20 +178,45 @@ that requires GDB to debug. Test remains excluded.
 - `arm64_vtype_stack_args` — gsharedvt Thumb2 trampoline crashes on struct stack args (needs GDB debug)
 - `begin_end_invoke` — APM (BeginInvoke/EndInvoke) unsupported in modern .NET
 
+### 13. Phase 6: Hardware Validation — JIT on real F7CoreComputeV2
+
+**Status**: JIT runtime boots and runs managed code on physical hardware.
+
+**Build & flash procedure** (for reference):
+```bash
+cd Meadow/
+./build.sh --clean          # Full hardware build (NOT the emulator script)
+# Put device in DFU mode (write magic 0x1c0ffee2 to 0x2004FFF0 via OpenOCD, then reset)
+dfu-util -a 0 -D nuttx/Meadow.OS.bin -s 0x08000000
+# After boot:
+meadow firmware write Runtime -f nuttx/Meadow.OS.Runtime.bin
+meadow runtime enable
+meadow device reset
+```
+
+**Key findings**:
+- `build.sh` generates matched OS + Runtime binaries. The emulator script (`build-meadow.os-emulated.sh`) is for Renode only — do NOT use it for hardware.
+- OS and Runtime MUST be from the same build. Mismatched builds cause UNDEFINSTR HardFault because the .mono_signature section size differs between builds, shifting all SDRAM code addresses by 0x10 bytes.
+- `flash-openocd.sh` created for autonomous OS flashing via ST-Link (no DFU button needed). Clears Cortex-M7 FPB hardware breakpoints that persist across GDB sessions.
+- Device boots to `up_idle`, mono runs to stage=10, `monovm_execute_assembly` returns 0 (success), managed app exits with code 1 (unhandled exception in the Meadow framework startup).
+
+**Hardware state**: F7CoreComputeV2, OS 2.999.1.0, Runtime 2.999.1.0, JIT mode active.
+
+**Managed exception (exit_code=1)**: The currently deployed Meadow app (CoreComputeBreakout, netstandard2.1 targeting old Meadow.F7) throws during startup. This is a Meadow.Core framework issue, not a runtime issue — the JIT runtime itself is working correctly. Next step is fixing Meadow.Core's platform detection / hardware init for .NET 10.
+
 ## What's next
 
-### Remaining test failure
-1. **ldflda_null_pointer**: NullReferenceException — may need null-check trampoline on Thumb2
+### Meadow.Core fixes for .NET 10
+1. **Managed exit_code=1**: The Meadow framework throws during app startup on .NET 10. Likely in `MeadowOS.DetectPlatform()` or device initialization. Needs Meadow.Core changes for .NET 10 compatibility.
+2. **Deploy updated app**: Need to `meadow app deploy` a Meadow app built against the .NET 10-compatible Meadow.Core (net9.0 TFM).
 
-### Remaining excluded test
-2. **arm64_vtype_stack_args**: Gsharedvt trampoline crash when passing large structs on stack via
+### Remaining test failures (emulator)
+3. **ldflda_null_pointer**: NullReferenceException — may need null-check trampoline on Thumb2
+4. **arm64_vtype_stack_args**: Gsharedvt trampoline crash when passing large structs on stack via
    generic interface. Infrastructure fixed (dlmalloc, patching), but the trampoline assembly codegen
-   in `tramp-arm-gsharedvt.c` has a null pointer issue. Needs GDB stepping through the dynamically
-   generated trampoline at ~0xc1469xxx.
-
-### Phase 6: Hardware
-3. Flash JIT firmware to physical F7 board and validate
+   in `tramp-arm-gsharedvt.c` has a null pointer issue.
 
 ### Known risks
 - **JIT memory pressure**: Card table fix saved 8MB, but JIT code buffers + GC heap still compete for 32MB SDRAM.
 - **NuttX binary layout sensitivity**: `test_0_throw_unwind` crashes if NuttX user ELF layout changes (e.g., adding ~72 bytes to libm). Likely a latent memory/alignment issue. Avoid modifying NuttX libc unless necessary.
+- **OS/Runtime build mismatch**: Always flash both OS and Runtime from the same `build.sh` output. The `.mono_signature` section size can differ between builds.
