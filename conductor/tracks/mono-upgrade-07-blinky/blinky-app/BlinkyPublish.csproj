@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>BlinkyPublish</AssemblyName>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
@@ -15,14 +15,14 @@
   <ItemGroup>
     <!-- Reference the pre-built Meadow assemblies as DLL references, NOT project references.
          This avoids propagating PublishTrimmed to multi-targeted source projects. -->
+    <Reference Include="App">
+      <HintPath>bin/Release/net10.0/App.dll</HintPath>
+    </Reference>
     <Reference Include="Meadow">
-      <HintPath>/Users/lexas/Meadow.Core/source/Meadow.Core/bin/Release/net9.0/Meadow.dll</HintPath>
+      <HintPath>/Users/lexas/Meadow.Core/source/Meadow.Core/bin/Release/net10.0/Meadow.dll</HintPath>
     </Reference>
     <Reference Include="Meadow.F7">
-      <HintPath>/Users/lexas/Meadow.Core/source/implementations/f7/Meadow.F7/bin/Release/net9.0/Meadow.F7.dll</HintPath>
-    </Reference>
-    <Reference Include="BlinkyCS">
-      <HintPath>/Users/lexas/Meadow/conductor/tracks/mono-upgrade-07-blinky/blinky-app/bin/Release/net9.0/BlinkyCS.dll</HintPath>
+      <HintPath>/Users/lexas/Meadow.Core/source/implementations/f7/Meadow.F7/bin/Release/net10.0/Meadow.F7.dll</HintPath>
     </Reference>
     <Reference Include="Meadow.Contracts">
       <HintPath>/Users/lexas/Meadow.Contracts/Source/Meadow.Contracts/bin/Release/net9.0/Meadow.Contracts.dll</HintPath>
@@ -37,20 +37,19 @@
       <HintPath>/Users/lexas/Meadow.Foundation/Source/Meadow.Foundation.Libraries_and_Frameworks/Serialization.MicroJson/Driver/bin/Release/net9.0/MicroJson.dll</HintPath>
     </Reference>
     <Reference Include="NetEscapades.Configuration.Yaml">
-      <HintPath>/Users/lexas/Meadow.Core/source/Meadow.Core/bin/Release/net9.0/NetEscapades.Configuration.Yaml.dll</HintPath>
+      <HintPath>/Users/lexas/Meadow.Core/source/Meadow.Core/bin/Release/net10.0/NetEscapades.Configuration.Yaml.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
     <!-- Preserve all types in Meadow assemblies — they use reflection extensively -->
     <TrimmerRootAssembly Include="Meadow" />
     <TrimmerRootAssembly Include="Meadow.F7" />
-    <TrimmerRootAssembly Include="BlinkyCS" />
+    <TrimmerRootAssembly Include="App" />
     <TrimmerRootAssembly Include="Meadow.Contracts" />
     <TrimmerRootAssembly Include="Meadow.Logging" />
     <TrimmerRootAssembly Include="Meadow.Units" />
     <TrimmerRootAssembly Include="MicroJson" />
-    <!-- Framework assemblies used by Meadow.Core via reflection / dynamic dispatch.
-         The trimmer can't trace through pre-built DLL references, so root these explicitly. -->
+    <!-- Framework assemblies used by Meadow.Core via reflection / dynamic dispatch -->
     <TrimmerRootAssembly Include="System.Linq" />
     <TrimmerRootAssembly Include="System.Collections" />
     <TrimmerRootAssembly Include="System.Collections.Concurrent" />

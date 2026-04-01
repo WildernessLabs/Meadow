@@ -1,7 +1,5 @@
-// Blinky — Emulator: F7FeatherV2, Hardware: F7CoreComputeV2
-// Change device type below to match target platform.
-// F7FeatherV2: LED on PA2 (active LOW)
-// F7CoreComputeV2: LEDs PA0=Blue, PA1=Green, PA2=Red (active LOW)
+// Blinky for F7CoreComputeV2
+// PA0 = D20 = Blue LED on dev board (active LOW)
 
 using System;
 using System.Threading.Tasks;
@@ -9,16 +7,16 @@ using Meadow;
 using Meadow.Devices;
 using Meadow.Hardware;
 
-public class MeadowApp : App<F7FeatherV2>
+public class MeadowApp : App<F7CoreComputeV2>
 {
-    IDigitalOutputPort ledR;
+    IDigitalOutputPort led;
 
     public override Task Initialize()
     {
-        Console.WriteLine("BlinkyCS: Initialize (F7FeatherV2)");
+        Console.WriteLine("BlinkyCS: Initialize (F7CoreComputeV2)");
 
-        ledR = Device.CreateDigitalOutputPort(Device.Pins.OnboardLedRed, false);
-        Console.WriteLine("BlinkyCS: LED port created (OnboardLedRed = PA2)");
+        led = Device.CreateDigitalOutputPort(Device.Pins.D20, false);
+        Console.WriteLine("BlinkyCS: LED port created (D20 = PA0)");
 
         return Task.CompletedTask;
     }
@@ -29,10 +27,10 @@ public class MeadowApp : App<F7FeatherV2>
 
         for (int i = 0; i < 10; i++)
         {
-            ledR.State = true;
+            led.State = true;
             Console.WriteLine($"  [{i}] LED ON");
             await Task.Delay(500);
-            ledR.State = false;
+            led.State = false;
             Console.WriteLine($"  [{i}] LED OFF");
             await Task.Delay(500);
         }
