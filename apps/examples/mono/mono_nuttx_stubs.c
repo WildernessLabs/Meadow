@@ -14,6 +14,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/mman.h>
 
 /****************************************************************************
  * Mono native signal/crash handler stubs
@@ -399,13 +400,14 @@ void *lib_get_stream(int fd)
 }
 
 /* up_invalidate_icache — ARM I-cache invalidation for JIT.
- * In NuttX user-space, we may not have direct access to the kernel
- * cache API. Use ARM DSB/ISB instructions directly. */
+ * Uses the NuttX cacheflush() syscall which runs in kernel mode and
+ * writes ICIALLU (Invalidate All I-Cache to PoU) on Cortex-M7.
+ * The previous stub only did DSB+ISB barriers without actually
+ * invalidating the I-cache, causing non-deterministic UNDEFINSTR
+ * HardFaults when JIT code landed in stale I-cache lines. */
 void up_invalidate_icache(unsigned long start, unsigned long end)
 {
-  (void)start;
-  (void)end;
-  __asm__ __volatile__("dsb sy\n\tisb sy\n\t" ::: "memory");
+  cacheflush((const void *)start, end - start, 0 /* CACHE_ICACHE */);
 }
 
 /****************************************************************************
