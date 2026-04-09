@@ -356,17 +356,296 @@ long int lrand48(void)
  * NuttX internal functions needed by mono
  ****************************************************************************/
 
-/* __errno — NuttX user-space errno access.
- * Returns a pointer so Mono can both read and write errno as an lvalue
- * (*__errno() = val). In protected mode, NuttX's actual errno is only
- * accessible via get_errno()/set_errno() syscalls, not as a direct pointer.
- * We use a static variable here; Mono's libc wrappers will sync it
- * with NuttX's errno as needed.
+/* __errno — NuttX user-space errno access for Mono/PAL code.
+ *
+ * The Mono CMake build overrides errno.h so that `errno` expands to
+ * `(*__errno())`, giving Mono an lvalue it can assign to (NuttX protected
+ * mode's `errno` macro is rvalue-only).
+ *
+ * This static is synced FROM the NuttX TCB errno by the --wrap syscall
+ * wrappers below.  When a wrapped POSIX function (socket, read, etc.)
+ * fails, the wrapper calls get_errno() (one SVC) and stores the result
+ * here.  PAL code then reads the correct errno through (*__errno()).
+ *
+ * For PAL-internal "errno = ENOTSUP" assignments (Pattern 1), both
+ * writer and reader go through this static, so they're always consistent.
  */
-static int _mono_errno_val;
+int _mono_errno_val;
 int *__errno(void)
 {
   return &_mono_errno_val;
+}
+
+/* Write-through to NuttX's real errno — called by the override header's
+ * set_errno macro so that `set_errno(X)` propagates to the kernel TCB. */
+void __nuttx_set_errno(int errcode)
+{
+  set_errno(errcode);
+}
+
+/****************************************************************************
+ * Errno-syncing POSIX syscall wrappers (--wrap)
+ *
+ * NuttX protected build: POSIX syscalls (socket, read, etc.) are SVC
+ * traps to the kernel.  On failure, the kernel sets the TCB errno,
+ * but user-space PAL code reads errno through our _mono_errno_val
+ * static (via the errno.h override), which is never updated by the
+ * kernel.
+ *
+ * These wrappers, activated by --wrap=<func> linker flags, intercept
+ * every POSIX syscall that PAL may use.  On error (return < 0), they
+ * do ONE extra SVC (get_errno()) to sync the kernel's TCB errno into
+ * _mono_errno_val.  Successful calls have zero overhead.
+ *
+ * The --wrap flags are defined in apps/examples/mono/Make.defs and
+ * applied in configs/.../kernel/Makefile.
+ ****************************************************************************/
+
+#include <stdio.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/select.h>
+#include <poll.h>
+#include <fcntl.h>
+#include <stdarg.h>
+
+/* Helper: sync errno from kernel TCB into our static on error */
+#define ERRNO_SYNC_ON_ERROR(ret) \
+  do { if ((ret) < 0) { _mono_errno_val = get_errno(); } } while (0)
+
+/* --- Networking --- */
+
+extern int __real_socket(int, int, int);
+int __wrap_socket(int domain, int type, int protocol)
+{
+  int ret = __real_socket(domain, type, protocol);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern int __real_connect(int, const struct sockaddr *, socklen_t);
+int __wrap_connect(int fd, const struct sockaddr *addr, socklen_t len)
+{
+  int ret = __real_connect(fd, addr, len);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern int __real_bind(int, const struct sockaddr *, socklen_t);
+int __wrap_bind(int fd, const struct sockaddr *addr, socklen_t len)
+{
+  int ret = __real_bind(fd, addr, len);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern int __real_listen(int, int);
+int __wrap_listen(int fd, int backlog)
+{
+  int ret = __real_listen(fd, backlog);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern int __real_accept(int, struct sockaddr *, socklen_t *);
+int __wrap_accept(int fd, struct sockaddr *addr, socklen_t *addrlen)
+{
+  int ret = __real_accept(fd, addr, addrlen);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern int __real_getsockopt(int, int, int, void *, socklen_t *);
+int __wrap_getsockopt(int fd, int level, int opt, void *val, socklen_t *len)
+{
+  int ret = __real_getsockopt(fd, level, opt, val, len);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern int __real_setsockopt(int, int, int, const void *, socklen_t);
+int __wrap_setsockopt(int fd, int level, int opt, const void *val, socklen_t len)
+{
+  int ret = __real_setsockopt(fd, level, opt, val, len);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern int __real_getsockname(int, struct sockaddr *, socklen_t *);
+int __wrap_getsockname(int fd, struct sockaddr *addr, socklen_t *len)
+{
+  int ret = __real_getsockname(fd, addr, len);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern int __real_getpeername(int, struct sockaddr *, socklen_t *);
+int __wrap_getpeername(int fd, struct sockaddr *addr, socklen_t *len)
+{
+  int ret = __real_getpeername(fd, addr, len);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern ssize_t __real_send(int, const void *, size_t, int);
+ssize_t __wrap_send(int fd, const void *buf, size_t len, int flags)
+{
+  ssize_t ret = __real_send(fd, buf, len, flags);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern ssize_t __real_sendto(int, const void *, size_t, int,
+                             const struct sockaddr *, socklen_t);
+ssize_t __wrap_sendto(int fd, const void *buf, size_t len, int flags,
+                      const struct sockaddr *addr, socklen_t addrlen)
+{
+  ssize_t ret = __real_sendto(fd, buf, len, flags, addr, addrlen);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern ssize_t __real_recv(int, void *, size_t, int);
+ssize_t __wrap_recv(int fd, void *buf, size_t len, int flags)
+{
+  ssize_t ret = __real_recv(fd, buf, len, flags);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern ssize_t __real_recvfrom(int, void *, size_t, int,
+                               struct sockaddr *, socklen_t *);
+ssize_t __wrap_recvfrom(int fd, void *buf, size_t len, int flags,
+                        struct sockaddr *addr, socklen_t *addrlen)
+{
+  ssize_t ret = __real_recvfrom(fd, buf, len, flags, addr, addrlen);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+/* --- File I/O --- */
+
+extern int __real_close(int);
+int __wrap_close(int fd)
+{
+  int ret = __real_close(fd);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern ssize_t __real_read(int, void *, size_t);
+ssize_t __wrap_read(int fd, void *buf, size_t count)
+{
+  ssize_t ret = __real_read(fd, buf, count);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern ssize_t __real_write(int, const void *, size_t);
+ssize_t __wrap_write(int fd, const void *buf, size_t count)
+{
+  ssize_t ret = __real_write(fd, buf, count);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern off_t __real_lseek(int, off_t, int);
+off_t __wrap_lseek(int fd, off_t offset, int whence)
+{
+  off_t ret = __real_lseek(fd, offset, whence);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern int __real_fstat(int, struct stat *);
+int __wrap_fstat(int fd, struct stat *buf)
+{
+  int ret = __real_fstat(fd, buf);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern int __real_stat(const char *, struct stat *);
+int __wrap_stat(const char *path, struct stat *buf)
+{
+  int ret = __real_stat(path, buf);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern int __real_ftruncate(int, off_t);
+int __wrap_ftruncate(int fd, off_t length)
+{
+  int ret = __real_ftruncate(fd, length);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern int __real_ioctl(int, int, unsigned long);
+int __wrap_ioctl(int fd, int cmd, unsigned long arg)
+{
+  int ret = __real_ioctl(fd, cmd, arg);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern int __real_poll(struct pollfd *, nfds_t, int);
+int __wrap_poll(struct pollfd *fds, nfds_t nfds, int timeout)
+{
+  int ret = __real_poll(fds, nfds, timeout);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern int __real_select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
+int __wrap_select(int nfds, fd_set *rd, fd_set *wr, fd_set *ex,
+                  struct timeval *tv)
+{
+  int ret = __real_select(nfds, rd, wr, ex, tv);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern int __real_pipe2(int[2], size_t);
+int __wrap_pipe2(int pipefd[2], size_t bufsize)
+{
+  int ret = __real_pipe2(pipefd, bufsize);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+/* open and fcntl are variadic — extract first variadic arg and forward */
+
+extern int __real_open(const char *, int, ...);
+int __wrap_open(const char *path, int flags, ...)
+{
+  va_list ap;
+  mode_t mode;
+  int ret;
+
+  va_start(ap, flags);
+  mode = va_arg(ap, mode_t);
+  va_end(ap);
+
+  ret = __real_open(path, flags, mode);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern int __real_fcntl(int, int, ...);
+int __wrap_fcntl(int fd, int cmd, ...)
+{
+  va_list ap;
+  unsigned long arg;
+  int ret;
+
+  va_start(ap, cmd);
+  arg = va_arg(ap, unsigned long);
+  va_end(ap);
+
+  ret = __real_fcntl(fd, cmd, arg);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
 }
 
 /* __assert — NuttX assert handler */
@@ -511,10 +790,9 @@ char *dlerror(void)
  * POSIX file stubs
  ****************************************************************************/
 
-int lstat(const char *path, void *buf)
+int lstat(const char *path, struct stat *buf)
 {
   /* Fall back to stat — NuttX doesn't have symlinks */
-  extern int stat(const char *, void *);
   return stat(path, buf);
 }
 

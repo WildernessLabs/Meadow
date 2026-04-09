@@ -138,8 +138,10 @@ else
   fi
 
   # Copy BCL framework assemblies (DLLs only, skip native/host binaries)
+  # Skip System.Private.CoreLib.dll — already placed from Mono SPCL above
   for dll in "$BCL_DIR"/*.dll; do
     [ -f "$dll" ] || continue
+    [ "$(basename "$dll")" = "System.Private.CoreLib.dll" ] && continue
     cp "$dll" "$OUTPUT_DIR/"
   done
 

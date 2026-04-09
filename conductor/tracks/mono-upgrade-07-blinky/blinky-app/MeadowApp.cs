@@ -1,7 +1,7 @@
-// Blinky for F7CoreComputeV2
-// PA0 = D20 = Blue LED on dev board (active LOW)
-
+// Test 27: Socket create + close with ToFileDescriptor fix
 using System;
+using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 using Meadow;
 using Meadow.Devices;
@@ -13,28 +13,60 @@ public class MeadowApp : App<F7CoreComputeV2>
 
     public override Task Initialize()
     {
-        Console.WriteLine("BlinkyCS: Initialize (F7CoreComputeV2)");
-
+        Console.WriteLine("Init");
         led = Device.CreateDigitalOutputPort(Device.Pins.D20, false);
-        Console.WriteLine("BlinkyCS: LED port created (D20 = PA0)");
-
         return Task.CompletedTask;
     }
 
     public override async Task Run()
     {
-        Console.WriteLine("BlinkyCS: Run — starting blink loop");
+        Console.WriteLine("=== Test 27: Socket create + close ===");
 
-        for (int i = 0; i < 10; i++)
+        Console.WriteLine(">> Creating socket...");
+        Socket s = null;
+        try
         {
-            led.State = true;
-            Console.WriteLine($"  [{i}] LED ON");
-            await Task.Delay(500);
-            led.State = false;
-            Console.WriteLine($"  [{i}] LED OFF");
-            await Task.Delay(500);
+            s = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            Console.WriteLine($"   OK! handle={s.Handle}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"   CREATE THREW: {ex.GetType().Name}: {ex.Message}");
         }
 
-        Console.WriteLine("BlinkyCS: Blink complete!");
+        Console.WriteLine(">> Closing socket...");
+        try
+        {
+            s?.Close();
+            Console.WriteLine("   Close OK!");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"   CLOSE THREW: {ex.GetType().Name}: {ex.Message}");
+        }
+
+        Console.WriteLine(">> Socket lifecycle complete!");
+        Console.WriteLine(">> Creating second socket...");
+        try
+        {
+            using var s2 = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            Console.WriteLine($"   OK! handle={s2.Handle}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"   THREW: {ex.GetType().Name}: {ex.Message}");
+        }
+        Console.WriteLine("   Second socket done (using disposed)");
+
+        Console.WriteLine(">> Entering heartbeat...");
+        int cycle = 0;
+        while (true)
+        {
+            led.State = !led.State;
+            Thread.Sleep(1000);
+            cycle++;
+            if (cycle % 10 == 0)
+                Console.WriteLine($"  [heartbeat {cycle}]");
+        }
     }
 }

@@ -5,8 +5,14 @@
     <AssemblyName>App</AssemblyName>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="/Users/lexas/Meadow.Core/source/implementations/f7/Meadow.F7/Meadow.F7.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="meadow.config.yaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="wifi.config.yaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="dns.conf" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
