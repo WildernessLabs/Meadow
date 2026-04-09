@@ -81,14 +81,19 @@ checkout_submodule_github "WildernessLabs/mbedtls" "mbedtls"
 #
 RUNTIME_REPO="WildernessLabs/runtime"
 RUNTIME_DIR="$scriptdir/../runtime"
+RUNTIME_URL="https://${GITHUB_PERSONAL_ACCESS_TOKEN}@github.com/${RUNTIME_REPO}.git"
 echo "Cloning or updating runtime repo into $RUNTIME_DIR"
-git clone "https://${GITHUB_PERSONAL_ACCESS_TOKEN}@github.com/${RUNTIME_REPO}.git" "$RUNTIME_DIR" 2>/dev/null || git -C "$RUNTIME_DIR" fetch
-# Check out the branch that matches this Meadow branch, or fall back to main
+git clone "$RUNTIME_URL" "$RUNTIME_DIR" 2>/dev/null || git -C "$RUNTIME_DIR" fetch --prune
+
+# Check out the branch that matches this Meadow branch, or fall back to main.
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+git -C "$RUNTIME_DIR" fetch --prune
 if git -C "$RUNTIME_DIR" rev-parse --verify "origin/$CURRENT_BRANCH" &>/dev/null; then
+  echo "Checking out runtime branch '$CURRENT_BRANCH' (matches Meadow)"
   git -C "$RUNTIME_DIR" checkout "$CURRENT_BRANCH"
   git -C "$RUNTIME_DIR" pull origin "$CURRENT_BRANCH"
 else
+  echo "WARNING: Runtime branch '$CURRENT_BRANCH' not found, falling back to main"
   git -C "$RUNTIME_DIR" checkout main
   git -C "$RUNTIME_DIR" pull origin main
 fi
