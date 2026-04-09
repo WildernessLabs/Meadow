@@ -58,6 +58,16 @@ ifeq ($(CONFIG_EXAMPLES_MONO),y)
                $(MBEDTLS_DIR)/library/libmbedtls.a \
                $(MBEDTLS_DIR)/library/libmbedx509.a
 
+  # Errno-syncing wrappers: intercept POSIX syscalls so that on failure,
+  # the kernel's TCB errno is synced into _mono_errno_val (the static
+  # that PAL code reads via the errno.h override).  See mono_nuttx_stubs.c.
+  ERRNO_WRAP_SYMS = socket connect bind listen accept \
+                    getsockopt setsockopt getsockname getpeername \
+                    send sendto recv recvfrom \
+                    close read write open fcntl ioctl lseek \
+                    fstat stat ftruncate poll select pipe2
+  MONO_LDLIBS = $(addprefix --wrap=,$(ERRNO_WRAP_SYMS))
+
   MONO_LIBM=
 else
   MONO_AOBJS =
