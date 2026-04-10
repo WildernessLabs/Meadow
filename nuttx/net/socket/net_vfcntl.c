@@ -116,6 +116,11 @@ int psock_vfcntl(FAR struct socket *psock, int cmd, va_list ap)
          * that refer to the same file.
          */
 
+        {
+          ret = (psock->s_flags & _SF_CLOEXEC) ? FD_CLOEXEC : 0;
+        }
+        break;
+
       case F_SETFD:
         /* Set the file descriptor flags defined in <fcntl.h>, that are associated
          * with fd, to the third argument, arg, taken as type int. If the
@@ -124,8 +129,21 @@ int psock_vfcntl(FAR struct socket *psock, int cmd, va_list ap)
          * successful execution of one  of  the  exec  functions.
          */
 
-         ret = -ENOSYS; /* F_GETFD and F_SETFD not implemented */
-         break;
+        {
+          int fdflags = va_arg(ap, int);
+
+          if (fdflags & FD_CLOEXEC)
+            {
+              psock->s_flags |= _SF_CLOEXEC;
+            }
+          else
+            {
+              psock->s_flags &= ~_SF_CLOEXEC;
+            }
+
+          ret = OK;
+        }
+        break;
 
       case F_GETFL:
         /* Get the file status flags and file access modes, defined in

@@ -80,6 +80,10 @@
 
 #define _O_MAXBIT   8
 
+/* Internal flag to track FD_CLOEXEC in f_oflags (stored above the O_ flags) */
+
+#define OFLAGS_CLOEXEC  (1 << 20)
+
 /* Synonyms historically used as F_SETFL flags (BSD). */
 
 #define FNDELAY     O_NONBLOCK        /* Don't wait for data */

@@ -63,6 +63,7 @@
 #define _SF_SEND            0x03  /* - Waiting for send action to complete */
 #define _SF_MASK            0x03  /* - Mask to isolate the above actions */
 
+#define _SF_CLOEXEC         0x04  /* Bit 2: Close on exec (FD_CLOEXEC via F_SETFD) */
 #define _SF_NONBLOCK        0x08  /* Bit 3: Don't block if no data (TCP/READ only) */
 #define _SF_LISTENING       0x10  /* Bit 4: SOCK_STREAM is listening */
 #define _SF_BOUND           0x20  /* Bit 5: SOCK_STREAM is bound to an address */

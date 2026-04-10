@@ -113,6 +113,11 @@ int file_vfcntl(FAR struct file *filep, int cmd, va_list ap)
          * that refer to the same file.
          */
 
+        {
+          ret = (filep->f_oflags & OFLAGS_CLOEXEC) ? FD_CLOEXEC : 0;
+        }
+        break;
+
       case F_SETFD:
         /* Set the file descriptor flags defined in <fcntl.h>, that are associated
          * with fd, to the third argument, arg, taken as type int. If the
@@ -121,7 +126,20 @@ int file_vfcntl(FAR struct file *filep, int cmd, va_list ap)
          * successful execution of one  of  the  exec  functions.
          */
 
-        ret = -ENOSYS;
+        {
+          int fdflags = va_arg(ap, int);
+
+          if (fdflags & FD_CLOEXEC)
+            {
+              filep->f_oflags |= OFLAGS_CLOEXEC;
+            }
+          else
+            {
+              filep->f_oflags &= ~OFLAGS_CLOEXEC;
+            }
+
+          ret = OK;
+        }
         break;
 
       case F_GETFL:
