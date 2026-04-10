@@ -65,7 +65,8 @@ ifeq ($(CONFIG_EXAMPLES_MONO),y)
                     getsockopt setsockopt getsockname getpeername \
                     send sendto recv recvfrom \
                     close read write open fcntl ioctl lseek \
-                    fstat stat ftruncate poll select pipe2
+                    fstat stat ftruncate poll select pipe2 \
+                    sem_wait sem_trywait sem_timedwait sem_post
   MONO_LDLIBS = $(addprefix --wrap=,$(ERRNO_WRAP_SYMS))
 
   MONO_LIBM=

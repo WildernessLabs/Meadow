@@ -14,6 +14,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <semaphore.h>
 #include <sys/mman.h>
 
 /****************************************************************************
@@ -644,6 +645,40 @@ int __wrap_fcntl(int fd, int cmd, ...)
   va_end(ap);
 
   ret = __real_fcntl(fd, cmd, arg);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+/* --- Semaphores --- */
+
+extern int __real_sem_wait(FAR sem_t *);
+int __wrap_sem_wait(FAR sem_t *sem)
+{
+  int ret = __real_sem_wait(sem);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern int __real_sem_trywait(FAR sem_t *);
+int __wrap_sem_trywait(FAR sem_t *sem)
+{
+  int ret = __real_sem_trywait(sem);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern int __real_sem_timedwait(FAR sem_t *, FAR const struct timespec *);
+int __wrap_sem_timedwait(FAR sem_t *sem, FAR const struct timespec *abstime)
+{
+  int ret = __real_sem_timedwait(sem, abstime);
+  ERRNO_SYNC_ON_ERROR(ret);
+  return ret;
+}
+
+extern int __real_sem_post(FAR sem_t *);
+int __wrap_sem_post(FAR sem_t *sem)
+{
+  int ret = __real_sem_post(sem);
   ERRNO_SYNC_ON_ERROR(ret);
   return ret;
 }
