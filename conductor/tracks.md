@@ -41,15 +41,19 @@
 *Link: [./tracks/mono-upgrade-09-tests/](./tracks/mono-upgrade-09-tests/)*
 
 ---
-- [ ] **Track 10: Thumb2 JIT — Port JIT Backend to .NET 10 Mono**
+- [x] **Track 10: Thumb2 JIT — Port JIT Backend to .NET 10 Mono** *(complete)*
 *Link: [./tracks/mono-upgrade-10-thumb2/](./tracks/mono-upgrade-10-thumb2/)*
 
 ---
-- [ ] **Track 11: TLS / Networking — Mbed TLS Integration**
+- [x] **Track 11: TLS / Networking — Mbed TLS Integration** *(complete)*
 *Link: [./tracks/mono-upgrade-11-tls/](./tracks/mono-upgrade-11-tls/)*
 
 ---
-- [ ] **Track 12: AOT Compilation — Ahead-of-Time via LLVM**
+- [x] **Track 12: WiFi + TCP/HTTP Networking — Full Stack Validation** *(complete)*
+*DNS, sync/async sockets, HttpClient HTTP/1.0 — all passing on F7CoreComputeV2 hardware*
+
+---
+- [ ] **Track 13: AOT Compilation — Ahead-of-Time via LLVM**
 *Link: [./tracks/mono-upgrade-12-aot/](./tracks/mono-upgrade-12-aot/)*
 
 ---
