@@ -812,9 +812,10 @@ void *CryptoNative_SslSessionGetData(void *session)
 
 const char *CryptoNative_GetOpenSslCipherSuiteName(void *ssl, int32_t suite, int32_t *isTls12)
 {
-    (void)ssl; (void)suite;
-    if (isTls12) *isTls12 = 1;
-    return "TLS_RSA_WITH_AES_128_GCM_SHA256";
+    (void)ssl;
+    if (isTls12) *isTls12 = 1;  /* we only support TLS 1.2 */
+    const char *name = mbedtls_ssl_get_ciphersuite_name(suite);
+    return name ? name : "UNKNOWN";
 }
 
 int32_t CryptoNative_GetDefaultSignatureAlgorithms(uint16_t *buffer, int32_t *count)

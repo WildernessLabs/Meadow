@@ -297,19 +297,6 @@ bool mono_should_run = true;
  * the corresponding handler. Meadow.Core always opens with flags=0.
  */
 
-/****************************************************************************
- * Name: meadow_pinvoke_noop_stub
- *
- * Description:
- *   Fallback for unmapped P/Invoke functions. Logs a warning and returns 0.
- *   Any function hitting this stub should be added to the mapping table
- *   with a real implementation or an explicit NuttX stub.
- ****************************************************************************/
-
-static int meadow_pinvoke_noop_stub(void)
-{
-  return 0;
-}
 
 /****************************************************************************
  * System.Native P/Invoke implementations
@@ -946,7 +933,7 @@ static void *meadow_pinvoke_override(const char *libraryName,
 #endif
   else
     {
-      syslog(LOG_WARNING, "P/Invoke: unknown library '%s' (looking for '%s')\n",
+      printf("P/Invoke: unknown library '%s' (looking for '%s')\n",
              libraryName, entrypointName);
       return NULL;
     }
@@ -959,23 +946,7 @@ static void *meadow_pinvoke_override(const char *libraryName,
         }
     }
 
-  /* For System.Native, return no-op stub for unmapped functions so the
-   * runtime can limp along while we discover all needed functions.
-   * For other libraries, return NULL (runtime continues default search).
-   */
-  if (strcmp(libraryName, "System.Native") == 0 ||
-      strcmp(libraryName, "libSystem.Native") == 0 ||
-      strcmp(libraryName, "System.Globalization.Native") == 0 ||
-      strcmp(libraryName, "libSystem.Globalization.Native") == 0 ||
-      strcmp(libraryName, "System.Security.Cryptography.Native.OpenSsl") == 0 ||
-      strcmp(libraryName, "libSystem.Security.Cryptography.Native.OpenSsl") == 0)
-    {
-      syslog(LOG_WARNING, "P/Invoke: %s::%s — UNMAPPED, returning noop stub\n",
-             libraryName, entrypointName);
-      return (void *)meadow_pinvoke_noop_stub;
-    }
-
-  syslog(LOG_WARNING, "P/Invoke: '%s!%s' not found in mapping table\n",
+  printf("P/Invoke: %s::%s — NOT FOUND (will throw EntryPointNotFoundException)\n",
          libraryName, entrypointName);
   return NULL;
 }
