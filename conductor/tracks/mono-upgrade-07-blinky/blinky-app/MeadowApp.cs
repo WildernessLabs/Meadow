@@ -95,16 +95,14 @@ public class MeadowApp : App<F7CoreComputeV2>
             }
         }
 
-        // Test 4: HttpClient COLD (first request — JIT warmup)
+        // Test 4: HttpClient COLD (first request — JIT warmup, HTTP/1.1)
         Console.WriteLine("=== TEST 4: HTTP GET (cold) ===");
         try
         {
             var sw = Stopwatch.StartNew();
             using var client = new HttpClient();
             client.Timeout = TimeSpan.FromSeconds(60);
-            var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com");
-            request.Version = new Version(1, 0);
-            var response = await client.SendAsync(request);
+            var response = await client.GetAsync("http://example.com");
             var body = await response.Content.ReadAsStringAsync();
             sw.Stop();
             Console.WriteLine($"HTTP COLD OK: {(int)response.StatusCode} {response.ReasonPhrase}, {body.Length} chars in {sw.ElapsedMilliseconds}ms");
@@ -116,16 +114,14 @@ public class MeadowApp : App<F7CoreComputeV2>
                 Console.WriteLine($"  Inner: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
         }
 
-        // Test 5: HttpClient WARM (second request — JIT already done)
+        // Test 5: HttpClient WARM (second request — JIT already done, HTTP/1.1)
         Console.WriteLine("=== TEST 5: HTTP GET (warm) ===");
         try
         {
             var sw = Stopwatch.StartNew();
             using var client = new HttpClient();
             client.Timeout = TimeSpan.FromSeconds(30);
-            var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com");
-            request.Version = new Version(1, 0);
-            var response = await client.SendAsync(request);
+            var response = await client.GetAsync("http://example.com");
             var body = await response.Content.ReadAsStringAsync();
             sw.Stop();
             Console.WriteLine($"HTTP WARM OK: {(int)response.StatusCode} {response.ReasonPhrase}, {body.Length} chars in {sw.ElapsedMilliseconds}ms");
@@ -137,7 +133,7 @@ public class MeadowApp : App<F7CoreComputeV2>
                 Console.WriteLine($"  Inner: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
         }
 
-        // Test 6: HTTPS GET (TLS via mbedtls, VERIFY_REQUIRED)
+        // Test 6: HTTPS GET (TLS via mbedtls, VERIFY_REQUIRED, HTTP/1.1)
         // Note: cert validation callback needed because SslGetPeerCertificate returns NULL
         // (X509 conversion not yet implemented). Native mbedTLS still verifies the chain.
         Console.WriteLine("=== TEST 6: HTTPS GET ===");
@@ -148,9 +144,7 @@ public class MeadowApp : App<F7CoreComputeV2>
             handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
             using var client = new HttpClient(handler);
             client.Timeout = TimeSpan.FromSeconds(60);
-            var request = new HttpRequestMessage(HttpMethod.Get, "https://httpbin.org/get");
-            request.Version = new Version(1, 0);
-            var response = await client.SendAsync(request);
+            var response = await client.GetAsync("https://httpbin.org/get");
             var body = await response.Content.ReadAsStringAsync();
             sw.Stop();
             Console.WriteLine($"HTTPS OK: {(int)response.StatusCode} {response.ReasonPhrase}, {body.Length} chars in {sw.ElapsedMilliseconds}ms");
