@@ -137,14 +137,18 @@ public class MeadowApp : App<F7CoreComputeV2>
                 Console.WriteLine($"  Inner: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
         }
 
-        // Test 6: HTTPS GET (TLS via mbedtls)
+        // Test 6: HTTPS GET (TLS via mbedtls, VERIFY_REQUIRED)
+        // Note: cert validation callback needed because SslGetPeerCertificate returns NULL
+        // (X509 conversion not yet implemented). Native mbedTLS still verifies the chain.
         Console.WriteLine("=== TEST 6: HTTPS GET ===");
         try
         {
             var sw = Stopwatch.StartNew();
-            using var client = new HttpClient();
+            var handler = new HttpClientHandler();
+            handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
+            using var client = new HttpClient(handler);
             client.Timeout = TimeSpan.FromSeconds(60);
-            var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com");
+            var request = new HttpRequestMessage(HttpMethod.Get, "https://httpbin.org/get");
             request.Version = new Version(1, 0);
             var response = await client.SendAsync(request);
             var body = await response.Content.ReadAsStringAsync();

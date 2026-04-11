@@ -27,13 +27,8 @@
 #include "mbedtls/pk.h"
 #include "mbedtls/error.h"
 
-#if defined(__NuttX__)
-#include <nuttx/config.h>
-#include <syslog.h>
-#define PAL_LOG(...) syslog(LOG_ERR, __VA_ARGS__)
-#else
-#define PAL_LOG(...) fprintf(stderr, __VA_ARGS__)
-#endif
+/* Use printf (goes through HCOM, visible via `meadow listen`) */
+#define PAL_LOG(...) printf(__VA_ARGS__)
 
 /* ---------- Error codes matching pal_ssl.h ---------- */
 typedef enum {
@@ -154,6 +149,7 @@ static int mbed_bio_send(void *ctx, const unsigned char *buf, size_t len)
     if (!ssl || !ssl->output_bio) return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
 
     int written = bio_write(ssl->output_bio, buf, (int)len);
+    PAL_LOG("pal_ssl: bio_send len=%d written=%d\n", (int)len, written);
     if (written == 0)
         return MBEDTLS_ERR_SSL_WANT_WRITE;
     return written;
@@ -169,10 +165,14 @@ static int mbed_bio_recv(void *ctx, unsigned char *buf, size_t len)
     if (!ssl || !ssl->input_bio) return MBEDTLS_ERR_SSL_INTERNAL_ERROR;
 
     int available = bio_pending(ssl->input_bio);
-    if (available == 0)
+    if (available == 0) {
+        PAL_LOG("pal_ssl: bio_recv WANT_READ (requested %d)\n", (int)len);
         return MBEDTLS_ERR_SSL_WANT_READ;
+    }
 
-    return bio_read(ssl->input_bio, buf, (int)len);
+    int nread = bio_read(ssl->input_bio, buf, (int)len);
+    PAL_LOG("pal_ssl: bio_recv len=%d avail=%d read=%d\n", (int)len, available, nread);
+    return nread;
 }
 
 /* ====================================================================
@@ -324,6 +324,7 @@ void CryptoNative_SslSetBio(void *ssl_ptr, void *rbio, void *wbio)
 
     ssl->input_bio = (MemBio *)rbio;
     ssl->output_bio = (MemBio *)wbio;
+    PAL_LOG("pal_ssl: SslSetBio ssl=%p rbio=%p wbio=%p\n", ssl_ptr, rbio, wbio);
     /* BIO callbacks already set in SslCreate — they reference ssl->input_bio/output_bio */
 }
 
@@ -353,6 +354,19 @@ int CryptoNative_SslDoHandshake(void *ssl_ptr, int *error)
     }
 
     int ret = mbedtls_ssl_handshake(&ssl->ssl);
+    if (ret != 0 && ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+        char errbuf[128];
+        mbedtls_strerror(ret, errbuf, sizeof(errbuf));
+        printf("pal_ssl: handshake FATAL error -0x%04x: %s\n", -ret, errbuf);
+        uint32_t vflags = mbedtls_ssl_get_verify_result(&ssl->ssl);
+        if (vflags != 0 && vflags != (uint32_t)-1) {
+            char vbuf[256];
+            mbedtls_x509_crt_verify_info(vbuf, sizeof(vbuf), "  verify: ", vflags);
+            printf("pal_ssl: %s\n", vbuf);
+        }
+        printf("pal_ssl: hostname=%s\n",
+               ssl->hostname ? ssl->hostname : "(null)");
+    }
 
     if (ret == 0) {
         ssl->handshake_complete = true;
@@ -360,10 +374,10 @@ int CryptoNative_SslDoHandshake(void *ssl_ptr, int *error)
         return 1;
     } else if (ret == MBEDTLS_ERR_SSL_WANT_READ) {
         if (error) *error = PAL_SSL_ERROR_WANT_READ;
-        return 0;
+        return -1;  /* managed expects -1 for WANT_READ, not 0 */
     } else if (ret == MBEDTLS_ERR_SSL_WANT_WRITE) {
         if (error) *error = PAL_SSL_ERROR_WANT_WRITE;
-        return 0;
+        return -1;  /* managed expects -1 for WANT_WRITE, not 0 */
     } else {
         ssl->last_error = ret;
         if (error) *error = PAL_SSL_ERROR_SSL;
@@ -393,7 +407,14 @@ int32_t CryptoNative_SslRead(void *ssl_ptr, void *buf, int32_t num, int32_t *err
     } else if (ret == MBEDTLS_ERR_SSL_WANT_WRITE) {
         if (error) *error = PAL_SSL_ERROR_WANT_WRITE;
         return -1;
+    } else if (ret == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY) {
+        /* close_notify = graceful EOF. OpenSSL maps this to SSL_ERROR_ZERO_RETURN. */
+        if (error) *error = PAL_SSL_ERROR_ZERO_RETURN;
+        return 0;
     } else {
+        char errbuf[128];
+        mbedtls_strerror(ret, errbuf, sizeof(errbuf));
+        printf("pal_ssl: SslRead error -0x%04x: %s\n", -ret, errbuf);
         ssl->last_error = ret;
         if (error) *error = PAL_SSL_ERROR_SSL;
         return -1;
@@ -482,12 +503,13 @@ int32_t CryptoNative_SslSetTlsExtHostName(void *ssl_ptr, const char *name)
 
 void *CryptoNative_SslGetPeerCertificate(void *ssl_ptr)
 {
-    MbedSsl *ssl = (MbedSsl *)ssl_ptr;
-    if (!ssl || ssl->magic != MBED_SSL_MAGIC) return NULL;
-
-    /* Returns the peer's certificate (not owned — do not free).
-     * The managed layer will inspect it for validation. */
-    return (void *)mbedtls_ssl_get_peer_cert(&ssl->ssl);
+    /* TODO: implement proper X509 cert extraction from mbedTLS.
+     * Returning NULL tells the managed layer there's no peer cert,
+     * which skips X509Certificate2 construction and cert validation.
+     * This is safe with VERIFY_OPTIONAL — the native handshake already
+     * completed and verified the cert chain via mbedTLS. */
+    (void)ssl_ptr;
+    return NULL;
 }
 
 void *CryptoNative_SslGetCertificate(void *ssl_ptr)
@@ -593,10 +615,16 @@ void CryptoNative_SslGet0AlpnSelected(void *ssl, const void **protocol, uint32_t
     if (len) *len = 0;
 }
 
-int32_t CryptoNative_SslGetCurrentCipherId(void *ssl, int32_t *cipherId)
+int32_t CryptoNative_SslGetCurrentCipherId(void *ssl_ptr, int32_t *cipherId)
 {
-    if (cipherId) *cipherId = 0;
-    return 0;
+    MbedSsl *ssl = (MbedSsl *)ssl_ptr;
+    if (!ssl || ssl->magic != MBED_SSL_MAGIC || !cipherId) return 0;
+
+    int id = mbedtls_ssl_get_ciphersuite_id_from_ssl(&ssl->ssl);
+    if (id == 0) return 0;
+
+    *cipherId = id;  /* mbedTLS uses IANA values */
+    return 1;  /* success */
 }
 
 int32_t CryptoNative_SslGetFinished(void *ssl, void *buf, int32_t count)

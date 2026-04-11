@@ -90,7 +90,7 @@ mbedtls_x509_crt cacert;
 #define DEBUG_INFO          3
 #define DEBUG_VERBOSE       4
 
-#define DEBUG_THRESHOLD     NO_DEBUG
+#define DEBUG_THRESHOLD     DEBUG_ERROR
 
 #if DEBUG_THRESHOLD > NO_DEBUG
     #define MBEDTLS_PRINTF(...) do { printf(__VA_ARGS__); } while (0)
@@ -137,8 +137,6 @@ static int dev_random_entropy_poll(void *data, unsigned char *output,
  */
 int mono_mbedtls_init(void)
 {
-    mono_mbedtls_initialized = true;
-
     int ret;
     mbedtls_ssl_config_init(&conf);
     mbedtls_debug_set_threshold(DEBUG_THRESHOLD);
@@ -230,9 +228,12 @@ int mono_mbedtls_init(void)
         MBEDTLS_PRINTF(" failed\n  ! mbedtls_ctr_drbg_seed returned %d\n", ret);
         goto error;
     }
+    mono_mbedtls_initialized = true;
+    printf("mono_mbedtls_init: OK (root CAs loaded, RNG seeded)\n");
     return 0;
 
 error:
+    printf("mono_mbedtls_init: FAILED ret=-0x%04x\n", (unsigned)-ret);
     if (pkey) {
         mbedtls_pk_free(pkey);
         free(pkey);
