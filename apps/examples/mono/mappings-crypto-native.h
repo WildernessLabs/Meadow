@@ -88,6 +88,7 @@ extern void *CryptoNative_SslSessionGetData(void *session);
 
 /* === Init / Info === */
 extern void  CryptoNative_EnsureLibSslInitialized(void);
+static int   CryptoNative_EnsureOpenSslInitialized(void) { CryptoNative_EnsureLibSslInitialized(); return 0; }
 extern const char *CryptoNative_GetOpenSslCipherSuiteName(void *ssl, int32_t suite, int32_t *isTls12);
 extern int32_t CryptoNative_GetDefaultSignatureAlgorithms(uint16_t *buffer, int32_t *count);
 extern int32_t CryptoNative_OpenSslGetProtocolSupport(int protocol);
@@ -98,15 +99,6 @@ extern uint64_t CryptoNative_ErrPeekLastError(void);
 extern uint64_t CryptoNative_ErrGetErrorAlloc(void **msg);
 extern void     CryptoNative_ErrClearError(void);
 extern const char *CryptoNative_ErrReasonErrorString(uint64_t err);
-
-/* === Legacy mono_mbedtls_* functions (DllImport("mbedtls")) === */
-extern int      mono_mbedtls_init(void);
-extern intptr_t mono_mbedtls_connect(intptr_t fd, intptr_t readbuf, intptr_t writebuf, char *hostname);
-extern int      mono_mbedtls_read(void *ctx, int length);
-extern int      mono_mbedtls_write(void *ctx, int length);
-extern void     mono_mbedtls_close(void *ctx);
-extern int      mono_mbedtls_handshake(void *ctx);
-extern int      mono_mbedtls_set_server_cert_authmode(int authmode);
 
 /* ---------- Mapping table: CryptoNative ---------- */
 
@@ -189,6 +181,7 @@ static MonoDlMapping crypto_native_mappings[] = {
     {"CryptoNative_SslSessionGetData",       CryptoNative_SslSessionGetData},
     /* Init/Info */
     {"CryptoNative_EnsureLibSslInitialized", CryptoNative_EnsureLibSslInitialized},
+    {"CryptoNative_EnsureOpenSslInitialized", CryptoNative_EnsureOpenSslInitialized},
     {"CryptoNative_GetOpenSslCipherSuiteName", CryptoNative_GetOpenSslCipherSuiteName},
     {"CryptoNative_GetDefaultSignatureAlgorithms", CryptoNative_GetDefaultSignatureAlgorithms},
     {"CryptoNative_OpenSslGetProtocolSupport", CryptoNative_OpenSslGetProtocolSupport},
@@ -201,15 +194,3 @@ static MonoDlMapping crypto_native_mappings[] = {
     {NULL, NULL}
 };
 
-/* ---------- Mapping table: Legacy mbedtls (DllImport("mbedtls")) ---------- */
-
-static MonoDlMapping mbedtls_mappings[] = {
-    {"mono_mbedtls_init",                    mono_mbedtls_init},
-    {"mono_mbedtls_connect",                 mono_mbedtls_connect},
-    {"mono_mbedtls_read",                    mono_mbedtls_read},
-    {"mono_mbedtls_write",                   mono_mbedtls_write},
-    {"mono_mbedtls_close",                   mono_mbedtls_close},
-    {"mono_mbedtls_handshake",               mono_mbedtls_handshake},
-    {"mono_mbedtls_set_server_cert_authmode", mono_mbedtls_set_server_cert_authmode},
-    {NULL, NULL}
-};
