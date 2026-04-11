@@ -319,13 +319,6 @@ static void sysn_syslog_write(const void *buffer, int32_t length)
     }
 }
 
-/* Simple diagnostic marker — takes a single int, no marshaling complexity.
- * Call from managed: [DllImport("libSystem.Native", EntryPoint = "SystemNative_DiagMark")]
- *                    static extern void DiagMark(int marker); */
-static void sysn_diag_mark(int32_t marker)
-{
-  syslog(LOG_ERR, "[DIAG] marker=%d\n", marker);
-}
 
 /* Console I/O — wraps NuttX POSIX calls */
 
@@ -547,15 +540,6 @@ extern void SystemNative_LogError(uint8_t *buffer, int32_t length);
 /* pal_datetime.c */
 extern int64_t SystemNative_GetSystemTimeAsTicks(void);
 
-/* Diagnostic wrapper for SystemNative_GetEnv — logs globalization queries */
-static char *sysn_getenv_diag(const char *variable)
-{
-  char *result = SystemNative_GetEnv(variable);
-  /* Log any GLOBAL/INVARIANT env var lookups to diagnose invariant mode */
-  if (variable && (strstr(variable, "GLOBAL") || strstr(variable, "INVARIANT")))
-    syslog(LOG_ERR, "DIAG GetEnv('%s') = '%s'\n", variable, result ? result : "(null)");
-  return result;
-}
 
 
 /****************************************************************************
@@ -627,7 +611,6 @@ static MonoDlMapping globalization_native_mappings[] = {
 static MonoDlMapping system_native_mappings[] = {
   /* ---- test syslog (direct USART1 output for Renode) ---- */
   { "SystemNative_SyslogWrite",               (void *)sysn_syslog_write },
-  { "SystemNative_DiagMark",                  (void *)sysn_diag_mark },
   /* ---- pal_io.c (upstream, from libSystem.Native.a) ---- */
   { "SystemNative_Open",                      (void *)SystemNative_Open },
   { "SystemNative_Close",                     (void *)SystemNative_Close },
@@ -832,7 +815,7 @@ static MonoDlMapping system_native_mappings[] = {
   { "SystemNative_GetWindowSize",             (void *)sysn_get_window_size },
 
   /* ---- pal_environment.c (upstream, with diag wrapper) ---- */
-  { "SystemNative_GetEnv",                    (void *)sysn_getenv_diag },
+  { "SystemNative_GetEnv",                    (void *)SystemNative_GetEnv },
   { "SystemNative_GetEnviron",                (void *)SystemNative_GetEnviron },
   { "SystemNative_FreeEnviron",               (void *)SystemNative_FreeEnviron },
 
@@ -912,11 +895,6 @@ static void *meadow_pinvoke_override(const char *libraryName,
            strcmp(libraryName, "libSystem.Globalization.Native") == 0)
     {
       mappings = globalization_native_mappings;
-    }
-  else if (strcmp(libraryName, "mbedtls") == 0 ||
-           strcmp(libraryName, "libmbedtls") == 0)
-    {
-      mappings = mbedtls_mappings;
     }
   else if (strcmp(libraryName, "System.Security.Cryptography.Native.OpenSsl") == 0 ||
            strcmp(libraryName, "libSystem.Security.Cryptography.Native.OpenSsl") == 0)

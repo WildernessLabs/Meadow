@@ -27,8 +27,9 @@
 #include "mbedtls/pk.h"
 #include "mbedtls/error.h"
 
-/* Use printf (goes through HCOM, visible via `meadow listen`) */
-#define PAL_LOG(...) printf(__VA_ARGS__)
+/* Diagnostic logging — disabled for production, enable for TLS debugging */
+/* #define PAL_LOG(...) printf(__VA_ARGS__) */
+#define PAL_LOG(...) do {} while(0)
 
 /* ---------- Error codes matching pal_ssl.h ---------- */
 typedef enum {
