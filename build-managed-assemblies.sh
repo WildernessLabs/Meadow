@@ -202,6 +202,7 @@ LINUX_BUILDS=(
   "System.Net.Sockets:net11.0-unix"
   "System.Net.Primitives:net11.0-unix"
   "System.Net.NameResolution:net11.0-unix"
+  "System.Net.NetworkInformation:net11.0-linux"
   "System.Net.Http:net11.0-linux"
 )
 

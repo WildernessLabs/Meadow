@@ -211,6 +211,52 @@ extern int32_t  SystemNative_Disconnect(intptr_t socket);
 extern uint32_t SystemNative_InterfaceNameToIndex(char *interfaceName);
 extern int32_t  SystemNative_Select(int *readFds, int readFdsCount, int *writeFds, int writeFdsCount, int *errorFds, int errorFdsCount, int32_t microseconds, int32_t maxFd, int *triggered);
 
+/* pal_interfaceaddresses.c */
+typedef void (*IPv4AddressFound)(void*, const char*, void*);
+typedef void (*IPv6AddressFound)(void*, const char*, void*, uint32_t*);
+typedef void (*LinkLayerAddressFound)(void*, const char*, void*);
+typedef void (*GatewayAddressFound)(void*, void*);
+extern int32_t  SystemNative_EnumerateInterfaceAddresses(void *context, IPv4AddressFound onIpv4Found, IPv6AddressFound onIpv6Found, LinkLayerAddressFound onLinkLayerFound);
+extern int32_t  SystemNative_GetNetworkInterfaces(int32_t *interfaceCount, void **interfaces, int32_t *addressCount, void **addressList);
+extern int32_t  SystemNative_EnumerateGatewayAddressesForInterface(void *context, uint32_t interfaceIndex, GatewayAddressFound onGatewayFound);
+
+/* pal_networkchange.c */
+typedef void (*NetworkChangeEvent)(intptr_t, int32_t);
+extern int32_t  SystemNative_CreateNetworkChangeListenerSocket(intptr_t *retSocket);
+extern int32_t  SystemNative_ReadEvents(intptr_t sock, NetworkChangeEvent onNetworkChange);
+
+/* pal_networkstatistics.c (upstream, returns ENOTSUP on NuttX) */
+extern int32_t  SystemNative_GetTcpGlobalStatistics(void *retStats);
+extern int32_t  SystemNative_GetIPv4GlobalStatistics(void *retStats);
+extern int32_t  SystemNative_GetUdpGlobalStatistics(void *retStats);
+extern int32_t  SystemNative_GetIcmpv4GlobalStatistics(void *retStats);
+extern int32_t  SystemNative_GetIcmpv6GlobalStatistics(void *retStats);
+extern int32_t  SystemNative_GetEstimatedTcpConnectionCount(void);
+extern int32_t  SystemNative_GetActiveTcpConnectionInfos(void *infos, int32_t *infoCount);
+extern int32_t  SystemNative_GetEstimatedUdpListenerCount(void);
+extern int32_t  SystemNative_GetActiveUdpListeners(void *infos, int32_t *infoCount);
+extern int32_t  SystemNative_GetNativeIPInterfaceStatistics(char *interfaceName, void *retStats);
+extern int32_t  SystemNative_GetNumRoutes(void);
+extern int32_t  SystemNative_MapTcpState(int32_t tcpState);
+
+/* Additional libSystem.Native.a functions not yet mapped */
+extern void     SystemNative_CreateAutoreleasePool(void);
+extern void     SystemNative_DrainAutoreleasePool(void);
+extern char    *SystemNative_GetDefaultTimeZone(void);
+extern void     SystemNative_GetTimeZoneData(const char *tzId, void **rawData, int32_t *length);
+extern int32_t  SystemNative_GetPeerID(intptr_t socket, void *peerID);
+extern int32_t  SystemNative_iOSSupportVersion(void);
+extern int32_t  SystemNative_IsMemfdSupported(void);
+extern intptr_t SystemNative_MemfdCreate(const char *name, int32_t flags);
+extern int64_t  SystemNative_PReadV(intptr_t fd, void *vectors, int32_t vectorCount);
+extern int64_t  SystemNative_PWriteV(intptr_t fd, void *vectors, int32_t vectorCount);
+extern int32_t  SystemNative_ReadProcessInfo(int32_t pid, void *procInfo);
+extern int32_t  SystemNative_ReadThreadInfo(void *threadInfo);
+extern char    *SystemNative_SearchPath(int32_t folderId);
+extern char    *SystemNative_SearchPath_TempDirectory(void);
+extern intptr_t SystemNative_ShmOpen(const char *name, int32_t flags, int32_t mode);
+extern int32_t  SystemNative_ShmUnlink(const char *name);
+
 /* pal_environment.c functions (from libSystem.Native.a) */
 extern char    *SystemNative_GetEnv(const char *variable);
 extern char   **SystemNative_GetEnviron(void);
@@ -471,6 +517,7 @@ static int32_t sysn_get_groups(int32_t gidsetsize, uint32_t *grouplist)
   (void)gidsetsize; (void)grouplist;
   return 0; /* No supplementary groups */
 }
+
 
 
 /****************************************************************************
@@ -802,6 +849,47 @@ static MonoDlMapping system_native_mappings[] = {
   { "SystemNative_Disconnect",                (void *)SystemNative_Disconnect },
   { "SystemNative_InterfaceNameToIndex",      (void *)SystemNative_InterfaceNameToIndex },
   { "SystemNative_Select",                    (void *)SystemNative_Select },
+
+  /* pal_interfaceaddresses.c (upstream, uses NuttX getifaddrs) */
+  { "SystemNative_EnumerateInterfaceAddresses", (void *)SystemNative_EnumerateInterfaceAddresses },
+  { "SystemNative_GetNetworkInterfaces",      (void *)SystemNative_GetNetworkInterfaces },
+  { "SystemNative_EnumerateGatewayAddressesForInterface", (void *)SystemNative_EnumerateGatewayAddressesForInterface },
+
+  /* pal_networkchange.c (upstream, returns ENOTSUP on NuttX) */
+  { "SystemNative_CreateNetworkChangeListenerSocket", (void *)SystemNative_CreateNetworkChangeListenerSocket },
+  { "SystemNative_ReadEvents",                (void *)SystemNative_ReadEvents },
+
+  /* pal_networkstatistics.c (upstream, returns ENOTSUP on NuttX) */
+  { "SystemNative_GetTcpGlobalStatistics",    (void *)SystemNative_GetTcpGlobalStatistics },
+  { "SystemNative_GetIPv4GlobalStatistics",   (void *)SystemNative_GetIPv4GlobalStatistics },
+  { "SystemNative_GetUdpGlobalStatistics",    (void *)SystemNative_GetUdpGlobalStatistics },
+  { "SystemNative_GetIcmpv4GlobalStatistics", (void *)SystemNative_GetIcmpv4GlobalStatistics },
+  { "SystemNative_GetIcmpv6GlobalStatistics", (void *)SystemNative_GetIcmpv6GlobalStatistics },
+  { "SystemNative_GetEstimatedTcpConnectionCount", (void *)SystemNative_GetEstimatedTcpConnectionCount },
+  { "SystemNative_GetActiveTcpConnectionInfos", (void *)SystemNative_GetActiveTcpConnectionInfos },
+  { "SystemNative_GetEstimatedUdpListenerCount", (void *)SystemNative_GetEstimatedUdpListenerCount },
+  { "SystemNative_GetActiveUdpListeners",     (void *)SystemNative_GetActiveUdpListeners },
+  { "SystemNative_GetNativeIPInterfaceStatistics", (void *)SystemNative_GetNativeIPInterfaceStatistics },
+  { "SystemNative_GetNumRoutes",              (void *)SystemNative_GetNumRoutes },
+  { "SystemNative_MapTcpState",               (void *)SystemNative_MapTcpState },
+
+  /* Additional upstream functions (from libSystem.Native.a) */
+  { "SystemNative_CreateAutoreleasePool",     (void *)SystemNative_CreateAutoreleasePool },
+  { "SystemNative_DrainAutoreleasePool",      (void *)SystemNative_DrainAutoreleasePool },
+  { "SystemNative_GetDefaultTimeZone",        (void *)SystemNative_GetDefaultTimeZone },
+  { "SystemNative_GetTimeZoneData",           (void *)SystemNative_GetTimeZoneData },
+  { "SystemNative_GetPeerID",                 (void *)SystemNative_GetPeerID },
+  { "SystemNative_iOSSupportVersion",         (void *)SystemNative_iOSSupportVersion },
+  { "SystemNative_IsMemfdSupported",          (void *)SystemNative_IsMemfdSupported },
+  { "SystemNative_MemfdCreate",               (void *)SystemNative_MemfdCreate },
+  { "SystemNative_PReadV",                    (void *)SystemNative_PReadV },
+  { "SystemNative_PWriteV",                   (void *)SystemNative_PWriteV },
+  { "SystemNative_ReadProcessInfo",           (void *)SystemNative_ReadProcessInfo },
+  { "SystemNative_ReadThreadInfo",            (void *)SystemNative_ReadThreadInfo },
+  { "SystemNative_SearchPath",                (void *)SystemNative_SearchPath },
+  { "SystemNative_SearchPath_TempDirectory",  (void *)SystemNative_SearchPath_TempDirectory },
+  { "SystemNative_ShmOpen",                   (void *)SystemNative_ShmOpen },
+  { "SystemNative_ShmUnlink",                 (void *)SystemNative_ShmUnlink },
 
   /* ---- NuttX-specific stubs (no upstream equivalent) ---- */
 

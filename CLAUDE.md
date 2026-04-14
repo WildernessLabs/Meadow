@@ -70,8 +70,8 @@ on NuttX it must be statically linked via the P/Invoke override.
 
 **Upstream source**: `runtime/src/native/libs/System.Native/pal_*.c`
 
-**Current state**: ~40 functions implemented in `mono_main.c` (Track 07, Blinky).
-The remaining ~225 functions are served by a catch-all no-op stub that returns 0.
+**Current state**: ~120 functions mapped in `mono_main.c`. Most are wired to upstream
+`libSystem.Native.a` implementations. Unknown functions return NULL → `EntryPointNotFoundException`.
 
 **What triggers them**: Not Meadow.Core directly, but the BCL assemblies it depends on.
 `System.Threading`, `System.IO`, `System.Net`, `System.Collections`, etc. all call System.Native
@@ -133,6 +133,6 @@ Framework assemblies source: `runtime/.dotnet/shared/Microsoft.NETCore.App/11.0.
 ## Known Issues / Gotchas
 
 1. **Console.Write throws IOException in emulator** — CDCACM returns EBADF without USB host. Output still appears via syslog mirror. App needs try/catch.
-2. **Catch-all no-op stub still active** — Unknown System.Native functions silently return 0. Should be replaced with abort for truly unknown functions.
+2. **SslGetPeerCertificate returns NULL** — mbedTLS shim doesn't extract the peer cert for managed code. Requires `ServerCertificateCustomValidationCallback` for HTTPS. mbedTLS verifies certs natively during handshake.
 3. **Diagnostic logging is verbose** — P/Invoke resolve + interp_runtime_invoke depth logging should be removed/gated for production.
 4. **NuttX struct stat is minimal** — Missing st_uid, st_gid, st_ino, st_dev, st_rdev. FileStatus fields set to 0.
