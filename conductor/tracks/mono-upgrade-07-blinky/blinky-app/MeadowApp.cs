@@ -1,10 +1,9 @@
-// Test: DNS + sockets + HttpClient (cold/warm) + HTTPS over WiFi
+// Network interface + P/Invoke coverage test
 using System;
-using System.Diagnostics;
 using System.Net;
-using System.Net.Http;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
-using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Meadow;
 using Meadow.Devices;
@@ -16,157 +15,112 @@ public class MeadowApp : App<F7CoreComputeV2>
 
     public override Task Initialize()
     {
-        Console.WriteLine("NET TEST INIT");
+        Console.WriteLine("NET-IFACE TEST v1 INIT");
         led = Device.CreateDigitalOutputPort(Device.Pins.D20, false);
         return Task.CompletedTask;
     }
 
-    public override async Task Run()
+    public override Task Run()
     {
-        Console.WriteLine("NET TEST RUN START");
+        Console.WriteLine("NET-IFACE TEST v1 RUN START");
 
-        Console.WriteLine("Waiting 15s for network...");
-        await Task.Delay(15000);
-
-        // Test 1: DNS
-        Console.WriteLine("=== TEST 1: DNS ===");
-        IPAddress serverIp = null;
+        // ── TEST 1: NetworkInterface.GetAllNetworkInterfaces ──
+        Console.WriteLine("=== TEST 1: GetAllNetworkInterfaces ===");
         try
         {
-            var sw = Stopwatch.StartNew();
-            var addresses = Dns.GetHostAddresses("example.com");
-            sw.Stop();
-            foreach (var addr in addresses)
-                Console.WriteLine($"  example.com -> {addr}");
-            if (addresses.Length > 0)
-                serverIp = addresses[0];
-            Console.WriteLine($"DNS OK ({sw.ElapsedMilliseconds}ms)");
+            var interfaces = NetworkInterface.GetAllNetworkInterfaces();
+            Console.WriteLine($"  Found {interfaces.Length} interface(s)");
+            foreach (var ni in interfaces)
+            {
+                Console.WriteLine($"  [{ni.Name}] type={ni.NetworkInterfaceType} status={ni.OperationalStatus}");
+                try
+                {
+                    var props = ni.GetIPProperties();
+                    foreach (var addr in props.UnicastAddresses)
+                    {
+                        Console.WriteLine($"    IP: {addr.Address}");
+                    }
+                }
+                catch (Exception innerEx)
+                {
+                    Console.WriteLine($"    GetIPProperties failed: {innerEx.GetType().Name}: {innerEx.Message}");
+                }
+            }
+            Console.WriteLine("TEST 1 PASS");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"DNS FAIL: {ex.GetType().Name}: {ex.Message}");
-        }
-
-        // Test 2: Raw sync socket
-        if (serverIp != null)
-        {
-            Console.WriteLine("=== TEST 2: RAW SOCKET ===");
-            try
-            {
-                var sw = Stopwatch.StartNew();
-                using var sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                sock.Connect(new IPEndPoint(serverIp, 80));
-                var sent = sock.Send(Encoding.ASCII.GetBytes("GET / HTTP/1.0\r\nHost: example.com\r\n\r\n"));
-                var buf = new byte[4096];
-                var total = 0;
-                int n;
-                while ((n = sock.Receive(buf)) > 0)
-                    total += n;
-                sw.Stop();
-                Console.WriteLine($"RAW SOCKET OK: {total} bytes in {sw.ElapsedMilliseconds}ms");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"RAW SOCKET FAIL: {ex.GetType().Name}: {ex.Message}");
-            }
-        }
-
-        // Test 3: Async socket
-        if (serverIp != null)
-        {
-            Console.WriteLine("=== TEST 3: ASYNC SOCKET ===");
-            try
-            {
-                var sw = Stopwatch.StartNew();
-                using var sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                await sock.ConnectAsync(new IPEndPoint(serverIp, 80));
-                await sock.SendAsync(Encoding.ASCII.GetBytes("GET / HTTP/1.0\r\nHost: example.com\r\n\r\n"), SocketFlags.None);
-                var buf = new byte[4096];
-                var total = 0;
-                int n;
-                while ((n = await sock.ReceiveAsync(buf, SocketFlags.None)) > 0)
-                    total += n;
-                sw.Stop();
-                Console.WriteLine($"ASYNC SOCKET OK: {total} bytes in {sw.ElapsedMilliseconds}ms");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"ASYNC SOCKET FAIL: {ex.GetType().Name}: {ex.Message}");
-            }
-        }
-
-        // Test 4: HttpClient COLD (first request — JIT warmup, HTTP/1.1)
-        Console.WriteLine("=== TEST 4: HTTP GET (cold) ===");
-        try
-        {
-            var sw = Stopwatch.StartNew();
-            using var client = new HttpClient();
-            client.Timeout = TimeSpan.FromSeconds(60);
-            var response = await client.GetAsync("http://example.com");
-            var body = await response.Content.ReadAsStringAsync();
-            sw.Stop();
-            Console.WriteLine($"HTTP COLD OK: {(int)response.StatusCode} {response.ReasonPhrase}, {body.Length} chars in {sw.ElapsedMilliseconds}ms");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"HTTP COLD FAIL: {ex.GetType().Name}: {ex.Message}");
+            Console.WriteLine($"TEST 1 FAIL: {ex.GetType().Name}: {ex.Message}");
             if (ex.InnerException != null)
                 Console.WriteLine($"  Inner: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
+            Console.WriteLine($"  Stack: {ex.StackTrace}");
         }
 
-        // Test 5: HttpClient WARM (second request — JIT already done, HTTP/1.1)
-        Console.WriteLine("=== TEST 5: HTTP GET (warm) ===");
+        // ── TEST 2: DNS resolution ──
+        Console.WriteLine("=== TEST 2: DNS ===");
         try
         {
-            var sw = Stopwatch.StartNew();
-            using var client = new HttpClient();
+            var addrs = Dns.GetHostAddresses("example.com");
+            Console.WriteLine($"  Resolved {addrs.Length} address(es)");
+            foreach (var a in addrs)
+            {
+                Console.WriteLine($"    {a}");
+            }
+            Console.WriteLine("TEST 2 PASS");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TEST 2 FAIL: {ex.GetType().Name}: {ex.Message}");
+        }
+
+        // ── TEST 3: GC.Collect (regression check) ──
+        Console.WriteLine("=== TEST 3: GC.Collect ===");
+        try
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                var tmp = new byte[4096];
+                tmp[0] = (byte)i;
+            }
+            GC.Collect();
+            Console.WriteLine($"  Gen0={GC.CollectionCount(0)} TotalMem={GC.GetTotalMemory(false)}");
+            Console.WriteLine("TEST 3 PASS");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TEST 3 FAIL: {ex.GetType().Name}: {ex.Message}");
+        }
+
+        // Wait for WiFi to be ready
+        Console.WriteLine("Waiting 15s for WiFi...");
+        Thread.Sleep(15000);
+
+        // ── TEST 4: HTTP GET (plain) ──
+        Console.WriteLine("=== TEST 4: HTTP GET ===");
+        try
+        {
+            using var client = new System.Net.Http.HttpClient();
             client.Timeout = TimeSpan.FromSeconds(30);
-            var response = await client.GetAsync("http://example.com");
-            var body = await response.Content.ReadAsStringAsync();
-            sw.Stop();
-            Console.WriteLine($"HTTP WARM OK: {(int)response.StatusCode} {response.ReasonPhrase}, {body.Length} chars in {sw.ElapsedMilliseconds}ms");
+            var body = client.GetStringAsync("http://example.com").Result;
+            Console.WriteLine($"  Got {body.Length} chars");
+            Console.WriteLine($"  First 80: {body.Substring(0, Math.Min(80, body.Length))}");
+            Console.WriteLine("TEST 4 PASS");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"HTTP WARM FAIL: {ex.GetType().Name}: {ex.Message}");
+            Console.WriteLine($"TEST 4 FAIL: {ex.GetType().Name}: {ex.Message}");
             if (ex.InnerException != null)
                 Console.WriteLine($"  Inner: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
-        }
-
-        // Test 6: HTTPS GET (TLS via mbedtls, VERIFY_REQUIRED, HTTP/1.1)
-        // Note: cert validation callback needed because SslGetPeerCertificate returns NULL
-        // (X509 conversion not yet implemented). Native mbedTLS still verifies the chain.
-        Console.WriteLine("=== TEST 6: HTTPS GET ===");
-        try
-        {
-            var sw = Stopwatch.StartNew();
-            var handler = new HttpClientHandler();
-            handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
-            using var client = new HttpClient(handler);
-            client.Timeout = TimeSpan.FromSeconds(60);
-            var response = await client.GetAsync("https://httpbin.org/get");
-            var body = await response.Content.ReadAsStringAsync();
-            sw.Stop();
-            Console.WriteLine($"HTTPS OK: {(int)response.StatusCode} {response.ReasonPhrase}, {body.Length} chars in {sw.ElapsedMilliseconds}ms");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"HTTPS FAIL: {ex.GetType().Name}: {ex.Message}");
-            if (ex.InnerException != null)
-                Console.WriteLine($"  Inner: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
-            var inner2 = ex.InnerException?.InnerException;
-            if (inner2 != null)
-                Console.WriteLine($"  Inner2: {inner2.GetType().Name}: {inner2.Message}");
         }
 
         // Heartbeat
-        Console.WriteLine("=== HEARTBEAT ===");
+        Console.WriteLine("=== ALL TESTS DONE ===");
         int c = 0;
         while (true)
         {
             led.State = !led.State;
             Console.WriteLine($"BEAT {c++}");
-            await Task.Delay(2000);
+            Thread.Sleep(2000);
         }
     }
 }
