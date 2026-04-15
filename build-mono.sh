@@ -61,18 +61,52 @@ if [ "$HELP" = true ]; then
 fi
 
 #
-# Locate the runtime repo (sibling directory)
+# Locate (or clone) the runtime repo as a sibling directory, then sync it
+# to the branch matching this Meadow branch (or main if no match). Set
+# MEADOW_RUNTIME_NO_SYNC=1 to skip the sync (e.g. local dev with a custom
+# runtime branch).
 #
+RUNTIME_REPO="WildernessLabs/runtime"
 RUNTIME_DIR="$scriptdir/../runtime"
 
 if [ ! -d "$RUNTIME_DIR" ]; then
-  printf "${red}ERROR: ../runtime directory not found.${reset}\n"
-  printf "The .NET 10 Mono build requires the dotnet/runtime fork as a sibling directory.\n"
-  printf "Clone it with: git clone <runtime-repo-url> ../runtime\n"
-  exit 1
+  printf "Cloning %s into %s\n" "$RUNTIME_REPO" "$RUNTIME_DIR"
+  if [ -n "${GITHUB_PERSONAL_ACCESS_TOKEN:-}" ]; then
+    RUNTIME_URL="https://${GITHUB_PERSONAL_ACCESS_TOKEN}@github.com/${RUNTIME_REPO}.git"
+  else
+    RUNTIME_URL="https://github.com/${RUNTIME_REPO}.git"
+  fi
+  git clone "$RUNTIME_URL" "$RUNTIME_DIR" || {
+    printf "${red}ERROR: Failed to clone runtime repo.${reset}\n"
+    exit 1
+  }
 fi
 
 RUNTIME_DIR="$(cd "$RUNTIME_DIR" && pwd)"
+
+# Determine Meadow branch — Azure Pipelines checks out in detached HEAD,
+# so prefer BUILD_SOURCEBRANCHNAME when set.
+if [ -n "${BUILD_SOURCEBRANCHNAME:-}" ] && [ "$BUILD_SOURCEBRANCHNAME" != "HEAD" ]; then
+  MEADOW_BRANCH="$BUILD_SOURCEBRANCHNAME"
+else
+  MEADOW_BRANCH=$(git -C "$scriptdir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo HEAD)
+fi
+
+if [ "${MEADOW_RUNTIME_NO_SYNC:-}" = "1" ]; then
+  printf "Skipping runtime branch sync (MEADOW_RUNTIME_NO_SYNC=1)\n"
+elif [ "$MEADOW_BRANCH" = "HEAD" ] || [ -z "$MEADOW_BRANCH" ]; then
+  printf "Skipping runtime branch sync (no Meadow branch detected)\n"
+else
+  printf "Syncing runtime to match Meadow branch '%s'\n" "$MEADOW_BRANCH"
+  git -C "$RUNTIME_DIR" fetch --prune
+  if git -C "$RUNTIME_DIR" rev-parse --verify "origin/$MEADOW_BRANCH" &>/dev/null; then
+    TARGET_BRANCH="$MEADOW_BRANCH"
+  else
+    printf "Runtime branch '%s' not found, falling back to main\n" "$MEADOW_BRANCH"
+    TARGET_BRANCH="main"
+  fi
+  git -C "$RUNTIME_DIR" checkout -B "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
+fi
 
 #
 # Verify NuttX headers are available (needed by CMake build)
