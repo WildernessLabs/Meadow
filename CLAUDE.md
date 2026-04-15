@@ -30,23 +30,23 @@ Read these files first:
 - **P/Invoke**: All native function resolution goes through `meadow_pinvoke_override` in `mono_main.c`. No dlopen on NuttX.
 - **NuttX errno**: Use `set_errno()`/`get_errno()`, not direct `errno` assignment (doesn't compile on NuttX).
 
-## Current State (as of Track 07 completion)
+## Current State (as of Track 12 completion)
 
-- **Tracks 01-07: COMPLETE** (build, platform port, emulator, monovm init, trampolines, System.Native PAL, Blinky)
-- **Track 08: NEXT** (Hardware Validation — physical board testing)
-- Full MeadowOS.Main → App<F7FeatherV2> → DigitalOutputPort → LED blink in Renode
-- ~40 System.Native P/Invoke functions implemented in `mono_main.c`
+- **Tracks 01-12: COMPLETE** (build, platform, emulator, monovm, trampolines, PAL, Blinky, HW, JIT fixes, Thumb2 JIT, TLS, networking)
+- **Execution: ARM Thumb2 JIT** (not interpreter — interpreter compiled in as fallback only)
+- All 6 HW tests pass: NetworkInterface, DNS, GC, HTTP, HTTPS×2
+- ~120 System.Native P/Invoke functions mapped in `mono_main.c` (zero unmapped gaps)
 - 80 framework assemblies deployed (~41MB on flash), selective SDRAM caching
 - Invariant globalization enabled, UseSystemResourceKeys=true
 - .NET thread pool working (gate thread, workers, hill climbing)
-- Meadow.Core + Meadow.F7 multi-targeted for netstandard2.1 + net9.0
+- Meadow.Core + Meadow.F7 multi-targeted for netstandard2.1 + net10.0
 
 ### Memory Configuration
 
 | Resource | Value | Notes |
 |----------|-------|-------|
 | GC heap | max=8MB, nursery=512KB, soft=4MB | marksweep, no concurrent |
-| Interp stack | 1MB | `INTERP_STACK_SIZE` in interp-internals.h |
+| Interp fallback stack | 1MB | `INTERP_STACK_SIZE` — used when JIT falls back to interpreter |
 | Task stack | 1MB | `CONFIG_EXAMPLES_MONO_STACKSIZE` |
 | SDRAM caching | Selective | Skip assemblies 100KB–1MB to save SDRAM |
 | Total SDRAM | ~32MB | **Tight** — adding assemblies may OOM |
@@ -122,17 +122,17 @@ Framework assemblies source: `runtime/.dotnet/shared/Microsoft.NETCore.App/11.0.
 
 | File | What it does |
 |------|-------------|
-| `runtime/src/mono/mono/mini/aot-runtime-nuttx.c` | Interp-to-native dispatch + native-to-interp thunk pool |
-| `runtime/src/mono/mono/mini/nuttx_m2n_invoke.g.h` | 48 interp-to-native C wrappers (including IIIIIIIII) |
-| `runtime/src/mono/mono/mini/mini-arm.h` | ARM trampoline macro configuration for NuttX |
-| `runtime/src/mono/mono/mini/interp/interp.c` | NuttX paths in ves_pinvoke_method + interp_create_method_pointer |
-| `runtime/src/mono/mono/mini/interp/interp-internals.h` | INTERP_STACK_SIZE (1MB on NuttX) |
-| `runtime/src/mono/mono/mini/interp/transform.c` | Monitor.TryEnterFast/TryExitChecked → return false (interpreter fix) |
+| `runtime/src/mono/mono/mini/aot-runtime-nuttx.c` | P/Invoke dispatch: managed→native thunks for JIT-compiled code |
+| `runtime/src/mono/mono/mini/nuttx_m2n_invoke.g.h` | 48 per-signature C trampolines for P/Invoke calls |
+| `runtime/src/mono/mono/mini/mini-arm.h` | ARM JIT trampoline macro configuration for NuttX |
+| `runtime/src/mono/mono/mini/interp/interp.c` | Interpreter fallback paths (used when JIT can't handle a method) |
+| `runtime/src/mono/mono/mini/interp/interp-internals.h` | INTERP_STACK_SIZE (1MB on NuttX) for interpreter fallback |
+| `runtime/src/mono/mono/mini/interp/transform.c` | Monitor.TryEnterFast/TryExitChecked → return false (interpreter fallback fix) |
 | `runtime/src/mono/mono/metadata/sgen-mono.c` | Non-fatal GC stack_end assertion on NuttX |
 
 ## Known Issues / Gotchas
 
 1. **Console.Write throws IOException in emulator** — CDCACM returns EBADF without USB host. Output still appears via syslog mirror. App needs try/catch.
 2. **SslGetPeerCertificate returns NULL** — mbedTLS shim doesn't extract the peer cert for managed code. Requires `ServerCertificateCustomValidationCallback` for HTTPS. mbedTLS verifies certs natively during handshake.
-3. **Diagnostic logging is verbose** — P/Invoke resolve + interp_runtime_invoke depth logging should be removed/gated for production.
+3. **Diagnostic logging is verbose** — P/Invoke resolve + runtime_invoke depth logging should be removed/gated for production.
 4. **NuttX struct stat is minimal** — Missing st_uid, st_gid, st_ino, st_dev, st_rdev. FileStatus fields set to 0.
