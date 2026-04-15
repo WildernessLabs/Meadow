@@ -5,7 +5,7 @@ trigger:
   - main
   - meadow-*
 
-pool: "Default"
+pool: "WL-Linux"
 
 jobs:
   - job: default
