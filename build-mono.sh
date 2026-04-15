@@ -75,6 +75,29 @@ fi
 RUNTIME_DIR="$(cd "$RUNTIME_DIR" && pwd)"
 
 #
+# Verify CMake >= 3.26 (required by dotnet/runtime)
+#
+CMAKE_MIN_MAJOR=3
+CMAKE_MIN_MINOR=26
+CMAKE_VER=$(cmake --version 2>/dev/null | head -1 | sed 's/[^0-9]*\([0-9]*\.[0-9]*\).*/\1/')
+if [ -z "$CMAKE_VER" ]; then
+  printf "${red}ERROR: cmake not found.${reset}\n"
+  exit 1
+fi
+CMAKE_MAJOR=${CMAKE_VER%%.*}
+CMAKE_MINOR=${CMAKE_VER##*.}
+if [ "$CMAKE_MAJOR" -lt "$CMAKE_MIN_MAJOR" ] || \
+   { [ "$CMAKE_MAJOR" -eq "$CMAKE_MIN_MAJOR" ] && [ "$CMAKE_MINOR" -lt "$CMAKE_MIN_MINOR" ]; }; then
+  printf "CMake $CMAKE_VER found, but >= $CMAKE_MIN_MAJOR.$CMAKE_MIN_MINOR required.\n"
+  printf "Attempting to install CMake via pip...\n"
+  pip3 install --user cmake 2>/dev/null || pip install --user cmake 2>/dev/null
+  # Add pip user bin to PATH
+  export PATH="$HOME/.local/bin:$PATH"
+  CMAKE_VER=$(cmake --version 2>/dev/null | head -1 | sed 's/[^0-9]*\([0-9]*\.[0-9]*\).*/\1/')
+  printf "CMake now: $CMAKE_VER\n"
+fi
+
+#
 # Verify NuttX headers are available (needed by CMake build)
 #
 if [ ! -f "$scriptdir/nuttx/include/nuttx/config.h" ]; then
