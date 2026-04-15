@@ -122,8 +122,6 @@ Framework assemblies source: `runtime/.dotnet/shared/Microsoft.NETCore.App/11.0.
 
 | File | What it does |
 |------|-------------|
-| `runtime/src/mono/mono/mini/aot-runtime-nuttx.c` | P/Invoke dispatch: managed→native thunks for JIT-compiled code |
-| `runtime/src/mono/mono/mini/nuttx_m2n_invoke.g.h` | 48 per-signature C trampolines for P/Invoke calls |
 | `runtime/src/mono/mono/mini/mini-arm.h` | ARM JIT trampoline macro configuration for NuttX |
 | `runtime/src/mono/mono/mini/interp/interp.c` | Interpreter fallback paths (used when JIT can't handle a method) |
 | `runtime/src/mono/mono/mini/interp/interp-internals.h` | INTERP_STACK_SIZE (1MB on NuttX) for interpreter fallback |
