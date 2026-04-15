@@ -61,12 +61,21 @@ case "$CMAKE_STATUS" in
     if [ "$OS" = "macos" ]; then
       brew install cmake || brew upgrade cmake
     else
-      # pip3 cmake package provides modern cmake without needing root
-      pip3 install --user --upgrade cmake 2>/dev/null || pip install --user --upgrade cmake 2>/dev/null || {
-        echo "ERROR: Failed to install cmake via pip. Install cmake >= $MIN_CMAKE_VERSION manually."
-        exit 1
-      }
-      export PATH="$HOME/.local/bin:$PATH"
+      # Try pip first (no root needed), fall back to binary download
+      if pip3 install --user --upgrade cmake 2>/dev/null || pip install --user --upgrade cmake 2>/dev/null; then
+        export PATH="$HOME/.local/bin:$PATH"
+      else
+        echo "pip not available, downloading cmake binary..."
+        CMAKE_DL_VERSION="3.30.5"
+        CMAKE_DL_URL="https://github.com/Kitware/CMake/releases/download/v${CMAKE_DL_VERSION}/cmake-${CMAKE_DL_VERSION}-linux-$(uname -m).tar.gz"
+        CMAKE_DL_DIR="$HOME/.local"
+        mkdir -p "$CMAKE_DL_DIR"
+        curl -sSL "$CMAKE_DL_URL" | tar xz -C "$CMAKE_DL_DIR" --strip-components=1 || {
+          echo "ERROR: Failed to download cmake. Install cmake >= $MIN_CMAKE_VERSION manually."
+          exit 1
+        }
+        export PATH="$CMAKE_DL_DIR/bin:$PATH"
+      fi
     fi
     CMAKE_STATUS=$(check_tool cmake "$MIN_CMAKE_VERSION")
     echo "  -> now: ${CMAKE_STATUS#OK:}"
