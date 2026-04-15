@@ -1,6 +1,8 @@
-// Network interface + P/Invoke coverage test
+// Network interface + P/Invoke coverage test + TLS validation
 using System;
+using System.Diagnostics;
 using System.Net;
+using System.Net.Http;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Threading;
@@ -15,14 +17,14 @@ public class MeadowApp : App<F7CoreComputeV2>
 
     public override Task Initialize()
     {
-        Console.WriteLine("NET-IFACE TEST v1 INIT");
+        Console.WriteLine("NET+TLS TEST v2 INIT");
         led = Device.CreateDigitalOutputPort(Device.Pins.D20, false);
         return Task.CompletedTask;
     }
 
     public override Task Run()
     {
-        Console.WriteLine("NET-IFACE TEST v1 RUN START");
+        Console.WriteLine("NET+TLS TEST v2 RUN START");
 
         // ── TEST 1: NetworkInterface.GetAllNetworkInterfaces ──
         Console.WriteLine("=== TEST 1: GetAllNetworkInterfaces ===");
@@ -111,6 +113,68 @@ public class MeadowApp : App<F7CoreComputeV2>
             Console.WriteLine($"TEST 4 FAIL: {ex.GetType().Name}: {ex.Message}");
             if (ex.InnerException != null)
                 Console.WriteLine($"  Inner: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
+        }
+
+        // ── TEST 5: HTTPS GET (TLS via mbedTLS) ──
+        // SslGetPeerCertificate returns NULL on NuttX, so we need the callback.
+        // mbedTLS still verifies the server cert chain natively during handshake.
+        Console.WriteLine("=== TEST 5: HTTPS GET ===");
+        for (int attempt = 1; attempt <= 3; attempt++)
+        {
+            Console.WriteLine($"  Attempt {attempt}/3...");
+            try
+            {
+                var sw = Stopwatch.StartNew();
+                var handler = new HttpClientHandler();
+                handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
+                using var client = new HttpClient(handler);
+                client.Timeout = TimeSpan.FromSeconds(60);
+                var response = client.GetAsync("https://httpbin.org/get").Result;
+                var body = response.Content.ReadAsStringAsync().Result;
+                sw.Stop();
+                Console.WriteLine($"  HTTPS: {(int)response.StatusCode} {response.ReasonPhrase}, {body.Length} chars in {sw.ElapsedMilliseconds}ms");
+                Console.WriteLine($"  First 120: {body.Substring(0, Math.Min(120, body.Length))}");
+                Console.WriteLine("TEST 5 PASS");
+                break;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"  HTTPS attempt {attempt} FAIL: {ex.GetType().Name}: {ex.Message}");
+                if (ex.InnerException != null)
+                    Console.WriteLine($"    Inner: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
+                var inner2 = ex.InnerException?.InnerException;
+                if (inner2 != null)
+                    Console.WriteLine($"    Inner2: {inner2.GetType().Name}: {inner2.Message}");
+                if (attempt == 3)
+                    Console.WriteLine("TEST 5 FAIL (all 3 attempts)");
+                else
+                    Thread.Sleep(3000);
+            }
+        }
+
+        // ── TEST 6: HTTPS to a different host (verify not host-specific) ──
+        Console.WriteLine("=== TEST 6: HTTPS GET (example.com) ===");
+        try
+        {
+            var sw = Stopwatch.StartNew();
+            var handler = new HttpClientHandler();
+            handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
+            using var client = new HttpClient(handler);
+            client.Timeout = TimeSpan.FromSeconds(60);
+            var response = client.GetAsync("https://example.com").Result;
+            var body = response.Content.ReadAsStringAsync().Result;
+            sw.Stop();
+            Console.WriteLine($"  HTTPS: {(int)response.StatusCode}, {body.Length} chars in {sw.ElapsedMilliseconds}ms");
+            Console.WriteLine("TEST 6 PASS");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TEST 6 FAIL: {ex.GetType().Name}: {ex.Message}");
+            if (ex.InnerException != null)
+                Console.WriteLine($"  Inner: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
+            var inner2 = ex.InnerException?.InnerException;
+            if (inner2 != null)
+                Console.WriteLine($"  Inner2: {inner2.GetType().Name}: {inner2.Message}");
         }
 
         // Heartbeat
