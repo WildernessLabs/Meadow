@@ -22,8 +22,13 @@ jobs:
         scriptPath: checkout-submodules.sh
     - task: ShellScript@2
       inputs:
+        scriptPath: install-packages.sh
+    - task: ShellScript@2
+      inputs:
         scriptPath: build.sh
         args: "--verbose"
+      env:
+        PATH: $(HOME)/.local/bin:$(PATH)
     - task: CopyFiles@2
       inputs:
         contents: |
