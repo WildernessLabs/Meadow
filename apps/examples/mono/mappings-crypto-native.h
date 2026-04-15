@@ -50,6 +50,7 @@ extern int32_t CryptoNative_IsSslStateOK(void *ssl);
 extern const char *CryptoNative_SslGetVersion(void *ssl);
 extern int32_t CryptoNative_SslSetTlsExtHostName(void *ssl, const char *name);
 extern void *CryptoNative_SslGetPeerCertificate(void *ssl);
+extern int32_t CryptoNative_SslGetPeerCertVerifyResult(void *ssl);
 extern void *CryptoNative_SslGetCertificate(void *ssl);
 extern void *CryptoNative_SslGetPeerCertChain(void *ssl);
 extern void  CryptoNative_SslSetQuietShutdown(void *ssl, int mode);
@@ -145,6 +146,7 @@ static MonoDlMapping crypto_native_mappings[] = {
     {"CryptoNative_SslGetVersion",           CryptoNative_SslGetVersion},
     {"CryptoNative_SslSetTlsExtHostName",    CryptoNative_SslSetTlsExtHostName},
     {"CryptoNative_SslGetPeerCertificate",   CryptoNative_SslGetPeerCertificate},
+    {"CryptoNative_SslGetPeerCertVerifyResult", CryptoNative_SslGetPeerCertVerifyResult},
     {"CryptoNative_SslGetCertificate",       CryptoNative_SslGetCertificate},
     {"CryptoNative_SslGetPeerCertChain",     CryptoNative_SslGetPeerCertChain},
     {"CryptoNative_SslSetQuietShutdown",     CryptoNative_SslSetQuietShutdown},
