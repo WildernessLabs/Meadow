@@ -1182,20 +1182,16 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
 
   setenv("MONO_LOG_LEVEL", "info", 1);
   setenv("MONO_LOG_DEST", "syslog", 1);
-  /* JIT mode: meadow.config.yaml can override with --interp if needed.
-   * The ARM/Thumb2 JIT codegen bugs (Dictionary OverflowException) are
-   * worked around in AppContext.cs (catch block). */
+  /* Runtime runs in JIT mode (ARM Thumb2 JIT, DISABLE_JIT is not set).
+   * The interpreter is compiled in as fallback but is not the primary engine. */
   setenv("TMPDIR", "/meadow0/Temp", 1);
   setenv("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT", "1", 1);
   /* Use raw resource keys instead of loading .resources files.
-   * This avoids ResourceManager initialization which can fail on NuttX.
-   * Disabling this causes mono_get_restore_context() assertion failure
-   * because interpreter-only mode doesn't set up restore_context_func. */
+   * This avoids ResourceManager initialization which can fail on NuttX. */
   setenv("DOTNET_SYSTEM_RESOURCES_USESYSTEMRESOURCEKEYS", "true", 1);
   /* Skip ConsolePal terminal/signal initialization.  NuttX has no terminal;
-   * the initialization path crashes in the Mono interpreter due to
-   * re-entrant Monitor.Enter on the first Console.Write through
-   * EnsureInitializedCore → lock(Console.Out). */
+   * without this, the first Console.Write deadlocks on re-entrant
+   * Monitor.Enter through EnsureInitializedCore → lock(Console.Out). */
   setenv("DOTNET_SYSTEM_CONSOLE_SKIP_TERMINAL_INIT", "1", 1);
 
   /* Constrain GC heap for limited SDRAM (~29MB user heap).
