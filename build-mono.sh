@@ -61,9 +61,10 @@ if [ "$HELP" = true ]; then
 fi
 
 #
-# Locate (or clone) the runtime repo as a sibling directory.
-# On CI (TF_BUILD=True), also ensure it's on the branch matching this Meadow
-# branch — falling back to main if no matching runtime branch exists.
+# Locate (or clone) the runtime repo as a sibling directory, then sync it
+# to the branch matching this Meadow branch (or main if no match). Set
+# MEADOW_RUNTIME_NO_SYNC=1 to skip the sync (e.g. local dev with a custom
+# runtime branch).
 #
 RUNTIME_REPO="WildernessLabs/runtime"
 RUNTIME_DIR="$scriptdir/../runtime"
@@ -83,23 +84,28 @@ fi
 
 RUNTIME_DIR="$(cd "$RUNTIME_DIR" && pwd)"
 
-if [ "${TF_BUILD:-}" = "True" ]; then
-  # Azure Pipelines checks out in detached HEAD; use BUILD_SOURCEBRANCHNAME.
-  if [ -n "${BUILD_SOURCEBRANCHNAME:-}" ] && [ "$BUILD_SOURCEBRANCHNAME" != "HEAD" ]; then
-    MEADOW_BRANCH="$BUILD_SOURCEBRANCHNAME"
-  else
-    MEADOW_BRANCH=$(git -C "$scriptdir" rev-parse --abbrev-ref HEAD)
-  fi
+# Determine Meadow branch — Azure Pipelines checks out in detached HEAD,
+# so prefer BUILD_SOURCEBRANCHNAME when set.
+if [ -n "${BUILD_SOURCEBRANCHNAME:-}" ] && [ "$BUILD_SOURCEBRANCHNAME" != "HEAD" ]; then
+  MEADOW_BRANCH="$BUILD_SOURCEBRANCHNAME"
+else
+  MEADOW_BRANCH=$(git -C "$scriptdir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo HEAD)
+fi
+
+if [ "${MEADOW_RUNTIME_NO_SYNC:-}" = "1" ]; then
+  printf "Skipping runtime branch sync (MEADOW_RUNTIME_NO_SYNC=1)\n"
+elif [ "$MEADOW_BRANCH" = "HEAD" ] || [ -z "$MEADOW_BRANCH" ]; then
+  printf "Skipping runtime branch sync (no Meadow branch detected)\n"
+else
   printf "Syncing runtime to match Meadow branch '%s'\n" "$MEADOW_BRANCH"
   git -C "$RUNTIME_DIR" fetch --prune
   if git -C "$RUNTIME_DIR" rev-parse --verify "origin/$MEADOW_BRANCH" &>/dev/null; then
-    git -C "$RUNTIME_DIR" checkout "$MEADOW_BRANCH"
-    git -C "$RUNTIME_DIR" pull origin "$MEADOW_BRANCH"
+    TARGET_BRANCH="$MEADOW_BRANCH"
   else
     printf "Runtime branch '%s' not found, falling back to main\n" "$MEADOW_BRANCH"
-    git -C "$RUNTIME_DIR" checkout main
-    git -C "$RUNTIME_DIR" pull origin main
+    TARGET_BRANCH="main"
   fi
+  git -C "$RUNTIME_DIR" checkout -B "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
 fi
 
 #
