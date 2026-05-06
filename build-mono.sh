@@ -61,18 +61,46 @@ if [ "$HELP" = true ]; then
 fi
 
 #
-# Locate the runtime repo (sibling directory)
+# Locate (or clone) the runtime repo as a sibling directory.
+# On CI (TF_BUILD=True), also ensure it's on the branch matching this Meadow
+# branch — falling back to main if no matching runtime branch exists.
 #
+RUNTIME_REPO="WildernessLabs/runtime"
 RUNTIME_DIR="$scriptdir/../runtime"
 
 if [ ! -d "$RUNTIME_DIR" ]; then
-  printf "${red}ERROR: ../runtime directory not found.${reset}\n"
-  printf "The .NET 10 Mono build requires the dotnet/runtime fork as a sibling directory.\n"
-  printf "Clone it with: git clone <runtime-repo-url> ../runtime\n"
-  exit 1
+  printf "Cloning %s into %s\n" "$RUNTIME_REPO" "$RUNTIME_DIR"
+  if [ -n "${GITHUB_PERSONAL_ACCESS_TOKEN:-}" ]; then
+    RUNTIME_URL="https://${GITHUB_PERSONAL_ACCESS_TOKEN}@github.com/${RUNTIME_REPO}.git"
+  else
+    RUNTIME_URL="https://github.com/${RUNTIME_REPO}.git"
+  fi
+  git clone "$RUNTIME_URL" "$RUNTIME_DIR" || {
+    printf "${red}ERROR: Failed to clone runtime repo.${reset}\n"
+    exit 1
+  }
 fi
 
 RUNTIME_DIR="$(cd "$RUNTIME_DIR" && pwd)"
+
+if [ "${TF_BUILD:-}" = "True" ]; then
+  # Azure Pipelines checks out in detached HEAD; use BUILD_SOURCEBRANCHNAME.
+  if [ -n "${BUILD_SOURCEBRANCHNAME:-}" ] && [ "$BUILD_SOURCEBRANCHNAME" != "HEAD" ]; then
+    MEADOW_BRANCH="$BUILD_SOURCEBRANCHNAME"
+  else
+    MEADOW_BRANCH=$(git -C "$scriptdir" rev-parse --abbrev-ref HEAD)
+  fi
+  printf "Syncing runtime to match Meadow branch '%s'\n" "$MEADOW_BRANCH"
+  git -C "$RUNTIME_DIR" fetch --prune
+  if git -C "$RUNTIME_DIR" rev-parse --verify "origin/$MEADOW_BRANCH" &>/dev/null; then
+    git -C "$RUNTIME_DIR" checkout "$MEADOW_BRANCH"
+    git -C "$RUNTIME_DIR" pull origin "$MEADOW_BRANCH"
+  else
+    printf "Runtime branch '%s' not found, falling back to main\n" "$MEADOW_BRANCH"
+    git -C "$RUNTIME_DIR" checkout main
+    git -C "$RUNTIME_DIR" pull origin main
+  fi
+fi
 
 #
 # Verify NuttX headers are available (needed by CMake build)

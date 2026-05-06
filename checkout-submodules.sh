@@ -75,36 +75,6 @@ git submodule
 checkout_submodule "https://bitbucket.org/nuttx/tools.git" "tools"
 checkout_submodule_github "WildernessLabs/mbedtls" "mbedtls"
 
-#
-# Clone the dotnet/runtime fork (sibling directory, not a submodule).
-# The build scripts expect it at ../runtime relative to this repo.
-#
-RUNTIME_REPO="WildernessLabs/runtime"
-RUNTIME_DIR="$scriptdir/../runtime"
-RUNTIME_URL="https://${GITHUB_PERSONAL_ACCESS_TOKEN}@github.com/${RUNTIME_REPO}.git"
-echo "Cloning or updating runtime repo into $RUNTIME_DIR"
-git clone "$RUNTIME_URL" "$RUNTIME_DIR" 2>/dev/null || git -C "$RUNTIME_DIR" fetch --prune
-
-# Check out the branch that matches this Meadow branch, or fall back to main.
-# Azure Pipelines checks out in detached HEAD mode, so git rev-parse returns
-# "HEAD" instead of the branch name. Use BUILD_SOURCEBRANCHNAME if available.
-if [ -n "${BUILD_SOURCEBRANCHNAME:-}" ] && [ "$BUILD_SOURCEBRANCHNAME" != "HEAD" ]; then
-  CURRENT_BRANCH="$BUILD_SOURCEBRANCHNAME"
-else
-  CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-fi
-echo "Meadow branch: $CURRENT_BRANCH"
-git -C "$RUNTIME_DIR" fetch --prune
-if git -C "$RUNTIME_DIR" rev-parse --verify "origin/$CURRENT_BRANCH" &>/dev/null; then
-  echo "Checking out runtime branch '$CURRENT_BRANCH' (matches Meadow)"
-  git -C "$RUNTIME_DIR" checkout "$CURRENT_BRANCH"
-  git -C "$RUNTIME_DIR" pull origin "$CURRENT_BRANCH"
-else
-  echo "WARNING: Runtime branch '$CURRENT_BRANCH' not found, falling back to main"
-  git -C "$RUNTIME_DIR" checkout main
-  git -C "$RUNTIME_DIR" pull origin main
-fi
-
 clean_submodule .
 
 git submodule
