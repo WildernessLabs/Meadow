@@ -154,9 +154,18 @@ fi
 #
 OUTPUT_DIR="$scriptdir/artifacts/meadow_assemblies"
 
-if $CLEAN && [ -d "$OUTPUT_DIR" ]; then
-  printf "Cleaning output directory...\n"
-  rm -rf "$OUTPUT_DIR"
+if $CLEAN; then
+  if [ -d "$OUTPUT_DIR" ]; then
+    printf "Cleaning output directory...\n"
+    rm -rf "$OUTPUT_DIR"
+  fi
+  # Wipe runtime obj/ caches too — stale package paths from a previous
+  # SDK install can survive `dotnet restore` and produce confusing
+  # CS0234 "type does not exist" errors on CI agents.
+  if [ -d "$RUNTIME_DIR/artifacts/obj" ]; then
+    printf "Cleaning runtime obj/ cache...\n"
+    rm -rf "$RUNTIME_DIR/artifacts/obj"
+  fi
 fi
 
 if [ -d "$OUTPUT_DIR" ] && ! $FORCE && ! $CLEAN; then
@@ -177,9 +186,18 @@ SPCL_DLL="$SPCL_DIR/System.Private.CoreLib.dll"
 
 printf "=== Step 1: Build System.Private.CoreLib ($BUILD_CONFIG) ===\n"
 
-# NuttX-specific: FeaturePerfTracing=false (native has DISABLE_EVENTPIPE)
+# Isolate the dotnet env so MSBuild only resolves SDKs / targeting packs
+# from runtime/.dotnet (matches what runtime's eng/common/tools.sh does).
+# Without DOTNET_MULTILEVEL_LOOKUP=0, an unrelated dotnet on the agent's
+# PATH can satisfy SDK lookups and lead to mismatched reference assemblies.
 export DOTNET_ROOT="$RUNTIME_DIR/.dotnet"
+export DOTNET_INSTALL_DIR="$RUNTIME_DIR/.dotnet"
+export DOTNET_MULTILEVEL_LOOKUP=0
+export DOTNET_NOLOGO=1
+export DOTNET_CLI_TELEMETRY_OPTOUT=1
+export PATH="$DOTNET_ROOT:$PATH"
 
+# NuttX-specific: FeaturePerfTracing=false (native has DISABLE_EVENTPIPE)
 "$DOTNET" build "$CORELIB_PROJ" \
   -c "$BUILD_CONFIG" \
   -p:TargetArchitecture=arm \
