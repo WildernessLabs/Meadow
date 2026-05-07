@@ -71,36 +71,82 @@ if [ "$HELP" = true ]; then
 fi
 
 #
-# Locate the runtime repo (sibling directory)
+# Locate (or clone) the runtime repo as a sibling directory, then sync it
+# to the branch matching this Meadow branch (or main if no match). Set
+# MEADOW_RUNTIME_NO_SYNC=1 to skip the sync (e.g. local dev with a custom
+# runtime branch).
 #
+RUNTIME_REPO="WildernessLabs/runtime"
 RUNTIME_DIR="$scriptdir/../runtime"
 
 if [ ! -d "$RUNTIME_DIR" ]; then
-  printf "${red}ERROR: ../runtime directory not found.${reset}\n"
-  printf "Clone the dotnet/runtime fork as a sibling directory.\n"
-  exit 1
+  printf "Cloning %s into %s\n" "$RUNTIME_REPO" "$RUNTIME_DIR"
+  if [ -n "${GITHUB_PERSONAL_ACCESS_TOKEN:-}" ]; then
+    RUNTIME_URL="https://${GITHUB_PERSONAL_ACCESS_TOKEN}@github.com/${RUNTIME_REPO}.git"
+  else
+    RUNTIME_URL="https://github.com/${RUNTIME_REPO}.git"
+  fi
+  git clone "$RUNTIME_URL" "$RUNTIME_DIR" || {
+    printf "${red}ERROR: Failed to clone runtime repo.${reset}\n"
+    exit 1
+  }
 fi
 
 RUNTIME_DIR="$(cd "$RUNTIME_DIR" && pwd)"
 
-#
-# Verify .NET SDK is provisioned
-#
-DOTNET="$RUNTIME_DIR/.dotnet/dotnet"
-if [ ! -x "$DOTNET" ]; then
-  printf "${red}ERROR: .NET SDK not found at $DOTNET${reset}\n"
-  printf "Provision it with: curl -sSL https://builds.dotnet.microsoft.com/dotnet/scripts/v1/dotnet-install.sh | bash -s -- --install-dir $RUNTIME_DIR/.dotnet\n"
-  exit 1
+# Determine Meadow branch — Azure Pipelines checks out in detached HEAD,
+# so prefer BUILD_SOURCEBRANCHNAME when set.
+if [ -n "${BUILD_SOURCEBRANCHNAME:-}" ] && [ "$BUILD_SOURCEBRANCHNAME" != "HEAD" ]; then
+  MEADOW_BRANCH="$BUILD_SOURCEBRANCHNAME"
+else
+  MEADOW_BRANCH=$(git -C "$scriptdir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo HEAD)
 fi
+
+if [ "${MEADOW_RUNTIME_NO_SYNC:-}" = "1" ]; then
+  printf "Skipping runtime branch sync (MEADOW_RUNTIME_NO_SYNC=1)\n"
+else
+  printf "Fetching latest from runtime origin\n"
+  git -C "$RUNTIME_DIR" fetch --prune --force origin
+
+  if [ "$MEADOW_BRANCH" = "HEAD" ] || [ -z "$MEADOW_BRANCH" ]; then
+    printf "No Meadow branch detected, leaving runtime on its current ref\n"
+  else
+    if git -C "$RUNTIME_DIR" rev-parse --verify "origin/$MEADOW_BRANCH" &>/dev/null; then
+      TARGET_BRANCH="$MEADOW_BRANCH"
+    else
+      printf "Runtime branch '%s' not found upstream, falling back to main\n" "$MEADOW_BRANCH"
+      TARGET_BRANCH="main"
+    fi
+    printf "Syncing runtime to origin/%s\n" "$TARGET_BRANCH"
+    git -C "$RUNTIME_DIR" checkout -f -B "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
+  fi
+
+  printf "Runtime HEAD: %s\n" "$(git -C "$RUNTIME_DIR" log -1 --pretty=format:'%h %s')"
+fi
+
+# SDK provisioning is delegated to runtime's own bootstrap (eng/common/tools.sh
+# via runtime/build.sh). Doing it manually with dotnet-install.sh produced an
+# incomplete state — SDK was installed but targeting packs / NuGet packages
+# weren't, leading to CS0234 "type does not exist" errors at compile time.
+DOTNET="$RUNTIME_DIR/.dotnet/dotnet"
 
 #
 # Output directory
 #
 OUTPUT_DIR="$scriptdir/artifacts/meadow_assemblies"
 
-if $CLEAN && [ -d "$OUTPUT_DIR" ]; then
-  printf "Cleaning output directory...\n"
-  rm -rf "$OUTPUT_DIR"
+if $CLEAN; then
+  if [ -d "$OUTPUT_DIR" ]; then
+    printf "Cleaning output directory...\n"
+    rm -rf "$OUTPUT_DIR"
+  fi
+  # Wipe runtime obj/ caches too — stale package paths from a previous
+  # SDK install can survive `dotnet restore` and produce confusing
+  # CS0234 "type does not exist" errors on CI agents.
+  if [ -d "$RUNTIME_DIR/artifacts/obj" ]; then
+    printf "Cleaning runtime obj/ cache...\n"
+    rm -rf "$RUNTIME_DIR/artifacts/obj"
+  fi
 fi
 
 if [ -d "$OUTPUT_DIR" ] && ! $FORCE && ! $CLEAN; then
@@ -121,15 +167,28 @@ SPCL_DLL="$SPCL_DIR/System.Private.CoreLib.dll"
 
 printf "=== Step 1: Build System.Private.CoreLib ($BUILD_CONFIG) ===\n"
 
-# NuttX-specific: FeaturePerfTracing=false (native has DISABLE_EVENTPIPE)
-export DOTNET_ROOT="$RUNTIME_DIR/.dotnet"
+# eng/common/tools.sh checks $HOME (NuGet needs it) under `set -u`, so an
+# unset HOME on CI agents (root with no env) crashes the script before it
+# can fall back. Set a sensible default.
+if [ -z "${HOME:-}" ]; then
+  export HOME="$RUNTIME_DIR/artifacts/.home"
+  mkdir -p "$HOME"
+fi
 
-"$DOTNET" build "$CORELIB_PROJ" \
+# Delegate to runtime's own build script. eng/common/tools.sh installs the
+# correct SDK pinned by global.json, restores all NuGet packages from
+# runtime/NuGet.config (including the netstandard targeting packs the
+# managed CoreLib build depends on), and Subsets.props 'Mono.CoreLib'
+# resolves to the same csproj we want to build.
+#
+# NuttX-specific tweak: FeaturePerfTracing=false because the native side
+# is built with DISABLE_EVENTPIPE.
+(cd "$RUNTIME_DIR" && ./build.sh \
+  -subset mono.corelib \
+  -arch arm \
+  -os linux \
   -c "$BUILD_CONFIG" \
-  -p:TargetArchitecture=arm \
-  -p:TargetOS=linux \
-  -p:FeaturePerfTracing=false \
-  -p:RuntimeFlavor=Mono
+  /p:FeaturePerfTracing=false)
 
 if [ ! -f "$SPCL_DLL" ]; then
   printf "${red}ERROR: CoreLib build produced no output at $SPCL_DLL${reset}\n"
@@ -138,6 +197,16 @@ fi
 
 SPCL_SIZE=$(ls -lh "$SPCL_DLL" | awk '{print $5}')
 printf "CoreLib: $SPCL_SIZE\n"
+
+# After runtime/build.sh, runtime/.dotnet/dotnet is fully provisioned.
+# Use it for our subsequent per-library builds so they share the same
+# SDK + restored package state.
+export DOTNET_ROOT="$RUNTIME_DIR/.dotnet"
+export DOTNET_INSTALL_DIR="$RUNTIME_DIR/.dotnet"
+export DOTNET_MULTILEVEL_LOOKUP=0
+export DOTNET_NOLOGO=1
+export DOTNET_CLI_TELEMETRY_OPTOUT=1
+export PATH="$DOTNET_ROOT:$PATH"
 
 # ──────────────────────────────────────────────────────────────────────
 # Step 2: Package assemblies
