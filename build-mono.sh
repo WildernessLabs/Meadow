@@ -94,18 +94,28 @@ fi
 
 if [ "${MEADOW_RUNTIME_NO_SYNC:-}" = "1" ]; then
   printf "Skipping runtime branch sync (MEADOW_RUNTIME_NO_SYNC=1)\n"
-elif [ "$MEADOW_BRANCH" = "HEAD" ] || [ -z "$MEADOW_BRANCH" ]; then
-  printf "Skipping runtime branch sync (no Meadow branch detected)\n"
 else
-  printf "Syncing runtime to match Meadow branch '%s'\n" "$MEADOW_BRANCH"
-  git -C "$RUNTIME_DIR" fetch --prune
-  if git -C "$RUNTIME_DIR" rev-parse --verify "origin/$MEADOW_BRANCH" &>/dev/null; then
-    TARGET_BRANCH="$MEADOW_BRANCH"
+  # Always fetch latest from origin, even if we can't determine a branch —
+  # ensures cached agents pick up new commits. Uses --force in case branch
+  # tips were rewritten upstream.
+  printf "Fetching latest from runtime origin\n"
+  git -C "$RUNTIME_DIR" fetch --prune --force origin
+
+  if [ "$MEADOW_BRANCH" = "HEAD" ] || [ -z "$MEADOW_BRANCH" ]; then
+    printf "No Meadow branch detected, leaving runtime on its current ref\n"
   else
-    printf "Runtime branch '%s' not found, falling back to main\n" "$MEADOW_BRANCH"
-    TARGET_BRANCH="main"
+    if git -C "$RUNTIME_DIR" rev-parse --verify "origin/$MEADOW_BRANCH" &>/dev/null; then
+      TARGET_BRANCH="$MEADOW_BRANCH"
+    else
+      printf "Runtime branch '%s' not found upstream, falling back to main\n" "$MEADOW_BRANCH"
+      TARGET_BRANCH="main"
+    fi
+    printf "Syncing runtime to origin/%s\n" "$TARGET_BRANCH"
+    # -f forces working tree reset; -B (re)creates the local branch.
+    git -C "$RUNTIME_DIR" checkout -f -B "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
   fi
-  git -C "$RUNTIME_DIR" checkout -B "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
+
+  printf "Runtime HEAD: %s\n" "$(git -C "$RUNTIME_DIR" log -1 --pretty=format:'%h %s')"
 fi
 
 #
