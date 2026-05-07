@@ -1,7 +1,8 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
+# Meadow.Assemblies pipeline
+# Builds the .NET 10 framework + System.Private.CoreLib targeted at our
+# NuttX runtime. Output is the meadow_assemblies/ collection that ships
+# alongside Meadow.OS.bin in a release — apps deployed via `meadow app run`
+# link against these custom assemblies.
 
 trigger:
   branches:
@@ -15,7 +16,7 @@ steps:
 - script: |
     git clean -xffd
   displayName: 'Clean workspace'
-  
+
 - task: ShellScript@2
   inputs:
     scriptPath: checkout-submodules.sh
@@ -35,4 +36,4 @@ steps:
 - task: PublishBuildArtifacts@1
   inputs:
     pathtoPublish: "$(Build.ArtifactStagingDirectory)"
-    artifactName: BCL
+    artifactName: Meadow.Assemblies

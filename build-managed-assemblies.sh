@@ -71,25 +71,81 @@ if [ "$HELP" = true ]; then
 fi
 
 #
-# Locate the runtime repo (sibling directory)
+# Locate (or clone) the runtime repo as a sibling directory, then sync it
+# to the branch matching this Meadow branch (or main if no match). Set
+# MEADOW_RUNTIME_NO_SYNC=1 to skip the sync (e.g. local dev with a custom
+# runtime branch).
 #
+RUNTIME_REPO="WildernessLabs/runtime"
 RUNTIME_DIR="$scriptdir/../runtime"
 
 if [ ! -d "$RUNTIME_DIR" ]; then
-  printf "${red}ERROR: ../runtime directory not found.${reset}\n"
-  printf "Clone the dotnet/runtime fork as a sibling directory.\n"
-  exit 1
+  printf "Cloning %s into %s\n" "$RUNTIME_REPO" "$RUNTIME_DIR"
+  if [ -n "${GITHUB_PERSONAL_ACCESS_TOKEN:-}" ]; then
+    RUNTIME_URL="https://${GITHUB_PERSONAL_ACCESS_TOKEN}@github.com/${RUNTIME_REPO}.git"
+  else
+    RUNTIME_URL="https://github.com/${RUNTIME_REPO}.git"
+  fi
+  git clone "$RUNTIME_URL" "$RUNTIME_DIR" || {
+    printf "${red}ERROR: Failed to clone runtime repo.${reset}\n"
+    exit 1
+  }
 fi
 
 RUNTIME_DIR="$(cd "$RUNTIME_DIR" && pwd)"
 
+# Determine Meadow branch — Azure Pipelines checks out in detached HEAD,
+# so prefer BUILD_SOURCEBRANCHNAME when set.
+if [ -n "${BUILD_SOURCEBRANCHNAME:-}" ] && [ "$BUILD_SOURCEBRANCHNAME" != "HEAD" ]; then
+  MEADOW_BRANCH="$BUILD_SOURCEBRANCHNAME"
+else
+  MEADOW_BRANCH=$(git -C "$scriptdir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo HEAD)
+fi
+
+if [ "${MEADOW_RUNTIME_NO_SYNC:-}" = "1" ]; then
+  printf "Skipping runtime branch sync (MEADOW_RUNTIME_NO_SYNC=1)\n"
+else
+  printf "Fetching latest from runtime origin\n"
+  git -C "$RUNTIME_DIR" fetch --prune --force origin
+
+  if [ "$MEADOW_BRANCH" = "HEAD" ] || [ -z "$MEADOW_BRANCH" ]; then
+    printf "No Meadow branch detected, leaving runtime on its current ref\n"
+  else
+    if git -C "$RUNTIME_DIR" rev-parse --verify "origin/$MEADOW_BRANCH" &>/dev/null; then
+      TARGET_BRANCH="$MEADOW_BRANCH"
+    else
+      printf "Runtime branch '%s' not found upstream, falling back to main\n" "$MEADOW_BRANCH"
+      TARGET_BRANCH="main"
+    fi
+    printf "Syncing runtime to origin/%s\n" "$TARGET_BRANCH"
+    git -C "$RUNTIME_DIR" checkout -f -B "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
+  fi
+
+  printf "Runtime HEAD: %s\n" "$(git -C "$RUNTIME_DIR" log -1 --pretty=format:'%h %s')"
+fi
+
 #
-# Verify .NET SDK is provisioned
+# Provision .NET SDK if missing — uses the version pinned by runtime/global.json
+# so the build matches what the runtime was developed against.
 #
 DOTNET="$RUNTIME_DIR/.dotnet/dotnet"
 if [ ! -x "$DOTNET" ]; then
-  printf "${red}ERROR: .NET SDK not found at $DOTNET${reset}\n"
-  printf "Provision it with: curl -sSL https://builds.dotnet.microsoft.com/dotnet/scripts/v1/dotnet-install.sh | bash -s -- --install-dir $RUNTIME_DIR/.dotnet\n"
+  GLOBAL_JSON="$RUNTIME_DIR/global.json"
+  printf "Provisioning .NET SDK into %s/.dotnet\n" "$RUNTIME_DIR"
+  if [ -f "$GLOBAL_JSON" ]; then
+    SDK_VERSION=$(grep -oE '"version"[[:space:]]*:[[:space:]]*"[^"]+"' "$GLOBAL_JSON" | head -1 | sed -E 's/.*"([^"]+)"$/\1/')
+  fi
+  if [ -n "$SDK_VERSION" ]; then
+    printf "Installing SDK version %s (from global.json)\n" "$SDK_VERSION"
+    curl -sSL https://builds.dotnet.microsoft.com/dotnet/scripts/v1/dotnet-install.sh \
+      | bash -s -- --install-dir "$RUNTIME_DIR/.dotnet" --version "$SDK_VERSION"
+  else
+    curl -sSL https://builds.dotnet.microsoft.com/dotnet/scripts/v1/dotnet-install.sh \
+      | bash -s -- --install-dir "$RUNTIME_DIR/.dotnet"
+  fi
+fi
+if [ ! -x "$DOTNET" ]; then
+  printf "${red}ERROR: .NET SDK still not found at $DOTNET after install.${reset}\n"
   exit 1
 fi
 
