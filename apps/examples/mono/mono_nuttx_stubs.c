@@ -690,21 +690,11 @@ void __assert(const char *file, int line, const char *expr)
   for (;;); /* hang rather than crash unpredictably */
 }
 
-/* abort — intercept to log before dying */
-void abort(void)
-{
-  syslog(LOG_EMERG, "ABORT called! LR=%p\n",
-         __builtin_return_address(0));
-  for (;;); /* hang so we can debug */
-}
-
-/* exit — intercept to log task exit */
-void _exit(int status)
-{
-  syslog(LOG_EMERG, "EXIT(%d) called! LR=%p\n",
-         status, __builtin_return_address(0));
-  for (;;); /* hang so we can debug */
-}
+/* abort and _exit are NOT defined here. NuttX's libuc.a provides abort
+ * and libproxies.a provides _exit (proxy → kernel syscall). Defining
+ * them here too creates duplicate-symbol errors that have been latent —
+ * link order on Mac happened to pull in our versions first, but Linux
+ * ld.lld picks them all up and fails. Let NuttX's versions handle them. */
 
 /* lib_get_stream — NuttX internal for FILE* by fd index.
  * libmonosgen references this. Return NULL for now. */
