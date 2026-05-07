@@ -67,7 +67,14 @@ ifeq ($(CONFIG_EXAMPLES_MONO),y)
                     close read write open fcntl ioctl lseek \
                     fstat stat ftruncate poll select pipe2 \
                     sem_wait sem_trywait sem_timedwait sem_post
-  MONO_LDLIBS = $(addprefix --wrap=,$(ERRNO_WRAP_SYMS))
+
+  # Full-replacement wrappers: redirect calls away from NuttX's proxy/kernel
+  # mmap (which lacks file-backed mapping support we need) to our SDRAM-cached
+  # impl in mono_nuttx_stubs.c. Same --wrap mechanism, but the wrapper does
+  # not delegate to __real_mmap.
+  REPLACE_WRAP_SYMS = mmap munmap
+
+  MONO_LDLIBS = $(addprefix --wrap=,$(ERRNO_WRAP_SYMS) $(REPLACE_WRAP_SYMS))
 
   MONO_LIBM=
 else

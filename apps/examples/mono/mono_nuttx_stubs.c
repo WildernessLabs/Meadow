@@ -184,8 +184,8 @@ static struct sdram_cache_entry *sdram_cache_lookup_by_fd(int fd)
 static size_t _mmap_total = 0;
 static int _mmap_count = 0;
 
-void *mmap(void *addr, size_t length, int prot, int flags,
-           int fd, off_t offset)
+void *__wrap_mmap(void *addr, size_t length, int prot, int flags,
+                  int fd, off_t offset)
 {
   void *ptr = NULL;
 
@@ -248,7 +248,7 @@ void *mmap(void *addr, size_t length, int prot, int flags,
   return ptr;
 }
 
-int munmap(void *addr, size_t length)
+int __wrap_munmap(void *addr, size_t length)
 {
   /* mono_valloc/mono_vfree now bypass mmap/munmap on NuttX (handled in
    * mono-mmap.c via memalign/free directly), so the main callers of this
