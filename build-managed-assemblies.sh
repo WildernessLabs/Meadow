@@ -124,30 +124,11 @@ else
   printf "Runtime HEAD: %s\n" "$(git -C "$RUNTIME_DIR" log -1 --pretty=format:'%h %s')"
 fi
 
-#
-# Provision .NET SDK if missing — uses the version pinned by runtime/global.json
-# so the build matches what the runtime was developed against.
-#
+# SDK provisioning is delegated to runtime's own bootstrap (eng/common/tools.sh
+# via runtime/build.sh). Doing it manually with dotnet-install.sh produced an
+# incomplete state — SDK was installed but targeting packs / NuGet packages
+# weren't, leading to CS0234 "type does not exist" errors at compile time.
 DOTNET="$RUNTIME_DIR/.dotnet/dotnet"
-if [ ! -x "$DOTNET" ]; then
-  GLOBAL_JSON="$RUNTIME_DIR/global.json"
-  printf "Provisioning .NET SDK into %s/.dotnet\n" "$RUNTIME_DIR"
-  if [ -f "$GLOBAL_JSON" ]; then
-    SDK_VERSION=$(grep -oE '"version"[[:space:]]*:[[:space:]]*"[^"]+"' "$GLOBAL_JSON" | head -1 | sed -E 's/.*"([^"]+)"$/\1/')
-  fi
-  if [ -n "$SDK_VERSION" ]; then
-    printf "Installing SDK version %s (from global.json)\n" "$SDK_VERSION"
-    curl -sSL https://builds.dotnet.microsoft.com/dotnet/scripts/v1/dotnet-install.sh \
-      | bash -s -- --install-dir "$RUNTIME_DIR/.dotnet" --version "$SDK_VERSION"
-  else
-    curl -sSL https://builds.dotnet.microsoft.com/dotnet/scripts/v1/dotnet-install.sh \
-      | bash -s -- --install-dir "$RUNTIME_DIR/.dotnet"
-  fi
-fi
-if [ ! -x "$DOTNET" ]; then
-  printf "${red}ERROR: .NET SDK still not found at $DOTNET after install.${reset}\n"
-  exit 1
-fi
 
 #
 # Output directory
@@ -186,24 +167,20 @@ SPCL_DLL="$SPCL_DIR/System.Private.CoreLib.dll"
 
 printf "=== Step 1: Build System.Private.CoreLib ($BUILD_CONFIG) ===\n"
 
-# Isolate the dotnet env so MSBuild only resolves SDKs / targeting packs
-# from runtime/.dotnet (matches what runtime's eng/common/tools.sh does).
-# Without DOTNET_MULTILEVEL_LOOKUP=0, an unrelated dotnet on the agent's
-# PATH can satisfy SDK lookups and lead to mismatched reference assemblies.
-export DOTNET_ROOT="$RUNTIME_DIR/.dotnet"
-export DOTNET_INSTALL_DIR="$RUNTIME_DIR/.dotnet"
-export DOTNET_MULTILEVEL_LOOKUP=0
-export DOTNET_NOLOGO=1
-export DOTNET_CLI_TELEMETRY_OPTOUT=1
-export PATH="$DOTNET_ROOT:$PATH"
-
-# NuttX-specific: FeaturePerfTracing=false (native has DISABLE_EVENTPIPE)
-"$DOTNET" build "$CORELIB_PROJ" \
+# Delegate to runtime's own build script. eng/common/tools.sh installs the
+# correct SDK pinned by global.json, restores all NuGet packages from
+# runtime/NuGet.config (including the netstandard targeting packs the
+# managed CoreLib build depends on), and Subsets.props 'Mono.CoreLib'
+# resolves to the same csproj we want to build.
+#
+# NuttX-specific tweak: FeaturePerfTracing=false because the native side
+# is built with DISABLE_EVENTPIPE.
+(cd "$RUNTIME_DIR" && ./build.sh \
+  -subset mono.corelib \
+  -arch arm \
+  -os linux \
   -c "$BUILD_CONFIG" \
-  -p:TargetArchitecture=arm \
-  -p:TargetOS=linux \
-  -p:FeaturePerfTracing=false \
-  -p:RuntimeFlavor=Mono
+  /p:FeaturePerfTracing=false)
 
 if [ ! -f "$SPCL_DLL" ]; then
   printf "${red}ERROR: CoreLib build produced no output at $SPCL_DLL${reset}\n"
@@ -212,6 +189,16 @@ fi
 
 SPCL_SIZE=$(ls -lh "$SPCL_DLL" | awk '{print $5}')
 printf "CoreLib: $SPCL_SIZE\n"
+
+# After runtime/build.sh, runtime/.dotnet/dotnet is fully provisioned.
+# Use it for our subsequent per-library builds so they share the same
+# SDK + restored package state.
+export DOTNET_ROOT="$RUNTIME_DIR/.dotnet"
+export DOTNET_INSTALL_DIR="$RUNTIME_DIR/.dotnet"
+export DOTNET_MULTILEVEL_LOOKUP=0
+export DOTNET_NOLOGO=1
+export DOTNET_CLI_TELEMETRY_OPTOUT=1
+export PATH="$DOTNET_ROOT:$PATH"
 
 # ──────────────────────────────────────────────────────────────────────
 # Step 2: Package assemblies
