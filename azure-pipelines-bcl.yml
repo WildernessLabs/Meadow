@@ -30,6 +30,7 @@ steps:
   inputs:
     contents: |
       artifacts/meadow_assemblies/*.dll
+      artifacts/meadow_assemblies/*.xml
     targetFolder: "$(Build.ArtifactStagingDirectory)/meadow_assemblies"
     flattenFolders: true
 
