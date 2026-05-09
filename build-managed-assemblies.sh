@@ -236,6 +236,19 @@ if [ -f "$SPCL_DIR/System.Private.CoreLib.pdb" ] && $KEEP_PDBS; then
   cp "$SPCL_DIR/System.Private.CoreLib.pdb" "$OUTPUT_DIR/"
 fi
 
+# Bundle Mono's CoreLib ILLink descriptor. The Meadow CLI's deploy/trim
+# pipeline picks this up as TrimmerRootDescriptors and only roots the
+# specific types/methods Mono loads by name from native code, instead of
+# rooting the entire CoreLib (~4.8MB). Optional from CLI's perspective —
+# absence falls back to the blanket-root behavior.
+ILLINK_DESC="$RUNTIME_DIR/src/mono/System.Private.CoreLib/src/ILLink/ILLink.Descriptors.xml"
+if [ -f "$ILLINK_DESC" ]; then
+  cp "$ILLINK_DESC" "$OUTPUT_DIR/"
+  printf "ILLink descriptor: %s\n" "$(ls -lh "$OUTPUT_DIR/ILLink.Descriptors.xml" | awk '{print $5}')"
+else
+  printf "${red}WARN: ILLink descriptor not found at %s${reset}\n" "$ILLINK_DESC"
+fi
+
 # Copy framework assemblies from SDK (mostly platform-independent managed IL).
 # Some assemblies are platform-specific (networking, crypto) and will be
 # rebuilt from source for Linux below.
