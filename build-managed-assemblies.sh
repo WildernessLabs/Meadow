@@ -167,6 +167,14 @@ SPCL_DLL="$SPCL_DIR/System.Private.CoreLib.dll"
 
 printf "=== Step 1: Build System.Private.CoreLib ($BUILD_CONFIG) ===\n"
 
+# eng/common/tools.sh checks $HOME (NuGet needs it) under `set -u`, so an
+# unset HOME on CI agents (root with no env) crashes the script before it
+# can fall back. Set a sensible default.
+if [ -z "${HOME:-}" ]; then
+  export HOME="$RUNTIME_DIR/artifacts/.home"
+  mkdir -p "$HOME"
+fi
+
 # Delegate to runtime's own build script. eng/common/tools.sh installs the
 # correct SDK pinned by global.json, restores all NuGet packages from
 # runtime/NuGet.config (including the netstandard targeting packs the
