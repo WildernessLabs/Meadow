@@ -177,6 +177,82 @@ public class MeadowApp : App<F7CoreComputeV2>
                 Console.WriteLine($"  Inner2: {inner2.GetType().Name}: {inner2.Message}");
         }
 
+        // GPIO throughput test — toggle as fast as possible, measure ops/sec.
+        // Three rounds so JIT warm-up doesn't skew the headline number.
+        Console.WriteLine("=== GPIO STATE-SETTER BENCHMARK ===");
+        const int BATCH = 100_000;
+        for (int round = 0; round < 3; round++)
+        {
+            var sw = Stopwatch.StartNew();
+            for (int i = 0; i < BATCH; i++)
+            {
+                led.State = true;
+                led.State = false;
+            }
+            sw.Stop();
+            long ops = BATCH * 2L;
+            double opsPerSec = ops / sw.Elapsed.TotalSeconds;
+            Console.WriteLine($"  round {round}: {ops} writes in {sw.ElapsedMilliseconds} ms → {opsPerSec:N0} writes/sec ({(opsPerSec / 2000.0):F1} kHz square wave)");
+        }
+
+        if (led is F7DigitalOutputPort f7Led)
+        {
+            Console.WriteLine("=== GPIO Toggle() BENCHMARK (F7 fast path) ===");
+            for (int round = 0; round < 3; round++)
+            {
+                var sw = Stopwatch.StartNew();
+                for (int i = 0; i < BATCH * 2; i++)
+                {
+                    f7Led.Toggle();
+                }
+                sw.Stop();
+                long ops = BATCH * 2L;
+                double opsPerSec = ops / sw.Elapsed.TotalSeconds;
+                Console.WriteLine($"  round {round}: {ops} toggles in {sw.ElapsedMilliseconds} ms → {opsPerSec:N0} toggles/sec ({(opsPerSec / 2000.0):F1} kHz square wave)");
+            }
+
+            Console.WriteLine("=== GPIO RAW BSRR BENCHMARK (escape hatch) ===");
+            unsafe
+            {
+                f7Led.GetRawWriteHandle(out uint* bsrr, out uint setMask, out uint clearMask);
+                const int RAW_BATCH = 1_000_000;
+
+                for (int round = 0; round < 3; round++)
+                {
+                    var sw = Stopwatch.StartNew();
+                    for (int i = 0; i < RAW_BATCH; i++)
+                    {
+                        *bsrr = setMask;
+                        *bsrr = clearMask;
+                    }
+                    sw.Stop();
+                    long ops = RAW_BATCH * 2L;
+                    double opsPerSec = ops / sw.Elapsed.TotalSeconds;
+                    Console.WriteLine($"  round {round} (tight loop): {ops} writes in {sw.ElapsedMilliseconds} ms → {opsPerSec:N0} writes/sec ({(opsPerSec / 2000.0):F1} kHz square wave)");
+                }
+
+                // Unrolled 8x to amortize loop overhead
+                for (int round = 0; round < 3; round++)
+                {
+                    var sw = Stopwatch.StartNew();
+                    int iters = RAW_BATCH / 4;
+                    for (int i = 0; i < iters; i++)
+                    {
+                        *bsrr = setMask; *bsrr = clearMask;
+                        *bsrr = setMask; *bsrr = clearMask;
+                        *bsrr = setMask; *bsrr = clearMask;
+                        *bsrr = setMask; *bsrr = clearMask;
+                    }
+                    sw.Stop();
+                    long ops = (long)iters * 8L;
+                    double opsPerSec = ops / sw.Elapsed.TotalSeconds;
+                    Console.WriteLine($"  round {round} (unrolled 8x): {ops} writes in {sw.ElapsedMilliseconds} ms → {opsPerSec:N0} writes/sec ({(opsPerSec / 2000.0):F1} kHz square wave)");
+                }
+
+            }
+        }
+        Console.WriteLine("=== GPIO BENCHMARK DONE ===");
+
         // Heartbeat
         Console.WriteLine("=== ALL TESTS DONE ===");
         int c = 0;
