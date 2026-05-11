@@ -1180,8 +1180,7 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
 
   /* Set environment variables for the runtime */
 
-  setenv("MONO_LOG_LEVEL", "info", 1);
-  setenv("MONO_LOG_DEST", "syslog", 1);
+  setenv("MONO_LOG_LEVEL", "warning", 1);
   /* Runtime runs in JIT mode (ARM Thumb2 JIT, DISABLE_JIT is not set).
    * The interpreter is compiled in as fallback but is not the primary engine. */
   setenv("TMPDIR", "/meadow0/Temp", 1);
@@ -1491,50 +1490,6 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
       close(app_fd);
 
       g_mono_stage = 7; /* About to execute assembly */
-
-      /* Diagnostic: verify critical assembly files are accessible and check stat modes */
-      {
-        const char *check_files[] = {
-          "/meadow0/Microsoft.Win32.Primitives.dll",
-          "/meadow0/System.Threading.ThreadPool.dll",
-          "/meadow0/System.Console.dll",
-          "/meadow0/System.Runtime.dll",
-          NULL
-        };
-        for (int ci = 0; check_files[ci]; ci++)
-          {
-            struct stat cst;
-            int sr = stat(check_files[ci], &cst);
-            if (sr == 0)
-              {
-                syslog(LOG_ERR,
-                       "FILE CHECK: %s => size=%d, mode=0x%x, S_ISREG=%d\n",
-                       check_files[ci], (int)cst.st_size,
-                       (unsigned)cst.st_mode, S_ISREG(cst.st_mode) ? 1 : 0);
-                /* Dump first 256 bytes to verify file content identity */
-                int dfd = open(check_files[ci], O_RDONLY);
-                if (dfd >= 0) {
-                  uint8_t hdr[256];
-                  ssize_t nr = read(dfd, hdr, sizeof(hdr));
-                  close(dfd);
-                  if (nr > 0) {
-                    /* Find assembly name string - scan for "Microsoft" or "System" after PE header */
-                    syslog(LOG_ERR, "FILE DUMP: %s first 16 bytes: %02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x\n",
-                           check_files[ci],
-                           hdr[0], hdr[1], hdr[2], hdr[3],
-                           hdr[4], hdr[5], hdr[6], hdr[7],
-                           hdr[8], hdr[9], hdr[10], hdr[11],
-                           hdr[12], hdr[13], hdr[14], hdr[15]);
-                  }
-                }
-              }
-            else
-              {
-                syslog(LOG_ERR, "FILE CHECK: %s => stat FAILED (errno=%d)\n",
-                       check_files[ci], get_errno());
-              }
-          }
-      }
 
       syslog(LOG_NOTICE, "Executing assembly: %s\n", app_path);
 

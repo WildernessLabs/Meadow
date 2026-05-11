@@ -56,7 +56,7 @@ if [ "$HELP" = true ]; then
   echo "  -v|--verbose   Show verbose output"
   echo "  -f|--force     Force rebuild even if library exists"
   echo "  -c|--clean     Clean build directory before building"
-  echo "  -d|--debug     Build Debug configuration (default: Debug)"
+  echo "  -d|--debug     Build Debug configuration (default: Release)"
   exit 0
 fi
 
@@ -130,12 +130,10 @@ fi
 #
 # Build configuration
 #
-# Always use Debug — Make.defs hardcodes build-nuttx-debug path.
-# For Release builds, update MONO_BUILD_DIR in apps/examples/mono/Make.defs too.
 if $DEBUG; then
   MONO_BUILD_TYPE="Debug"
 else
-  MONO_BUILD_TYPE="Debug"
+  MONO_BUILD_TYPE="Release"
 fi
 
 BUILD_DIR="$RUNTIME_DIR/src/mono/build-nuttx-$(echo "$MONO_BUILD_TYPE" | tr '[:upper:]' '[:lower:]')"

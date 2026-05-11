@@ -41,8 +41,13 @@ ifeq ($(CONFIG_EXAMPLES_MONO),y)
   SQLITE_DIR =  $(TOPDIR)/../apps/examples/sqlite
   SQLITE_OBJS = $(SQLITE_DIR)/sqlite_compile_sqlite3.o
 
-  # .NET 10 Mono runtime — single mega-library plus component plugins
-  MONO_BUILD_DIR = $(TOPDIR)/../../runtime/src/mono/build-nuttx-debug/mono
+  # .NET 10 Mono runtime — single mega-library plus component plugins.
+  # MONO_CONFIG selects which CMake config we link in. Must match the
+  # config build-mono.sh was last run with (Debug → build-nuttx-debug,
+  # Release → build-nuttx-release). Set via env or override on the make
+  # command line; default is Release.
+  MONO_CONFIG ?= release
+  MONO_BUILD_DIR = $(TOPDIR)/../../runtime/src/mono/build-nuttx-$(MONO_CONFIG)/mono
 
   MONO_AOBJS = $(MONO_BUILD_DIR)/mini/libmonosgen-2.0.a \
                $(MONO_BUILD_DIR)/mini/libmono-component-marshal-ilgen-static.a \
