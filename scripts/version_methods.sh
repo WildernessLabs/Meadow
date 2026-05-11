@@ -7,7 +7,8 @@ get_git_commit_hash() {
 
 get_git_branch_or_tag() {
   REPO_PATH=$1
-  echo `git -C $REPO_PATH describe --tags --exact-match 2> /dev/null || git -C $REPO_PATH symbolic-ref -q --short HEAD`
+  REF=$(git -C $REPO_PATH describe --tags --exact-match 2> /dev/null || git -C $REPO_PATH symbolic-ref -q --short HEAD)
+  echo "${REF//\//-}"
 }
 
 get_version_change_distance() {
