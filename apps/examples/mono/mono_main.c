@@ -35,6 +35,7 @@
 #include <sys/time.h>
 #include <sys/utsname.h>
 #include <syslog.h>
+#include <dlfcn.h>
 /* mount() declared here to avoid sys/mount.h conflict with mappings-meadow.h */
 extern int mount(const char *source, const char *target,
                  const char *filesystemtype, unsigned long mountflags,
@@ -308,6 +309,62 @@ extern int monovm_execute_assembly(int argc, const char **argv,
                                    const char *managedAssemblyPath,
                                    unsigned int *exitCode);
 extern int monovm_shutdown(int *latchedExitCode);
+
+/* JIT optimization tuning. Bit positions from
+ * runtime/src/mono/mono/mini/optflags-def.h. Safe to call before
+ * monovm_initialize: mono_set_optimizations only writes two globals and
+ * a flag in mini-generic-sharing. We bypass mono_parse_default_optimizations
+ * because it invokes mono_hwcap_init / mono_arch_cpu_optimizations, which
+ * are not safe before mini_init on NuttX. */
+extern void mono_set_optimizations(unsigned int opts);
+
+#define MEADOW_OPT_PEEPHOLE        (1u << 0)
+#define MEADOW_OPT_BRANCH          (1u << 1)
+#define MEADOW_OPT_INLINE          (1u << 2)
+#define MEADOW_OPT_CFOLD           (1u << 3)
+#define MEADOW_OPT_CONSPROP        (1u << 4)
+#define MEADOW_OPT_COPYPROP        (1u << 5)
+#define MEADOW_OPT_DEADCE          (1u << 6)
+#define MEADOW_OPT_LINEARS         (1u << 7)
+#define MEADOW_OPT_CMOV            (1u << 8)
+#define MEADOW_OPT_INTRINS         (1u << 11)
+#define MEADOW_OPT_LOOP            (1u << 13)
+#define MEADOW_OPT_LEAF            (1u << 15)
+#define MEADOW_OPT_AOT             (1u << 16)
+#define MEADOW_OPT_ABCREM          (1u << 18)
+#define MEADOW_OPT_EXCEPTION       (1u << 20)
+#define MEADOW_OPT_SSA             (1u << 21)
+#define MEADOW_OPT_FLOAT32         (1u << 22)
+#define MEADOW_OPT_GSHARED         (1u << 25)
+#define MEADOW_OPT_SIMD            (1u << 26)
+#define MEADOW_OPT_ALIAS_ANALYSIS  (1u << 28)
+
+#define MEADOW_OPT_DEFAULT_MASK ( \
+    MEADOW_OPT_PEEPHOLE | MEADOW_OPT_BRANCH   | MEADOW_OPT_INLINE  | \
+    MEADOW_OPT_CFOLD    | MEADOW_OPT_CONSPROP | MEADOW_OPT_COPYPROP | \
+    MEADOW_OPT_DEADCE   | MEADOW_OPT_LINEARS  | MEADOW_OPT_CMOV    | \
+    MEADOW_OPT_INTRINS  | MEADOW_OPT_LOOP     | MEADOW_OPT_AOT     | \
+    MEADOW_OPT_EXCEPTION| MEADOW_OPT_FLOAT32  | MEADOW_OPT_GSHARED | \
+    MEADOW_OPT_SIMD     | MEADOW_OPT_ALIAS_ANALYSIS)
+
+/* Per-experiment override mask. Edit MEADOW_OPT_EXPERIMENT to tune.
+ * Exp 1 (DEFAULT | SSA | ABCREM): mono crashed; was actually OS/Runtime
+ *   address mismatch, not the mask. SSA+ABCREM untested.
+ * Exp 2 (DEFAULT | LEAF): same — untested.
+ * Exp 3 (DEFAULT only, control): Pi 150 = 25.4–26.9s vs 23.5–24.0s with
+ *   no override. The override path adds ~8% overhead from an unknown cause.
+ *   All subsequent experiments must be compared against Exp 3, not against
+ *   the no-override baseline.
+ * Exp 4 (DEFAULT | LEAF): Pi 150 = 23719ms (within noise of no-override
+ *   23.5-24.0s; doesn't beat baseline).
+ * Exp 5 (DEFAULT & ~SIMD): Pi 150 = 24430ms (neutral, within noise).
+ * Exp 6 (DEFAULT | SSA | ABCREM): retry — earlier "crash" was OS/Runtime
+ *   binary mismatch (thunks pointing at stale runtime), not actually a
+ *   mask problem. With proper co-flash, SSA+ABCREM should kick in.
+ *   ABCREM removes array bounds checks in tight loops — big potential
+ *   win for Pi calc which is dominated by array indexing. */
+#define MEADOW_OPT_EXPERIMENT \
+    (MEADOW_OPT_DEFAULT_MASK | MEADOW_OPT_SSA | MEADOW_OPT_ABCREM)
 
 /****************************************************************************
  * External methods
@@ -1178,9 +1235,12 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
            (unsigned)((uint8_t *)mend - (uint8_t *)&_s_mono_bss));
   }
 
+  /* dlopen smoke test deferred — see after HCOM stdout redirect below. */
+
   /* Set environment variables for the runtime */
 
-  setenv("MONO_LOG_LEVEL", "warning", 1);
+  setenv("MONO_LOG_LEVEL", "info", 1);
+  setenv("MONO_LOG_MASK", "aot", 1);
   /* Runtime runs in JIT mode (ARM Thumb2 JIT, DISABLE_JIT is not set).
    * The interpreter is compiled in as fallback but is not the primary engine. */
   setenv("TMPDIR", "/meadow0/Temp", 1);
@@ -1351,6 +1411,25 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
    * inode_checkflags(). The UPD driver only has .open/.close/.ioctl — no
    * .read/.write — so O_RDONLY(1) or O_RDWR(3) would return EACCES. */
 
+  /* JIT-opt experiment: override default optimization mask before init.
+   * mono_set_optimizations just writes default_opt and default_opt_set
+   * (see runtime/src/mono/mono/mini/mini-runtime.c:5301), which mini_init
+   * picks up at line 4685 (if !default_opt_set then default_opt = parse(NULL)).
+   * Setting it here skips parse_optimizations, which would invoke
+   * mono_hwcap_init -- not safe before mini_init on NuttX.
+   *
+   * MEADOW_OPT_DEFAULT_MASK matches DEFAULT_OPTIMIZATIONS in mini-runtime.c
+   * exactly (validated by Exp 3); other MEADOW_OPT_EXPERIMENT settings
+   * deviate from it. */
+/* Define MEADOW_JIT_OPT_OVERRIDE to enable mask override for experiments.
+ * Empirical: no single-bit toggle (LEAF, -SIMD, SSA+ABCREM) beats DEFAULT
+ * on Pi calc above the ~10% noise floor; the override path itself appears
+ * to add ~8% Pi-150 overhead vs the no-override path (cause unclear). */
+#ifdef MEADOW_JIT_OPT_OVERRIDE
+  syslog(LOG_INFO, "Setting JIT opt mask: 0x%08x\n", MEADOW_OPT_EXPERIMENT);
+  mono_set_optimizations(MEADOW_OPT_EXPERIMENT);
+#endif
+
   /* Initialize the .NET 10 monovm runtime */
 
   ret = monovm_initialize(property_count, property_keys, property_values);
@@ -1368,6 +1447,72 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
   static volatile unsigned int g_mono_exit_code = 0xDEAD;
 
   syslog(LOG_NOTICE, "monovm_initialize succeeded\n");
+
+  /* AOT module bring-up: dlopen any *.dll.so files in /meadow0/ and register
+   * them with the Mono runtime via mono_aot_register_module(). This is the
+   * standard "static AOT" pattern for embedded targets where we can't rely
+   * on Mono's automatic per-assembly-load dlopen path (which only fires
+   * when managed code actually references the assembly). */
+  {
+    extern void mono_aot_register_module(void **aot_info);
+
+    DIR *dir = opendir(MONO_MEADOW_EXECUTABLE_PARTITION_NAME);
+    if (dir != NULL)
+      {
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL)
+          {
+            size_t nlen = strlen(entry->d_name);
+            if (nlen < 7 ||
+                strcmp(entry->d_name + nlen - 7, ".dll.so") != 0)
+              continue;
+
+            char path[160];
+            snprintf(path, sizeof(path), "%s/%s",
+                     MONO_MEADOW_EXECUTABLE_PARTITION_NAME, entry->d_name);
+            void *h = dlopen(path, RTLD_NOW);
+            if (h == NULL)
+              {
+                syslog(LOG_ERR, "AOT: dlopen('%s') failed\n", path);
+                continue;
+              }
+
+            /* Derive the expected symbol name: mono_aot_module_<NAME>_info,
+             * where <NAME> is the assembly name with '.' → '_'.
+             * e.g. /meadow0/TinyTest.dll.so → mono_aot_module_TinyTest_info,
+             *      /meadow0/System.Private.CoreLib.dll.so →
+             *        mono_aot_module_System_Private_CoreLib_info. */
+            char sym[128];
+            snprintf(sym, sizeof(sym), "mono_aot_module_%s_info",
+                     entry->d_name);
+            char *suffix = strstr(sym, ".dll.so_info");
+            if (suffix)
+              memcpy(suffix, "_info", 6);   /* trim ".dll.so" before "_info" */
+            for (char *p = sym; *p; p++)
+              if (*p == '.') *p = '_';
+
+            /* The cross-AOT-generated symbol mono_aot_module_<NAME>_info is
+             * a one-pointer indirection cell: it stores the address of the
+             * actual MonoAotFileInfo struct (`.long mono_aot_file_info` in
+             * the emitted asm). dlsym returns the address of this cell;
+             * mono_aot_register_module() wants a pointer to the *struct*,
+             * so dereference once. */
+            void **info_cell = (void **)dlsym(h, sym);
+            if (info_cell == NULL)
+              {
+                syslog(LOG_ERR, "AOT: dlsym('%s') failed in %s\n", sym, path);
+                dlclose(h);
+                continue;
+              }
+            void **info = (void **)*info_cell;
+
+            mono_aot_register_module(info);
+            syslog(LOG_ERR, "AOT: registered %s (info=%p, ver=%u)\n",
+                   sym, info, info ? ((unsigned)((uint32_t *)info)[0]) : 0);
+          }
+        closedir(dir);
+      }
+  }
 
   g_mono_stage = 1; /* About to call mono_appears_to_be_running */
 
@@ -1462,6 +1607,13 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
   g_mono_stage = 3; /* HCOM redirect + O_NONBLOCK set */
   syslog(LOG_NOTICE, "stdout/stderr HCOM redirect complete (stage %d)\n",
          g_mono_stage);
+
+  /* AOT bring-up: when an assembly Foo.dll is loaded, Mono will try to
+   * dlopen("Foo.dll.so") and look for mono_aot_module_Foo_info — that's
+   * the standard automatic AOT load convention. We don't need explicit
+   * dlopen here; just having the .so on /meadow0/ next to the .dll is
+   * enough. MONO_LOG_LEVEL=info + MONO_LOG_MASK=aot above will print
+   * which AOT modules get loaded. */
 
   g_mono_stage = 4; /* About to chdir */
 

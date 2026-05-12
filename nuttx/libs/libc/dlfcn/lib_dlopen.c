@@ -460,9 +460,22 @@ static inline FAR void *dlinsert(FAR const char *filename)
  *
  ****************************************************************************/
 
+/* Sentinel returned for dlopen(NULL) — POSIX says NULL file is a handle on
+ * the running program's global symbol object. We don't expose the running
+ * program's symtab via modlib here (Mono uses its pinvoke_override path for
+ * that), but we must return a non-NULL value so callers don't trip on "load
+ * failed" branches.  dlsym() against this handle will correctly return NULL
+ * (modlib_registry_verify rejects it as not a registered module). */
+static int _dlopen_self_sentinel;
+
 FAR void *dlopen(FAR const char *file, int mode)
 {
   FAR void *handle = NULL;
+
+  if (file == NULL)
+    {
+      return &_dlopen_self_sentinel;
+    }
 
 #ifdef CONFIG_LIB_ENVPATH
   if (file[0] != '/')
