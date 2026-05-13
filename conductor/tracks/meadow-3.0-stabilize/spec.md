@@ -53,7 +53,7 @@ track. Treat as initial backlog — refine as we go.
 | File | Status | Decision needed |
 |------|--------|-----------------|
 | `runtime/src/mono/build-nuttx.sh` `DISABLE_AOT=0` | Committed in eba6f256a4d | Keep on (carries +2MB libmonosgen; enables future AOT) vs revert to 1 |
-| `runtime/src/mono/mono/arch/arm/arm-codegen.h` forced `__thumb2__` | Committed | Migrate to `thumbv7em-none-eabi-nuttx` AOT target triple before final |
+| `runtime/src/mono/mono/arch/arm/arm-codegen.h` forced `__thumb2__` | **Cleaned up (344a2747ed5)** | Define now lives in CMakeLists.txt's armv7-none-linux-androideabi AOT target branch alongside `MEADOW_AOT_NUTTX_CARDS`. Still cross-only (on-device gcc auto-defines). Long-term still want a proper Thumb2-NuttX target triple, but the hack is no longer in a common header. |
 | `runtime/src/mono/mono/sgen/sgen-cardtable.h` `MEADOW_AOT_NUTTX_CARDS` | Committed | OK as-is (only triggered with explicit cross-AOT define) |
 | `runtime/src/mono/mono/mini/mini-arm.h` `MONO_ARCH_EXPLICIT_NULL_CHECKS` | Linter keeps reverting | Decide policy; current state ON (safe but ~3% slower on Pi) |
 

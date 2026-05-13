@@ -12,8 +12,9 @@ small decision + commit, not real engineering work.
       (a) ON (current default in `mini-arm.h`) — safe, costs ~3% Pi.
       (b) OFF with MPU + MemFault → mono dispatch path landed. Recommend:
       ON for 3.0; MPU path is a follow-up.
-- [ ] Keep or remove `arm-codegen.h` forced `__thumb2__` define. Recommend:
-      keep with comment until proper triple-driven path lands.
+- [x] Keep or remove `arm-codegen.h` forced `__thumb2__` define.
+      **Done in 344a2747ed5:** moved to CMakeLists.txt next to
+      MEADOW_AOT_NUTTX_CARDS. Common header no longer carries it.
 - [ ] JIT-opt scaffolding in `mono_main.c` — keep dormant (already done) or
       strip. Recommend: keep, costs nothing, useful for future tuning.
 
