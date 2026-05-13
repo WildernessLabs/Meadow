@@ -1,8 +1,11 @@
 {
   "track_id": "mono-upgrade-12-aot",
   "type": "feature",
-  "status": "new",
+  "status": "in_progress",
   "created_at": "2026-03-19T00:00:00Z",
-  "updated_at": "2026-03-19T00:00:00Z",
-  "description": "Enable LLVM-based AOT compilation for Thumb2 ARM, eliminating JIT overhead at runtime"
+  "updated_at": "2026-05-13T00:00:00Z",
+  "description": "Enable LLVM-based AOT compilation for Thumb2 ARM, eliminating JIT overhead at runtime",
+  "current_blocker": "MemFault on AOT'd CoreLib invocation (~370ms after managed-code entry). Cross-AOT pipeline + register all work; see handoff.md.",
+  "phases_done": [1, 2, 3],
+  "phases_remaining": [4, 5]
 }

@@ -1,5 +1,4 @@
-# Track: mono-upgrade-12-aot
+# Track: meadow-3.0-stabilize
 - [Specification](./spec.md)
 - [Implementation Plan](./plan.md)
-- [Handoff (current state)](./handoff.md)
 - [Metadata](./metadata.json)
