@@ -1,0 +1,8 @@
+{
+  "track_id": "meadow-3.0-stabilize",
+  "type": "release",
+  "status": "in_progress",
+  "created_at": "2026-05-13T00:00:00Z",
+  "updated_at": "2026-05-13T00:00:00Z",
+  "description": "Pre-release cleanup for Meadow 3.0 (.NET 10): decide on lingering toggles, re-validate on hardware, document known limits and AOT handoff"
+}

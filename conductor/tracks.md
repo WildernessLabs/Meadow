@@ -53,7 +53,13 @@
 *DNS, sync/async sockets, HttpClient HTTP/1.0 — all passing on F7CoreComputeV2 hardware*
 
 ---
-- [ ] **Track 13: AOT Compilation — Ahead-of-Time via LLVM**
+- [~] **Track 13: AOT Compilation — Ahead-of-Time via LLVM** *(in progress)*
+*Cross-AOT compiler + dlopen + `mono_aot_register_module` working end-to-end; CoreLib AOT execution still memfaults. See [handoff.md](./tracks/mono-upgrade-12-aot/handoff.md).*
 *Link: [./tracks/mono-upgrade-12-aot/](./tracks/mono-upgrade-12-aot/)*
+
+---
+- [~] **Track 14: Meadow 3.0 Stabilization** *(in progress)*
+*Pre-release cleanup: decide lingering toggles, re-validate on hardware, draft release notes.*
+*Link: [./tracks/meadow-3.0-stabilize/](./tracks/meadow-3.0-stabilize/)*
 
 ---
