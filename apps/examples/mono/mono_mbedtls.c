@@ -199,7 +199,10 @@ int mono_mbedtls_init(void)
 
     mbedtls_ctr_drbg_init(&ctr_drbg);
     mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
-    mbedtls_ssl_conf_dbg(&conf, my_debug, stdout);
+    // mbedtls_ssl_conf_dbg(&conf, my_debug, stdout);  // DISABLED — see HCOM blocking note below
+    /* mbedTLS debug callback (my_debug above) uses fprintf+fflush which can block on
+       a full HCOM stdout buffer mid-handshake, causing intermittent TLS hangs. Leave
+       disabled unless actively debugging — and even then use a non-blocking path. */
     mbedtls_x509_crt_init(&cacert);
     mbedtls_entropy_init(&entropy);
 
