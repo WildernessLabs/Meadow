@@ -63,8 +63,14 @@ static int bio_write(MemBio *bio, const void *data, int len)
 
     const uint8_t *src = (const uint8_t *)data;
     int space = BIO_RING_SIZE - bio->count;
+    int orig_len = len;
     if (len > space) len = space;
     if (len == 0) return 0;
+
+    /* DIAG: print first 8 bytes + sizes to trace TLS records */
+    printf("PAL_BIO_W bio=%p req=%d space=%d wrote=%d count=%d first=", bio, orig_len, space, len, bio->count + len);
+    for (int j = 0; j < (len < 8 ? len : 8); j++) printf("%02x ", src[j]);
+    printf("\n");
 
     for (int i = 0; i < len; i++) {
         bio->data[bio->tail] = src[i];
@@ -79,6 +85,8 @@ static int bio_read(MemBio *bio, void *data, int len)
     if (!bio || !data || len <= 0) return 0;
 
     uint8_t *dst = (uint8_t *)data;
+    int orig_len = len;
+    int orig_count = bio->count;
     if (len > bio->count) len = bio->count;
     if (len == 0) return 0;
 
@@ -87,6 +95,12 @@ static int bio_read(MemBio *bio, void *data, int len)
         bio->head = (bio->head + 1) % BIO_RING_SIZE;
     }
     bio->count -= len;
+
+    /* DIAG: print first 8 bytes of what we returned to mbedTLS */
+    printf("PAL_BIO_R bio=%p req=%d avail=%d read=%d count=%d first=", bio, orig_len, orig_count, len, bio->count);
+    for (int j = 0; j < (len < 8 ? len : 8); j++) printf("%02x ", dst[j]);
+    printf("\n");
+
     return len;
 }
 
@@ -428,6 +442,19 @@ int32_t CryptoNative_SslWrite(void *ssl_ptr, const void *buf, int32_t num, int32
     if (!ssl || ssl->magic != MBED_SSL_MAGIC) {
         if (error) *error = PAL_SSL_ERROR_SSL;
         return -1;
+    }
+
+    /* DIAG: dump plaintext request (truncated to 256 bytes) so we can compare
+       what client encrypts vs what server actually sees and alerts on. */
+    {
+        const unsigned char *p = (const unsigned char *)buf;
+        int n = num < 256 ? num : 256;
+        printf("PAL_SSL_W ssl=%p plaintext_len=%d, first %d bytes (printable+hex):\n", ssl, num, n);
+        for (int i = 0; i < n; i++) {
+            char c = (p[i] >= 32 && p[i] < 127) ? p[i] : '.';
+            printf("%c", c);
+        }
+        printf("\n");
     }
 
     int ret = mbedtls_ssl_write(&ssl->ssl, (const unsigned char *)buf, num);
