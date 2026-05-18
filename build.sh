@@ -127,8 +127,15 @@ fi
 # This issue has been caused by a git security update.  We do not need
 # to do this on local machines, only when building using Docker.
 #
+# if [[ "$scriptdir" == "/project" ]]; then
+#   export HOME=/tmp
+#   run_command "git config --global --add safe.directory /project"
+#   check_command_status
+#   MEADOW_ADDITIONAL_MAKE_OPTIONS="-j1"
+# fi
+
 if [[ "$scriptdir" == "/project" ]]; then
-  run_command "git config --global --add safe.directory /project"
+  run_command "git config --file $scriptdir/.git/config --add safe.directory /project"
   check_command_status
   MEADOW_ADDITIONAL_MAKE_OPTIONS="-j1"
 fi
