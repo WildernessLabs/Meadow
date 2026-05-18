@@ -1,4 +1,4 @@
-FROM ubuntu
+FROM --platform=linux/amd64 ubuntu:22.04
 
 # The following 2 lines are added to avoid hanging the container creation. 
 # See <https://grigorkh.medium.com/fix-tzdata-hangs-docker-image-build-cdb52cc3360d>
@@ -46,7 +46,7 @@ RUN pip3 install jinja2
 
 RUN locale-gen en_US.UTF-8
 
-ENV LANG en_US.UTF-8
+ENV LANG=en_US.UTF-8
 
 USER dev
 
