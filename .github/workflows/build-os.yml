@@ -15,7 +15,9 @@ jobs:
     steps:
     - name: Checkout source code
       uses: actions/checkout@v3
-
+      with:
+        submodules: recursive
+        fetch-depth: 0
     - name: Build Docker image for the OS build.
       run: docker build -t nuttx-build -f ./DockerFiles/Build/Dockerfile .
 
