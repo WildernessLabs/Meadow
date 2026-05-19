@@ -1,9 +1,12 @@
 #include "sqlite3.h"
+
+#include "sqlite_meadow.h"
+
 #include "syslog.h"
 
 // These are called by initialization, but are not defined unless SQLITE_OS_UNIX is defined
 // If you define SQLITE_OS_UNIX, it fails because Nuttx doesn't implement things like fchmod
-SQLITE_API sqlite3_os_init(void) 
+SQLITE_API int sqlite3_os_init(void) 
 {
     // we must register the `demovfs` that Meadow uses
     sqlite3_vfs *pVfs = sqlite3_demovfs();
@@ -22,7 +25,7 @@ SQLITE_API sqlite3_os_init(void)
     return SQLITE_OK; 
 }
 
-SQLITE_API sqlite3_os_end(void) 
+SQLITE_API int sqlite3_os_end(void) 
 { 
     return SQLITE_OK; 
 }
