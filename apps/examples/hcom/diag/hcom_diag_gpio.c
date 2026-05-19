@@ -44,6 +44,7 @@
 
 #include "../hcom_common.h"
 #include <meadow/hcom_upd_shared.h>
+#include <meadow/meadow_apps_core_share.h>
 #include "hcom_diag_gpio.h"
 
 /****************************************************************************

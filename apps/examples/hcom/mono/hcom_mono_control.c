@@ -51,6 +51,7 @@
 #include <string.h>
 
 #include <termios.h>
+#include <sys/wait.h>
 
 #include "diag/hcom_diag_gpio.h"
 

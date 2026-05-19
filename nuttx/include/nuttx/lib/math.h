@@ -286,6 +286,11 @@ double      log2  (double x);
 long double log2l (long double x);
 #endif
 
+#ifdef CONFIG_HAVE_DOUBLE
+extern double hypot (double, double);
+#endif
+
+
 float       ilogbf (float x);
 #ifdef CONFIG_HAVE_DOUBLE
 double      ilogb  (double x);
