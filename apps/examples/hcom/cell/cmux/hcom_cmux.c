@@ -54,6 +54,7 @@
 
 #include <meadow/hcom_protocol.h>
 #include <meadow/meadow_os.h>
+#include "../../hcom_common.h"
 
 #include "hcom_cmux.h"
 #include "netutils/cmux.h"

@@ -1,6 +1,7 @@
 #!/bin/bash -e
 
-#set -e
+set -ex
+
 scriptdir="$( cd "$(dirname "$0")" ; pwd -P )"
 
 . $scriptdir/scripts/common_methods.sh
@@ -127,8 +128,15 @@ fi
 # This issue has been caused by a git security update.  We do not need
 # to do this on local machines, only when building using Docker.
 #
+# if [[ "$scriptdir" == "/project" ]]; then
+#   export HOME=/tmp
+#   run_command "git config --global --add safe.directory /project"
+#   check_command_status
+#   MEADOW_ADDITIONAL_MAKE_OPTIONS="-j1"
+# fi
+
 if [[ "$scriptdir" == "/project" ]]; then
-  run_command "git config --global --add safe.directory /project"
+  run_command "git config --file $scriptdir/.git/config --add safe.directory /project"
   check_command_status
   MEADOW_ADDITIONAL_MAKE_OPTIONS="-j1"
 fi
@@ -199,8 +207,17 @@ if $FORCE; then
 fi
 
 if [ ! -r "$scriptdir/nuttx/.config" ]; then
+    #
+    # apps/Kconfig is tracked in git, so 'make distclean' leaves it in place
+    # (Make.defs doesn't exist at distclean time, so DELFILE is never defined).
+    # Delete it here so the configure step's apps_preconfig regenerates it along
+    # with all sub-directory Kconfigs (e.g. gpsutils/Kconfig) that kconfig-conf
+    # needs.
+    #
+    rm -f "$scriptdir/apps/Kconfig"
     printf "Configuring NuttX...\n"
     run_command "$scriptdir/nuttx/tools/configure.sh $NUTTX_CONFIG"
+    check_command_status
 
     run_command "make -C $scriptdir/nuttx context $NUTTX_OPTIONS"
     check_command_status

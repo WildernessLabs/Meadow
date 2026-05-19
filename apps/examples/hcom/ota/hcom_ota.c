@@ -485,7 +485,7 @@ int meadow_cloud_decrypt_buf(const unsigned char *encrypted_buf, int encrypted_l
         return -1;
     }
 
-    meadow_cloud_release_private_key((const char**) &private_key);
+    meadow_cloud_release_private_key((char** const) &private_key);
 
     unsigned char result[MBEDTLS_MPI_MAX_SIZE];
     size_t olen = 0;

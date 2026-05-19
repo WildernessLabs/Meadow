@@ -29,6 +29,8 @@
 extern int errno;
 register char * stack_ptr asm("sp");
 
+typedef char * caddr_t;
+
 /* Functions */
 
 /**
