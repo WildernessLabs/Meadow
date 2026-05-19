@@ -36,10 +36,14 @@
 #ifndef ___SQLITE_MEADOW__H
 #define ___SQLITE_MEADOW__H
 
+#include "sqlite3.h"
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #define VIRTUAL_FILE_SYS_NAME "meadow"
+
+sqlite3_vfs *sqlite3_demovfs(void);
 
 #endif // ___SQLITE_MEADOW__H

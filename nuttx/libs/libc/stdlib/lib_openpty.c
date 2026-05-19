@@ -34,6 +34,10 @@
 
 #include <nuttx/serial/pty.h>
 
+FAR char *ptsname(int fd);
+int ptsname_r(int fd, FAR char *buf, size_t buflen);
+
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -177,7 +181,7 @@ int openpty(FAR int *master, FAR int *slave, FAR char *name,
 
   if (win != NULL)
     {
-      ioctl(*slave, TIOCSWINSZ, win);
+      ioctl(*slave, TIOCSWINSZ, (unsigned long) win);
     }
 
   return 0;
