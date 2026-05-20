@@ -72,7 +72,7 @@ git submodule init
 git submodule update
 git submodule
 
-checkout_submodule "https://github.com/WildernessLabs/nuttx-build-tools.git" "tools"
+checkout_submodule_github "https://github.com/WildernessLabs/nuttx-build-tools.git" "tools"
 checkout_submodule_github "WildernessLabs/mbedtls" "mbedtls"
 
 clean_submodule .
