@@ -38,7 +38,7 @@ clone_or_fetch_submodule() {
     REPO=$1
     LOCALREPO=$2
     echo "Cloning or update submodule $REPO into $LOCALREPO"
-    git clone $REPO $LOCALREPO 2> /dev/null || git -C "$LOCALREPO" fetch
+    git clone $REPO $LOCALREPO 2> /dev/null || (git -C "$LOCALREPO" remote set-url origin $REPO && git -C "$LOCALREPO" fetch)
     clean_submodule $LOCALREPO
 }
 
