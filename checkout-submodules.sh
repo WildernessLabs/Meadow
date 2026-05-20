@@ -45,6 +45,7 @@ clone_or_fetch_submodule() {
 checkout_submodule_github() {
     REPO=$1
     LOCALREPO=$2
+    echo "Cloning or update submodule $REPO into $LOCALREPO from github"
     HASH=`git submodule status $LOCALREPO | awk '{print $1;}'`
     if [[ $HASH = +* ]]; then
         echo "Found unexpected Git submodule state"
@@ -72,7 +73,7 @@ git submodule init
 git submodule update
 git submodule
 
-checkout_submodule_github "https://github.com/WildernessLabs/nuttx-build-tools.git" "tools"
+checkout_submodule "https://github.com/WildernessLabs/nuttx-build-tools.git" "tools"
 checkout_submodule_github "WildernessLabs/mbedtls" "mbedtls"
 
 clean_submodule .
