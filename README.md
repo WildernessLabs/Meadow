@@ -30,7 +30,7 @@ Mac or Linux is required to build the various pieces of Meadow.
 For proper setup of the submodules, a Git recursive clone should be used when cloning the Meadow repository:
 
 ```
-git clone --recurse-submodules -j8 git@github.com:WildernessLabs/Meadow.git
+git clone --recurse-submodules -j8 https://github.com/WildernessLabs/Meadow.git
 ```
 
 Alternative, if the repository is already cloned:
