@@ -20,6 +20,8 @@ jobs:
     - task: ShellScript@2
       inputs:
         scriptPath: checkout-submodules.sh
+      env:
+        GITHUB_PERSONAL_ACCESS_TOKEN: $(GITHUB_PERSONAL_ACCESS_TOKEN)
     - task: ShellScript@2
       inputs:
         scriptPath: build.sh
