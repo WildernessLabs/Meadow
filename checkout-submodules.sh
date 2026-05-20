@@ -30,7 +30,7 @@ clone_or_fetch_submodule_github() {
     REPO=$1
     LOCALREPO=$2
     echo "Cloning or update submodule $REPO into $LOCALREPO"
-    git clone "https://${GITHUB_PERSONAL_ACCESS_TOKEN}@github.com/${REPO}.git" $LOCALREPO 2> /dev/null || git -C "$LOCALREPO" fetch
+    git clone "https://${GITHUB_PERSONAL_ACCESS_TOKEN}@github.com/${REPO}.git" $LOCALREPO 2> /dev/null || (git -C "$LOCALREPO" remote set-url origin "https://${GITHUB_PERSONAL_ACCESS_TOKEN}@github.com/${REPO}.git" && git -C "$LOCALREPO" fetch)
     clean_submodule $LOCALREPO
 }
 
@@ -45,6 +45,7 @@ clone_or_fetch_submodule() {
 checkout_submodule_github() {
     REPO=$1
     LOCALREPO=$2
+    echo "Cloning or update submodule $REPO into $LOCALREPO from github"
     HASH=`git submodule status $LOCALREPO | awk '{print $1;}'`
     if [[ $HASH = +* ]]; then
         echo "Found unexpected Git submodule state"
