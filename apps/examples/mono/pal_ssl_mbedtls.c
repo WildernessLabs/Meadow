@@ -27,9 +27,11 @@
 #include "mbedtls/pk.h"
 #include "mbedtls/error.h"
 
-/* Diagnostic logging — disabled for production, enable for TLS debugging */
-/* #define PAL_LOG(...) printf(__VA_ARGS__) */
+/* Diagnostic logging.
+ *   PAL_LOG  — per-record/IO trace, very chatty; compiled out in production.
+ *   PAL_NOTE — significant events (errors, unexpected states); always on. */
 #define PAL_LOG(...) do {} while(0)
+#define PAL_NOTE(...) do { printf(__VA_ARGS__); } while(0)
 
 /* ---------- Error codes matching pal_ssl.h ---------- */
 typedef enum {
@@ -41,36 +43,67 @@ typedef enum {
     PAL_SSL_ERROR_ZERO_RETURN = 6,
 } PalSslErrorCode;
 
-/* ---------- BIO Ring Buffer ---------- */
-#define BIO_RING_SIZE 32768  /* 32KB — enough for TLS records */
+/* ---------- BIO: linear slab (drain-resets-to-zero) ----------
+ *
+ * Replaces the previous ring buffer. Inspired by legacy mono-mbedtls.c which
+ * used pinned per-connection buffers and direct socket I/O. We can't bypass
+ * the BIO indirection (.NET 10 SslStream PAL requires it), but we can keep
+ * the BIO simple: one contiguous slab, append-on-write, drain-from-front,
+ * reset both indices when fully drained.
+ *
+ * Invariants:
+ *   0 <= read_pos <= fill <= BIO_SLAB_SIZE
+ *   readable bytes = fill - read_pos
+ *   writable bytes = BIO_SLAB_SIZE - fill   (compacted on full drain)
+ *
+ * 32KB matches the previous ring; covers max TLS 1.2 record (16384 + headers)
+ * with headroom for one in-flight record plus partial follow-on.
+ */
+#define BIO_SLAB_SIZE 32768
 
 typedef struct {
-    uint8_t  data[BIO_RING_SIZE];
-    int      head;    /* read position */
-    int      tail;    /* write position */
-    int      count;   /* bytes in buffer */
+    uint8_t  data[BIO_SLAB_SIZE];
+    int      read_pos;  /* next byte to read */
+    int      fill;      /* next byte to write (== count + read_pos) */
 } MemBio;
 
 static MemBio *bio_create(void)
 {
-    MemBio *bio = calloc(1, sizeof(MemBio));
-    return bio;
+    return calloc(1, sizeof(MemBio));
+}
+
+/* Compact: if fully drained, reset to start. Avoids creeping fill toward end. */
+static inline void bio_compact(MemBio *bio)
+{
+    if (bio->read_pos == bio->fill) {
+        bio->read_pos = 0;
+        bio->fill = 0;
+    }
 }
 
 static int bio_write(MemBio *bio, const void *data, int len)
 {
     if (!bio || !data || len <= 0) return 0;
 
-    const uint8_t *src = (const uint8_t *)data;
-    int space = BIO_RING_SIZE - bio->count;
+    bio_compact(bio);
+
+    /* If write would overflow but readable region is exhausted at the front,
+     * slide pending bytes back to the slab origin to recover space. */
+    int space = BIO_SLAB_SIZE - bio->fill;
+    if (len > space && bio->read_pos > 0) {
+        int pending = bio->fill - bio->read_pos;
+        if (pending > 0)
+            memmove(bio->data, bio->data + bio->read_pos, (size_t)pending);
+        bio->read_pos = 0;
+        bio->fill = pending;
+        space = BIO_SLAB_SIZE - bio->fill;
+    }
+
     if (len > space) len = space;
     if (len == 0) return 0;
 
-    for (int i = 0; i < len; i++) {
-        bio->data[bio->tail] = src[i];
-        bio->tail = (bio->tail + 1) % BIO_RING_SIZE;
-    }
-    bio->count += len;
+    memcpy(bio->data + bio->fill, data, (size_t)len);
+    bio->fill += len;
     return len;
 }
 
@@ -78,21 +111,19 @@ static int bio_read(MemBio *bio, void *data, int len)
 {
     if (!bio || !data || len <= 0) return 0;
 
-    uint8_t *dst = (uint8_t *)data;
-    if (len > bio->count) len = bio->count;
+    int pending = bio->fill - bio->read_pos;
+    if (len > pending) len = pending;
     if (len == 0) return 0;
 
-    for (int i = 0; i < len; i++) {
-        dst[i] = bio->data[bio->head];
-        bio->head = (bio->head + 1) % BIO_RING_SIZE;
-    }
-    bio->count -= len;
+    memcpy(data, bio->data + bio->read_pos, (size_t)len);
+    bio->read_pos += len;
+    bio_compact(bio);
     return len;
 }
 
 static int bio_pending(MemBio *bio)
 {
-    return bio ? bio->count : 0;
+    return bio ? (bio->fill - bio->read_pos) : 0;
 }
 
 /* ---------- SSL Context Wrapper ---------- */
@@ -430,22 +461,55 @@ int32_t CryptoNative_SslWrite(void *ssl_ptr, const void *buf, int32_t num, int32
         return -1;
     }
 
-    int ret = mbedtls_ssl_write(&ssl->ssl, (const unsigned char *)buf, num);
-
-    if (ret >= 0) {
-        if (error) *error = PAL_SSL_ERROR_NONE;
-        return ret;
-    } else if (ret == MBEDTLS_ERR_SSL_WANT_READ) {
-        if (error) *error = PAL_SSL_ERROR_WANT_READ;
-        return -1;
-    } else if (ret == MBEDTLS_ERR_SSL_WANT_WRITE) {
-        if (error) *error = PAL_SSL_ERROR_WANT_WRITE;
-        return -1;
-    } else {
+    /*
+     * .NET 10 Encrypt() requires SSL_write to return exactly `num` on success
+     * (or an error). mbedTLS may return short writes when MAX_FRAGMENT_LENGTH
+     * is enabled or after a transient WANT_WRITE. Loop here so the managed
+     * caller never sees a partial — mirrors legacy mono_mbedtls_write.
+     */
+    int written = 0;
+    int ret = 0;
+    int retries = 0;
+    while (written < num) {
+        ret = mbedtls_ssl_write(&ssl->ssl,
+                                (const unsigned char *)buf + written,
+                                (size_t)(num - written));
+        if (ret > 0) {
+            written += ret;
+            continue;
+        }
+        if (ret == MBEDTLS_ERR_SSL_WANT_READ) {
+            /* Outbound write blocked on inbound data (rare — alert / renegotiation).
+             * Surface to caller; managed retries on Read drain. */
+            PAL_NOTE("pal_ssl: SslWrite WANT_READ at offset=%d/%d retries=%d\n",
+                     written, num, retries);
+            if (error) *error = PAL_SSL_ERROR_WANT_READ;
+            return -1;
+        }
+        if (ret == MBEDTLS_ERR_SSL_WANT_WRITE) {
+            /* Output BIO full — extremely unlikely given 32KB slab + small
+             * records, but defend anyway. Cap retries so we don't busy-loop. */
+            if (++retries > 16) {
+                PAL_NOTE("pal_ssl: SslWrite WANT_WRITE stuck at %d/%d after 16 retries\n",
+                         written, num);
+                if (error) *error = PAL_SSL_ERROR_WANT_WRITE;
+                return -1;
+            }
+            continue;
+        }
+        /* Hard error from mbedTLS — record-MAC mismatch from peer, internal
+         * fatal, etc. Print the actual code so we can triage the reuse bug. */
+        char errbuf[128];
+        mbedtls_strerror(ret, errbuf, sizeof(errbuf));
+        PAL_NOTE("pal_ssl: SslWrite FATAL -0x%04x at offset=%d/%d: %s\n",
+                 -ret, written, num, errbuf);
         ssl->last_error = ret;
         if (error) *error = PAL_SSL_ERROR_SSL;
         return -1;
     }
+
+    if (error) *error = PAL_SSL_ERROR_NONE;
+    return written;
 }
 
 int32_t CryptoNative_SslShutdown(void *ssl_ptr)
@@ -866,6 +930,18 @@ uint64_t CryptoNative_ErrPeekError(void)     { return 0; }
 uint64_t CryptoNative_ErrPeekLastError(void)  { return 0; }
 uint64_t CryptoNative_ErrGetErrorAlloc(void **msg) { if (msg) *msg = NULL; return 0; }
 void     CryptoNative_ErrClearError(void)     { }
+
+/* .NET's Interop.ERR.GetSslError calls this to extract the OpenSSL error-queue
+ * code when building an exception. mbedTLS has no OpenSSL-style error queue, so
+ * report "no queued error" (0) and not-alloc-failure. .NET then throws based on
+ * the SSL_ERROR / handshake return instead (the real reason is logged in
+ * CryptoNative_SslDoHandshake). Was unmapped → DllNotFoundException that masked
+ * the actual handshake failure. */
+uint64_t CryptoNative_ErrGetExceptionError(int32_t *isAllocFailure)
+{
+    if (isAllocFailure) *isAllocFailure = 0;
+    return 0;
+}
 const char *CryptoNative_ErrReasonErrorString(uint64_t err)
 {
     (void)err;

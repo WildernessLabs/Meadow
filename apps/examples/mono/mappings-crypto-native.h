@@ -98,6 +98,7 @@ extern int32_t CryptoNative_OpenSslGetProtocolSupport(int protocol);
 extern uint64_t CryptoNative_ErrPeekError(void);
 extern uint64_t CryptoNative_ErrPeekLastError(void);
 extern uint64_t CryptoNative_ErrGetErrorAlloc(void **msg);
+extern uint64_t CryptoNative_ErrGetExceptionError(int32_t *isAllocFailure);
 extern void     CryptoNative_ErrClearError(void);
 extern const char *CryptoNative_ErrReasonErrorString(uint64_t err);
 
@@ -191,6 +192,7 @@ static MonoDlMapping crypto_native_mappings[] = {
     {"CryptoNative_ErrPeekError",            CryptoNative_ErrPeekError},
     {"CryptoNative_ErrPeekLastError",        CryptoNative_ErrPeekLastError},
     {"CryptoNative_ErrGetErrorAlloc",        CryptoNative_ErrGetErrorAlloc},
+    {"CryptoNative_ErrGetExceptionError",    CryptoNative_ErrGetExceptionError},
     {"CryptoNative_ErrClearError",           CryptoNative_ErrClearError},
     {"CryptoNative_ErrReasonErrorString",    CryptoNative_ErrReasonErrorString},
     {NULL, NULL}
