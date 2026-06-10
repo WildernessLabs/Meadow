@@ -1454,7 +1454,7 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
    * on Mono's automatic per-assembly-load dlopen path (which only fires
    * when managed code actually references the assembly). */
   {
-    extern void mono_aot_register_module(void **aot_info);
+    extern void mono_aot_register_module(void **aot_info) __attribute__((weak));
 
     DIR *dir = opendir(MONO_MEADOW_EXECUTABLE_PARTITION_NAME);
     if (dir != NULL)
@@ -1506,9 +1506,16 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
               }
             void **info = (void **)*info_cell;
 
-            mono_aot_register_module(info);
-            syslog(LOG_ERR, "AOT: registered %s (info=%p, ver=%u)\n",
-                   sym, info, info ? ((unsigned)((uint32_t *)info)[0]) : 0);
+            if (mono_aot_register_module)
+              {
+                mono_aot_register_module(info);
+                syslog(LOG_ERR, "AOT: registered %s (info=%p, ver=%u)\n",
+                       sym, info, info ? ((unsigned)((uint32_t *)info)[0]) : 0);
+              }
+            else
+              {
+                syslog(LOG_ERR, "AOT: mono_aot_register_module unavailable, skipping %s\n", sym);
+              }
           }
         closedir(dir);
       }
