@@ -2507,13 +2507,18 @@ static int espcp_usrsock_encode_socket_option_value(espcp_set_sock_opt_request_t
             case SO_DONTROUTE:
             case SO_OOBINLINE:
             case SO_SNDBUF:
+            case SO_RCVBUF:
             case SO_SNDLOWAT:
             case SO_RCVLOWAT:
                 //
-                //  Not supported by the ESP32.
+                //  Not supported by the ESP32 (lwIP socket buffer sizes are fixed).
+                //  Treat as a no-op success instead of forwarding to the ESP. SO_SNDBUF
+                //  was already handled this way; SO_RCVBUF was being forwarded and the
+                //  ESP rejected it with EADDRNOTAVAIL, which threw a SocketException out
+                //  of standard socket code that sets ReceiveBufferSize (e.g. MQTTnet's
+                //  MqttTcpChannel.ConnectAsync -> set_ReceiveBufferSize), breaking MQTT.
                 //
                 break;
-            case SO_RCVBUF:
             case SO_REUSEADDR:
                 request->option_value = espcp_usrsock_encode_integer(value);
                 if (request->option_value == NULL)
