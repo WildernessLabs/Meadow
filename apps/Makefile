@@ -86,6 +86,14 @@ SYMTABOBJ = $(SYMTABSRC:.c=$(OBJEXT))
 
 # Build targets
 
+# Prevent parallel sub-makes from concurrently writing to the shared
+# libapps archive.  Each app directory's .built rule calls "ar rcs
+# libapps.a <objs>" and running several of those in parallel corrupts
+# the archive (truncated members / duplicate symbols).  Serialising at
+# this level is cheap because individual app directories are small;
+# the expensive kernel build (pass2) remains fully parallel.
+.NOTPARALLEL:
+
 all: $(BIN)
 .PHONY: import install dirlinks context context_serialize clean_context context_rest .depdirs preconfig depend clean distclean
 .PRECIOUS: libapps$(LIBEXT)
