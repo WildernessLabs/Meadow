@@ -32,6 +32,36 @@
  *   PAL_NOTE — significant events (errors, unexpected states); always on. */
 #define PAL_LOG(...) do {} while(0)
 #define PAL_NOTE(...) do { printf(__VA_ARGS__); } while(0)
+/* PAL_RDIAG — temporary read-path trace (BioWrite/bio_recv/SslRead) to diagnose
+ * the cloud "response ended prematurely" stall. Routes to syslog(LOG_ERR) so it
+ * survives the no-USB emulator. REMOVE before production. */
+#define PAL_RDIAG(...) do { syslog(LOG_ERR, __VA_ARGS__); } while(0)
+
+/* STALL TRACE — temporary syslog(LOG_ERR) instrumentation to diagnose the MQTT
+ * connect/handshake stall. Lands in RAMLOG (survives HCOM freeze; dump via GDB).
+ * Tag STALLU = user/pal_ssl. Pairs with STALLK in espcp. REMOVE after. */
+static volatile unsigned long g_stallu_seq;
+#define STALLU(fmt, ...) syslog(LOG_ERR, "STALLU#%lu " fmt "\n", (unsigned long)(g_stallu_seq++), ##__VA_ARGS__)
+
+/* HDIAG — temporary native-heap trace to diagnose the cloud-auth OOM. Logs the
+ * NuttX heap used/free/largest-free-block so we can tell exhaustion vs
+ * fragmentation vs per-connection accumulation. REMOVE before production. */
+extern size_t sgen_gc_get_total_heap_allocation(void);  /* total SGen OS memory (pre-existing mono export) */
+static void pal_heap_diag(const char *where, int id)
+{
+    struct mallinfo mi;
+#ifdef CONFIG_CAN_PASS_STRUCTS
+    mi = mallinfo();
+#else
+    mallinfo(&mi);
+#endif
+    /* HW footprint trace: native heap used/free/largest + total SGen OS memory,
+     * logged per TLS connection so we can see whether real HW (fast JIT, fewer
+     * retries) stays under the SDRAM ceiling or OOMs like the emulator. */
+    syslog(LOG_ERR, "HDIAG %s id=%d used=%d free=%d largest=%d sgenTotal=%u\n",
+           where, id, mi.uordblks, mi.fordblks, mi.mxordblk,
+           (unsigned)sgen_gc_get_total_heap_allocation());
+}
 
 /* ---------- Error codes matching pal_ssl.h ---------- */
 typedef enum {
@@ -56,10 +86,13 @@ typedef enum {
  *   readable bytes = fill - read_pos
  *   writable bytes = BIO_SLAB_SIZE - fill   (compacted on full drain)
  *
- * 32KB matches the previous ring; covers max TLS 1.2 record (16384 + headers)
- * with headroom for one in-flight record plus partial follow-on.
+ * Sized to hold one maximum TLS record on the wire: IN/OUT_CONTENT_LEN (16384)
+ * + record header/IV/AEAD-tag overhead (~256B) ~= 16.6KB. 20KB gives one full
+ * record plus ~3.4KB slack; mbedTLS tolerates partial bio_write/bio_read (it
+ * retries on WANT_READ/WANT_WRITE) so a single-record ring is sufficient.
+ * Was 32768 (2x a record). Saves ~12KB per BIO (24KB/connection: in + out).
  */
-#define BIO_SLAB_SIZE 32768
+#define BIO_SLAB_SIZE 20480
 
 typedef struct {
     uint8_t  data[BIO_SLAB_SIZE];
@@ -157,9 +190,13 @@ typedef struct {
     char                 *hostname;
     /* App data pointer */
     void                 *app_data;
+    int                   conn_id;     /* DIAG: per-connection id for multi-connection tracing */
 } MbedSsl;
 
 #define MBED_SSL_MAGIC 0x4D425353
+
+/* DIAG: global connection counter to correlate failures across the connect loop */
+static int g_ssl_conn_counter = 0;
 
 /* ---------- External: mono_mbedtls.c accessors ---------- */
 extern bool mono_mbedtls_is_initialized(void);
@@ -224,12 +261,16 @@ int CryptoNative_BioDestroy(void *bio)
 
 int CryptoNative_BioWrite(void *bio, const void *data, int len)
 {
-    return bio_write((MemBio *)bio, data, len);
+    int w = bio_write((MemBio *)bio, data, len);
+    STALLU("BioWrite len=%d w=%d", len, w);   /* managed fed socket->TLS input */
+    return w;
 }
 
 int CryptoNative_BioRead(void *bio, void *data, int len)
 {
-    return bio_read((MemBio *)bio, data, len);
+    int r = bio_read((MemBio *)bio, data, len);
+    STALLU("BioRead len=%d r=%d", len, r);     /* managed drained TLS output->socket */
+    return r;
 }
 
 int CryptoNative_BioCtrlPending(void *bio)
@@ -316,6 +357,9 @@ void *CryptoNative_SslCreate(void *ctx_ptr)
 
     ssl->magic = MBED_SSL_MAGIC;
     ssl->ctx = ctx;
+    ssl->conn_id = ++g_ssl_conn_counter;  /* DIAG */
+    syslog(LOG_ERR, "pal_ssl: DIAG SslCreate conn#%d\n", ssl->conn_id);
+    pal_heap_diag("SslCreate", ssl->conn_id);
 
     mbedtls_ssl_init(&ssl->ssl);
 
@@ -345,6 +389,15 @@ void CryptoNative_SslDestroy(void *ssl_ptr)
 
     mbedtls_ssl_free(&ssl->ssl);
     if (ssl->hostname) free(ssl->hostname);
+    /* Free the input/output BIOs. Following OpenSSL SSL_set_bio semantics, the
+     * managed SslStream PAL transfers BIO ownership to the SSL on SslSetBio (it
+     * invalidates its SafeBioHandle and never calls BioDestroy), so SSL_free —
+     * i.e. SslDestroy — must free them. Without this each connection leaked two
+     * 32KB MemBio slabs (64KB native SDRAM); across Meadow.Cloud auth retries
+     * that exhausted SDRAM and OOM'd the GC during response processing. */
+    if (ssl->input_bio)  { free(ssl->input_bio);  ssl->input_bio = NULL; }
+    if (ssl->output_bio) { free(ssl->output_bio); ssl->output_bio = NULL; }
+    pal_heap_diag("SslDestroy", ssl->conn_id);
     ssl->magic = 0;
     free(ssl);
 }
@@ -386,22 +439,31 @@ int CryptoNative_SslDoHandshake(void *ssl_ptr, int *error)
     }
 
     int ret = mbedtls_ssl_handshake(&ssl->ssl);
+    STALLU("Handshake conn#%d ret=%d in_bio=%d out_bio=%d", ssl->conn_id, ret,
+           ssl->input_bio ? bio_pending(ssl->input_bio) : -1,
+           ssl->output_bio ? bio_pending(ssl->output_bio) : -1);
     if (ret != 0 && ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
         char errbuf[128];
         mbedtls_strerror(ret, errbuf, sizeof(errbuf));
-        printf("pal_ssl: handshake FATAL error -0x%04x: %s\n", -ret, errbuf);
+        /* DIAG: syslog (visible w/o HCOM) with conn#, mbedTLS code, and BIO fill
+         * so we can see whether multi-connection failures correlate with leftover
+         * BIO data / a specific handshake step. */
+        syslog(LOG_ERR, "pal_ssl: DIAG handshake conn#%d FATAL -0x%04x (%s) in_bio=%d out_bio=%d host=%s\n",
+               ssl->conn_id, -ret, errbuf,
+               ssl->input_bio ? bio_pending(ssl->input_bio) : -1,
+               ssl->output_bio ? bio_pending(ssl->output_bio) : -1,
+               ssl->hostname ? ssl->hostname : "(null)");
         uint32_t vflags = mbedtls_ssl_get_verify_result(&ssl->ssl);
         if (vflags != 0 && vflags != (uint32_t)-1) {
             char vbuf[256];
             mbedtls_x509_crt_verify_info(vbuf, sizeof(vbuf), "  verify: ", vflags);
-            printf("pal_ssl: %s\n", vbuf);
+            syslog(LOG_ERR, "pal_ssl: DIAG conn#%d %s\n", ssl->conn_id, vbuf);
         }
-        printf("pal_ssl: hostname=%s\n",
-               ssl->hostname ? ssl->hostname : "(null)");
     }
 
     if (ret == 0) {
         ssl->handshake_complete = true;
+        syslog(LOG_ERR, "pal_ssl: DIAG handshake conn#%d OK\n", ssl->conn_id);  /* DIAG */
         if (error) *error = PAL_SSL_ERROR_NONE;
         return 1;
     } else if (ret == MBEDTLS_ERR_SSL_WANT_READ) {
@@ -426,6 +488,8 @@ int32_t CryptoNative_SslRead(void *ssl_ptr, void *buf, int32_t num, int32_t *err
     }
 
     int ret = mbedtls_ssl_read(&ssl->ssl, (unsigned char *)buf, num);
+    STALLU("SslRead conn#%d num=%d ret=%d inpend=%d", ssl->conn_id, num, ret,
+           bio_pending(ssl->input_bio));
 
     if (ret > 0) {
         if (error) *error = PAL_SSL_ERROR_NONE;
@@ -509,6 +573,7 @@ int32_t CryptoNative_SslWrite(void *ssl_ptr, const void *buf, int32_t num, int32
     }
 
     if (error) *error = PAL_SSL_ERROR_NONE;
+    STALLU("SslWrite conn#%d num=%d written=%d ret=%d", ssl->conn_id, num, written, ret);
     return written;
 }
 

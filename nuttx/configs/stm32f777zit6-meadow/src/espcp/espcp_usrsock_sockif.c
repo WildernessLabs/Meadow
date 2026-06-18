@@ -56,6 +56,23 @@
 #include <nuttx/arch.h>
 
 #include "espcp_usrsock.h"
+
+/* STALL TRACE — temporary syslog(LOG_ERR) instrumentation to diagnose the MQTT
+ * connect stall. Lines land in RAMLOG (g_sysbuffer) so they survive an HCOM
+ * freeze and can be dumped via GDB. Tag STALLK = kernel/espcp. REMOVE after. */
+static volatile unsigned long g_stallk_seq;
+#define STALLK(fmt, ...) syslog(LOG_ERR, "STALLK#%lu " fmt "\n", (unsigned long)(g_stallk_seq++), ##__VA_ARGS__)
+
+/* _SF_NONBLOCK / _SS_ISNONBLOCK live in NuttX's private net/socket/socket.h, which
+ * is not on the board-src include path. Mirror them (bit 3, value 0x08) so we can
+ * honor the socket's non-blocking state. Guarded so it composes if that header is
+ * ever pulled in. Keep in sync with net/socket/socket.h. */
+#ifndef _SF_NONBLOCK
+#  define _SF_NONBLOCK 0x08
+#endif
+#ifndef _SS_ISNONBLOCK
+#  define _SS_ISNONBLOCK(s) (((s) & _SF_NONBLOCK) != 0)
+#endif
 #include "espcp_common.h"
 #include "espcp_coprocessor.h"
 #include "generic_list.h"
@@ -872,10 +889,15 @@ int espcp_usrsock_close(struct socket *psock)
 int espcp_usrsock_connect(struct socket *psock, const struct sockaddr *addr, socklen_t addrlen)
 {
     MEADOW_TRACE_INFORMATION("connect(%d, 0x%08x, %d)\n", psock->s_esp32_sockfd, (uint32_t) addr, addrlen);
+    /* raw sin_port (network byte order): 0xB322=8883, 0xBB01=443 */
+    STALLK("connect ENTER fd=%d rawport=0x%04x", psock->s_esp32_sockfd,
+           (addr && addrlen >= (socklen_t)sizeof(struct sockaddr_in)) ?
+               (unsigned)((const struct sockaddr_in *)addr)->sin_port : 0);
 
     if (espcp_get_configuration()->esp_not_responding)
     {
         MEADOW_TRACE_DEBUG("connect - result ENETDOWN\n");
+        STALLK("connect EXIT fd=%d result=ENETDOWN", psock->s_esp32_sockfd);
         return(-ENETDOWN);
     }
 
@@ -971,6 +993,7 @@ int espcp_usrsock_connect(struct socket *psock, const struct sockaddr *addr, soc
     espcp_delete_message_and_payload(message);
 
     MEADOW_TRACE_INFORMATION("connect - socket %d, result %d\n", psock->s_esp32_sockfd, result);
+    STALLK("connect EXIT fd=%d result=%d", psock->s_esp32_sockfd, (int)result);
 
     return (result);
 }
@@ -1559,6 +1582,8 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
         MEADOW_TRACE_INFORMATION("poll setup - Setting up poll request ID %08x, socket %d\n", request->setup_message_id, psock->s_esp32_sockfd);
         pr->fd = fds;
         pr->request_id = message->message_id;
+        STALLK("poll_setup fd=%d events=0x%hx reqid=%08x", psock->s_esp32_sockfd,
+               fds->events, (unsigned)message->message_id);
         espcp_lock_poll_requests_queue();
         gl_add_item_to_head(_espcp_poll_requests, pr);
         espcp_unlock_poll_requests_queue();
@@ -1728,12 +1753,15 @@ void espcp_usrsock_poll_interrupt_handler(espcp_message_t *message)
             MEADOW_TRACE_INFORMATION("poll interrupt handler - found originating request %08x\n", request_id);
             pr->fd->revents = ipr->returned_events;
             MEADOW_TRACE_INFORMATION("poll interrupt handler - fd=%d events=%hd revents=%hd\n", pr->fd->fd, pr->fd->events, pr->fd->revents);
+            STALLK("poll_INT FOUND fd=%d events=0x%hx revents=0x%hx reqid=%08x",
+                   pr->fd->fd, pr->fd->events, pr->fd->revents, (unsigned)request_id);
 
             nxsem_post(pr->fd->sem);
         }
         else
         {
             MEADOW_TRACE_INFORMATION("poll interrupt handler - Cannot find request %08x\n", request_id);
+            STALLK("poll_INT NOTFOUND reqid=%08x revents=0x%hx", (unsigned)request_id, ipr->returned_events);
         }
         espcp_unlock_poll_requests_queue();
         free(ipr);
@@ -1838,6 +1866,17 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
     }
     request->length = len;
     request->flags = flags;
+    /* .NET sets the socket O_NONBLOCK and drives readiness via poll(); without this
+     * the ESP recvfrom() blocks server-side until data arrives (observed: a single
+     * read blocked 28s), which holds a thread-pool thread hostage and starves the
+     * MQTT keepalive PINGREQ so the broker drops the connection. Forward MSG_DONTWAIT
+     * (0x0040, mapped to lwip MSG_DONTWAIT on the ESP) for non-blocking sockets so the
+     * ESP returns EAGAIN immediately; the managed SocketAsyncEngine then waits on the
+     * poll path (poll_setup/poll_interrupt_handler) without holding a thread. */
+    if (_SS_ISNONBLOCK(psock->s_flags))
+    {
+        request->flags |= MSG_DONTWAIT;
+    }
     request->get_source_address = (from != NULL);
 
     int payload_length = espcp_recv_from_request_buffer_size(request);
@@ -1930,6 +1969,7 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
     espcp_delete_message_and_payload(message);
 
     MEADOW_TRACE_INFORMATION("recvfrom - socket %d, result %d\n", psock->s_esp32_sockfd, result);
+    STALLK("recvfrom EXIT fd=%d result=%d", psock->s_esp32_sockfd, (int)result);
 
     return (result);
 }
@@ -2079,6 +2119,7 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
     espcp_delete_message_and_payload(message);
 
     MEADOW_TRACE_INFORMATION("sendto: socket %d, result: %d\n", psock->s_esp32_sockfd, result);
+    STALLK("sendto EXIT fd=%d result=%d", psock->s_esp32_sockfd, (int)result);
 
     return (result);
 }
