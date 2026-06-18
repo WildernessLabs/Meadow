@@ -335,6 +335,7 @@ extern void mono_set_optimizations(unsigned int opts);
 #define MEADOW_OPT_EXCEPTION       (1u << 20)
 #define MEADOW_OPT_SSA             (1u << 21)
 #define MEADOW_OPT_FLOAT32         (1u << 22)
+#define MEADOW_OPT_GSHAREDVT       (1u << 24)
 #define MEADOW_OPT_GSHARED         (1u << 25)
 #define MEADOW_OPT_SIMD            (1u << 26)
 #define MEADOW_OPT_ALIAS_ANALYSIS  (1u << 28)
@@ -362,9 +363,16 @@ extern void mono_set_optimizations(unsigned int opts);
  *   binary mismatch (thunks pointing at stale runtime), not actually a
  *   mask problem. With proper co-flash, SSA+ABCREM should kick in.
  *   ABCREM removes array bounds checks in tight loops — big potential
- *   win for Pi calc which is dominated by array indexing. */
+ *   win for Pi calc which is dominated by array indexing.
+ * Exp 7 (DEFAULT | SSA | ABCREM | GSHAREDVT): FOOTPRINT experiment. GSHAREDVT
+ *   = generic sharing for value types (bit 24, EXCLUDED_FROM_ALL by default).
+ *   ARM supports it (MONO_ARCH_GSHAREDVT_SUPPORTED). mono_set_optimizations
+ *   flips mono_set_generic_sharing_vt_supported when bit 24 is set. Goal: share
+ *   JIT code + method metadata across the BCL's value-type generics
+ *   (List<int>, Dictionary<int,V>, Span<T>, Nullable<T>, ValueTask<T>, ...) to
+ *   cut the ~30MB SDRAM warmup footprint. Measure native `used` before/after. */
 #define MEADOW_OPT_EXPERIMENT \
-    (MEADOW_OPT_DEFAULT_MASK | MEADOW_OPT_SSA | MEADOW_OPT_ABCREM)
+    (MEADOW_OPT_DEFAULT_MASK | MEADOW_OPT_SSA | MEADOW_OPT_ABCREM | MEADOW_OPT_GSHAREDVT)
 
 /****************************************************************************
  * External methods
@@ -712,6 +720,22 @@ static MonoDlMapping globalization_native_mappings[] = {
   { NULL, NULL }
 };
 
+/* Meadow DIAG: native-heap-used accessor for the no-cloud vs cloud-on baseline
+ * comparison (callable from managed via the P/Invoke table, unlike the pal
+ * HDIAG which only fires on TLS connections). REMOVE before production. */
+extern size_t sgen_gc_get_total_heap_allocation(void);
+extern size_t meadow_mmap_file_bytes(void);  /* live assembly-image bytes in SDRAM (mono_nuttx_stubs.c) */
+static size_t meadow_native_used(void)
+{
+  struct mallinfo mi;
+#ifdef CONFIG_CAN_PASS_STRUCTS
+  mi = mallinfo();
+#else
+  mallinfo(&mi);
+#endif
+  return (size_t)mi.uordblks;
+}
+
 static MonoDlMapping system_native_mappings[] = {
   /* ---- test syslog (direct USART1 output for Renode) ---- */
   { "SystemNative_SyslogWrite",               (void *)sysn_syslog_write },
@@ -998,6 +1022,13 @@ static MonoDlMapping system_native_mappings[] = {
   { "SystemNative_GetPwUidR",                 (void *)sysn_get_pw_uid_r },
   { "SystemNative_GetGroups",                 (void *)sysn_get_groups },
 
+  /* Meadow DIAG: expose native-heap + GC + JIT counters so the app can log them
+   * per idle tick (works WITHOUT a TLS connection, unlike the pal HDIAG). Used to
+   * compare the no-cloud baseline `used` vs cloud-on. REMOVE before production. */
+  { "meadow_native_used",                     (void *)meadow_native_used },
+  { "meadow_mmap_file_bytes",                 (void *)meadow_mmap_file_bytes },
+  { "sgen_gc_get_total_heap_allocation",      (void *)sgen_gc_get_total_heap_allocation },
+
   { NULL, NULL }
 };
 
@@ -1259,9 +1290,41 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
    * Legacy firmware used: max-heap-size=8m (Mono 6.9 was lighter).
    * .NET 10 needs more: heavier type system + ThreadPool infrastructure.
    */
+  /* Keep the GC heap SMALL. Counterintuitively, a bigger max-heap-size HURTS:
+   * the SGen heap and native mbedTLS allocations share the same ~29MB NuttX
+   * SDRAM pool, so letting the GC grow to 16MB leaves only ~3MB free — and the
+   * Meadow.Cloud auth (RSA-decrypt + JSON) then can't get a large allocation
+   * → OOM. Measured baseline at the first TLS connection was ~24MB used / 29MB
+   * with the 16MB cap. An 8MB cap forces the GC to collect aggressively and
+   * keeps ~13MB free for the TLS working set + native buffers. (Trimmed .NET
+   * apps run comfortably in 8MB here.) The real per-connection TLS leak — two
+   * unfreed 32KB BIO slabs in pal_ssl_mbedtls.c SslDestroy — is fixed
+   * separately; that was the accumulation that earlier OOM'd even at 8MB. */
+  /* Legacy Mono 6.9 settings. NOTE: the cloud-auth OOM is NOT a heap-size issue —
+   * tested 4m/8m/16m, all OOM identically at the same connection. The ~6MB/conn
+   * native that exhausts the heap is GC-reclaimable but OUTSIDE SGen's size-capped
+   * accounting (SGen-internal structures / untracked allocation), so max-heap-size
+   * doesn't bound it. Keeping legacy 8m; the OOM needs the untracked native found
+   * (SGen-internal instrumentation) or the per-connection churn reduced. */
   setenv("MONO_GC_PARAMS",
          "max-heap-size=8m,nursery-size=512k,soft-heap-limit=4m,"
          "major=marksweep", 1);
+
+  /* Limit the .NET ThreadPool to curb per-thread stacks (each worker is 64KB on
+   * NuttX — capped in SystemNative_CreateThread/pal_threading.c). The cloud async
+   * path (HttpClient/SslStream/MQTTnet) is mostly sequential awaits, so a small
+   * worker pool suffices; bounding it caps thread-stack growth. Min=1 keeps the
+   * pool from pre-spawning; Max=4 caps growth without starving cold-JIT awaits. */
+  /* Raised from max=4 to 16. The Meadow.Cloud MQTT connect opens a SECOND async
+   * TLS connection (broker :8883) whose SslStream-handshake I/O completions +
+   * the cloud state machine + the SocketAsyncEngine starve a 4-worker pool ->
+   * the connect (and even its 30s timeout continuation) can't get a thread ->
+   * all workers park on semaphores -> hard deadlock (world_is_stopped=0, NOT a
+   * GC freeze). 16 workers break the starvation; @64KB each (pal_threading.c +
+   * mono-threads-posix.c caps) that's ~1MB, affordable now that the gsharedvt +
+   * 64KB-internal-stack memory regressions are restored. */
+  setenv("DOTNET_ThreadPool_ForceMinWorkerThreads", "4", 1);
+  setenv("DOTNET_ThreadPool_ForceMaxWorkerThreads", "16", 1);
 
   /* Also set via direct API — NuttX getenv() may not see setenv() in
    * protected mode (kernel-managed env vs user-space libc). */
@@ -1421,14 +1484,20 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
    * MEADOW_OPT_DEFAULT_MASK matches DEFAULT_OPTIMIZATIONS in mini-runtime.c
    * exactly (validated by Exp 3); other MEADOW_OPT_EXPERIMENT settings
    * deviate from it. */
-/* Define MEADOW_JIT_OPT_OVERRIDE to enable mask override for experiments.
- * Empirical: no single-bit toggle (LEAF, -SIMD, SSA+ABCREM) beats DEFAULT
- * on Pi calc above the ~10% noise floor; the override path itself appears
- * to add ~8% Pi-150 overhead vs the no-override path (cause unclear). */
-#ifdef MEADOW_JIT_OPT_OVERRIDE
-  syslog(LOG_INFO, "Setting JIT opt mask: 0x%08x\n", MEADOW_OPT_EXPERIMENT);
-  mono_set_optimizations(MEADOW_OPT_EXPERIMENT);
-#endif
+  /* MEMORY-SAVING: enable GSHAREDVT (generic sharing for value types, bit 24).
+   * mono puts GSHAREDVT in EXCLUDED_FROM_ALL (driver.c), so even -O=all leaves it
+   * OFF in pure JIT — it is enabled ONLY by an explicit mono_set_optimizations()
+   * call with bit 24 set (which flips mono_set_generic_sharing_vt_supported,
+   * mini-runtime.c:5309). Without it, every BCL value-type generic instantiation
+   * (ValueTask<T>, every async state machine, List<int>, Span<T>, Nullable<T>, ...)
+   * is JIT-compiled SEPARATELY — that is the multi-MB SDRAM warmup blowup that OOMs
+   * the cloud-auth TLS+HTTP path (the first full HTTPS connection JIT-spiked native
+   * heap ~+6MB -> exhaustion). Sharing the code+metadata is well worth the ~8% JIT
+   * compute overhead on this memory-constrained device. We add ONLY GSHAREDVT to the
+   * default mask (NOT the SSA/ABCREM experiment — extra opt passes can grow code). */
+  syslog(LOG_INFO, "Setting JIT opt mask (DEFAULT|GSHAREDVT): 0x%08x\n",
+         (unsigned)(MEADOW_OPT_DEFAULT_MASK | MEADOW_OPT_GSHAREDVT));
+  mono_set_optimizations(MEADOW_OPT_DEFAULT_MASK | MEADOW_OPT_GSHAREDVT);
 
   /* Initialize the .NET 10 monovm runtime */
 
