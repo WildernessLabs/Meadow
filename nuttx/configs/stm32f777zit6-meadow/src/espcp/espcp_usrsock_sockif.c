@@ -1229,8 +1229,36 @@ static int espcp_usrsock_send_ioctl_to_esp(struct socket *psock, int cmd, void *
     struct ifconf *ifc = (struct ifconf *) arg;
     struct lifreq *lifr = (struct lifreq *) arg;
 
-    int payload_length = espcp_ioctl_request_buffer_size(request);
-    uint8_t *payload = (uint8_t *) zalloc(payload_length);
+    /* SIOCSESPNONBLOCK is the one *per-socket* ioctl: it ships the ESP socket
+     * handle plus an int (1=non-blocking, 0=blocking) so the ESP can flip
+     * O_NONBLOCK on the matching lwip socket.  Build its 12-byte payload inline
+     * -- [command][socket_handle][nonblock] -- so the generated, single-field
+     * espcp_ioctl_request_t and its encoder stay untouched; every other ioctl
+     * keeps the bare 4-byte command wire. */
+    int payload_length;
+    uint8_t *payload;
+    if (cmd == SIOCSESPNONBLOCK)
+    {
+        int nonblock = (arg != NULL && arglen >= sizeof(int)) ? *(const int *) arg : 0;
+        payload_length = 12;
+        payload = (uint8_t *) zalloc(payload_length);
+        if (payload != NULL)
+        {
+            espcp_encode_int32(cmd, payload);
+            espcp_encode_int32(psock->s_esp32_sockfd, payload + 4);
+            espcp_encode_int32(nonblock, payload + 8);
+        }
+    }
+    else
+    {
+        payload_length = espcp_ioctl_request_buffer_size(request);
+        payload = (uint8_t *) zalloc(payload_length);
+        if (payload != NULL)
+        {
+            espcp_encode_ioctl_request(request, payload);
+        }
+    }
+
     if (payload == NULL)
     {
         free(request);
@@ -1239,7 +1267,6 @@ static int espcp_usrsock_send_ioctl_to_esp(struct socket *psock, int cmd, void *
     }
     else
     {
-        espcp_encode_ioctl_request(request, payload);
         free(request);
 
         espcp_message_t *message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_wi_fi,

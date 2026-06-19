@@ -115,6 +115,16 @@
 #define SIOCGCANBITRATE  _SIOC(0x002C)  /* Get bitrate from a CAN controller */
 #define SIOCSCANBITRATE  _SIOC(0x002D)  /* Set bitrate of a CAN controller */
 
+/* Meadow/ESPCP **************************************************************/
+
+#define SIOCSESPNONBLOCK _SIOC(0x00F0)  /* Push the socket's O_NONBLOCK state to
+                                         * the ESP coprocessor. NuttX has no
+                                         * FIONBIO and fcntl(O_NONBLOCK) only sets
+                                         * the local _SF_NONBLOCK, which never
+                                         * crosses the espcp bridge; net_vfcntl
+                                         * emits this so espcp can forward it.
+                                         * arg (int): 1 = non-blocking, 0 = block */
+
 /****************************************************************************
  * Public Type Definitions
  ****************************************************************************/

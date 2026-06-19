@@ -49,6 +49,7 @@
 
 #include <arch/irq.h>
 #include <nuttx/net/net.h>
+#include <nuttx/net/ioctl.h>
 #include "socket/socket.h"
 #include "usrsock/usrsock.h"
 
@@ -202,6 +203,10 @@ int psock_vfcntl(FAR struct socket *psock, int cmd, va_list ap)
 
           if ((sockcaps & SOCKCAP_NONBLOCKING) != 0)
             {
+#ifdef CONFIG_NET_USRSOCK
+               int was_nonblock = _SS_ISNONBLOCK(psock->s_flags);
+#endif
+
                if ((mode & O_NONBLOCK) != 0)
                  {
                    psock->s_flags |= _SF_NONBLOCK;
@@ -212,6 +217,25 @@ int psock_vfcntl(FAR struct socket *psock, int cmd, va_list ap)
                  }
 
                ret = OK;
+
+#ifdef CONFIG_NET_USRSOCK
+               /* Meadow/ESPCP: fcntl() only updates the LOCAL _SF_NONBLOCK.  For
+                * usrsock/ESP sockets the blocking state actually lives on the ESP
+                * coprocessor, which never sees this change (NuttX has no FIONBIO
+                * and net_vfcntl makes no socket-interface call).  Push the change
+                * down through si_ioctl(SIOCSESPNONBLOCK) so espcp can forward it to
+                * the ESP and keep both sides in sync.  Best effort: never fail
+                * fcntl() if the transport doesn't accept it.
+                */
+
+               if (was_nonblock != _SS_ISNONBLOCK(psock->s_flags) &&
+                   psock->s_sockif != NULL && psock->s_sockif->si_ioctl != NULL)
+                 {
+                   int enable = (mode & O_NONBLOCK) ? 1 : 0;
+                   (void)psock->s_sockif->si_ioctl(psock, SIOCSESPNONBLOCK,
+                                                   &enable, sizeof(enable));
+                 }
+#endif
             }
           else
             {
