@@ -57,12 +57,6 @@
 
 #include "espcp_usrsock.h"
 
-/* STALL TRACE — temporary syslog(LOG_ERR) instrumentation to diagnose the MQTT
- * connect stall. Lines land in RAMLOG (g_sysbuffer) so they survive an HCOM
- * freeze and can be dumped via GDB. Tag STALLK = kernel/espcp. REMOVE after. */
-static volatile unsigned long g_stallk_seq;
-#define STALLK(fmt, ...) syslog(LOG_ERR, "STALLK#%lu " fmt "\n", (unsigned long)(g_stallk_seq++), ##__VA_ARGS__)
-
 /* _SF_NONBLOCK / _SS_ISNONBLOCK live in NuttX's private net/socket/socket.h, which
  * is not on the board-src include path. Mirror them (bit 3, value 0x08) so we can
  * honor the socket's non-blocking state. Guarded so it composes if that header is
@@ -889,15 +883,10 @@ int espcp_usrsock_close(struct socket *psock)
 int espcp_usrsock_connect(struct socket *psock, const struct sockaddr *addr, socklen_t addrlen)
 {
     MEADOW_TRACE_INFORMATION("connect(%d, 0x%08x, %d)\n", psock->s_esp32_sockfd, (uint32_t) addr, addrlen);
-    /* raw sin_port (network byte order): 0xB322=8883, 0xBB01=443 */
-    STALLK("connect ENTER fd=%d rawport=0x%04x", psock->s_esp32_sockfd,
-           (addr && addrlen >= (socklen_t)sizeof(struct sockaddr_in)) ?
-               (unsigned)((const struct sockaddr_in *)addr)->sin_port : 0);
 
     if (espcp_get_configuration()->esp_not_responding)
     {
         MEADOW_TRACE_DEBUG("connect - result ENETDOWN\n");
-        STALLK("connect EXIT fd=%d result=ENETDOWN", psock->s_esp32_sockfd);
         return(-ENETDOWN);
     }
 
@@ -993,7 +982,6 @@ int espcp_usrsock_connect(struct socket *psock, const struct sockaddr *addr, soc
     espcp_delete_message_and_payload(message);
 
     MEADOW_TRACE_INFORMATION("connect - socket %d, result %d\n", psock->s_esp32_sockfd, result);
-    STALLK("connect EXIT fd=%d result=%d", psock->s_esp32_sockfd, (int)result);
 
     return (result);
 }
@@ -1582,8 +1570,6 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
         MEADOW_TRACE_INFORMATION("poll setup - Setting up poll request ID %08x, socket %d\n", request->setup_message_id, psock->s_esp32_sockfd);
         pr->fd = fds;
         pr->request_id = message->message_id;
-        STALLK("poll_setup fd=%d events=0x%hx reqid=%08x", psock->s_esp32_sockfd,
-               fds->events, (unsigned)message->message_id);
         espcp_lock_poll_requests_queue();
         gl_add_item_to_head(_espcp_poll_requests, pr);
         espcp_unlock_poll_requests_queue();
@@ -1753,15 +1739,12 @@ void espcp_usrsock_poll_interrupt_handler(espcp_message_t *message)
             MEADOW_TRACE_INFORMATION("poll interrupt handler - found originating request %08x\n", request_id);
             pr->fd->revents = ipr->returned_events;
             MEADOW_TRACE_INFORMATION("poll interrupt handler - fd=%d events=%hd revents=%hd\n", pr->fd->fd, pr->fd->events, pr->fd->revents);
-            STALLK("poll_INT FOUND fd=%d events=0x%hx revents=0x%hx reqid=%08x",
-                   pr->fd->fd, pr->fd->events, pr->fd->revents, (unsigned)request_id);
 
             nxsem_post(pr->fd->sem);
         }
         else
         {
             MEADOW_TRACE_INFORMATION("poll interrupt handler - Cannot find request %08x\n", request_id);
-            STALLK("poll_INT NOTFOUND reqid=%08x revents=0x%hx", (unsigned)request_id, ipr->returned_events);
         }
         espcp_unlock_poll_requests_queue();
         free(ipr);
@@ -1969,7 +1952,6 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
     espcp_delete_message_and_payload(message);
 
     MEADOW_TRACE_INFORMATION("recvfrom - socket %d, result %d\n", psock->s_esp32_sockfd, result);
-    STALLK("recvfrom EXIT fd=%d result=%d", psock->s_esp32_sockfd, (int)result);
 
     return (result);
 }
@@ -2119,7 +2101,6 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
     espcp_delete_message_and_payload(message);
 
     MEADOW_TRACE_INFORMATION("sendto: socket %d, result: %d\n", psock->s_esp32_sockfd, result);
-    STALLK("sendto EXIT fd=%d result=%d", psock->s_esp32_sockfd, (int)result);
 
     return (result);
 }
@@ -2265,6 +2246,25 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
     switch (option)
     {
         case SO_LINGER:
+            //
+            //  Answer SO_LINGER LOCALLY with "linger disabled" (the default).
+            //  The ESP coprocessor answers getsockopt(SO_LINGER) unreliably — the
+            //  error surfaces in managed as "Unknown socket error" and breaks
+            //  MQTTnet's connect, which reads Socket.LingerState every time. We
+            //  never enable linger, so a zeroed struct is always correct.
+            //
+            {
+                struct linger lg;
+                lg.l_onoff = 0;
+                lg.l_linger = 0;
+                if (value_len == NULL || *value_len < (socklen_t)sizeof(lg))
+                {
+                    return(-EINVAL);
+                }
+                memcpy(value, &lg, sizeof(lg));
+                *value_len = (socklen_t)sizeof(lg);
+                return(OK);
+            }
         case SO_SNDTIMEO:
         case SO_RCVTIMEO:
         case SO_RCVBUF:

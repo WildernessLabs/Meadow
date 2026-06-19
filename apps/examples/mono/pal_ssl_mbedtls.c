@@ -37,12 +37,6 @@
  * survives the no-USB emulator. REMOVE before production. */
 #define PAL_RDIAG(...) do { syslog(LOG_ERR, __VA_ARGS__); } while(0)
 
-/* STALL TRACE — temporary syslog(LOG_ERR) instrumentation to diagnose the MQTT
- * connect/handshake stall. Lands in RAMLOG (survives HCOM freeze; dump via GDB).
- * Tag STALLU = user/pal_ssl. Pairs with STALLK in espcp. REMOVE after. */
-static volatile unsigned long g_stallu_seq;
-#define STALLU(fmt, ...) syslog(LOG_ERR, "STALLU#%lu " fmt "\n", (unsigned long)(g_stallu_seq++), ##__VA_ARGS__)
-
 /* HDIAG — temporary native-heap trace to diagnose the cloud-auth OOM. Logs the
  * NuttX heap used/free/largest-free-block so we can tell exhaustion vs
  * fragmentation vs per-connection accumulation. REMOVE before production. */
@@ -262,14 +256,12 @@ int CryptoNative_BioDestroy(void *bio)
 int CryptoNative_BioWrite(void *bio, const void *data, int len)
 {
     int w = bio_write((MemBio *)bio, data, len);
-    STALLU("BioWrite len=%d w=%d", len, w);   /* managed fed socket->TLS input */
     return w;
 }
 
 int CryptoNative_BioRead(void *bio, void *data, int len)
 {
     int r = bio_read((MemBio *)bio, data, len);
-    STALLU("BioRead len=%d r=%d", len, r);     /* managed drained TLS output->socket */
     return r;
 }
 
@@ -439,9 +431,6 @@ int CryptoNative_SslDoHandshake(void *ssl_ptr, int *error)
     }
 
     int ret = mbedtls_ssl_handshake(&ssl->ssl);
-    STALLU("Handshake conn#%d ret=%d in_bio=%d out_bio=%d", ssl->conn_id, ret,
-           ssl->input_bio ? bio_pending(ssl->input_bio) : -1,
-           ssl->output_bio ? bio_pending(ssl->output_bio) : -1);
     if (ret != 0 && ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
         char errbuf[128];
         mbedtls_strerror(ret, errbuf, sizeof(errbuf));
@@ -488,8 +477,6 @@ int32_t CryptoNative_SslRead(void *ssl_ptr, void *buf, int32_t num, int32_t *err
     }
 
     int ret = mbedtls_ssl_read(&ssl->ssl, (unsigned char *)buf, num);
-    STALLU("SslRead conn#%d num=%d ret=%d inpend=%d", ssl->conn_id, num, ret,
-           bio_pending(ssl->input_bio));
 
     if (ret > 0) {
         if (error) *error = PAL_SSL_ERROR_NONE;
@@ -573,7 +560,6 @@ int32_t CryptoNative_SslWrite(void *ssl_ptr, const void *buf, int32_t num, int32
     }
 
     if (error) *error = PAL_SSL_ERROR_NONE;
-    STALLU("SslWrite conn#%d num=%d written=%d ret=%d", ssl->conn_id, num, written, ret);
     return written;
 }
 
