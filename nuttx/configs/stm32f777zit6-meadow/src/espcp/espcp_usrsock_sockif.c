@@ -2310,8 +2310,17 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
             //
             return(-EPFNOSUPPORT);
             break;
-        case SO_ACCEPTCONN:
         case SO_ERROR:
+            //
+            //  Send to the ESP, which clears and returns the pending socket error
+            //  (an int, decoded below like SO_RCVBUF). REQUIRED for non-blocking
+            //  connect: .NET reads SO_ERROR after the socket polls writable to get
+            //  the final connect result (0 = connected). Without this the F7 used to
+            //  short-circuit with EPFNOSUPPORT, so connect-completion never resolved
+            //  and the engine spun on POLLOUT forever.
+            //
+            break;
+        case SO_ACCEPTCONN:
         case SO_TYPE:
             //
             //  Supported by the ESP but not implemented yet.
@@ -2429,6 +2438,7 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
                                                 }
                                             }
                                             break;
+                                        case SO_ERROR:
                                         case SO_RCVBUF:
                                             {
                                                 espcp_integer_response_t *esp_iv = espcp_extract_integer_response(response->option_value);
