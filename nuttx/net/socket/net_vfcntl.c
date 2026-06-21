@@ -219,6 +219,7 @@ int psock_vfcntl(FAR struct socket *psock, int cmd, va_list ap)
                ret = OK;
 
 #ifdef CONFIG_NET_USRSOCK
+#  ifdef MEADOW_BRIDGE_NONBLOCK
                /* Meadow/ESPCP: fcntl() only updates the LOCAL _SF_NONBLOCK.  For
                 * usrsock/ESP sockets the blocking state actually lives on the ESP
                 * coprocessor, which never sees this change (NuttX has no FIONBIO
@@ -226,6 +227,12 @@ int psock_vfcntl(FAR struct socket *psock, int cmd, va_list ap)
                 * down through si_ioctl(SIOCSESPNONBLOCK) so espcp can forward it to
                 * the ESP and keep both sides in sync.  Best effort: never fail
                 * fcntl() if the transport doesn't accept it.
+                *
+                * GATED OFF (MEADOW_BRIDGE_NONBLOCK undefined): with full non-blocking
+                * ESP sockets the WiFi link drops under TLS handshake load; reverting
+                * to blocking ESP sockets (connect/send block on the ESP, recv via
+                * MSG_DONTWAIT) for stability while that is investigated. Define
+                * MEADOW_BRIDGE_NONBLOCK to re-enable true non-blocking connect.
                 */
 
                if (was_nonblock != _SS_ISNONBLOCK(psock->s_flags) &&
@@ -235,6 +242,9 @@ int psock_vfcntl(FAR struct socket *psock, int cmd, va_list ap)
                    (void)psock->s_sockif->si_ioctl(psock, SIOCSESPNONBLOCK,
                                                    &enable, sizeof(enable));
                  }
+#  else
+               (void)was_nonblock;
+#  endif
 #endif
             }
           else
