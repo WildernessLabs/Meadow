@@ -2709,15 +2709,27 @@ void hcom_nx_config_process_esp_configuration(espcp_system_configuration_t *esp_
         {
             configuration->default_access_point = NULL;
         }
-        if ((!configuration->default_interface->use_dhcp) && (configuration->default_interface->interface_type == MEADOW_IFT_ESP32))
+        if (configuration->default_interface->interface_type == MEADOW_IFT_ESP32)
         {
             //
-            //  Using the ESP32 and static IP address so let the ESP32 know about this.
+            //  Always tell the ESP32 the DHCP setting. Previously this was only sent
+            //  for static IP (!use_dhcp); with DHCP enabled the ESP32 never learned
+            //  DHCP was on, so it kept its default _useDhcp=false and never raised
+            //  NetworkGotIpEvent (fn 48). That event is what delivers the DHCP-assigned
+            //  DNS server (espcp_network_got_ip_event_handler -> dns.conf); without it
+            //  the device only ever uses the static dns.conf nameservers, which fails
+            //  on networks that only honor their own DHCP-provided resolver.
             //
             hcom_nx_config_set_esp_boolean_value(espcp_configuration_items_use_dhcp, configuration->default_interface->use_dhcp);
-            hcom_nx_config_set_esp_integer_value(espcp_configuration_items_static_ip_address, configuration->default_interface->ip_address);
-            hcom_nx_config_set_esp_integer_value(espcp_configuration_items_subnet_mask, configuration->default_interface->netmask);
-            hcom_nx_config_set_esp_integer_value(espcp_configuration_items_default_gateway, configuration->default_interface->gateway);
+            if (!configuration->default_interface->use_dhcp)
+            {
+                //
+                //  Static IP address, so also let the ESP32 know the address details.
+                //
+                hcom_nx_config_set_esp_integer_value(espcp_configuration_items_static_ip_address, configuration->default_interface->ip_address);
+                hcom_nx_config_set_esp_integer_value(espcp_configuration_items_subnet_mask, configuration->default_interface->netmask);
+                hcom_nx_config_set_esp_integer_value(espcp_configuration_items_default_gateway, configuration->default_interface->gateway);
+            }
         }
         //
         configuration->esp_version.major = esp_config->version_major;
