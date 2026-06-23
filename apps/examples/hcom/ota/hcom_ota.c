@@ -464,31 +464,31 @@ int meadow_cloud_decrypt_buf(const unsigned char *encrypted_buf, int encrypted_l
     mbedtls_ctr_drbg_init( &ctr_drbg );
     mbedtls_entropy_init( &entropy );
 
+    unsigned char result[MBEDTLS_MPI_MAX_SIZE];
+    size_t olen = 0;
+
     if ((ret = mbedtls_entropy_add_source(&entropy, mbedtls_platform_entropy_poll,
                                           NULL, DEV_URANDOM_THRESHOLD,
                                           MBEDTLS_ENTROPY_SOURCE_STRONG)) != 0)
     {
         printf(" failed\n  ! mbedtls_entropy_add_source returned -0x%04x\n", (unsigned int)-ret);
-        return -3;
+        ret = -3; goto cleanup;
     }
     if( ( ret = mbedtls_ctr_drbg_seed( &ctr_drbg, mbedtls_entropy_func, &entropy,
                                (const unsigned char *) pers,
                                strlen( pers ) ) ) != 0 )
     {
         printf( " failed\n  ! mbedtls_ctr_drbg_seed returned -0x%04x\n", (unsigned int) -ret );
-        return -4;
+        ret = -4; goto cleanup;
     }
     if( ( ret = mbedtls_pk_parse_key(&key, private_key, len, NULL, 0,
                             mbedtls_ctr_drbg_random, &ctr_drbg) ) != 0 )
     {
         printf( " failed\n  ! mbedtls_pk_parse_key returned -0x%04x\n", -ret );
-        return -1;
+        ret = -1; goto cleanup;
     }
 
     meadow_cloud_release_private_key((const char**) &private_key);
-
-    unsigned char result[MBEDTLS_MPI_MAX_SIZE];
-    size_t olen = 0;
 
     fflush( stdout );
 
@@ -496,11 +496,22 @@ int meadow_cloud_decrypt_buf(const unsigned char *encrypted_buf, int encrypted_l
                                     mbedtls_ctr_drbg_random, &ctr_drbg ) ) != 0 )
     {
         printf( " failed\n  ! mbedtls_pk_decrypt returned -0x%04x\n", -ret );
-        return -2;
+        ret = -2; goto cleanup;
     }
 
     memcpy (decrypted_buf, result, olen);
-    return olen;
+    ret = (int)olen;
+
+cleanup:
+    /* Free the mbedTLS contexts on EVERY path. key/ctr_drbg/entropy are globals
+     * re-init'd at the top of each call, so without freeing them every
+     * Meadow.Cloud RSA decrypt orphaned the prior call's allocations (RSA-4096
+     * key MPIs + DRBG + entropy accumulator) — a native heap leak that the GC
+     * cannot reclaim. The AES path below already frees its (local) context. */
+    mbedtls_pk_free( &key );
+    mbedtls_ctr_drbg_free( &ctr_drbg );
+    mbedtls_entropy_free( &entropy );
+    return ret;
 
 }
 
