@@ -720,22 +720,6 @@ static MonoDlMapping globalization_native_mappings[] = {
   { NULL, NULL }
 };
 
-/* Meadow DIAG: native-heap-used accessor for the no-cloud vs cloud-on baseline
- * comparison (callable from managed via the P/Invoke table, unlike the pal
- * HDIAG which only fires on TLS connections). REMOVE before production. */
-extern size_t sgen_gc_get_total_heap_allocation(void);
-extern size_t meadow_mmap_file_bytes(void);  /* live assembly-image bytes in SDRAM (mono_nuttx_stubs.c) */
-static size_t meadow_native_used(void)
-{
-  struct mallinfo mi;
-#ifdef CONFIG_CAN_PASS_STRUCTS
-  mi = mallinfo();
-#else
-  mallinfo(&mi);
-#endif
-  return (size_t)mi.uordblks;
-}
-
 static MonoDlMapping system_native_mappings[] = {
   /* ---- test syslog (direct USART1 output for Renode) ---- */
   { "SystemNative_SyslogWrite",               (void *)sysn_syslog_write },
@@ -1021,13 +1005,6 @@ static MonoDlMapping system_native_mappings[] = {
   { "SystemNative_SetEUid",                   (void *)sysn_set_euid },
   { "SystemNative_GetPwUidR",                 (void *)sysn_get_pw_uid_r },
   { "SystemNative_GetGroups",                 (void *)sysn_get_groups },
-
-  /* Meadow DIAG: expose native-heap + GC + JIT counters so the app can log them
-   * per idle tick (works WITHOUT a TLS connection, unlike the pal HDIAG). Used to
-   * compare the no-cloud baseline `used` vs cloud-on. REMOVE before production. */
-  { "meadow_native_used",                     (void *)meadow_native_used },
-  { "meadow_mmap_file_bytes",                 (void *)meadow_mmap_file_bytes },
-  { "sgen_gc_get_total_heap_allocation",      (void *)sgen_gc_get_total_heap_allocation },
 
   { NULL, NULL }
 };
