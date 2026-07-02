@@ -240,8 +240,47 @@ struct socket
 #endif
 #ifdef CONFIG_MEADOW_ESPCP_MANAGER
   int32_t       s_esp32_sockfd;
+  uint8_t       s_esp32_state;  /* ESP32_SF_* bits: F7-local view of the ESP
+                                 * socket's writability, used by the espcp
+                                 * sockif to answer POLLOUT polls without a
+                                 * coprocessor round-trip. */
 #endif
 };
+
+#ifdef CONFIG_MEADOW_ESPCP_MANAGER
+/* s_esp32_state bits.  POLLOUT is answered locally by the espcp sockif
+ * except while one of these is set (writability genuinely unknown).
+ */
+
+#  define ESP32_SF_CONNECT_INPROGRESS (1 << 0) /* connect() returned EINPROGRESS;
+                                                * cleared when SO_ERROR is read or
+                                                * data flows */
+#  define ESP32_SF_SEND_EAGAIN        (1 << 1) /* last send returned EAGAIN; wait
+                                                * for real writability from the ESP */
+
+/* Readiness cache: set from ESP wire-poll interrupts, consumed by poll_setup
+ * to answer 0-timeout polls locally (.NET's Phase-A sample cannot wait out an
+ * ESP round-trip).  RD_READY clears when a recv drains to EAGAIN; HUP/ERR are
+ * sticky until the socket closes.
+ */
+
+#  define ESP32_SF_RD_READY           (1 << 2) /* ESP reported POLLIN */
+#  define ESP32_SF_RD_HUP             (1 << 3) /* ESP reported POLLHUP */
+#  define ESP32_SF_RD_ERR             (1 << 4) /* ESP reported POLLERR */
+
+/* MEADOW_BRIDGE_NONBLOCK: forward fcntl(O_NONBLOCK) to the ESP coprocessor
+ * (SIOCSESPNONBLOCK) so ESP sockets are truly non-blocking -- see
+ * net/socket/net_vfcntl.c.  Requires (a) the readiness cache / local poll
+ * answering in espcp_usrsock_poll_setup() (removes the poll-round-trip storm
+ * that previously dropped the WiFi link under TLS handshake load) and (b) an
+ * ESP coprocessor firmware that handles SIOCSESPNONBLOCK and getsockopt
+ * SO_ERROR (Meadow-ESP32 PR #213; older ESPs NAK the ioctl and the socket
+ * gracefully stays blocking).  Undefine to revert to blocking ESP sockets
+ * (connect/send block on the ESP, recv via MSG_DONTWAIT).
+ */
+
+/* #define MEADOW_BRIDGE_NONBLOCK 1 */
+#endif
 
 /* This defines a list of sockets indexed by the socket descriptor */
 
