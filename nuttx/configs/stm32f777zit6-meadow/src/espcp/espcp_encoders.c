@@ -1372,6 +1372,15 @@ int espcp_get_addr_info_request_buffer_size(espcp_get_addr_info_request_t *get_a
 ****************************************************************************/
 espcp_get_addr_info_response_t *espcp_extract_get_addr_info_response(uint8_t *buffer)
 {
+    /* A response frame can arrive status-ok but payload-less under SPI
+     * pressure; dereferencing NULL here hard-faults (observed in
+     * espcp_extract_integer_and_errno_response).  Callers all handle a
+     * NULL return as -ENOMEM/-EFAULT. */
+    if (buffer == NULL)
+    {
+        return(NULL);
+    }
+
     espcp_get_addr_info_response_t *get_addr_info_response = (espcp_get_addr_info_response_t *) malloc(sizeof(espcp_get_addr_info_response_t));
 
     get_addr_info_response->addr_info_response_errno = espcp_extract_int32(buffer);
@@ -1464,6 +1473,15 @@ int espcp_socket_request_buffer_size(espcp_socket_request_t *socket_request)
 ****************************************************************************/
 espcp_integer_response_t *espcp_extract_integer_response(uint8_t *buffer)
 {
+    /* A response frame can arrive status-ok but payload-less under SPI
+     * pressure; dereferencing NULL here hard-faults (observed in
+     * espcp_extract_integer_and_errno_response).  Callers all handle a
+     * NULL return as -ENOMEM/-EFAULT. */
+    if (buffer == NULL)
+    {
+        return(NULL);
+    }
+
     espcp_integer_response_t *integer_response = (espcp_integer_response_t *) malloc(sizeof(espcp_integer_response_t));
 
     integer_response->result = espcp_extract_int32(buffer);
@@ -1493,6 +1511,15 @@ espcp_integer_response_t *espcp_extract_integer_response(uint8_t *buffer)
 ****************************************************************************/
 espcp_integer_and_errno_response_t *espcp_extract_integer_and_errno_response(uint8_t *buffer)
 {
+    /* A response frame can arrive status-ok but payload-less under SPI
+     * pressure; dereferencing NULL here hard-faults (observed in
+     * espcp_extract_integer_and_errno_response).  Callers all handle a
+     * NULL return as -ENOMEM/-EFAULT. */
+    if (buffer == NULL)
+    {
+        return(NULL);
+    }
+
     espcp_integer_and_errno_response_t *integer_and_errno_response = (espcp_integer_and_errno_response_t *) malloc(sizeof(espcp_integer_and_errno_response_t));
 
     integer_and_errno_response->result = espcp_extract_int32(buffer);
@@ -1805,6 +1832,15 @@ int espcp_get_sock_opt_request_buffer_size(espcp_get_sock_opt_request_t *get_soc
 ****************************************************************************/
 espcp_get_sock_opt_response_t *espcp_extract_get_sock_opt_response(uint8_t *buffer)
 {
+    /* A response frame can arrive status-ok but payload-less under SPI
+     * pressure; dereferencing NULL here hard-faults (observed in
+     * espcp_extract_integer_and_errno_response).  Callers all handle a
+     * NULL return as -ENOMEM/-EFAULT. */
+    if (buffer == NULL)
+    {
+        return(NULL);
+    }
+
     espcp_get_sock_opt_response_t *get_sock_opt_response = (espcp_get_sock_opt_response_t *) malloc(sizeof(espcp_get_sock_opt_response_t));
 
     get_sock_opt_response->result = espcp_extract_int32(buffer);
@@ -2028,6 +2064,15 @@ int espcp_read_request_buffer_size(espcp_read_request_t *read_request)
 ****************************************************************************/
 espcp_read_response_t *espcp_extract_read_response(uint8_t *buffer)
 {
+    /* A response frame can arrive status-ok but payload-less under SPI
+     * pressure; dereferencing NULL here hard-faults (observed in
+     * espcp_extract_integer_and_errno_response).  Callers all handle a
+     * NULL return as -ENOMEM/-EFAULT. */
+    if (buffer == NULL)
+    {
+        return(NULL);
+    }
+
     espcp_read_response_t *read_response = (espcp_read_response_t *) malloc(sizeof(espcp_read_response_t));
 
     read_response->buffer_length = espcp_extract_uint32(buffer);
@@ -2115,6 +2160,15 @@ int espcp_close_request_buffer_size(espcp_close_request_t *close_request)
 ****************************************************************************/
 espcp_get_battery_charge_level_response_t *espcp_extract_get_battery_charge_level_response(uint8_t *buffer)
 {
+    /* A response frame can arrive status-ok but payload-less under SPI
+     * pressure; dereferencing NULL here hard-faults (observed in
+     * espcp_extract_integer_and_errno_response).  Callers all handle a
+     * NULL return as -ENOMEM/-EFAULT. */
+    if (buffer == NULL)
+    {
+        return(NULL);
+    }
+
     espcp_get_battery_charge_level_response_t *get_battery_charge_level_response = (espcp_get_battery_charge_level_response_t *) malloc(sizeof(espcp_get_battery_charge_level_response_t));
 
     get_battery_charge_level_response->level = espcp_extract_uint32(buffer);
@@ -2259,6 +2313,15 @@ int espcp_recv_from_request_buffer_size(espcp_recv_from_request_t *recv_from_req
 ****************************************************************************/
 espcp_recv_from_response_t *espcp_extract_recv_from_response(uint8_t *buffer)
 {
+    /* A response frame can arrive status-ok but payload-less under SPI
+     * pressure; dereferencing NULL here hard-faults (observed in
+     * espcp_extract_integer_and_errno_response).  Callers all handle a
+     * NULL return as -ENOMEM/-EFAULT. */
+    if (buffer == NULL)
+    {
+        return(NULL);
+    }
+
     espcp_recv_from_response_t *recv_from_response = (espcp_recv_from_response_t *) malloc(sizeof(espcp_recv_from_response_t));
 
     recv_from_response->buffer_length = espcp_extract_uint32(buffer);
@@ -2368,6 +2431,15 @@ int espcp_poll_request_buffer_size(espcp_poll_request_t *poll_request)
 ****************************************************************************/
 espcp_poll_response_t *espcp_extract_poll_response(uint8_t *buffer)
 {
+    /* A response frame can arrive status-ok but payload-less under SPI
+     * pressure; dereferencing NULL here hard-faults (observed in
+     * espcp_extract_integer_and_errno_response).  Callers all handle a
+     * NULL return as -ENOMEM/-EFAULT. */
+    if (buffer == NULL)
+    {
+        return(NULL);
+    }
+
     espcp_poll_response_t *poll_response = (espcp_poll_response_t *) malloc(sizeof(espcp_poll_response_t));
 
     poll_response->returned_events = espcp_extract_uint16(buffer);
@@ -2401,6 +2473,15 @@ espcp_poll_response_t *espcp_extract_poll_response(uint8_t *buffer)
 ****************************************************************************/
 espcp_interrupt_poll_response_t *espcp_extract_interrupt_poll_response(uint8_t *buffer)
 {
+    /* A response frame can arrive status-ok but payload-less under SPI
+     * pressure; dereferencing NULL here hard-faults (observed in
+     * espcp_extract_integer_and_errno_response).  Callers all handle a
+     * NULL return as -ENOMEM/-EFAULT. */
+    if (buffer == NULL)
+    {
+        return(NULL);
+    }
+
     espcp_interrupt_poll_response_t *interrupt_poll_response = (espcp_interrupt_poll_response_t *) malloc(sizeof(espcp_interrupt_poll_response_t));
 
     interrupt_poll_response->socket_handle = espcp_extract_int32(buffer);
@@ -2581,6 +2662,15 @@ int espcp_accept_request_buffer_size(espcp_accept_request_t *accept_request)
 ****************************************************************************/
 espcp_accept_response_t *espcp_extract_accept_response(uint8_t *buffer)
 {
+    /* A response frame can arrive status-ok but payload-less under SPI
+     * pressure; dereferencing NULL here hard-faults (observed in
+     * espcp_extract_integer_and_errno_response).  Callers all handle a
+     * NULL return as -ENOMEM/-EFAULT. */
+    if (buffer == NULL)
+    {
+        return(NULL);
+    }
+
     espcp_accept_response_t *accept_response = (espcp_accept_response_t *) malloc(sizeof(espcp_accept_response_t));
 
     accept_response->addr_length = espcp_extract_uint32(buffer);
@@ -2668,6 +2758,15 @@ int espcp_ioctl_request_buffer_size(espcp_ioctl_request_t *ioctl_request)
 ****************************************************************************/
 espcp_ioctl_response_t *espcp_extract_ioctl_response(uint8_t *buffer)
 {
+    /* A response frame can arrive status-ok but payload-less under SPI
+     * pressure; dereferencing NULL here hard-faults (observed in
+     * espcp_extract_integer_and_errno_response).  Callers all handle a
+     * NULL return as -ENOMEM/-EFAULT. */
+    if (buffer == NULL)
+    {
+        return(NULL);
+    }
+
     espcp_ioctl_response_t *ioctl_response = (espcp_ioctl_response_t *) malloc(sizeof(espcp_ioctl_response_t));
 
     ioctl_response->addr_length = espcp_extract_uint32(buffer);
@@ -2757,6 +2856,15 @@ int espcp_get_sock_peer_name_request_buffer_size(espcp_get_sock_peer_name_reques
 ****************************************************************************/
 espcp_get_sock_peer_name_response_t *espcp_extract_get_sock_peer_name_response(uint8_t *buffer)
 {
+    /* A response frame can arrive status-ok but payload-less under SPI
+     * pressure; dereferencing NULL here hard-faults (observed in
+     * espcp_extract_integer_and_errno_response).  Callers all handle a
+     * NULL return as -ENOMEM/-EFAULT. */
+    if (buffer == NULL)
+    {
+        return(NULL);
+    }
+
     espcp_get_sock_peer_name_response_t *get_sock_peer_name_response = (espcp_get_sock_peer_name_response_t *) malloc(sizeof(espcp_get_sock_peer_name_response_t));
 
     get_sock_peer_name_response->addr_length = espcp_extract_uint32(buffer);
@@ -3323,6 +3431,15 @@ espcp_got_ip_event_data_t *espcp_extract_got_ip_event_data(uint8_t *buffer)
 ****************************************************************************/
 espcp_core_dump_information_response_t *espcp_extract_core_dump_information_response(uint8_t *buffer)
 {
+    /* A response frame can arrive status-ok but payload-less under SPI
+     * pressure; dereferencing NULL here hard-faults (observed in
+     * espcp_extract_integer_and_errno_response).  Callers all handle a
+     * NULL return as -ENOMEM/-EFAULT. */
+    if (buffer == NULL)
+    {
+        return(NULL);
+    }
+
     espcp_core_dump_information_response_t *information = (espcp_core_dump_information_response_t *) malloc(sizeof(espcp_core_dump_information_response_t));
     if (information == NULL)
     {
@@ -3356,6 +3473,15 @@ espcp_core_dump_information_response_t *espcp_extract_core_dump_information_resp
 ****************************************************************************/
 espcp_core_dump_fragment_response_t *espcp_extract_core_dump_fragment_response(uint8_t *buffer)
 {
+    /* A response frame can arrive status-ok but payload-less under SPI
+     * pressure; dereferencing NULL here hard-faults (observed in
+     * espcp_extract_integer_and_errno_response).  Callers all handle a
+     * NULL return as -ENOMEM/-EFAULT. */
+    if (buffer == NULL)
+    {
+        return(NULL);
+    }
+
     espcp_core_dump_fragment_response_t *fragment = (espcp_core_dump_fragment_response_t *) malloc(sizeof(espcp_core_dump_fragment_response_t));
     if (fragment == NULL)
     {
