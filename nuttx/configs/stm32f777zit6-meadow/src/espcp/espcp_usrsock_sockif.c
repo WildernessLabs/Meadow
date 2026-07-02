@@ -108,6 +108,10 @@
 struct espcp_poll_request_list_item_s
 {
     struct pollfd *fd;      /* Pointer to the pollfd structure of the original request. */
+    struct socket *psock;   /* Socket the poll is armed on (readiness-cache updates). */
+    int32_t esp_sockfd;     /* ESP socket handle at arm time: struct socket slots are
+                             * reused after close, so a late interrupt must only touch
+                             * the cache if the slot still belongs to this socket. */
     uint32_t request_id;    /* ID of the message sent to the ESP32. */
 };
 typedef struct espcp_poll_request_list_item_s espcp_poll_request_list_item_t;
@@ -862,6 +866,10 @@ int espcp_usrsock_close(struct socket *psock)
 
     MEADOW_TRACE_INFORMATION("close - socket %d, result %d\n", psock->s_esp32_sockfd, result);
 
+    psock->s_esp32_state = 0;
+    psock->s_esp32_sockfd = -1;   /* invalidate: blocks stale poll interrupts from
+                                   * matching this slot after reuse */
+
     return (result);
 }
 
@@ -980,6 +988,19 @@ int espcp_usrsock_connect(struct socket *psock, const struct sockaddr *addr, soc
     }
 
     espcp_delete_message_and_payload(message);
+
+    /* Track non-blocking connect: while EINPROGRESS is pending, POLLOUT
+     * means "connect completed" and must come from the ESP, so the local
+     * POLLOUT fast path in poll_setup is suspended for this socket.
+     */
+    if (result == -EINPROGRESS)
+    {
+        psock->s_esp32_state |= ESP32_SF_CONNECT_INPROGRESS;
+    }
+    else if (result == 0)
+    {
+        psock->s_esp32_state &= ~ESP32_SF_CONNECT_INPROGRESS;
+    }
 
     MEADOW_TRACE_INFORMATION("connect - socket %d, result %d\n", psock->s_esp32_sockfd, result);
 
@@ -1553,6 +1574,68 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
         return(-ENETDOWN);
     }
 
+    /* Fast path: answer the poll locally, without a coprocessor round-trip,
+     * whenever the F7 already knows a requested event is pending.
+     *
+     * Why this exists: .NET's poll-based SocketAsyncEngine delivers events
+     * only from a 0-timeout "Phase A" sample over all registered sockets
+     * (see WaitForSocketEventsInner in pal_networking.c).  A wire poll can
+     * never complete its ~10ms ESP round-trip inside a 0-timeout window, so
+     * readiness must be answerable locally:
+     *
+     *   - POLLOUT: a connected TCP (or any UDP) socket is always writable.
+     *     Answer locally except while writability is genuinely unknown
+     *     (non-blocking connect in progress, or send buffer full after an
+     *     EAGAIN) -- then only the ESP knows, so fall through to the wire.
+     *   - POLLIN/POLLHUP/POLLERR: answered from the readiness cache
+     *     (ESP32_SF_RD_*), which is fed by wire-poll interrupts (the blocking
+     *     "Phase B" polls arm those) and drained back to unknown when a recv
+     *     returns EAGAIN.
+     *
+     * Every wire POLLOUT round-trip this avoids matters: with truly
+     * non-blocking sockets (MEADOW_BRIDGE_NONBLOCK) a TLS handshake measured
+     * ~150 polls per send/recv pair, enough espcp load to starve reads and
+     * drop the WiFi association.
+     */
+    /* MEADOW_POLL_LOCAL_READY: answer polls locally from the readiness cache.
+     * REQUIRED whenever the strict poll-teardown (remove pr before the wire
+     * call) is in place: the old teardown's race window was what delivered
+     * readiness to .NET's 0-timeout Phase-A polls; the cache is its safe
+     * replacement.  Stale-interrupt cache poisoning on reused socket slots is
+     * prevented by the esp_sockfd guard in the poll interrupt handler.
+     */
+#define MEADOW_POLL_LOCAL_READY 1
+#ifdef MEADOW_POLL_LOCAL_READY
+    short ready = 0;
+
+    if ((fds->events & POLLOUT) != 0 &&
+        (psock->s_esp32_state & (ESP32_SF_CONNECT_INPROGRESS |
+                                 ESP32_SF_SEND_EAGAIN)) == 0)
+    {
+        ready |= POLLOUT;
+    }
+    if ((fds->events & POLLIN) != 0 &&
+        (psock->s_esp32_state & ESP32_SF_RD_READY) != 0)
+    {
+        ready |= POLLIN;
+    }
+    if ((psock->s_esp32_state & ESP32_SF_RD_HUP) != 0)
+    {
+        ready |= POLLHUP;
+    }
+    if ((psock->s_esp32_state & ESP32_SF_RD_ERR) != 0)
+    {
+        ready |= POLLERR;
+    }
+
+    if (ready != 0)
+    {
+        fds->revents |= ready;
+        nxsem_post(fds->sem);
+        return(0);
+    }
+#endif /* MEADOW_POLL_LOCAL_READY */
+
     int result = 0;
 
     espcp_poll_request_t *request = (espcp_poll_request_t *) zalloc(sizeof(espcp_poll_request_t));
@@ -1596,6 +1679,8 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
     {
         MEADOW_TRACE_INFORMATION("poll setup - Setting up poll request ID %08x, socket %d\n", request->setup_message_id, psock->s_esp32_sockfd);
         pr->fd = fds;
+        pr->psock = psock;
+        pr->esp_sockfd = psock->s_esp32_sockfd;
         pr->request_id = message->message_id;
         espcp_lock_poll_requests_queue();
         gl_add_item_to_head(_espcp_poll_requests, pr);
@@ -1656,16 +1741,27 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
 static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
 {
     MEADOW_TRACE_INFORMATION("poll teardown\n");
-    if (espcp_get_configuration()->esp_not_responding)
-    {
-        return(-ENETDOWN);
-    }
 
     int result = 0;
+
+    /* CRITICAL INVARIANT: the list item (pr) holds pointers to the caller's
+     * pollfd (often heap memory freed right after poll() returns) and must
+     * NEVER outlive this call.  Remove it from the list FIRST, on every
+     * path -- a leaked pr lets a late ESP interrupt_poll_response write
+     * revents / post a semaphore through dangling pointers into freed
+     * memory (observed: kernel heap free-list corruption -> hard fault in
+     * mm_malloc).  If we then fail to send the wire teardown, the ESP-side
+     * poll stays armed and its eventual interrupt is dropped as an
+     * unmatched request ID (benign, logged as NOMATCH).
+     */
 
     espcp_lock_poll_requests_queue();
     espcp_poll_request_list_item_t *pr = (espcp_poll_request_list_item_t *) gl_find_item(_espcp_poll_requests,
                                                 (uint32_t) fds->fd, espcp_usrsock_poll_request_compare_fd_pointer);
+    if (pr != NULL)
+    {
+        gl_remove_item(_espcp_poll_requests, (uint32_t) fds->fd, espcp_usrsock_poll_request_compare_fd_pointer);
+    }
     espcp_unlock_poll_requests_queue();
 
     if (pr == NULL)
@@ -1675,20 +1771,24 @@ static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
         //
         MEADOW_TRACE_INFORMATION("Poll teardown - Cannot find poll request for socket %d\n", psock->s_esp32_sockfd);
     }
+    else if (espcp_get_configuration()->esp_not_responding)
+    {
+        free(pr);
+        return(-ENETDOWN);
+    }
     else
     {
+        uint32_t teardown_request_id = pr->request_id;
+        free(pr);
+
         espcp_poll_request_t *request = (espcp_poll_request_t *) zalloc(sizeof(espcp_poll_request_t));
         if (request == NULL)
         {
-            espcp_lock_poll_requests_queue();
-            gl_remove_item(_espcp_poll_requests, (uint32_t) fds->fd, espcp_usrsock_poll_request_compare_fd_pointer);
-            free(pr);
-            espcp_unlock_poll_requests_queue();
             return (-ENOMEM);
         }
         request->socket_handle = psock->s_esp32_sockfd;
         request->setup = 0;
-        request->setup_message_id = pr->request_id;
+        request->setup_message_id = teardown_request_id;
 
         int payload_length = espcp_poll_request_buffer_size(request);
         uint8_t *payload = (uint8_t *) zalloc(payload_length);
@@ -1727,10 +1827,6 @@ static int espcp_usrsock_poll_teardown(struct socket *psock, struct pollfd *fds)
             }
         }
 
-        espcp_lock_poll_requests_queue();
-        gl_remove_item(_espcp_poll_requests, (uint32_t) fds->fd, espcp_usrsock_poll_request_compare_fd_pointer);
-        free(pr);
-        espcp_unlock_poll_requests_queue();
         espcp_delete_message_and_payload(message);
     }
 
@@ -1764,6 +1860,35 @@ void espcp_usrsock_poll_interrupt_handler(espcp_message_t *message)
         if (pr != NULL)
         {
             MEADOW_TRACE_INFORMATION("poll interrupt handler - found originating request %08x\n", request_id);
+            /* Feed the F7-local readiness cache so 0-timeout polls (.NET's
+             * Phase-A sample) can be answered locally: a wire poll cannot
+             * complete its ESP round-trip inside a 0-timeout window.  RD_READY
+             * is cleared when a recv drains to EAGAIN; HUP/ERR stick until
+             * close.
+             *
+             * Guard against socket-slot reuse: if the socket this poll was
+             * armed on has since closed (slot recycled -- s_esp32_sockfd
+             * changed or cleared), a late interrupt must NOT poison the new
+             * socket's cache (a stale HUP/ERR makes every poll on the fresh
+             * connection report failure -> "Unknown socket error" on all new
+             * connections).
+             */
+            if (pr->psock->s_esp32_sockfd == pr->esp_sockfd)
+            {
+                if (ipr->returned_events & POLLIN)
+                {
+                    pr->psock->s_esp32_state |= ESP32_SF_RD_READY;
+                }
+                if (ipr->returned_events & POLLHUP)
+                {
+                    pr->psock->s_esp32_state |= ESP32_SF_RD_HUP;
+                }
+                if (ipr->returned_events & POLLERR)
+                {
+                    pr->psock->s_esp32_state |= ESP32_SF_RD_ERR;
+                }
+            }
+
             pr->fd->revents = ipr->returned_events;
             MEADOW_TRACE_INFORMATION("poll interrupt handler - fd=%d events=%hd revents=%hd\n", pr->fd->fd, pr->fd->events, pr->fd->revents);
 
@@ -1978,6 +2103,22 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
 
     espcp_delete_message_and_payload(message);
 
+    /* Data flowing proves the socket is connected. */
+    if (result >= 0)
+    {
+        psock->s_esp32_state &= ~ESP32_SF_CONNECT_INPROGRESS;
+    }
+
+    /* Readiness cache drain: EAGAIN means the ESP-side receive buffer is
+     * empty again, so "readable" is unknown until the next wire-poll
+     * interrupt reports it.
+     */
+    if (result == -EAGAIN)
+    {
+        psock->s_esp32_state &= ~ESP32_SF_RD_READY;
+    }
+
+
     MEADOW_TRACE_INFORMATION("recvfrom - socket %d, result %d\n", psock->s_esp32_sockfd, result);
 
     return (result);
@@ -2126,6 +2267,21 @@ ssize_t espcp_usrsock_sendto(struct socket *psock, const void *buffer,
     free(request);
 
     espcp_delete_message_and_payload(message);
+
+    /* Writability tracking for the local POLLOUT fast path: a send that hit
+     * EAGAIN means the ESP send buffer is full -- subsequent POLLOUT polls
+     * must go to the ESP until a send succeeds again.  Any successful send
+     * also proves the socket is connected.
+     */
+    if (result == -EAGAIN)
+    {
+        psock->s_esp32_state |= ESP32_SF_SEND_EAGAIN;
+    }
+    else if (result >= 0)
+    {
+        psock->s_esp32_state &= ~(ESP32_SF_SEND_EAGAIN |
+                                  ESP32_SF_CONNECT_INPROGRESS);
+    }
 
     MEADOW_TRACE_INFORMATION("sendto: socket %d, result: %d\n", psock->s_esp32_sockfd, result);
 
@@ -2488,6 +2644,15 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
     }
 
     espcp_delete_message_and_payload(message);
+
+    /* .NET's non-blocking connect completion protocol is: poll POLLOUT, then
+     * read SO_ERROR for the final result.  Whatever the outcome, the connect
+     * attempt is over -- resume answering POLLOUT locally in poll_setup.
+     */
+    if (option == SO_ERROR)
+    {
+        psock->s_esp32_state &= ~ESP32_SF_CONNECT_INPROGRESS;
+    }
 
     MEADOW_TRACE_INFORMATION("getsockopt - socket %d result %d\n", psock->s_esp32_sockfd, result);
 
@@ -2936,6 +3101,7 @@ int espcp_usrsock_socket(int domain, int type, int protocol, struct socket *psoc
                             psock->s_domain = domain;
                             psock->s_type = type;
                             psock->s_esp32_sockfd = result;
+                            psock->s_esp32_state = 0;   /* struct socket slots are reused */
                         }
                     }
                     break;
