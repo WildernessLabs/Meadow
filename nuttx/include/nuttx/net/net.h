@@ -284,7 +284,7 @@ struct socket
  * (connect/send block on the ESP, recv via MSG_DONTWAIT).
  */
 
-/* #define MEADOW_BRIDGE_NONBLOCK 1 */
+#  define MEADOW_BRIDGE_NONBLOCK 1
 #endif
 
 /* This defines a list of sockets indexed by the socket descriptor */
