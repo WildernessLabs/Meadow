@@ -107,6 +107,18 @@ int psock_close(FAR struct socket *psock)
 
       if (ret < 0)
         {
+          /* POSIX: the descriptor is gone even if the underlying close
+           * failed.  Returning here without psock_release() permanently
+           * leaked this socket slot -- under espcp load (ESP unresponsive /
+           * wire failure) every failed close ate one slot until socket()
+           * returned errors ("Unknown socket error" from Socket..ctor once
+           * the list was exhausted).  Release the slot and surface the
+           * error.  The ESP-side lwip socket may leak when the wire close
+           * was never delivered; that is bounded and recovers with the ESP,
+           * unlike the F7 slot leak.
+           */
+
+          psock_release(psock);
           return ret;
         }
     }
