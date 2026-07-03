@@ -692,6 +692,33 @@ static void espcp_process_response(espcp_configuration_t *configuration, espcp_m
 }
 
 /****************************************************************************
+ * Name: espcp_cancel_waiting_message
+ *
+ * Description:
+ *  Remove a message from the waiting-for-response list, if present.  Used by
+ *  espcp_queue_message's response timeout: once removed, a late response can
+ *  no longer post the caller's (stack-resident) semaphore or write into the
+ *  caller-owned message, so the caller may safely give up and free it.
+ *
+ * Input Parameters:
+ *  message - the caller-owned request message.
+ *
+ * Returned Value:
+ *  true if the message was found and removed (no response was processed);
+ *  false if it was not on the list (response already processed, or the
+ *  message has not been transmitted/parked yet).
+ *
+ ****************************************************************************/
+bool espcp_cancel_waiting_message(espcp_message_t *message)
+{
+    sem_wait(&g_messages_waiting_for_a_response_mutex);
+    espcp_message_t *found = (espcp_message_t *) gl_remove_item(g_messages_waiting_for_a_response,
+                                    message->message_id, espcp_check_message_id);
+    sem_post(&g_messages_waiting_for_a_response_mutex);
+    return (found != NULL);
+}
+
+/****************************************************************************
  * Name: espcp_calculate_packet_length
  *
  * Description:

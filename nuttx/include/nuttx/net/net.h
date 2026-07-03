@@ -267,6 +267,11 @@ struct socket
 #  define ESP32_SF_RD_READY           (1 << 2) /* ESP reported POLLIN */
 #  define ESP32_SF_RD_HUP             (1 << 3) /* ESP reported POLLHUP */
 #  define ESP32_SF_RD_ERR             (1 << 4) /* ESP reported POLLERR */
+#  define ESP32_SF_WR_READY           (1 << 5) /* ESP reported POLLOUT while
+                                                * writability was unknown
+                                                * (connect-in-progress or send
+                                                * EAGAIN); cleared when that
+                                                * window resolves */
 
 /* MEADOW_BRIDGE_NONBLOCK: forward fcntl(O_NONBLOCK) to the ESP coprocessor
  * (SIOCSESPNONBLOCK) so ESP sockets are truly non-blocking -- see
