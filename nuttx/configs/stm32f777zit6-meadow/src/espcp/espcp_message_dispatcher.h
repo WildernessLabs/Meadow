@@ -72,5 +72,6 @@ void espcp_queue_send_response_message(void);
 uint32_t espcp_get_next_message_id(void);
 void espcp_send_message(espcp_configuration_t *, espcp_message_t *);
 void espcp_get_message(espcp_configuration_t *, espcp_message_t *);
+bool espcp_cancel_waiting_message(espcp_message_t *message);
 
 #endif /* _ESPCP_MESSAGE_DISPATCHER_H */
