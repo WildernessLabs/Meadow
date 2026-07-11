@@ -999,6 +999,79 @@ static void qspi_abort(struct stm32f7_qspidev_s *priv)
 }
 
 /****************************************************************************
+ * Name: qspi_waitstatusflags_timed
+ *
+ * Description:
+ *   Bounded variant of qspi_waitstatusflags.  The QSPI BUSY flag can stick
+ *   forever after a DMA transfer that completes without draining the FIFO
+ *   (TCF=1, BUSY=1, FLEVEL=32 observed on hardware; see the ST community
+ *   thread referenced below in qspi_memory_dma) -- an unbounded spin there
+ *   hangs the calling thread, and with it the whole filesystem, silently.
+ *
+ * Returned Value:
+ *   true if the condition was met within the timeout, false otherwise.
+ *
+ ****************************************************************************/
+
+static bool qspi_waitstatusflags_timed(struct stm32f7_qspidev_s *priv,
+                                       uint32_t mask, int polarity,
+                                       uint32_t timeout_us)
+{
+  uint32_t elapsed_us = 0;
+
+  for (; ; )
+    {
+      uint32_t regval = qspi_getreg(priv, STM32_QUADSPI_SR_OFFSET);
+      bool met = polarity ? ((regval & mask) != 0) : ((regval & mask) == 0);
+
+      if (met)
+        {
+          return true;
+        }
+
+      if (elapsed_us >= timeout_us)
+        {
+          return false;
+        }
+
+      up_udelay(10);
+      elapsed_us += 10;
+    }
+}
+
+/****************************************************************************
+ * Name: qspi_recover_busy_hang
+ *
+ * Description:
+ *   Recover the controller from the stuck-BUSY condition via ABORT (which
+ *   also flushes the FIFO), bounded at every step.
+ *
+ * Returned Value:
+ *   true if BUSY cleared after the abort.
+ *
+ ****************************************************************************/
+
+static bool qspi_recover_busy_hang(struct stm32f7_qspidev_s *priv)
+{
+  spierr("ERROR: QSPI BUSY stuck (SR=%08x); aborting transaction\n",
+         (unsigned int)qspi_getreg(priv, STM32_QUADSPI_SR_OFFSET));
+
+  qspi_abort(priv);
+
+  /* ABORT self-clears when the abort completes; bounded wait */
+
+  for (uint32_t us = 0;
+       (qspi_getreg(priv, STM32_QUADSPI_CR_OFFSET) & QSPI_CR_ABORT) != 0 &&
+       us < 100000;
+       us += 10)
+    {
+      up_udelay(10);
+    }
+
+  return qspi_waitstatusflags_timed(priv, QSPI_SR_BUSY, 0, 100000);
+}
+
+/****************************************************************************
  * Name: qspi_ccrconfig
  *
  * Description:
@@ -1514,10 +1587,34 @@ static int qspi_memory_dma(struct stm32f7_qspidev_s *priv,
     }
   while (priv->result == -EBUSY);
 
-  /* Wait for Transfer complete, and not busy */
+  /* Wait for Transfer complete, and not busy -- BOUNDED.  On hardware the
+   * BUSY flag has been observed to stick forever after DMA completion with
+   * residual bytes in the FIFO (TCF=1 BUSY=1 FLEVEL=32): the transfer
+   * counter finished but the DMA never drained the last FIFO chunk, and
+   * BUSY holds until the FIFO empties.  Known STM32 QSPI behaviour:
+   * https://community.st.com/s/question/0D50X00009XkXMHSA3
+   * The AN4838 strictly-ordered MPU mapping reduces but does NOT eliminate
+   * it (a 14-hour silent device hang was captured live in this state).
+   * On timeout: abort (flushes the FIFO), recover BUSY, and fail the
+   * transfer with -EIO -- the read data is short/invalid.  qspi_memory()
+   * retries the transaction.
+   */
 
-  qspi_waitstatusflags(priv, QSPI_SR_TCF, 1);
-  qspi_waitstatusflags(priv, QSPI_SR_BUSY, 0);
+  if (!qspi_waitstatusflags_timed(priv, QSPI_SR_TCF, 1, 500000) ||
+      !qspi_waitstatusflags_timed(priv, QSPI_SR_BUSY, 0, 500000))
+    {
+      bool recovered = qspi_recover_busy_hang(priv);
+
+      stm32_dmastop(priv->dmach);
+
+      regval  = qspi_getreg(priv, STM32_QUADSPI_CR_OFFSET);
+      regval &= ~QSPI_CR_DMAEN;
+      qspi_putreg(priv, regval, STM32_QUADSPI_CR_OFFSET);
+
+      spierr("ERROR: QSPI DMA wait timed out; %s\n",
+             recovered ? "controller recovered" : "controller still busy");
+      return -EIO;
+    }
 
   //
   //  So we have had an issue where the above line of code would cause a Meadow board to lock
@@ -2304,7 +2401,23 @@ static int qspi_memory(struct qspi_dev_s *dev,
       IS_ALIGNED((uintptr_t)meminfo->buffer) &&
       IS_ALIGNED(meminfo->buflen))
     {
-      ret = qspi_memory_dma(priv, meminfo, &xctn);
+      /* Retry a transfer that failed on the stuck-BUSY hang: after the
+       * abort recovery the controller is idle again and these transactions
+       * are idempotent (reads, and program/erase commands re-issued from
+       * scratch).  Previously this condition hung the thread forever.
+       */
+
+      for (int attempt = 0; ; attempt++)
+        {
+          ret = qspi_memory_dma(priv, meminfo, &xctn);
+          if (ret != -EIO || attempt >= 2)
+            {
+              break;
+            }
+
+          spierr("ERROR: retrying QSPI memory transfer (attempt %d)\n",
+                 attempt + 2);
+        }
     }
   else
     {
