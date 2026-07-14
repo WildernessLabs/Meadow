@@ -34,6 +34,14 @@
  ************************************************************************************/
 
 #ifndef __CONFIG_STM32F777ZIT6_MEADOW_INCLUDE_BOARD_H
+/* Meadow: hardware IWDG backstop, kicked from the SysTick handler (see
+ * arch/arm/src/stm32f7/stm32_timerisr.c).  Any wedge that stops the kernel
+ * tick -- including a wedged fault handler -- hard-resets the board in ~32s
+ * instead of leaving it dark until a power cycle.
+ */
+
+#define MEADOW_IWDG_BACKSTOP 1
+
 #define __CONFIG_STM32F777ZIT6_MEADOW_INCLUDE_BOARD_H
 
 /************************************************************************************

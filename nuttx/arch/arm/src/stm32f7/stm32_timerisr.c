@@ -51,6 +51,7 @@
 #include "up_arch.h"
 
 #include "chip.h"
+#include "chip/stm32_dbgmcu.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -106,6 +107,48 @@
 
 static int stm32_timerisr(int irq, uint32_t *regs, void *arg)
 {
+#ifdef MEADOW_IWDG_BACKSTOP
+  /* Meadow hardware-watchdog backstop.  The IWDG (independent 32kHz LSI
+   * watchdog, immune to CPU/NVIC state) is started on the first tick and
+   * kicked here roughly once a second FROM THE SYSTICK HANDLER on purpose:
+   * SysTick runs in handler mode every tick regardless of CPU load, so a
+   * busy-but-healthy system never misses kicks -- but every wedge class
+   * that freezes the kernel clock also silences this handler and the IWDG
+   * hard-resets the device ~32s later.  Motivating capture: a device found
+   * dark for days with VECTACTIVE=3 (HardFault handler active) and PC in
+   * unmapped memory -- the fault handler itself had jumped through a
+   * corrupted pointer, SysTick pended forever, and only a power cycle
+   * recovered it.  With this backstop that failure is a ~32s outage.
+   */
+
+  {
+    static uint32_t kick_divider = 0;
+
+    if (kick_divider == 0)
+      {
+        /* Freeze the IWDG while the core is halted by a debugger, or every
+         * GDB session longer than the timeout would reset the target
+         * (DBGMCU_APB1_FZ.DBG_IWDG_STOP).
+         */
+
+        putreg32(getreg32(STM32_DBGMCU_APB1_FZ) | DBGMCU_APB1_IWDGSTOP,
+                 STM32_DBGMCU_APB1_FZ);
+
+        /* Unlock, prescale LSI/256 (~125Hz), max reload 0xFFF -> ~32s */
+
+        putreg32(0x5555, STM32_IWDG_BASE + 0x00);  /* KR: enable access */
+        putreg32(6,      STM32_IWDG_BASE + 0x04);  /* PR: /256 */
+        putreg32(0x0fff, STM32_IWDG_BASE + 0x08);  /* RLR: max */
+        putreg32(0xcccc, STM32_IWDG_BASE + 0x00);  /* KR: start */
+      }
+
+    if ((kick_divider++ & 1023) == 0)
+      {
+        putreg32(0xaaaa, STM32_IWDG_BASE + 0x00);  /* KR: kick */
+      }
+  }
+#endif
+
   /* Process timer interrupt */
 
   nxsched_process_timer();
