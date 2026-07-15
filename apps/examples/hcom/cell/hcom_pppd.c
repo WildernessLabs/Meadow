@@ -145,7 +145,7 @@ static int hcom_pppd_create_scripts(cell_settings_t *cell_settings, char **conne
         "ECHO ON "
         "TIMEOUT %s "
         "\"\" AT+CMEE=2 PAUSE 3 OK "
-        "AT+GSN PAUSE 2 OK " /* Request International Mobile Equipament a.k.a IMEI */
+        "AT+GSN PAUSE 2 OK " /* Request International Mobile Equipment a.k.a IMEI */
         "%s" /* Operator Selection */
         "AT+CREG? PAUSE 3 OK "
         "AT+QCSQ PAUSE 3 OK "
