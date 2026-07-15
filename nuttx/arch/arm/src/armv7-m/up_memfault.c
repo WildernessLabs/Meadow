@@ -46,6 +46,7 @@
 
 #include "up_arch.h"
 #include "nvic.h"
+#include "meadow_blackbox.h"
 #include "up_internal.h"
 
 /****************************************************************************
@@ -75,6 +76,8 @@
 
 int up_memfault(int irq, FAR void *context, FAR void *arg)
 {
+  meadow_blackbox_capture('M', irq, (uint32_t *)context);
+
   /* Dump some memory management fault info */
 
   uint32_t cfsr = getreg32(NVIC_CFAULTS);
