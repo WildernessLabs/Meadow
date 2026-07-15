@@ -86,6 +86,7 @@
 // #undef NDEBUG
 #include <assert.h>
 
+#include <nuttx/clock.h>
 #include <meadow/meadow_watchdog.h>
 
 
@@ -113,6 +114,11 @@ struct espcp_poll_request_list_item_s
     int32_t esp_sockfd;     /* ESP socket handle at arm time: struct socket slots are
                              * reused after close, so a late interrupt must only touch
                              * the cache if the slot still belongs to this socket. */
+    uint32_t armed_tick;    /* clock_systimer() at arm time.  Poll lifecycles are
+                             * ~100ms; any interrupt for an entry armed long ago is a
+                             * straggler whose pollfd memory may have been recycled --
+                             * writing through it corrupts the current owner (observed:
+                             * user-heap corruption faulting in mbedTLS bignum). */
     uint32_t request_id;    /* ID of the message sent to the ESP32. */
 };
 typedef struct espcp_poll_request_list_item_s espcp_poll_request_list_item_t;
@@ -1691,6 +1697,7 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
         pr->fd = fds;
         pr->psock = psock;
         pr->esp_sockfd = psock->s_esp32_sockfd;
+        pr->armed_tick = clock_systimer();
         pr->request_id = message->message_id;
         espcp_lock_poll_requests_queue();
         gl_add_item_to_head(_espcp_poll_requests, pr);
@@ -1899,6 +1906,26 @@ void espcp_usrsock_poll_interrupt_handler(espcp_message_t *message)
              * connection report failure -> "Unknown socket error" on all new
              * connections).
              */
+            /* Age gate FIRST: a healthy poll lives ~100ms between arm and
+             * interrupt/teardown.  A delivery for an entry armed >10s ago is
+             * by definition a straggler whose pollfd (heap) memory may have
+             * been reallocated -- pointer range checks cannot prove liveness
+             * for recycled heap, so do not touch it at all.
+             */
+            uint32_t sp_age = clock_systimer() - pr->armed_tick;
+            if (sp_age > SEC2TICK(10))
+            {
+                syslog(LOG_ERR, "espcp: STALE-BY-AGE poll entry id=%08x age=%lus espfd=%ld rev=%02x\n",
+                       (unsigned int)request_id, (unsigned long)(sp_age / TICK_PER_SEC),
+                       (long)pr->esp_sockfd, ipr->returned_events);
+                gl_remove_item(_espcp_poll_requests, request_id, espcp_usrsock_poll_request_compare_message_id);
+                free(pr);
+                espcp_unlock_poll_requests_queue();
+                free(ipr);
+                espcp_delete_message_and_payload(message);
+                return;
+            }
+
             uintptr_t sp_ps = (uintptr_t) pr->psock;
             bool sp_ps_ok = (sp_ps >= 0x20000000 && sp_ps < 0x20080000);
             if (sp_ps_ok && pr->psock->s_esp32_sockfd == pr->esp_sockfd)
