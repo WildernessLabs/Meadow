@@ -49,6 +49,7 @@
 
 #include "up_arch.h"
 #include "nvic.h"
+#include "meadow_blackbox.h"
 #include "up_internal.h"
 
 /****************************************************************************
@@ -131,6 +132,13 @@ int up_hardfault(int irq, FAR void *context, FAR void *arg)
         }
     }
 #endif
+
+  /* Snapshot to the black-box FIRST: the _alert/syslog chain below walks
+   * state a heap corruption may have poisoned, and has been observed to
+   * wedge inside this handler (device dark until the IWDG fires).
+   */
+
+  meadow_blackbox_capture('H', irq, (uint32_t *)context);
 
   /* Dump some hard fault info */
 
