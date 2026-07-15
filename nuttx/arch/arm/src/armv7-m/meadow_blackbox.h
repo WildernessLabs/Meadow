@@ -40,7 +40,7 @@ struct meadow_blackbox_s
   uint32_t afsr;
   uint32_t ipsr;
   uint32_t nregs;        /* number of context words captured */
-  uint32_t regs[49];     /* raw xcp context copy (bounded) */
+  uint32_t regs[52];     /* raw xcp context copy (SW 44 + HW 8) */
 };
 
 /* Plain stores only: no calls, no heap, no locks.  Safe from any fault
@@ -69,12 +69,12 @@ static inline void meadow_blackbox_capture(uint32_t kind, int irq,
   bb->nregs = 0;
   if (context != 0)
     {
-      for (i = 0; i < 49; i++)
+      for (i = 0; i < 52; i++)
         {
           bb->regs[i] = context[i];
         }
 
-      bb->nregs = 49;
+      bb->nregs = 52;
     }
 
   bb->magic = MEADOW_BLACKBOX_MAGIC;
