@@ -89,7 +89,7 @@ static char *thisFile = __FILE__;
   if (pppd_settings->reset_script && strlen(pppd_settings->reset_script) > 0)
     {
       hcom_host_send_simple_string_msg(HCOM_HOST_REQUEST_TEXT_INFORMATION, 0,
-                                "Reseting the modem.\n", thisFile, __LINE__);
+                                "Resetting the modem.\n", thisFile, __LINE__);
       ret = chat(&ctx->ctl, pppd_settings->reset_script, pppd_settings->cell_at_cmds_output);
       if (ret < 0)
         {
