@@ -419,6 +419,26 @@ bool mono_should_run = true;
 
 /* Direct syslog write for managed code — bypasses HCOM, goes straight to USART1.
  * Called from managed via [DllImport("System.Native")] SystemNative_SyslogWrite. */
+/****************************************************************************
+ * Name: meadow_mono_printerr
+ *
+ * Description:
+ *   Mono printerr handler: mirror runtime error output to syslog(LOG_ERR).
+ *   Installed via mono_trace_set_printerr_handler before monovm_initialize.
+ *   Chunks may arrive without trailing newlines; syslog adds one per call,
+ *   which is acceptable for forensic output.
+ *
+ ****************************************************************************/
+
+static void meadow_mono_printerr(const char *str, int32_t is_stdout)
+{
+  (void)is_stdout;
+  if (str != NULL && str[0] != '\0')
+    {
+      syslog(LOG_ERR, "mono: %.900s\n", str);
+    }
+}
+
 static void sysn_syslog_write(const void *buffer, int32_t length)
 {
   if (buffer && length > 0 && length < 1024)
@@ -1475,6 +1495,18 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
   syslog(LOG_INFO, "Setting JIT opt mask (DEFAULT|GSHAREDVT): 0x%08x\n",
          (unsigned)(MEADOW_OPT_DEFAULT_MASK | MEADOW_OPT_GSHAREDVT));
   mono_set_optimizations(MEADOW_OPT_DEFAULT_MASK | MEADOW_OPT_GSHAREDVT);
+
+  /* Route Mono runtime ERROR output (unhandled-exception reports, g_warning,
+   * assertion text) to syslog.  stderr is an O_NONBLOCK HCOM FIFO whose
+   * content is silently dropped whenever no CLI listener is attached or the
+   * buffer is full -- a fatal runtime message must reach the RAMLOG
+   * unconditionally or the device dies without a cause of death.
+   */
+
+  {
+    extern void mono_trace_set_printerr_handler(void (*cb)(const char *str, int32_t is_stdout));
+    mono_trace_set_printerr_handler(meadow_mono_printerr);
+  }
 
   /* Initialize the .NET 10 monovm runtime */
 

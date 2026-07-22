@@ -286,10 +286,18 @@ static ssize_t ramlog_addchar(FAR struct ramlog_dev_s *priv, char ch)
 
   if (nexthead == priv->rl_tail)
     {
-      /* Yes... Return an indication that nothing was saved in the buffer. */
+      /* Yes... Overwrite the oldest byte (advance the tail) so the RAMLOG
+       * always holds the most recent output.  Without this the buffer
+       * fills once (~8 minutes of boot logging at 32KB) and every later
+       * write is dropped -- the log a post-incident dump actually needs.
+       * Matches upstream NuttX CONFIG_RAMLOG_OVERWRITE behavior.
+       */
 
-      leave_critical_section(flags);
-      return -EBUSY;
+      priv->rl_tail += 1;
+      if (priv->rl_tail >= priv->rl_bufsize)
+        {
+          priv->rl_tail = 0;
+        }
     }
 
   /* No... copy the byte and re-enable interrupts */

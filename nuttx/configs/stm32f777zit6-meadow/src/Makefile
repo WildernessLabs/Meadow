@@ -38,7 +38,7 @@
 ASRCS =
 CSRCS = stm32_boot.c stm32_spi.c stm32_extmem.c stm32_i2c.c \
  meadow-upd.c meadow_interrupt.c meadow_adc.c misc/meadow_cirbuf.c \
- meadow_hw_version.c misc/parse_iso8601_time.c
+ meadow_hw_version.c misc/parse_iso8601_time.c meadow_liveness.c
 
 ifeq ($(CONFIG_ARCH_LEDS),y)
 CSRCS += stm32_autoleds.c

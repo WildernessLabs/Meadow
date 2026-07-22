@@ -75,6 +75,7 @@
 #include <meadow/meadow_hw_version.h>
 
 int meadow_upd_initialize(void);
+int meadow_liveness_initialize(void);
 int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd);
 
 /************************************************************************************
@@ -295,6 +296,12 @@ void board_late_initialize(void)
   if (ret < 0)
   {
     syslog(LOG_ERR, "ERROR: meadow_upd_initialize() failed: %d\n", ret);
+  }
+
+  ret = meadow_liveness_initialize();
+  if (ret < 0)
+  {
+    syslog(LOG_ERR, "ERROR: meadow_liveness_initialize() failed: %d\n", ret);
   }
 #endif
 

@@ -53,6 +53,20 @@
 #include "chip.h"
 #include "chip/stm32_dbgmcu.h"
 
+#ifdef MEADOW_IWDG_BACKSTOP
+#  include <stdbool.h>
+#  include <stddef.h>
+#  include "../armv7-m/meadow_blackbox.h"
+
+/* Managed-liveness gate: pets arrive every 30s when healthy; 10 minutes of
+ * silence (20 missed pets) declares the managed runtime dead.  Long enough
+ * that debugging pauses and deploy cycles don't trip it (and `runtime
+ * disable` disarms it explicitly via a 'D' write / meadow_liveness_disarm).
+ */
+
+#  define MEADOW_LIVENESS_TIMEOUT_TICKS (10 * 60 * TICK_PER_SEC)
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -144,7 +158,43 @@ static int stm32_timerisr(int irq, uint32_t *regs, void *arg)
 
     if ((kick_divider++ & 1023) == 0)
       {
-        putreg32(0xaaaa, STM32_IWDG_BASE + 0x00);  /* KR: kick */
+        /* Managed-liveness gate: once managed code has petted /dev/liveness
+         * (Meadow.Core heartbeat timer, 30s period), stale pets mean the
+         * .NET timer machinery is dead while the OS is healthy -- the
+         * "managed silence" wedge that no other watchdog covers.  Stop
+         * kicking; the IWDG resets the device ~32s later.  A black-box 'L'
+         * record (DTCM, survives the reset) marks the reboot as
+         * liveness-triggered.  Never armed unless a pet arrives, so
+         * non-cloud apps and disabled runtimes keep pure-OS behavior.
+         */
+
+        extern volatile uint32_t g_meadow_liveness_last_tick;
+        extern volatile int g_meadow_liveness_armed;
+
+        bool kick = true;
+
+        if (g_meadow_liveness_armed)
+          {
+            uint32_t age = (uint32_t)g_system_timer - g_meadow_liveness_last_tick;
+
+            if (age > MEADOW_LIVENESS_TIMEOUT_TICKS)
+              {
+                static bool stamped = false;
+
+                if (!stamped)
+                  {
+                    stamped = true;
+                    meadow_blackbox_capture('L', 0, NULL);
+                  }
+
+                kick = false;
+              }
+          }
+
+        if (kick)
+          {
+            putreg32(0xaaaa, STM32_IWDG_BASE + 0x00);  /* KR: kick */
+          }
       }
   }
 #endif
