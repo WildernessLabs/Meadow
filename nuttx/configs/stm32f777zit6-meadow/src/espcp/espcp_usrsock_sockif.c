@@ -294,6 +294,57 @@ static bool espcp_usrsock_poll_request_compare_fd_pointer(uint32_t key, void *it
 }
 
 /****************************************************************************
+ * Name: espcp_usrsock_poll_request_compare_psock_pointer
+ ****************************************************************************/
+
+static bool espcp_usrsock_poll_request_compare_psock_pointer(uint32_t key, void *item)
+{
+    return((struct socket *) key == ((espcp_poll_request_list_item_t *) item)->psock);
+}
+
+/****************************************************************************
+ * Name: espcp_usrsock_purge_poll_requests
+ *
+ * Description:
+ *   Remove and free every armed poll-request entry for psock.
+ *
+ *   Sockets are routinely closed while a wire poll is still armed (the fs
+ *   layer skips poll teardown for a closed fd), so without this purge the
+ *   entry outlives the socket: the ESP's eventual fire on that armed poll
+ *   -- a prompt HUP when the wire close kills the lwip socket, or the 60s
+ *   wire-poll timeout -- writes revents / posts a semaphore through pollfd
+ *   memory that may since have been recycled.  This is the leak source the
+ *   STALE / STALE-BY-AGE interrupt-handler guards were containing.
+ *
+ *   Safe against a racing legitimate teardown: teardown already treats a
+ *   missing entry as success.  The ESP-side armed poll is not cancelled
+ *   here; its fire finds no matching entry and is dropped as NOMATCH.
+ *
+ ****************************************************************************/
+
+static void espcp_usrsock_purge_poll_requests(struct socket *psock)
+{
+    int purged = 0;
+
+    espcp_lock_poll_requests_queue();
+    espcp_poll_request_list_item_t *pr;
+    while ((pr = (espcp_poll_request_list_item_t *) gl_find_item(_espcp_poll_requests,
+                     (uint32_t) psock, espcp_usrsock_poll_request_compare_psock_pointer)) != NULL)
+    {
+        gl_remove_item(_espcp_poll_requests, (uint32_t) psock, espcp_usrsock_poll_request_compare_psock_pointer);
+        free(pr);
+        purged++;
+    }
+    espcp_unlock_poll_requests_queue();
+
+    if (purged > 0)
+    {
+        syslog(LOG_ERR, "espcp: close purged %d armed poll entry(ies) espfd=%d\n",
+               purged, (int) psock->s_esp32_sockfd);
+    }
+}
+
+/****************************************************************************
  * Name: espcp_sock_addr_to_sockaddr
  *
  * Description:
@@ -791,6 +842,14 @@ int espcp_usrsock_close(struct socket *psock)
 {
     MEADOW_TRACE_INFORMATION("close(%d)\n", psock->s_esp32_sockfd);
 
+    /* Purge armed poll entries BEFORE the wire close: once the ESP processes
+     * the close it may fire any armed poll on the dying socket immediately
+     * (HUP), and that delivery must not find an entry pointing into a poll
+     * cycle that already ended.
+     */
+
+    espcp_usrsock_purge_poll_requests(psock);
+
     struct wdog_s g_watchdog_close;
     meadow_watchdog_activate(&g_watchdog_close, WATCHDOG_CLOSE_TIMEOUT_MILLISECONDS, CLOSE_WATCHDOG);
 
@@ -873,6 +932,12 @@ int espcp_usrsock_close(struct socket *psock)
 
     MEADOW_TRACE_INFORMATION("close - socket %d, result %d\n", psock->s_esp32_sockfd, result);
 
+
+    /* Second purge: catches any poll armed during the wire-close round trip
+     * (poll_setup can race close from another thread).
+     */
+
+    espcp_usrsock_purge_poll_requests(psock);
 
     psock->s_esp32_state = 0;
     psock->s_esp32_sockfd = -1;   /* invalidate: blocks stale poll interrupts from
