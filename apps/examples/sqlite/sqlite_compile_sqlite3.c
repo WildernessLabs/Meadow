@@ -64,6 +64,12 @@
 // compile with:
 #define SQLITE_TEMP_STORE 3
 
+// NOTE: no feature omits. An earlier attempt trimmed UTF-16 / trace /
+// authorizer / etc. to fit uflash, but sqlite now lives in the SDRAM
+// runtime image (.mono sections) where ~13KB doesn't matter -- and
+// third-party managed bindings do use the wider surface (sqlite-net
+// calls the *_16 functions). Keep the full API.
+
 // Below are the defines that which when not defined cause compiler
 // warnings. An attempt was made to define these  but this seemed to
 // be a rabbit hole. 

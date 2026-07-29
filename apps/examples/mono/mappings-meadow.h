@@ -42,7 +42,7 @@ extern int stm32_configgpio(uint32_t cfgset);
 extern void stm32_gpiowrite(uint32_t pinset, bool value);
 extern int stm32_unconfiggpio(uint32_t cfgset);
 
-MonoDlMapping meadow_mappings[] = {
+const MonoDlMapping meadow_mappings[] = {
        { "open", open },
        { "close", close },
        { "ioctl", ioctl },

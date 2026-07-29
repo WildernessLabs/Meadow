@@ -104,7 +104,7 @@ extern const char *CryptoNative_ErrReasonErrorString(uint64_t err);
 
 /* ---------- Mapping table: CryptoNative ---------- */
 
-static MonoDlMapping crypto_native_mappings[] = {
+static const MonoDlMapping crypto_native_mappings[] = {
     /* BIO */
     {"CryptoNative_CreateMemoryBio",         CryptoNative_CreateMemoryBio},
     {"CryptoNative_BioDestroy",              CryptoNative_BioDestroy},

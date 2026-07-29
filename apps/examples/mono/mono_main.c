@@ -298,6 +298,10 @@ typedef struct {
 
 #include "mappings-meadow.h"
 #include "mappings-crypto-native.h"
+#if defined (CONFIG_EXAMPLES_MEADOW_SQLITE)
+#include "mappings-sqlite.h"   /* legacy table, 141 exports -- statically
+                                * linked sqlite3 with the Meadow VFS */
+#endif
 
 /****************************************************************************
  * .NET 10 monovm hosting API declarations
@@ -731,7 +735,7 @@ static int32_t glob_get_locale_name(const uint16_t *localeName, uint16_t *value,
   return 0;
 }
 
-static MonoDlMapping globalization_native_mappings[] = {
+static const MonoDlMapping globalization_native_mappings[] = {
   { "GlobalizationNative_GetSortHandle",        (void *)glob_get_sort_handle },
   { "GlobalizationNative_CloseSortHandle",      (void *)glob_close_sort_handle },
   { "GlobalizationNative_LoadICU",              (void *)glob_load_icu },
@@ -740,7 +744,7 @@ static MonoDlMapping globalization_native_mappings[] = {
   { NULL, NULL }
 };
 
-static MonoDlMapping system_native_mappings[] = {
+static const MonoDlMapping system_native_mappings[] = {
   /* ---- test syslog (direct USART1 output for Renode) ---- */
   { "SystemNative_SyslogWrite",               (void *)sysn_syslog_write },
   /* ---- pal_io.c (upstream, from libSystem.Native.a) ---- */
@@ -1052,7 +1056,7 @@ static MonoDlMapping system_native_mappings[] = {
 static void *meadow_pinvoke_override(const char *libraryName,
                                      const char *entrypointName)
 {
-  MonoDlMapping *mappings = NULL;
+  const MonoDlMapping *mappings = NULL;
 
   if (strcmp(libraryName, "System.Native") == 0 ||
       strcmp(libraryName, "libSystem.Native") == 0)
@@ -1076,10 +1080,24 @@ static void *meadow_pinvoke_override(const char *libraryName,
     }
 #if defined (CONFIG_EXAMPLES_MEADOW_SQLITE)
   else if (strcmp(libraryName, "sqlite3") == 0 ||
-           strcmp(libraryName, "libsqlite3") == 0)
+           strcmp(libraryName, "libsqlite3") == 0 ||
+           strcmp(libraryName, "e_sqlite3") == 0 ||
+           strcmp(libraryName, "libe_sqlite3") == 0)
     {
-      /* TODO: sqlite mappings not yet ported */
-      return NULL;
+      /* "sqlite3" = legacy Meadow bindings; "e_sqlite3" = the name
+       * SQLitePCLRaw / Microsoft.Data.Sqlite bundles request. Both hit the
+       * same statically-linked sqlite3 (Meadow VFS).
+       *
+       * The table stores names WITHOUT the "sqlite3_" prefix (uflash is
+       * within bytes of full); strip it from the requested entrypoint.
+       */
+
+      if (strncmp(entrypointName, "sqlite3_", 8) == 0)
+        {
+          entrypointName += 8;
+        }
+
+      mappings = sqlite_mappings;
     }
 #endif
   else
@@ -1089,7 +1107,7 @@ static void *meadow_pinvoke_override(const char *libraryName,
       return NULL;
     }
 
-  for (MonoDlMapping *m = mappings; m->name != NULL; m++)
+  for (const MonoDlMapping *m = mappings; m->name != NULL; m++)
     {
       if (strcmp(m->name, entrypointName) == 0)
         {
