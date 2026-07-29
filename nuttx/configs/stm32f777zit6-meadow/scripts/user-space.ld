@@ -82,7 +82,7 @@ SECTIONS
     } > uflash :text
 
     .text : {
-        *(EXCLUDE_FILE(*libmonosgen-2.0.a:* *libmono-component-marshal-ilgen-static.a:* *libmono-component-hot_reload-stub-static.a:* *libmono-component-debugger-stub-static.a:* *libmono-component-diagnostics_tracing-stub-static.a:* *libminipal.a:* *libaotminipal.a:* *libsgen_objects.a:*) .text .text.* .rodata .rodata.*)
+        *(EXCLUDE_FILE(*libapps.a:sqlite_compile_sqlite3.o *libmonosgen-2.0.a:* *libmono-component-marshal-ilgen-static.a:* *libmono-component-hot_reload-stub-static.a:* *libmono-component-debugger-stub-static.a:* *libmono-component-diagnostics_tracing-stub-static.a:* *libminipal.a:* *libaotminipal.a:* *libsgen_objects.a:*) .text .text.* .rodata .rodata.*)
         . = ALIGN(131072);
         _etext = ABSOLUTE(.);
     } > uflash
@@ -106,7 +106,7 @@ SECTIONS
 
     .ARM.exidx : {
         __exidx_start = ABSOLUTE(.);
-        *(EXCLUDE_FILE(*libmonosgen-2.0.a:* *libmono-component-marshal-ilgen-static.a:* *libmono-component-hot_reload-stub-static.a:* *libmono-component-debugger-stub-static.a:* *libmono-component-diagnostics_tracing-stub-static.a:* *libminipal.a:* *libaotminipal.a:* *libsgen_objects.a:*) .ARM.exidx* .gnu.linkonce.armexidx.*)
+        *(EXCLUDE_FILE(*libapps.a:sqlite_compile_sqlite3.o *libmonosgen-2.0.a:* *libmono-component-marshal-ilgen-static.a:* *libmono-component-hot_reload-stub-static.a:* *libmono-component-debugger-stub-static.a:* *libmono-component-diagnostics_tracing-stub-static.a:* *libminipal.a:* *libaotminipal.a:* *libsgen_objects.a:*) .ARM.exidx* .gnu.linkonce.armexidx.*)
         __exidx_end = ABSOLUTE(.);
     } > uflash
 
@@ -116,20 +116,20 @@ SECTIONS
     .data : {
         . = ALIGN(8192);
         _sdata = ABSOLUTE(.);
-        *(EXCLUDE_FILE(*libmonosgen-2.0.a:* *libmono-component-marshal-ilgen-static.a:* *libmono-component-hot_reload-stub-static.a:* *libmono-component-debugger-stub-static.a:* *libmono-component-diagnostics_tracing-stub-static.a:* *libminipal.a:* *libaotminipal.a:* *libsgen_objects.a:*) .data .data.* .gnu.linkonce.d.* CONSTRUCTORS)
+        *(EXCLUDE_FILE(*libapps.a:sqlite_compile_sqlite3.o *libmonosgen-2.0.a:* *libmono-component-marshal-ilgen-static.a:* *libmono-component-hot_reload-stub-static.a:* *libmono-component-debugger-stub-static.a:* *libmono-component-diagnostics_tracing-stub-static.a:* *libminipal.a:* *libaotminipal.a:* *libsgen_objects.a:*) .data .data.* .gnu.linkonce.d.* CONSTRUCTORS)
         _edata = ABSOLUTE(.);
     } > usram AT > uflash :data
 
     .bss : {
         . = ALIGN(512);
         _sbss = ABSOLUTE(.);
-        *(EXCLUDE_FILE(*libmonosgen-2.0.a:* *libmono-component-marshal-ilgen-static.a:* *libmono-component-hot_reload-stub-static.a:* *libmono-component-debugger-stub-static.a:* *libmono-component-diagnostics_tracing-stub-static.a:* *libminipal.a:* *libaotminipal.a:* *libsgen_objects.a:*) .bss .bss.* .gnu.linkonce.b.* )
+        *(EXCLUDE_FILE(*libapps.a:sqlite_compile_sqlite3.o *libmonosgen-2.0.a:* *libmono-component-marshal-ilgen-static.a:* *libmono-component-hot_reload-stub-static.a:* *libmono-component-debugger-stub-static.a:* *libmono-component-diagnostics_tracing-stub-static.a:* *libminipal.a:* *libaotminipal.a:* *libsgen_objects.a:*) .bss .bss.* .gnu.linkonce.b.* )
         . = ALIGN(8192);
         _ebss = ABSOLUTE(.);
     } > usram
 
     .comment 0 : {
-        *(EXCLUDE_FILE(*libmonosgen-2.0.a:* *libmono-component-marshal-ilgen-static.a:* *libmono-component-hot_reload-stub-static.a:* *libmono-component-debugger-stub-static.a:* *libmono-component-diagnostics_tracing-stub-static.a:* *libminipal.a:* *libaotminipal.a:* *libsgen_objects.a:*)  .comment)
+        *(EXCLUDE_FILE(*libapps.a:sqlite_compile_sqlite3.o *libmonosgen-2.0.a:* *libmono-component-marshal-ilgen-static.a:* *libmono-component-hot_reload-stub-static.a:* *libmono-component-debugger-stub-static.a:* *libmono-component-diagnostics_tracing-stub-static.a:* *libminipal.a:* *libaotminipal.a:* *libsgen_objects.a:*)  .comment)
     } > usram :comment
 
     /* Stabs debugging sections */
@@ -180,6 +180,10 @@ SECTIONS
         *libminipal.a:* (.text .text.*)
         *libaotminipal.a:* (.text .text.*)
         *libsgen_objects.a:* (.text .text.*)
+        /* sqlite amalgamation (~300KB): lives with the runtime in SDRAM --
+         * it does not fit in the 1MB uflash app region now that the .NET 10
+         * P/Invoke bridge links it in. */
+        *libapps.a:sqlite_compile_sqlite3.o (.text .text.*)
         _e_mono = ABSOLUTE(.);
     } > sdram
 
@@ -194,6 +198,7 @@ SECTIONS
         *libminipal.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
         *libaotminipal.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
         *libsgen_objects.a:* (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
+        *libapps.a:sqlite_compile_sqlite3.o (.data .data.* .rodata .rodata.* .gnu.linkonce.d.*)
         CONSTRUCTORS
         _e_mono_data = ABSOLUTE(.);
     } > sdram :mono_data
@@ -223,6 +228,7 @@ SECTIONS
         *libminipal.a:* (.bss .bss.* .gnu.linkonce.b.* )
         *libaotminipal.a:* (.bss .bss.* .gnu.linkonce.b.* )
         *libsgen_objects.a:* (.bss .bss.* .gnu.linkonce.b.* )
+        *libapps.a:sqlite_compile_sqlite3.o (.bss .bss.* .gnu.linkonce.b.* )
         . = ALIGN(1048576);
         _e_mono_bss = ABSOLUTE(.);
     } > sdram
