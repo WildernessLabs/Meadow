@@ -52,6 +52,7 @@
 #include <nuttx/net/telnet.h>
 #include <nuttx/syslog/syslog.h>
 #include <nuttx/syslog/syslog_console.h>
+#include <nuttx/syslog/ramlog.h>
 #include <nuttx/serial/pty.h>
 #include <nuttx/crypto/crypto.h>
 #include <nuttx/power/pm.h>
