@@ -26,6 +26,7 @@ DEBUG_BL_UART=false
 HELP=false
 ENABLE_STACK_DUMP=false
 ENABLE_ASSERTS=false
+EMULATOR=false
 MAKE_OPTIONS=
 UNIT_TESTS=
 BOOTLOADER_OPTIONS=
@@ -77,6 +78,10 @@ case $i in
     --enableasserts|-ea)
     ENABLE_ASSERTS=true
     ;;
+    --emulator)
+    EMULATOR=true
+    ENABLE_ASSERTS=true   # reuses --enableasserts's BOARD_RESET_ON_ASSERT=0 tweak below
+    ;;
     --dbc|--debug-bl-cdc)
     DEBUG_BL_CDC=true
     ;;
@@ -111,6 +116,7 @@ if [ "$HELP" = true ]; then
   echo "  --debug                      Build with debug symbols"
   echo "  --esd                        Enable stack dumps to be sent to USART1 (COM1)"
   echo "  --enableasserts|-ea          Enable runtime asserts (default is to reset the board)"
+  echo "  --emulator                   Skip the bootloader build and apply Renode-emulator kconfig tweaks"
   echo "  --config=mono|netcore        Select Mono or .NET Core builds (default Mono)"
   echo "  -mfd|--makefiledebugging     Turn on debug options for make"
   echo "  -u|--unittests=*             Build the specified unit tests into the system"
@@ -358,6 +364,27 @@ if $ENABLE_ASSERTS; then
   kconfig-tweak --file $NUTTX_CONFIG_FILE --set-val BOARD_RESET_ON_ASSERT 0
 fi
 
+if $EMULATOR; then
+  echo "--- Applying emulator config tweaks ---"
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --disable CONFIG_CDCACM
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --disable CONFIG_BOARDCTL_USBDEVCTRL
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --disable CONFIG_USBDEV
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --set-str CONFIG_HCOM_COMMS_DEVICE_NAME /dev/ttyS1
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable CONFIG_DEV_CONSOLE
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable CONFIG_USART1_SERIAL_CONSOLE
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --disable CONFIG_RAMLOG_SYSLOG
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable CONFIG_RAMLOG_CONSOLE
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable CONFIG_SYSLOG_CONSOLE
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable CONFIG_SYSLOG_SERIAL_CONSOLE
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable CONFIG_SYSLOG_WRITE
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable CONFIG_FS_TMPFS
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --set-val CONFIG_FS_TMPFS_BLOCKSIZE 512
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --set-val CONFIG_FS_TMPFS_DIRECTORY_ALLOCGUARD 64
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --set-val CONFIG_FS_TMPFS_DIRECTORY_FREEGUARD 64
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --set-val CONFIG_FS_TMPFS_FILE_ALLOCGUARD 512
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --set-val CONFIG_FS_TMPFS_FILE_FREEGUARD 512
+fi
+
 if $CONFIGURE_ONLY; then
   exit 0
 fi
@@ -370,9 +397,11 @@ fi
 #
 #   Build the bootloader
 #
-$scriptdir/build-bootloader.sh $BOOTLOADER_OPTIONS
-if [ $? -ne 0 ]; then
-    exit 1
+if ! $EMULATOR; then
+    $scriptdir/build-bootloader.sh $BOOTLOADER_OPTIONS
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
 fi
 
 #
@@ -418,7 +447,11 @@ fi
 #
 #   Package Meadow.OS
 #
-if ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
+#   Skipped under --emulator: these artifacts (Meadow.OS.Update.bin, Meadow.OS.bin,
+#   Meadow.OS.Runtime.bin) merge in the bootloader binary, which isn't built in emulator
+#   mode. The emulator consumes nuttx.elf/nuttx_user.elf/nuttx.bin/nuttx_user.bin directly.
+#
+if ! $EMULATOR && ! grep -q "CONFIG_BUILD_FLAT=y" $scriptdir/nuttx/.config; then
   #
   # Memory Layout for Meadow.OS.Update.bin (1792 KB total):
   # --------------------------------------------------------

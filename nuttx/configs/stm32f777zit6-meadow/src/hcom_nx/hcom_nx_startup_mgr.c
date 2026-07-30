@@ -174,7 +174,9 @@ int hcom_nx_setup_mgr(FAR struct mtd_dev_s *mtd)
   bool reset_esp32 = config->reset_esp32_at_startup;
 
   // Start trace messaging if so configured
+#if defined (CONFIG_RAMLOG_SYSLOG)
   hcom_nx_trace_insure_correct_config((config->use_uart1_for_trace ? true : false), false, (config->use_uart1_for_profiling ? true : false));
+#endif
   hcom_nx_config_unlock();
 
   meadow_os_fault_handler_check_fault_code();
