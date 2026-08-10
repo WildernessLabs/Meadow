@@ -13,6 +13,7 @@
 
 #include <errno.h>
 #include <unistd.h>
+#include <pthread.h>
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <string.h>
@@ -135,11 +136,47 @@ static int dev_random_entropy_poll(void *data, unsigned char *output,
  * One-time TLS initialization: entropy, RNG, root CAs, client certs, config.
  * Called once at startup. Thread-unsafe (designed for single-init embedded use).
  */
+/* Serializes init across callers: the shim's lazy path and the eager
+ * boot-time warm-up thread (mono_main) may race here.
+ */
+static pthread_mutex_t g_init_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 int mono_mbedtls_init(void)
 {
     int ret;
+
+    pthread_mutex_lock(&g_init_mutex);
+    if (mono_mbedtls_initialized) {
+        pthread_mutex_unlock(&g_init_mutex);
+        return 0;
+    }
+
     mbedtls_ssl_config_init(&conf);
     mbedtls_debug_set_threshold(DEBUG_THRESHOLD);
+
+    /* RNG must be usable BEFORE mbedtls_pk_parse_key below: key parsing
+     * passes the DRBG for RSA blinding, and seeding it afterwards (as this
+     * code previously did) hands an unseeded DRBG to the parser.
+     */
+    mbedtls_ctr_drbg_init(&ctr_drbg);
+    mbedtls_entropy_init(&entropy);
+
+    if ((ret = mbedtls_entropy_add_source(&entropy, dev_random_entropy_poll,
+                                          NULL, DEV_RANDOM_THRESHOLD,
+                                          MBEDTLS_ENTROPY_SOURCE_STRONG)) != 0) {
+        MBEDTLS_PRINTF(" failed\n  ! adding /dev/random entropy returned -0x%04x\n",
+                       (unsigned int)-ret);
+        goto error;
+    }
+
+    {
+        const char *pers = "meadow_sslserver";
+        if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
+                        (const unsigned char *)pers, strlen(pers))) != 0) {
+            MBEDTLS_PRINTF(" failed\n  ! mbedtls_ctr_drbg_seed returned %d\n", ret);
+            goto error;
+        }
+    }
 
     /* Retrieve client certificate credentials from NuttX storage */
 #if defined(__NuttX__)
@@ -197,22 +234,12 @@ int mono_mbedtls_init(void)
 
     mbedtls_ssl_conf_authmode(&conf, server_cert_authmode);
 
-    mbedtls_ctr_drbg_init(&ctr_drbg);
     mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
     // mbedtls_ssl_conf_dbg(&conf, my_debug, stdout);  // DISABLED — see HCOM blocking note below
     /* mbedTLS debug callback (my_debug above) uses fprintf+fflush which can block on
        a full HCOM stdout buffer mid-handshake, causing intermittent TLS hangs. Leave
        disabled unless actively debugging — and even then use a non-blocking path. */
     mbedtls_x509_crt_init(&cacert);
-    mbedtls_entropy_init(&entropy);
-
-    if ((ret = mbedtls_entropy_add_source(&entropy, dev_random_entropy_poll,
-                                          NULL, DEV_RANDOM_THRESHOLD,
-                                          MBEDTLS_ENTROPY_SOURCE_STRONG)) != 0) {
-        MBEDTLS_PRINTF(" failed\n  ! adding /dev/random entropy returned -0x%04x\n",
-                       (unsigned int)-ret);
-        goto error;
-    }
 
     /* Load embedded root CA certificates (Mozilla trust store, DER format) */
     for (size_t i = 0; i < ROOT_CA_DER_COUNT; ++i) {
@@ -225,13 +252,8 @@ int mono_mbedtls_init(void)
     }
     mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
 
-    const char *pers = "meadow_sslserver";
-    if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
-                    (const unsigned char *)pers, strlen(pers))) != 0) {
-        MBEDTLS_PRINTF(" failed\n  ! mbedtls_ctr_drbg_seed returned %d\n", ret);
-        goto error;
-    }
     mono_mbedtls_initialized = true;
+    pthread_mutex_unlock(&g_init_mutex);
     printf("mono_mbedtls_init: OK (root CAs loaded, RNG seeded)\n");
     return 0;
 
@@ -253,6 +275,7 @@ error:
         (char **const)&private_key_retrieved,
         (char **const)&private_key_pass_retrieved);
 #endif
+    pthread_mutex_unlock(&g_init_mutex);
     return ret;
 }
 
