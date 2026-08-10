@@ -1724,6 +1724,30 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
 
   chdir(MONO_MEADOW_EXECUTABLE_PARTITION_NAME);
 
+  /* Warm up mbedTLS (root-CA parse + RNG seed, seconds of CPU) on a
+   * background thread so it is done before the app's first TLS connection.
+   * Lazily doing it INSIDE that first connection added multi-second stalls
+   * mid-request and contributed to the first-cloud-auth failure seen on
+   * nearly every boot. mono_mbedtls_init is mutex-guarded and idempotent,
+   * so racing the app's own lazy call is safe.
+   */
+
+  {
+    extern int mono_mbedtls_init(void);
+    pthread_t tls_warmup;
+    pthread_attr_t attr;
+    struct sched_param sp = { .sched_priority = 50 };  /* below Mono default */
+    pthread_attr_init(&attr);
+    pthread_attr_setstacksize(&attr, 16384);
+    pthread_attr_setschedparam(&attr, &sp);
+    if (pthread_create(&tls_warmup, &attr,
+                       (void *(*)(void *))mono_mbedtls_init, NULL) == 0)
+      {
+        pthread_detach(tls_warmup);
+      }
+    pthread_attr_destroy(&attr);
+  }
+
   g_mono_stage = 5; /* About to open app */
 
   /* Check if the app assembly exists before trying to execute it */
