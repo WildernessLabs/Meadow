@@ -1379,8 +1379,17 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
                   continue;
 
                 struct stat st;
+                /* SDRAM assembly cache DISABLED (3.0-era addition, ~1.8MB).
+                 * It cached only <=100KB assemblies to "serve mmap from SDRAM
+                 * instead of flash" -- but mono mmap-copies and HOLDS those
+                 * same assemblies anyway (counted in mmapLive), so the cache
+                 * was a pure duplicate. Reclaiming its ~1.8MB gives the
+                 * one-time first-TLS-auth JIT-metadata surge enough headroom
+                 * to fit (was OOMing by a hair). mmap falls back to reading
+                 * from flash on a cache miss (slightly slower boot only).
+                 * Threshold set to 0 to skip ALL assemblies. */
                 if (fstat(fd, &st) < 0 || st.st_size == 0 ||
-                    st.st_size > 100000)
+                    st.st_size > 0)  /* was 100000 */
                     /* Skip caching assemblies >100KB to save SDRAM for GC heap
                      * and Mono metadata. SDRAM budget: 29MB total, shared between
                      * GC (16MB), thread stacks, Mono metadata, and caching.
