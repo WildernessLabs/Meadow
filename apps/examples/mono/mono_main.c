@@ -1341,6 +1341,11 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
   setenv("DOTNET_ThreadPool_ForceMinWorkerThreads", "4", 1);
   setenv("DOTNET_ThreadPool_ForceMaxWorkerThreads", "16", 1);
 
+  /* Embedded: single-tier JIT (no tier0/tier1 code duplication). Also passed
+   * as the System.Runtime.TieredCompilation monovm property below; the env var
+   * is the reliable mono knob read at JIT init. */
+  setenv("DOTNET_TieredCompilation", "0", 1);
+
   /* Also set via direct API — NuttX getenv() may not see setenv() in
    * protected mode (kernel-managed env vs user-space libc). */
   {
@@ -1468,6 +1473,13 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
   const char *property_keys[] = {
     "System.Globalization.Invariant",
     "System.Resources.UseSystemResourceKeys",
+    /* Embedded: disable runtime features unused on F7 to reclaim RAM. The
+     * firmware does NOT read runtimeconfig.json, so these AppContext switches
+     * must be passed here (this is what hostfxr does on desktop). */
+    "System.Diagnostics.Tracing.EventSource.IsSupported", /* EventSource/EventPipe */
+    "System.Net.Http.EnableActivityPropagation",          /* HTTP distributed tracing */
+    "System.Diagnostics.Debugger.IsSupported",            /* managed debugger attach */
+    "System.Runtime.TieredCompilation",                   /* tier0/tier1 JIT duplication */
     "TRUSTED_PLATFORM_ASSEMBLIES",
     "APP_PATHS",
     "NATIVE_DLL_SEARCH_DIRECTORIES",
@@ -1478,6 +1490,10 @@ int meadow_mono_main(int hcom_argc, char *hcom_argv[])
   const char *property_values[] = {
     "true",
     "true",
+    "false",  /* System.Diagnostics.Tracing.EventSource.IsSupported */
+    "false",  /* System.Net.Http.EnableActivityPropagation */
+    "false",  /* System.Diagnostics.Debugger.IsSupported */
+    "false",  /* System.Runtime.TieredCompilation */
     tpa_list,
     MONO_MEADOW_EXECUTABLE_PARTITION_NAME,
     MONO_MEADOW_EXECUTABLE_PARTITION_NAME,
