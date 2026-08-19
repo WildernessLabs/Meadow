@@ -499,6 +499,20 @@ int inet_close(FAR struct socket *psock)
 
           if (conn->crefs <= 1)
             {
+              /* Cancel any in-flight blocking connect parked in
+               * net_lockedwait() on this connection before we tear it down.
+               * Otherwise its connection callback would dangle on a
+               * connection/socket slot that is about to be freed and recycled
+               * -- leaking a devif callback slot (eventually EBUSY) and letting
+               * a late TCP_CONNECTED event stamp _SF_CONNECTED onto a recycled
+               * socket (spurious EISCONN).  net_lock() is recursive, so this is
+               * safe whether or not the caller already holds it.
+               */
+
+              net_lock();
+              tcp_connect_cancel(conn);
+              net_unlock();
+
               /* Yes... then perform the disconnection now */
 
               tcp_unlisten(conn); /* No longer accepting connections */
