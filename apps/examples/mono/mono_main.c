@@ -744,6 +744,34 @@ static const MonoDlMapping globalization_native_mappings[] = {
   { NULL, NULL }
 };
 
+/* SOCKDIAG/CONNDIAG (soak diagnostics -- remove/gate for production): user-space
+ * interposers on socket create + connect so `meadow listen` shows the af/type/proto
+ * and the connect errno (EISCONN=127 / EAGAIN=11 / EINPROGRESS=115) that drive cell
+ * reconnect behavior. printf -> HCOM stdout (visible in `meadow listen`). */
+static int32_t meadow_socket_diag(int32_t af, int32_t type, int32_t proto,
+                                  intptr_t *createdSocket)
+{
+  int32_t ret = SystemNative_Socket(af, type, proto, createdSocket);
+  printf("SOCKDIAG af=%d type=%d proto=%d ret=%d fd=%ld\n",
+         (int)af, (int)type, (int)proto, (int)ret,
+         createdSocket ? (long)*createdSocket : -1L);
+  fflush(stdout);
+  return ret;
+}
+
+static int32_t meadow_connect_diag(intptr_t socket, uint8_t *socketAddress,
+                                   int32_t socketAddressLen)
+{
+  int flags = fcntl((int)socket, F_GETFL, 0);
+  int32_t ret = SystemNative_Connect(socket, socketAddress, socketAddressLen);
+  int e = get_errno();
+  printf("CONNDIAG fd=%d nonblock=%d len=%d ret=%d errno=%d\n",
+         (int)socket, (flags >= 0 && (flags & O_NONBLOCK)) ? 1 : 0,
+         (int)socketAddressLen, (int)ret, e);
+  fflush(stdout);
+  return ret;
+}
+
 static const MonoDlMapping system_native_mappings[] = {
   /* ---- test syslog (direct USART1 output for Renode) ---- */
   { "SystemNative_SyslogWrite",               (void *)sysn_syslog_write },
@@ -909,7 +937,7 @@ static const MonoDlMapping system_native_mappings[] = {
   { "SystemNative_SendMessage",               (void *)SystemNative_SendMessage },
   { "SystemNative_Accept",                    (void *)SystemNative_Accept },
   { "SystemNative_Bind",                      (void *)SystemNative_Bind },
-  { "SystemNative_Connect",                   (void *)SystemNative_Connect },
+  { "SystemNative_Connect",                   (void *)meadow_connect_diag }, /* SOCKDIAG */
   { "SystemNative_Connectx",                  (void *)SystemNative_Connectx },
   { "SystemNative_GetPeerName",               (void *)SystemNative_GetPeerName },
   { "SystemNative_GetSockName",               (void *)SystemNative_GetSockName },
@@ -920,7 +948,7 @@ static const MonoDlMapping system_native_mappings[] = {
   { "SystemNative_GetRawSockOpt",            (void *)SystemNative_GetRawSockOpt },
   { "SystemNative_SetSockOpt",               (void *)SystemNative_SetSockOpt },
   { "SystemNative_SetRawSockOpt",            (void *)SystemNative_SetRawSockOpt },
-  { "SystemNative_Socket",                    (void *)SystemNative_Socket },
+  { "SystemNative_Socket",                    (void *)meadow_socket_diag }, /* SOCKDIAG */
   { "SystemNative_GetSocketType",             (void *)SystemNative_GetSocketType },
   { "SystemNative_GetAtOutOfBandMark",        (void *)SystemNative_GetAtOutOfBandMark },
   { "SystemNative_GetBytesAvailable",         (void *)SystemNative_GetBytesAvailable },
