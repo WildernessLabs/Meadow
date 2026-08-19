@@ -44,6 +44,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <netinet/in.h>   /* IPPROTO_TCP / IPPROTO_UDP (Meadow SOL_ level fix) */
 #include <errno.h>
 #include <debug.h>
 #include <assert.h>
@@ -282,6 +283,14 @@ static int psock_socketlevel_option(FAR struct socket *psock, int option,
           net_unlock();
         }
         break;
+#else
+      /* SO_LINGER without native linger support (CONFIG_NET_SOLINGER off):
+       * accept and ignore, matching SO_RCVBUF/SO_SNDBUF below.  MQTTnet SETs
+       * LingerState (default LingerOption(true,0)) on every connect; rejecting
+       * it with ENOPROTOOPT breaks MQTT over native (cell) TCP sockets. */
+
+      case SO_LINGER:     /* Lingers on a close() if data is present */
+        break;
 #endif
       /* The following are not yet implemented */
 
@@ -377,12 +386,20 @@ int psock_setsockopt(FAR struct socket *psock, int level, int option,
         break;
 
       case SOL_TCP:    /* TCP protocol socket options (see include/netinet/tcp.h) */
+      /* Meadow/NuttX: POSIX (and the .NET libSystem.Native PAL) pass the level
+       * as IPPROTO_TCP (6) for TCP options, but NuttX defines SOL_TCP as 3.
+       * On Linux SOL_TCP == IPPROTO_TCP so this never surfaces; here the level
+       * mismatch sent IPPROTO_TCP to `default:` and returned -EINVAL, which
+       * surfaced as SocketException("Invalid argument") on `socket.NoDelay=true`
+       * and broke all native-stack (cell) HTTPS. Accept both levels. */
+      case IPPROTO_TCP:
 #ifdef CONFIG_NET_TCPPROTO_OPTIONS
         ret = tcp_setsockopt(psock, option, value, value_len);
         break;
 #endif
 
       case SOL_UDP:    /* UDP protocol socket options (see include/netinet/udp.h) */
+      case IPPROTO_UDP: /* Same SOL_UDP(4) vs IPPROTO_UDP(17) mismatch as above. */
 #ifdef CONFIG_NET_UDPPROTO_OPTIONS
         ret = udp_setsockopt(psock, option, value, value_len);
         break;
