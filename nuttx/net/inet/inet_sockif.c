@@ -47,6 +47,7 @@
 #include <debug.h>
 
 #include <nuttx/net/net.h>
+#include <nuttx/net/tcp.h>
 
 #include "tcp/tcp.h"
 #include "udp/udp.h"
@@ -737,11 +738,38 @@ static int inet_connect(FAR struct socket *psock,
 #if defined(CONFIG_NET_TCP) && defined(NET_TCP_HAVE_STACK)
       case SOCK_STREAM:
         {
-          /* Verify that the socket is not already connected */
+          /* Verify that the socket is not already connected.
+           *
+           * The _SF_CONNECTED flag can be left stale on a recycled socket
+           * slot: an abandoned non-blocking connect (e.g. the losing socket
+           * of an HTTP "Happy Eyeballs" race that is closed before it
+           * finishes) can have its asynchronous connect event fire AFTER the
+           * fixed socket-array slot has been reused for a brand-new socket,
+           * stamping _SF_CONNECTED onto it. That made re-connect / re-auth
+           * fail spuriously with EISCONN ("Transport endpoint is already
+           * connected"). Trust the real TCP connection state rather than the
+           * flag alone: only a conn that is actually connecting, connected or
+           * closing may reject connect() with EISCONN. A NULL, CLOSED or
+           * freshly-ALLOCATED conn means the flag is stale -- clear it and
+           * proceed with the connection.
+           */
 
           if (_SS_ISCONNECTED(psock->s_flags))
             {
-              return -EISCONN;
+              FAR struct tcp_conn_s *conn =
+                (FAR struct tcp_conn_s *)psock->s_conn;
+              uint8_t tcpstate = conn != NULL ?
+                (conn->tcpstateflags & TCP_STATE_MASK) : TCP_CLOSED;
+
+              if (conn != NULL && tcpstate != TCP_CLOSED &&
+                  tcpstate != TCP_ALLOCATED)
+                {
+                  return -EISCONN;
+                }
+
+              /* Stale connected flag on a recycled socket slot. */
+
+              psock->s_flags &= ~_SF_CONNECTED;
             }
 
           /* It's not ... Connect the TCP/IP socket */
