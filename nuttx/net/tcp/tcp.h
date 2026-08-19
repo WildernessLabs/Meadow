@@ -252,6 +252,17 @@ struct tcp_conn_s
 
   FAR struct devif_callback_s *connevents;
 
+  /* Points to the in-flight blocking-connect state (struct tcp_connect_s)
+   * while a psock_tcp_connect() is parked in net_lockedwait() on this
+   * connection.  Lets a concurrent socket close cancel that connect (wake the
+   * parked thread with a definitive result and free its connection callback)
+   * instead of leaving the connect callback dangling on a connection/socket
+   * slot that is about to be freed and recycled.  NULL when no connect is in
+   * flight.  Accessed only under the network lock.  Typed void* to avoid
+   * exposing the (file-static) tcp_connect_s here. */
+
+  FAR void *connect;
+
   /* accept() is called when the TCP logic has created a connection
    *
    *   accept_private: This is private data that will be available to the
@@ -550,6 +561,20 @@ int tcp_connect(FAR struct tcp_conn_s *conn, FAR const struct sockaddr *addr);
 
 int psock_tcp_connect(FAR struct socket *psock,
                       FAR const struct sockaddr *addr);
+
+/****************************************************************************
+ * Name: tcp_connect_cancel
+ *
+ * Description:
+ *   Cancel an in-flight blocking connect on 'conn' (if any) because the
+ *   socket/connection is being closed on another thread.  Frees the connect
+ *   callback while the conn is still valid and wakes the parked
+ *   psock_tcp_connect() with -ECONNABORTED.  Must be called with the network
+ *   locked.  A no-op if no connect is in flight (conn->connect == NULL).
+ *
+ ****************************************************************************/
+
+void tcp_connect_cancel(FAR struct tcp_conn_s *conn);
 
 /****************************************************************************
  * Name: tcp_start_monitor

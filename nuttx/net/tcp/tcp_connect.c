@@ -43,6 +43,7 @@
 #include <sys/socket.h>
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <errno.h>
 #include <assert.h>
 #include <debug.h>
@@ -72,6 +73,12 @@ struct tcp_connect_s
   FAR struct socket *tc_psock;        /* The socket being connected */
   sem_t tc_sem;                       /* Semaphore signals recv completion */
   int tc_result;                      /* OK on success, otherwise a negated errno. */
+  bool tc_cancelled;                  /* Set true if a concurrent socket close
+                                       * cancelled this in-flight connect: the
+                                       * connection callback has already been
+                                       * freed and the conn may be recycled, so
+                                       * the waking psock_tcp_connect() must NOT
+                                       * touch the conn (skip teardown). */
 };
 
 /****************************************************************************
@@ -109,9 +116,18 @@ static inline int psock_setup_callbacks(FAR struct socket *psock,
   (void)nxsem_init(&pstate->tc_sem, 0, 0); /* Doesn't really fail */
   (void)nxsem_setprotocol(&pstate->tc_sem, SEM_PRIO_NONE);
 
-  pstate->tc_conn   = conn;
-  pstate->tc_psock  = psock;
-  pstate->tc_result = -EAGAIN;
+  pstate->tc_conn      = conn;
+  pstate->tc_psock     = psock;
+  pstate->tc_cancelled = false;
+
+  /* Initial (no-definitive-result) value.  Use -EINPROGRESS rather than
+   * -EAGAIN: if a spurious net_lockedwait wake ever returns before the event
+   * handler has posted a real result, -EINPROGRESS is benign to the managed
+   * SocketAsyncEngine (it treats it as "connect pending" and completes via
+   * poll(POLLOUT)+SO_ERROR), whereas a leaked -EAGAIN surfaces as a hard
+   * "Try again" SocketException and fails the connect. */
+
+  pstate->tc_result = -EINPROGRESS;
 
   /* Set up the callbacks in the connection */
 
@@ -124,6 +140,15 @@ static inline int psock_setup_callbacks(FAR struct socket *psock,
                                 TCP_TIMEDOUT | TCP_CONNECTED | NETDEV_DOWN);
       pstate->tc_cb->priv    = (FAR void *)pstate;
       pstate->tc_cb->event   = psock_connect_eventhandler;
+
+      /* Publish this in-flight connect on the connection so that a concurrent
+       * socket close can cancel it (see tcp_connect_cancel).  Set only when a
+       * callback was actually allocated -- i.e. only when we are about to park
+       * in net_lockedwait().  Cleared in psock_teardown_callbacks() or by the
+       * cancel path.
+       */
+
+      conn->connect          = (FAR void *)pstate;
       ret                    = OK;
     }
 
@@ -139,6 +164,10 @@ static void psock_teardown_callbacks(FAR struct tcp_connect_s *pstate,
 {
   FAR struct tcp_conn_s *conn = pstate->tc_conn;
 
+  /* This connect is no longer in flight; withdraw it from the cancel path. */
+
+  conn->connect = NULL;
+
   /* Make sure that no further events are processed */
 
   tcp_callback_free(conn, pstate->tc_cb);
@@ -153,6 +182,52 @@ static void psock_teardown_callbacks(FAR struct tcp_connect_s *pstate,
       /* Failed to connect. Stop the connection event monitor */
 
       tcp_stop_monitor(conn, TCP_CLOSE);
+    }
+}
+
+/****************************************************************************
+ * Name: tcp_connect_cancel
+ *
+ * Description:
+ *   Cancel an in-flight blocking connect on 'conn' (if any) because the
+ *   socket/connection is being torn down on another thread.  Frees the
+ *   connect's connection callback while 'conn' is still valid (so it cannot
+ *   fire against a recycled connection/socket slot later -- the source of the
+ *   devif callback-pool leak and the stale _SF_CONNECTED / EISCONN), hands the
+ *   parked psock_tcp_connect() a definitive -ECONNABORTED result, marks it
+ *   cancelled so the waking thread will NOT dereference the (soon recycled)
+ *   conn, and wakes it.
+ *
+ * Assumptions:
+ *   The network is locked.
+ *
+ ****************************************************************************/
+
+void tcp_connect_cancel(FAR struct tcp_conn_s *conn)
+{
+  FAR struct tcp_connect_s *pstate = (FAR struct tcp_connect_s *)conn->connect;
+
+  if (pstate != NULL)
+    {
+      /* Detach first so nothing can double-cancel. */
+
+      conn->connect = NULL;
+
+      /* Free the connection event callback now, while 'conn' is still valid. */
+
+      if (pstate->tc_cb != NULL)
+        {
+          tcp_callback_free(conn, pstate->tc_cb);
+          pstate->tc_cb = NULL;
+        }
+
+      /* Resolve the parked connect and wake it.  tc_cancelled tells it not to
+       * touch conn (skip psock_teardown_callbacks).
+       */
+
+      pstate->tc_result    = -ECONNABORTED;
+      pstate->tc_cancelled = true;
+      nxsem_post(&pstate->tc_sem);
     }
 }
 
@@ -346,6 +421,19 @@ int psock_tcp_connect(FAR struct socket *psock,
           /* Uninitialize the state structure */
 
           (void)nxsem_destroy(&state.tc_sem);
+
+          /* If a concurrent socket close cancelled this connect while we were
+           * parked, the connection callback has already been freed and 'conn'
+           * may already be recycled by another socket.  We must NOT run
+           * psock_teardown_callbacks() or tcp_start_monitor() (both dereference
+           * conn).  Unwind cleanly with a definitive error.
+           */
+
+          if (state.tc_cancelled)
+            {
+              net_unlock();
+              return -ECONNABORTED;
+            }
 
           /* If net_lockedwait failed, negated errno was returned. */
 
