@@ -261,11 +261,32 @@ static int psock_socketlevel_option(FAR struct socket *psock, int option,
         }
         break;
 
+      /* SO_LINGER: NuttX has no native linger support on this platform
+       * (CONFIG_NET_SOLINGER is off), but standard socket clients READ
+       * LingerState before connecting -- the .NET BCL via MQTTnet does so on
+       * every MQTT connect.  Report the option as present-but-disabled rather
+       * than failing with ENOPROTOOPT, which otherwise breaks MQTT-over-cell:
+       * native TCP sockets have no usrsock-daemon fallback like WiFi sockets. */
+
+      case SO_LINGER:
+        {
+          FAR struct linger *ling = (FAR struct linger *)value;
+
+          if (*value_len < sizeof(struct linger))
+            {
+              return -EINVAL;
+            }
+
+          ling->l_onoff  = 0;
+          ling->l_linger = 0;
+          *value_len     = sizeof(struct linger);
+        }
+        break;
+
       /* The following are not yet implemented (return values other than {0,1) */
 
       case SO_ACCEPTCONN: /* Reports whether socket listening is enabled */
       case SO_ERROR:      /* Reports and clears error status. */
-      case SO_LINGER:     /* Lingers on a close() if data is present */
       case SO_RCVBUF:     /* Sets receive buffer size */
       case SO_RCVLOWAT:   /* Sets the minimum number of bytes to input */
       case SO_SNDBUF:     /* Sets send buffer size */
