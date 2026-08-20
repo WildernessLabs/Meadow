@@ -61,25 +61,50 @@ typedef enum {
  * retries on WANT_READ/WANT_WRITE) so a single-record ring is sufficient.
  * Was 32768 (2x a record). Saves ~12KB per BIO (24KB/connection: in + out).
  */
+/* Initial BIO capacity (one max TLS record + slack). The BIO GROWS on demand
+ * rather than truncating -- see bio_write. OpenSSL's memory BIO, which the .NET
+ * SslStream is written against, NEVER drops bytes; a fixed truncating buffer
+ * silently loses received TLS data (e.g. a server handshake flight / large cert
+ * chain that exceeds the slab in one socket read) and corrupts the stream,
+ * producing intermittent SSL_UNEXPECTED_MESSAGE / net_http_ssl_connection_failed.
+ * Capacity is realloc'd up to hold the data and shrunk back to the initial slab
+ * once fully drained, so steady-state RAM stays at the slab size. */
 #define BIO_SLAB_SIZE 20480
+#define BIO_MAX_SIZE  (256 * 1024)   /* hard cap against runaway growth */
 
 typedef struct {
-    uint8_t  data[BIO_SLAB_SIZE];
+    uint8_t *data;
+    int      capacity;  /* allocated bytes in 'data' */
     int      read_pos;  /* next byte to read */
     int      fill;      /* next byte to write (== count + read_pos) */
 } MemBio;
 
 static MemBio *bio_create(void)
 {
-    return calloc(1, sizeof(MemBio));
+    MemBio *bio = (MemBio *)calloc(1, sizeof(MemBio));
+    if (!bio) return NULL;
+    bio->data = (uint8_t *)malloc(BIO_SLAB_SIZE);
+    if (!bio->data) { free(bio); return NULL; }
+    bio->capacity = BIO_SLAB_SIZE;
+    return bio;
 }
 
-/* Compact: if fully drained, reset to start. Avoids creeping fill toward end. */
+static void bio_free(MemBio *bio)
+{
+    if (bio) { free(bio->data); free(bio); }
+}
+
+/* Compact: if fully drained, reset to start (and shrink back to the initial slab
+ * if we had grown, to bound steady-state RAM). */
 static inline void bio_compact(MemBio *bio)
 {
     if (bio->read_pos == bio->fill) {
         bio->read_pos = 0;
         bio->fill = 0;
+        if (bio->capacity > BIO_SLAB_SIZE) {
+            uint8_t *p = (uint8_t *)realloc(bio->data, BIO_SLAB_SIZE);
+            if (p) { bio->data = p; bio->capacity = BIO_SLAB_SIZE; }
+        }
     }
 }
 
@@ -89,20 +114,31 @@ static int bio_write(MemBio *bio, const void *data, int len)
 
     bio_compact(bio);
 
-    /* If write would overflow but readable region is exhausted at the front,
-     * slide pending bytes back to the slab origin to recover space. */
-    int space = BIO_SLAB_SIZE - bio->fill;
+    /* Reclaim front space by sliding pending bytes back to the origin. */
+    int space = bio->capacity - bio->fill;
     if (len > space && bio->read_pos > 0) {
         int pending = bio->fill - bio->read_pos;
         if (pending > 0)
             memmove(bio->data, bio->data + bio->read_pos, (size_t)pending);
         bio->read_pos = 0;
         bio->fill = pending;
-        space = BIO_SLAB_SIZE - bio->fill;
+        space = bio->capacity - bio->fill;
     }
 
-    if (len > space) len = space;
-    if (len == 0) return 0;
+    /* GROW to fit rather than truncate: dropping bytes here corrupts the TLS
+     * stream. Fall back to a partial write only if growth fails or hits the cap. */
+    if (len > space) {
+        int need   = bio->fill + len;
+        int newcap = bio->capacity;
+        while (newcap < need && newcap < BIO_MAX_SIZE) newcap *= 2;
+        if (newcap >= need) {
+            uint8_t *p = (uint8_t *)realloc(bio->data, (size_t)newcap);
+            if (p) { bio->data = p; bio->capacity = newcap; space = newcap - bio->fill; }
+        }
+        if (len > space) len = space;
+    }
+
+    if (len <= 0) return 0;
 
     memcpy(bio->data + bio->fill, data, (size_t)len);
     bio->fill += len;
@@ -220,7 +256,7 @@ void *CryptoNative_CreateMemoryBio(void)
 
 int CryptoNative_BioDestroy(void *bio)
 {
-    if (bio) free(bio);
+    bio_free((MemBio *)bio);
     return 1;
 }
 
@@ -355,8 +391,8 @@ void CryptoNative_SslDestroy(void *ssl_ptr)
      * i.e. SslDestroy — must free them. Without this each connection leaked two
      * 32KB MemBio slabs (64KB native SDRAM); across Meadow.Cloud auth retries
      * that exhausted SDRAM and OOM'd the GC during response processing. */
-    if (ssl->input_bio)  { free(ssl->input_bio);  ssl->input_bio = NULL; }
-    if (ssl->output_bio) { free(ssl->output_bio); ssl->output_bio = NULL; }
+    if (ssl->input_bio)  { bio_free(ssl->input_bio);  ssl->input_bio = NULL; }
+    if (ssl->output_bio) { bio_free(ssl->output_bio); ssl->output_bio = NULL; }
     ssl->magic = 0;
     free(ssl);
 }
