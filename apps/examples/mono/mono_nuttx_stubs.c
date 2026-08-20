@@ -181,6 +181,11 @@ static struct sdram_cache_entry *sdram_cache_lookup_by_fd(int fd)
   return NULL;
 }
 
+/* NATDIAG (diagnostic): running total of live mmap'd bytes (assembly images
+ * held in SDRAM). _mmap_total counts allocations; _mmap_live tracks
+ * outstanding (alloc - free) so NATDIAG can show held assembly-image RAM. */
+size_t g_meadow_mmap_total = 0;   /* cumulative alloc'd */
+size_t g_meadow_mmap_live  = 0;   /* currently outstanding (held) */
 static size_t _mmap_total = 0;
 static int _mmap_count = 0;
 
@@ -201,6 +206,9 @@ void *__wrap_mmap(void *addr, size_t length, int prot, int flags,
   /* Allocate page-aligned memory in SDRAM (user heap) */
   if (posix_memalign(&ptr, 4096, length) != 0)
     return MAP_FAILED;
+
+  g_meadow_mmap_total += length;   /* NATDIAG: cumulative + held mmap bytes */
+  g_meadow_mmap_live  += length;
 
   if (flags & MAP_ANONYMOUS)
     {
@@ -255,7 +263,8 @@ int __wrap_munmap(void *addr, size_t length)
    * stub are mono_file_map/mono_file_unmap for assembly file mappings.
    * Those pass the exact pointer from posix_memalign, so free() is safe. */
   free(addr);
-  (void)length;
+  if (g_meadow_mmap_live >= (size_t)length)  /* NATDIAG: track held bytes */
+    g_meadow_mmap_live -= (size_t)length;
   return 0;
 }
 
@@ -527,8 +536,18 @@ ssize_t __wrap_recvfrom(int fd, void *buf, size_t len, int flags,
 /* --- File I/O --- */
 
 extern int __real_close(int);
+/* Deregister the fd from the .NET SocketAsyncEngine poll set (pal_networking.c)
+ * BEFORE closing it. The managed engine registers each socket once and, like
+ * epoll, assumes close() implicitly removes it -- but the NuttX poll() emulation
+ * has no auto-removal, so a closed-but-registered fd makes the whole poll() set
+ * fail with EBADF (crashing the event loop). Doing this at close() time is the
+ * structural fix. Weak so a link without libSystem.Native still resolves; a
+ * no-op for non-socket fds. */
+extern void nxsock_close_notify(int fd) __attribute__((weak));
 int __wrap_close(int fd)
 {
+  if (nxsock_close_notify)
+    nxsock_close_notify(fd);
   int ret = __real_close(fd);
   ERRNO_SYNC_ON_ERROR(ret);
   return ret;
@@ -834,15 +853,17 @@ extern unsigned long long __sync_val_compare_and_swap_8(
  * Pre-existing missing symbols (not related to mono upgrade)
  ****************************************************************************/
 
-int pppd(int argc, char *argv[])
-{
-  return -1;
-}
-
-int ntpc_start(void)
-{
-  return -1;
-}
+/* NOTE: do NOT stub `pppd` or `ntpc_start` here.  Both have real
+ * implementations in apps/netutils (pppd/pppd.c, ntpclient/ntpclient.c) that
+ * the cell stack calls.  A strong stub in this directly-linked object wins
+ * symbol resolution over the archived real implementations, so the cell
+ * `pppd(&settings)` call linked to a stub that just returned -1 -- the modem
+ * was never contacted, and cell bringup failed deterministically with a
+ * mislabelled "Invalid cell settings" (this file is part of the .NET 10 port,
+ * so the collision only appeared on 3.0).  ntpc_start had the same problem,
+ * silently breaking NTP-over-cell.  Removing the stubs lets the linker pull
+ * the real implementations from libapps.a.
+ */
 
 /****************************************************************************
  * Math stubs
