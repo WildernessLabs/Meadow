@@ -2246,9 +2246,23 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
                                 }
                                 memcpy(buffer, response->buffer, result);   // response->buffer freed below.
                             }
+                            else if (response->result == 0)
+                            {
+                                /* Genuine orderly close (FIN) -> EOF. */
+                                result = 0;
+                            }
                             else
                             {
-                                result = -response->response_errno;
+                                /* ESP-side error (result < 0). Trust its errno, but
+                                 * NEVER let a zero errno collapse to result==0: that
+                                 * would surface a real error as a clean EOF and the
+                                 * managed HTTP/TLS reader would report it as
+                                 * net_http_invalid_response_premature_eof mid-response.
+                                 * Fail fast with EIO so the connection is torn down and
+                                 * retried instead of silently truncated. */
+                                result = (response->response_errno != 0)
+                                             ? -response->response_errno
+                                             : -EIO;
                             }
                             free(response->buffer);
                             free(response);
