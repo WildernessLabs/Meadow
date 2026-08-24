@@ -659,7 +659,14 @@ static void espcp_process_response(espcp_configuration_t *configuration, espcp_m
 
         if (message->message_type == espcp_message_types_event)
         {
-            espcp_add_message_to_queue(configuration->incoming_event_queue, message);
+            /* LEAK FIX: if the event queue (depth ESPCP_MAXIMUM_MESSAGE_QUEUE_LENGTH)
+             * is full, mq_send fails and the event message + payload are dropped by
+             * the queue -- nobody downstream frees them. Under a poll-interrupt burst
+             * that leaks from the 128KB kernel heap. Free on enqueue failure. */
+            if (espcp_add_message_to_queue(configuration->incoming_event_queue, message) != OK)
+            {
+                espcp_delete_message_and_payload(message);
+            }
         }
         else
         {
@@ -679,12 +686,20 @@ static void espcp_process_response(espcp_configuration_t *configuration, espcp_m
                 {
                     MEADOW_TRACE_DEBUG("%s:%d Message with ID 0x%08x does not have a semaphore.\n", __FILE__, __LINE__, message->message_id);
                 }
+                /* Payload ownership transferred to waiting_message (freed by the
+                 * caller via espcp_delete_message_and_payload); free the struct only. */
+                free(message);
             }
             else
             {
+                /* LEAK FIX: no waiting request matched (response arrived after the
+                 * caller's 30s timeout, a duplicate/retransmit, or a garbage id).
+                 * The payload was NOT transferred, so a bare free(message) leaked
+                 * message->payload -- up to ESPCP_MAXIMUM_PAYLOAD_SIZE (8KB) from the
+                 * 128KB kernel heap per unmatched response. Free both. */
                 MEADOW_TRACE_DEBUG("%s:%d Message with ID 0x%08x cannot be located in message waiting responses queue.\n", __FILE__, __LINE__, message->message_id);
+                espcp_delete_message_and_payload(message);
             }
-            free(message);
         }
     }
     

@@ -1787,9 +1787,16 @@ static int espcp_usrsock_poll_setup(struct socket *psock, struct pollfd *fds)
         }
         else
         {
+            /* LEAK FIX: gl_remove_item returns the removed item (our pr); it frees
+             * the list node but NOT pr. The teardown/interrupt paths free(pr) after
+             * removal -- this failure branch discarded it, leaking one poll-request
+             * struct from the 128KB kernel heap on every queue failure/timeout (which
+             * spikes exactly under the ESP-pressure ENOMEM spiral). */
             espcp_lock_poll_requests_queue();
-            gl_remove_item(_espcp_poll_requests, message->message_id, espcp_usrsock_poll_request_compare_message_id);
+            espcp_poll_request_list_item_t *removed_pr = (espcp_poll_request_list_item_t *)
+                gl_remove_item(_espcp_poll_requests, message->message_id, espcp_usrsock_poll_request_compare_message_id);
             espcp_unlock_poll_requests_queue();
+            free(removed_pr);
             if (message->status_code == espcp_status_codes_esp_out_of_memory)
             {
                 result = -ENOMEM;
@@ -2265,6 +2272,14 @@ ssize_t espcp_usrsock_recvfrom(struct socket *psock, void *buffer, size_t len,
                                              : -EIO;
                             }
                             free(response->buffer);
+                            /* LEAK FIX: source_address is malloc'd by the decoder
+                             * (espcp_extract_recv_from_response) whenever the wire
+                             * response carries one, and was NEVER freed on any recv
+                             * path -- ~48B leaked from the 128KB kernel heap per recv
+                             * that returns a source address, exhausting it in minutes
+                             * (the ENOMEM/"Unknown socket error" spiral). free(NULL)
+                             * is safe when absent (decoder NULLs it). */
+                            free(response->source_address);
                             free(response);
                         }
                     }
