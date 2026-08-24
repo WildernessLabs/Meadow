@@ -878,8 +878,17 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
                                 response->interface = packet->interface;
                                 response->message_id = packet->message_id;
                             }
-                            espcp_delete_message_and_payload(packet);
+                            /* Capture message_id BEFORE freeing packet -- reading
+                             * packet->message_id after espcp_delete_message_and_payload()
+                             * is a use-after-free. The espcp_thread races the many
+                             * threads that alloc new request messages, so the freed
+                             * block can be reused and yield a garbage id, which then
+                             * becomes response->message_id (below) -- the key
+                             * espcp_process_response uses to wake the parked recvfrom
+                             * waiter. A wrong id drops the response (waiter times out
+                             * -> premature_eof) or wakes the wrong socket. */
                             message_id = packet->message_id;
+                            espcp_delete_message_and_payload(packet);
                             result = espcp_status_codes_completed_ok;
                         }
                         else
