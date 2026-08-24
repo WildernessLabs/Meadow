@@ -468,28 +468,40 @@ void espcp_send_acknowledgement(espcp_configuration_t *configuration, espcp_mess
     {
         espcp_message_t *acknowledgement = (espcp_message_t *) malloc(sizeof(espcp_message_t));
 
-        memcpy(acknowledgement, message, sizeof(espcp_message_t));
-        MEADOW_TRACE_INFORMATION("Sending acknowledgement code %d\n", status_code);
-        if (status_code == espcp_status_codes_completed_ok)
+        /* REBOOT FIX: under 128KB kernel-heap exhaustion this malloc returns NULL.
+         * The old code memcpy'd through it unconditionally -> write to 0x0 ->
+         * kernel HardFault in the espcp_thread -> SysTick freezes -> the ~32s IWDG
+         * backstop silently resets the chip (the 2-3min auth reboot loop). Skip the
+         * ACK on OOM instead; the ESP retransmits the frame. */
+        if (acknowledgement != NULL)
         {
-            acknowledgement->message_type = espcp_message_types_ack;
+            memcpy(acknowledgement, message, sizeof(espcp_message_t));
+            MEADOW_TRACE_INFORMATION("Sending acknowledgement code %d\n", status_code);
+            if (status_code == espcp_status_codes_completed_ok)
+            {
+                acknowledgement->message_type = espcp_message_types_ack;
+            }
+            else
+            {
+                acknowledgement->message_type = espcp_message_types_nak;
+            }
+            acknowledgement->status_code = status_code;
+            acknowledgement->payload = 0;
+            acknowledgement->payload_length = 0;
+            acknowledgement->packet_offset = 0;
+            acknowledgement->packet_length = 0;
+
+            uint32_t length = 0;
+            espcp_encode_message(acknowledgement, tx_buffer, &length, false);
+
+            send_data_to_esp32(tx_buffer, NULL, length);
+
+            free(acknowledgement);
         }
         else
         {
-            acknowledgement->message_type = espcp_message_types_nak;
+            MEADOW_TRACE_DEBUG("espcp: OOM allocating ACK; skipping (ESP retransmits)\n");
         }
-        acknowledgement->status_code = status_code;
-        acknowledgement->payload = 0;
-        acknowledgement->payload_length = 0;
-        acknowledgement->packet_offset = 0;
-        acknowledgement->packet_length = 0;
-
-        uint32_t length = 0;
-        espcp_encode_message(acknowledgement, tx_buffer, &length, false);
-
-        send_data_to_esp32(tx_buffer, NULL, length);
-
-        free(acknowledgement);
     }
     
     MEADOW_TRACE_INFORMATION("%s: Exit\n", __func__);
@@ -847,6 +859,17 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
                     espcp_message_t *response = espcp_create_copy_of_message_on_heap(acknowledgement, false);
                     espcp_delete_message_and_payload(acknowledgement);
                     acknowledgement = NULL;
+                    if (response == NULL)
+                    {
+                        /* REBOOT FIX: kernel-heap OOM building the response. The old
+                         * code dereferenced response unconditionally (write to 0x0 ->
+                         * kernel HardFault -> SysTick freeze -> silent IWDG reboot).
+                         * Drop the frame; the caller/ESP times out and retries. */
+                        MEADOW_TRACE_DEBUG("espcp: OOM building response; dropping frame\n");
+                        result = espcp_status_codes_failure;
+                    }
+                    else
+                    {
                     response->message_type = espcp_message_types_ack;
                     response->payload_length = payload_remaining;
                     if (payload_remaining > 0)
@@ -932,6 +955,7 @@ void espcp_get_message(espcp_configuration_t *configuration, espcp_message_t *me
                         espcp_delete_message_and_payload(response);
                         response = NULL;
                     }
+                    }  /* end else: response != NULL (OOM guard) */
                 }
             }
         }
