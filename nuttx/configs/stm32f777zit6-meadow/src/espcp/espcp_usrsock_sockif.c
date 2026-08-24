@@ -370,11 +370,21 @@ static int espcp_sock_addr_to_sockaddr(void *destination, uint8_t *source)
     else
     {
         espcp_sock_addr_t *sai = espcp_extract_sock_addr(source);
-        struct sockaddr_in *dest = (struct sockaddr_in *) destination;
-        memset(dest, 0, sizeof(struct sockaddr_in));
-        dest->sin_family = AF_INET;
-        dest->sin_port = sai->port;
-        dest->sin_addr.s_addr = sai->ip4_address;
+        if (sai == NULL)
+        {
+            result = -ENOMEM;   /* also avoids the NULL-deref below on OOM */
+        }
+        else
+        {
+            struct sockaddr_in *dest = (struct sockaddr_in *) destination;
+            memset(dest, 0, sizeof(struct sockaddr_in));
+            dest->sin_family = AF_INET;
+            dest->sin_port = sai->port;
+            dest->sin_addr.s_addr = sai->ip4_address;
+            /* LEAK FIX: the extracted addr struct was never freed -- leaked one per
+             * NetworkInterface address query (SIOCGIFADDR/NETMASK/SIOCGIFCONF). */
+            free(sai);
+        }
     }
     return(result);
 }
@@ -2819,13 +2829,20 @@ int espcp_usrsock_getsockopt(struct socket *psock, int level, int option,
                                             }
                                             break;
                                     }
-                                    if (*value_len < source_size)
+                                    /* CRASH GUARD: a per-option value zalloc can fail
+                                     * under kernel-heap OOM, leaving source==NULL while
+                                     * source_size is already set -> memcpy through NULL
+                                     * -> kernel fault. Only copy when source is valid. */
+                                    if (source != NULL)
                                     {
-                                        source_size = *value_len;
+                                        if (*value_len < source_size)
+                                        {
+                                            source_size = *value_len;
+                                        }
+                                        memcpy(value, source, source_size);
+                                        free(source);
+                                        *value_len = source_size;
                                     }
-                                    memcpy(value, source, source_size);
-                                    free(source);
-                                    *value_len = source_size;
                                 }
                                 free(response);
                             }
@@ -3179,6 +3196,13 @@ int espcp_usrsock_setsockopt(struct socket *psock, int level, int option,
         //
         //  For non-supported options, pretend we have succeeded.
         //
+        /* LEAK FIX: `request` was zalloc'd at the top; the supported-option path
+         * frees it, but this no-op branch fell through to
+         * espcp_delete_message_and_payload(message) with message==NULL, never
+         * freeing request. Non-supported options (SO_RCVBUF/SO_SNDBUF/SO_LINGER,
+         * set per-socket by MQTTnet/HttpClient) hit this branch -> one kernel-heap
+         * leak per reconnect. option_value is NULL here, so just free the struct. */
+        free(request);
         result = 0;
     }
 
