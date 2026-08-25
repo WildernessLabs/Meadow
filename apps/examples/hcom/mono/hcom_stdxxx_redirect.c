@@ -340,7 +340,7 @@ void hcom_mono_stdxxx_close_read_fds(bool closeNeeded)
     _stderr_read_fd = -1;
   }
 
-  sleep(100 * 1000);   // Just no prevent hard infinite loop
+  usleep(100 * 1000);   // Just no prevent hard infinite loop
 }
 
 //==========================================================================
