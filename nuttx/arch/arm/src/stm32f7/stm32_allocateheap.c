@@ -425,5 +425,22 @@ void up_addregion(void)
 
   kumm_addregion((FAR void *)heap2_base, heap2_size);
 #endif
+
+#if defined(CONFIG_BUILD_PROTECTED) && defined(CONFIG_MM_KERNEL_HEAP)
+  /* Give the KERNEL heap the otherwise-idle 128KB DTCM (0x20000000). The espcp
+   * WiFi socket bridge is kernel-side and its per-operation allocations draw from
+   * the kernel heap, which is otherwise only the 128KB SRAM1 CONFIG_MM_KERNEL_
+   * HEAPSIZE region -- too small + fragmentation-prone under TLS/MQTT reconnect
+   * churn (errno=12 ENOMEM "Unknown socket error", and HardFault when a kernel-side
+   * alloc NULL-derefs). DTCM is excluded from every heap (CONFIG_STM32F7_DTCMEXCLUDE
+   * -- a DMA-safety exclusion, since DTCM cannot be DMA'd) and no linker section is
+   * placed in it, so it is free. The espcp per-op allocations are CPU-only (the SPI
+   * DMA buffers are pinned to SRAM in espcp_coprocessor.c), so DTCM is safe for them.
+   * This DOUBLES the kernel heap to 256KB WITHOUT taking any memory from the tight
+   * mono/user SDRAM heap. DTCM is CPU-privileged by default (no user MPU region
+   * covers it), so it stays kernel-protected. */
+  up_heap_color((FAR void *)0x20000000, 128 * 1024);
+  kmm_addregion((FAR void *)0x20000000, 128 * 1024);
+#endif
 }
 #endif
