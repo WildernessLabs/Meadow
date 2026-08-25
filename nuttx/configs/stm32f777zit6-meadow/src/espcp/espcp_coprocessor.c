@@ -351,22 +351,18 @@ static int espcp_spi_init(void)
 
     espcp_config_lock();
     espcp_configuration_t *esp_configuration = espcp_get_configuration();
-    esp_configuration->spi_rx_buffer = (uint8_t *) kmm_malloc(ESPCP_MAXIMUM_SPI_FRAME_SIZE);
-    if (esp_configuration->spi_rx_buffer == NULL)
-    {
-        esp_configuration->spi_tx_buffer = NULL;
-        result = ERROR;
-    }
-    else
-    {
-        esp_configuration->spi_tx_buffer = (uint8_t *) kmm_malloc(ESPCP_MAXIMUM_SPI_FRAME_SIZE);
-        if (esp_configuration->spi_tx_buffer == NULL)
-        {
-            kmm_free(esp_configuration->spi_rx_buffer);
-            esp_configuration->spi_rx_buffer = NULL;
-            result = ERROR;
-        }
-    }
+    /* DMA-SAFETY: the SPI transport DMA targets these two buffers. Pin them to
+     * internal SRAM (kernel .bss), cache-line aligned, instead of kmm_malloc.
+     * Once a cacheable SDRAM region is added to the kernel heap (for espcp
+     * headroom), a kmm_malloc could place a DMA buffer in SDRAM where partial
+     * cache-line invalidation corrupts neighboring allocations. Static SRAM
+     * arrays remove that dependency (allocated once, never freed). Aligned to the
+     * Cortex-M7 D-cache line (32B); padded to a line multiple so a buffer's tail
+     * invalidate can't touch the other. */
+    static uint8_t s_spi_rx_buffer[(ESPCP_MAXIMUM_SPI_FRAME_SIZE + 31) & ~31] __attribute__((aligned(32)));
+    static uint8_t s_spi_tx_buffer[(ESPCP_MAXIMUM_SPI_FRAME_SIZE + 31) & ~31] __attribute__((aligned(32)));
+    esp_configuration->spi_rx_buffer = s_spi_rx_buffer;
+    esp_configuration->spi_tx_buffer = s_spi_tx_buffer;
     espcp_config_unlock();
 
     if (result == OK)
