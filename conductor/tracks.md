@@ -63,3 +63,8 @@
 *Link: [./tracks/meadow-3.0-stabilize/](./tracks/meadow-3.0-stabilize/)*
 
 ---
+- [~] **Track 15: Golden 3.0 Release** *(in progress)*
+*Road to the golden (stable) Meadow OS 3.0 release. **Preview 2 (`2.999.4.0`) SHIPPED** — cloud auth + MQTT working, CoreLib-trimming OOM fix; OS Release-233 + coupled ESP Release-167 on S3, validated end-to-end (download→flash→deploy→cloud delivery). Now driving to GA.*
+*Link: [./tracks/golden-3.0-release/](./tracks/golden-3.0-release/)*
+
+---

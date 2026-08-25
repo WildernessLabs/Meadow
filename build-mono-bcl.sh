@@ -137,12 +137,28 @@ else
     cp "$SPCL_DIR/System.Private.CoreLib.pdb" "$OUTPUT_DIR/"
   fi
 
-  # Copy BCL framework assemblies (DLLs only, skip native/host binaries)
-  # Skip System.Private.CoreLib.dll — already placed from Mono SPCL above
+  # Copy BCL framework assemblies (DLLs only, skip native/host binaries).
+  # Skip System.Private.CoreLib.dll — already placed from Mono SPCL above.
+  #
+  # The device is NuttX, a POSIX OS -- NOT osx. But $BCL_DIR ($.dotnet/shared)
+  # is the OSX host runtime pack: its OS-specific assemblies (System.Net.Sockets,
+  # System.Net.Security, ...) are net11.0-OSX flavor, and every assembly is an
+  # R2R (crossgen) image bloated with osx-arm64 native code that Mono ignores.
+  # So instead of copying $BCL_DIR verbatim, source each assembly from the
+  # freshly-built pure-IL library outputs under artifacts/bin, preferring the
+  # POSIX flavor: net11.0-unix > net11.0-linux > net11.0 (agnostic). Fall back
+  # to the shared pack only if a library isn't in artifacts.
+  LIBS_BIN="$RUNTIME_DIR/artifacts/bin"
   for dll in "$BCL_DIR"/*.dll; do
     [ -f "$dll" ] || continue
-    [ "$(basename "$dll")" = "System.Private.CoreLib.dll" ] && continue
-    cp "$dll" "$OUTPUT_DIR/"
+    name=$(basename "$dll" .dll)
+    [ "$name" = "System.Private.CoreLib" ] && continue
+    src="$dll"
+    for flavor in net11.0-unix net11.0-linux net11.0; do
+      cand="$LIBS_BIN/$name/Release/$flavor/$name.dll"
+      if [ -f "$cand" ]; then src="$cand"; break; fi
+    done
+    cp "$src" "$OUTPUT_DIR/"
   done
 
   # Copy PDBs if requested

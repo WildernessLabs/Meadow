@@ -85,6 +85,31 @@ static void hcom_pppd_at_cmd_event(int ret);
 static void hcom_pppd_retry_exceeded_event(void);
 static void hcom_pppd_connecting_event(void);
 
+/* Bounded string duplicate: copies at most maxlen chars, always NUL-
+ * terminates, NULL-safe.  Self-contained (strnlen + malloc + memcpy) so it
+ * has no dependency on strndup/strlcpy being pulled into the link.  Used to
+ * give the pppd thread its OWN copies of the cell-settings strings.  The
+ * per-field caps mirror the validation limits in hcom_nx_config_manager
+ * (MAXIMUM_APN_LENGTH etc.); ttyname is a short device path.
+ */
+static char *hcom_pppd_dup_bounded(const char *s, size_t maxlen)
+{
+  if (s == NULL)
+    {
+      return NULL;
+    }
+
+  size_t len = strnlen(s, maxlen);
+  char *copy = (char *)malloc(len + 1);
+  if (copy != NULL)
+    {
+      memcpy(copy, s, len);
+      copy[len] = '\0';
+    }
+
+  return copy;
+}
+
 //====================================================================
 // This function is used to generate the connection and disconnection script
 // based on cell settings and is later passed to the pppd() function
@@ -650,6 +675,27 @@ int hcom_pppd_start()
         }
 
         memcpy(cell_settings, config->default_cell_settings, sizeof(cell_settings_t));
+
+        /* The memcpy above is a SHALLOW copy: the string members still point
+         * into `config`, which is freed (meadow_os_config_free_resources)
+         * before this function returns -- while the pppd thread created below
+         * keeps using cell_settings for the whole cell session.  That was a
+         * use-after-free: once the freed string chunks were recycled by
+         * another allocation, open_tty(cell_settings->ttyname) opened a
+         * garbage path, pppd() returned immediately, and the failure was
+         * mislabelled "Invalid cell settings" (cell_err never set).  Latent
+         * on older OSes where heap timing left the chunks intact; deterministic
+         * once other allocators recycle them promptly.  Give the thread its
+         * OWN bounded copies so it no longer depends on the freed config.
+         */
+        cell_settings->apn          = hcom_pppd_dup_bounded(cell_settings->apn, 128);
+        cell_settings->operator     = hcom_pppd_dup_bounded(cell_settings->operator, 32);
+        cell_settings->pap_user     = hcom_pppd_dup_bounded(cell_settings->pap_user, 64);
+        cell_settings->pap_password = hcom_pppd_dup_bounded(cell_settings->pap_password, 64);
+        cell_settings->timeout      = hcom_pppd_dup_bounded(cell_settings->timeout, 8);
+        cell_settings->ttyname      = hcom_pppd_dup_bounded(cell_settings->ttyname, 32);
+        cell_settings->mode         = hcom_pppd_dup_bounded(cell_settings->mode, 32);
+        cell_settings->module       = hcom_pppd_dup_bounded(cell_settings->module, 32);
 
         hcom_logging_syslog(LOG_INFO, "%s-%d-cell module id: %u\n", thisFile, __LINE__, cell_settings->module_id);
         hcom_logging_syslog(LOG_INFO, "%s-%d-cell module: %s\n", thisFile, __LINE__, cell_settings->module);
