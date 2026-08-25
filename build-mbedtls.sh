@@ -74,4 +74,8 @@ LD="arm-non-eabi-ld"
 
 cd $scriptdir/mbedtls/library
 
-make -j8 V=1 CFLAGS="$CFLAGS" CC="$CC" LDFLAGS="$CFLAGS -static" LD="$LD"
+# Use the cross-toolchain archiver/ranlib to match CC. The host macOS ar/ranlib
+# (BSD/LLVM) mis-handle the mbedtls Makefile's GNU-style ARFLAGS and silently
+# produce empty .a archives from the ARM ELF objects (link then fails with
+# "undefined symbol: mbedtls_*"). arm-none-eabi-ar is GNU binutils ar.
+make -j8 V=1 CFLAGS="$CFLAGS" CC="$CC" AR="arm-none-eabi-ar" RANLIB="arm-none-eabi-ranlib" LDFLAGS="$CFLAGS -static" LD="$LD"
