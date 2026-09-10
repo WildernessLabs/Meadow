@@ -785,6 +785,11 @@ struct meadow_configuration_s
    *         and returns an error code.
    */  
   uint32_t maximum_retry_count;
+
+  /**
+   * @brief Country code for the network interface.
+   */
+  char *country_code;
 };
 typedef struct meadow_configuration_s meadow_configuration_t;
 
