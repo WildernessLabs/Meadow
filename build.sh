@@ -122,6 +122,16 @@ if [[ -z "$MEADOW_ADDITIONAL_MAKE_OPTIONS" ]]; then
 fi
 
 #
+#   Check build dependencies
+#
+
+$scriptdir/check-build-dependencies.sh "$@"
+if [[ $? -ne 0 ]]; then
+  exit
+fi
+
+#
+#   Generate build info
 # The following is a work around for a git hub update that prevents any
 # git commands from being run from within the /project directory.
 # This issue has been caused by a git security update.  We do not need
