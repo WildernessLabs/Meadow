@@ -255,6 +255,11 @@ struct yaml_network_s
     char *default_interface;
 
     /**
+     * @brief Country code for WiFi configuration.
+     */
+    char *country_code;
+
+    /**
      *  @brief Collection of network interfaces.
      */
     yaml_network_interface_t *interfaces;
@@ -274,6 +279,7 @@ static const cyaml_schema_field_t configuration_network_section_schema[] =
     CYAML_FIELD_SEQUENCE("NtpServers", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, ntp_servers, &string_ptr_schema, 0, CYAML_UNLIMITED),
     CYAML_FIELD_SEQUENCE("DnsServers", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, dns_servers, &string_ptr_schema, 0, CYAML_UNLIMITED),
     CYAML_FIELD_STRING_PTR("DefaultInterface", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, default_interface, 0, CYAML_UNLIMITED),
+    CYAML_FIELD_STRING_PTR("CountryCode", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, country_code, 0, CYAML_UNLIMITED),
     CYAML_FIELD_SEQUENCE("Interfaces", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL, yaml_network_t, interfaces, &interface_schema_value, 0, CYAML_UNLIMITED),
 	CYAML_FIELD_END
 };
