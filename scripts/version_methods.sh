@@ -134,11 +134,15 @@ END
 }
 
 #
-#   Restore auto-versioned files
+#   Restore auto-versioned files.  Registered as an EXIT trap in build.sh so
+#   it also runs when a build fails under set -e, not just on success -
+#   otherwise a failed build leaves these tracked files dirty and their .bak
+#   files behind.  Each step is guarded so the trap is safe to run even if
+#   generate_build_info never got as far as touching a file.
 #
 restore_versioned_files() {
-  git checkout HEAD $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld
-  git checkout HEAD $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h
-  rm $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld.bak
-  rm $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h.bak
+  git checkout HEAD $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld 2>/dev/null || true
+  git checkout HEAD $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h 2>/dev/null || true
+  rm -f $scriptdir/nuttx/configs/stm32f777zit6-meadow/scripts/user-space.ld.bak
+  rm -f $scriptdir/nuttx/include/meadow/hcom_nuttx_shared.h.bak
 }
