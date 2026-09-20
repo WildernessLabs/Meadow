@@ -84,6 +84,13 @@ int hcom_trace_to_cli_setup()
 }
 
 //================================================================
+// Are we logging to host (CLI)?
+bool hcom_trace_is_sending_to_cli()
+{
+  return _trace_log_to_host;
+}
+
+//================================================================
 // Create a thread that can be used to transport the syslog message
 // from k-land to here in userland.
 // This thread calls via hcom_via_nx_access into kernelland and lives
