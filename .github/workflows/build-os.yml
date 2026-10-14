@@ -22,7 +22,6 @@ jobs:
       with:
         fetch-depth: 0
         filter: blob:none
-        token: ${{ secrets.GIT_REPO_CHECKOUT_PAT || github.token }}
 
     #
     #   Only the submodules the OS build uses are fetched.  The submodule URLs
