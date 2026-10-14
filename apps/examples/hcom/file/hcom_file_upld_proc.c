@@ -90,7 +90,6 @@ int hcom_file_upld_proc_setup()
 // This file may no longer be necessary
 //==========================================================================
 
-// (--) I'm pretty sure, this function is never used
 void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
           const size_t packetSize)
 {
@@ -171,6 +170,7 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
 
     hcom_logging_syslog(LOG_ERR, "%s@%d-lseek failed %s, errno:%d\n",
               thisFile, __LINE__, fileName, errno);
+    close(fd);
     free(fileName);
     return;
   }
@@ -180,6 +180,7 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
   if(returnBinData == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s@%d-malloc returned NULL\n", thisFile, __LINE__);
+    close(fd);
     free(fileName);
     return;
   }
@@ -193,6 +194,7 @@ void hcom_file_upld_proc_initial_bytes_in_file(const HcomProtoHdrMsg_t *hdrMsg,
     {
       hcom_logging_syslog(LOG_ERR, "%s@%d-read %s, errno:%d\n",
                 thisFile, __LINE__, fileName, errno); usleep(20 * 1000);
+      close(fd);
       free(fileName);
       free(returnBinData);
       return;
