@@ -134,9 +134,9 @@ function updateBCLDirectory {
       pushd . &>/dev/null
       cd "$MONO_DIR"
       if $DISABLE_RSYNC_DELETE; then
-        rsync -ar "$RSYNC_FLAGS" . "$MONO_BCL_DIR"
+        rsync -ar $RSYNC_FLAGS . "$MONO_BCL_DIR"
       else
-        rsync -ar "$RSYNC_FLAGS" --delete . "$MONO_BCL_DIR"
+        rsync -ar $RSYNC_FLAGS --delete . "$MONO_BCL_DIR"
       fi
       popd &>/dev/null
     fi

@@ -1,4 +1,4 @@
-FROM ubuntu
+FROM --platform=linux/amd64 ubuntu:22.04
 
 # The following 2 lines are added to avoid hanging the container creation. 
 # See <https://grigorkh.medium.com/fix-tzdata-hangs-docker-image-build-cdb52cc3360d>
@@ -14,7 +14,8 @@ RUN apt-get update && apt-get install -y \
     u-boot-tools util-linux kconfig-frontends sudo \
     gcc-arm-none-eabi binutils-arm-none-eabi \
     python3.10 python3-distutils python3-pip python3-apt \
-    xxd srecord sed clang-15 zip
+    xxd srecord sed clang-15 zip \
+    rsync curl wget ca-certificates cmake
 
 RUN groupadd -g 1000 dev \
         && useradd -u 1000 -g dev -d /home/dev dev \
@@ -46,7 +47,16 @@ RUN pip3 install jinja2
 
 RUN locale-gen en_US.UTF-8
 
-ENV LANG en_US.UTF-8
+ENV LANG=en_US.UTF-8
+
+#
+#   The build is run with --user "$(id -u):$(id -g)" so that the output files
+#   are owned by the host user.  That UID usually has no passwd entry in the
+#   image (501 on macOS, 1001 on GitHub runners) which leaves HOME as "/" and
+#   breaks git config --global.  Provide a HOME that any UID can write to.
+#
+RUN mkdir -p /home/build && chmod 1777 /home/build
+ENV HOME=/home/build
 
 USER dev
 
