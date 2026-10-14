@@ -25,15 +25,12 @@ jobs:
 
     #
     #   Only the submodules the OS build uses are fetched.  The submodule URLs
-    #   are SSH, so rewrite them to authenticated HTTPS (the credentials stored
-    #   by actions/checkout only apply to the top level repository).
-    #   mono/external/corefx is private and needs GIT_REPO_CHECKOUT_PAT.
+    #   are SSH, which needs a key the runner does not have; they are all
+    #   public so rewrite them to anonymous HTTPS.
     #
     - name: Checkout required submodules
-      env:
-        CHECKOUT_TOKEN: ${{ secrets.GIT_REPO_CHECKOUT_PAT || github.token }}
       run: |
-        git config --global url."https://x-access-token:${CHECKOUT_TOKEN}@github.com/".insteadOf "git@github.com:"
+        git config --global url."https://github.com/".insteadOf "git@github.com:"
         git submodule update --init --depth 1 mbedtls mono/external/corefx
 
     - name: Build Docker image for the OS build.
