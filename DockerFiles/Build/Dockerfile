@@ -14,7 +14,8 @@ RUN apt-get update && apt-get install -y \
     u-boot-tools util-linux kconfig-frontends sudo \
     gcc-arm-none-eabi binutils-arm-none-eabi \
     python3.10 python3-distutils python3-pip python3-apt \
-    xxd srecord sed clang-15 zip
+    xxd srecord sed clang-15 zip \
+    rsync curl wget ca-certificates cmake
 
 RUN groupadd -g 1000 dev \
         && useradd -u 1000 -g dev -d /home/dev dev \

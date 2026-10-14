@@ -38,3 +38,27 @@ jobs:
 
     - name: Build the OS and RT
       run: docker run --rm -v $PWD:/project -w /project --user "$(id -u):$(id -g)" nuttx-build ./build.sh --force --clean
+
+  bcl:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout source code
+      uses: actions/checkout@v4
+
+    #
+    #   The BCL needs the mbedtls headers and the Mono external submodules.
+    #   llvm-project is skipped as it is large and not used by the BCL.
+    #
+    - name: Checkout required submodules
+      run: |
+        git config --global url."https://github.com/".insteadOf "git@github.com:"
+        git submodule update --init --depth 1 mbedtls \
+          $(git config -f .gitmodules --get-regexp '\.path$' | awk '{print $2}' | grep '^mono/external/' | grep -v llvm-project)
+
+    - name: Build Docker image for the BCL build.
+      run: docker build -t nuttx-build -f ./DockerFiles/Build/Dockerfile .
+
+    - name: Build the BCL
+      run: docker run --rm -v $PWD:/project -w /project --user "$(id -u):$(id -g)" nuttx-build ./build-mono-bcl.sh --verbose
