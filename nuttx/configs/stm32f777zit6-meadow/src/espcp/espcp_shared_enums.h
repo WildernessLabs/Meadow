@@ -408,6 +408,20 @@ enum espcp_wi_fi_authentication_mode
 typedef enum espcp_wi_fi_authentication_mode espcp_wi_fi_authentication_mode_t;
 
 /*
+ *    Protocols an access point supports.  The values are flags, one bit each, and are combined with a bitwise OR.
+ */
+enum espcp_wi_fi_access_point_protocols
+{
+    espcp_wi_fi_access_point_protocols_none = 0x00,
+    espcp_wi_fi_access_point_protocols_phy_11b = 0x01,
+    espcp_wi_fi_access_point_protocols_phy_11g = 0x02,
+    espcp_wi_fi_access_point_protocols_phy_11n = 0x04,
+    espcp_wi_fi_access_point_protocols_phy_low_rate = 0x08,
+    espcp_wi_fi_access_point_protocols_wps = 0x10
+};
+typedef enum espcp_wi_fi_access_point_protocols espcp_wi_fi_access_point_protocols_t;
+
+/*
  *    WiFi Country Policy.
  */
 enum espcp_wi_fi_country_policy
