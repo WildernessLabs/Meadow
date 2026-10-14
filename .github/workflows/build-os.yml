@@ -39,6 +39,32 @@ jobs:
     - name: Build the OS and RT
       run: docker run --rm -v $PWD:/project -w /project --user "$(id -u):$(id -g)" nuttx-build ./build.sh --force --clean
 
+    #
+    #   Artifacts match those published by the Azure pipeline (azure-pipelines.yml).
+    #
+    - name: Upload the OS
+      uses: actions/upload-artifact@v4
+      with:
+        name: Meadow.OS
+        if-no-files-found: error
+        path: |
+          nuttx/Meadow.OS.bin
+          nuttx/Meadow.OS.Update.bin
+          nuttx/Meadow.OS.Runtime.bin
+          nuttx/build-info.json
+
+    - name: Upload the debug symbols
+      uses: actions/upload-artifact@v4
+      with:
+        name: Meadow.OS Debug Symbols
+        if-no-files-found: error
+        path: |
+          nuttx/nuttx.elf
+          nuttx/nuttx_user.elf
+          nuttx/System.map
+          nuttx/User.map
+          bootloader/Debug/Meadow.BL.elf
+
   bcl:
 
     runs-on: ubuntu-latest
@@ -63,3 +89,19 @@ jobs:
 
     - name: Build the BCL
       run: docker run --rm -v $PWD:/project -w /project --user "$(id -u):$(id -g)" nuttx-build ./build-mono-bcl.sh --verbose
+
+    #
+    #   Match the Azure pipeline (azure-pipelines-bcl.yml), which flattens the
+    #   BCL into a meadow_assemblies folder.
+    #
+    - name: Stage the BCL
+      run: |
+        mkdir -p artifacts/meadow_assemblies
+        find monobcl/libs/bcl -type f -exec cp {} artifacts/meadow_assemblies/ \;
+
+    - name: Upload the BCL
+      uses: actions/upload-artifact@v4
+      with:
+        name: BCL
+        if-no-files-found: error
+        path: artifacts
