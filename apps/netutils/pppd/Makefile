@@ -39,5 +39,5 @@ CSRCS = pppd.c ppp.c ahdlc.c lcp.c ipcp.c
 ifeq ($(CONFIG_NETUTILS_PPPD_PAP),y)
 CSRCS += pap.c
 endif
-
+CFLAGS += -DPPP_ARCH_HAVE_MODEM_RESET
 include $(APPDIR)/Application.mk
