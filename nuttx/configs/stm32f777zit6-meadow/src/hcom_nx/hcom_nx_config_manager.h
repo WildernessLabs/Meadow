@@ -144,5 +144,6 @@ void hcom_nx_config_update_network_interface(meadow_configuration_t *, uint32_t,
 void hcom_nx_config_update_dns_address(meadow_configuration_t *, uint32_t);
 void hcom_nx_config_clear_network_interface(meadow_configuration_t *);
 unit_tests_configuration_t *process_unit_tests_configuration_file(void);
+int hcom_nx_config_set_esp_string_value(espcp_configuration_items_t, const char *);
 
 #endif // __CONFIGS_MEADOW_SRC_HCOM_NX_CONFIG_MANAGER__H

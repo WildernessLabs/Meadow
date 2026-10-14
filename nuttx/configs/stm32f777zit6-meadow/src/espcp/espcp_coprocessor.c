@@ -901,20 +901,6 @@ int espcp_late_init(void)
         usrsock_register_sockif(&g_usrsock_sockif_esp32);
         espcp_gpio_init();
         espcp_spi_init();
-        hcom_nx_config_lock();
-        
-        meadow_configuration_t *config = hcom_nx_config_get_pointer();
-        char *country_code = NULL;
-        if (config != NULL)
-        {
-            country_code = kmm_strdup(config->country_code);
-        }
-        hcom_nx_config_unlock();
-        if (country_code != NULL)
-        {
-            hcom_nx_config_set_esp_string_value(espcp_configuration_items_country_code, country_code);
-            kmm_free(country_code);
-        }
 
         result = OK;
     }
