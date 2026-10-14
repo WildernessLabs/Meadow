@@ -13,8 +13,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    #
+    #   Full history is needed because the build number is the count of commits
+    #   since version.txt last changed.  blob:none keeps the fetch small.
+    #
     - name: Checkout source code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        filter: blob:none
+        token: ${{ secrets.GIT_REPO_CHECKOUT_PAT || github.token }}
+
+    #
+    #   Only the submodules the OS build uses are fetched.  The submodule URLs
+    #   are SSH, so rewrite them to authenticated HTTPS (the credentials stored
+    #   by actions/checkout only apply to the top level repository).
+    #   mono/external/corefx is private and needs GIT_REPO_CHECKOUT_PAT.
+    #
+    - name: Checkout required submodules
+      env:
+        CHECKOUT_TOKEN: ${{ secrets.GIT_REPO_CHECKOUT_PAT || github.token }}
+      run: |
+        git config --global url."https://x-access-token:${CHECKOUT_TOKEN}@github.com/".insteadOf "git@github.com:"
+        git submodule update --init --depth 1 mbedtls mono/external/corefx
 
     - name: Build Docker image for the OS build.
       run: docker build -t nuttx-build -f ./DockerFiles/Build/Dockerfile .
