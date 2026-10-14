@@ -50,11 +50,12 @@ jobs:
     #
     #   The BCL needs the mbedtls headers and the Mono external submodules.
     #   llvm-project is skipped as it is large and not used by the BCL.
+    #   Recursive because some (e.g. api-doc-tools) have nested submodules.
     #
     - name: Checkout required submodules
       run: |
         git config --global url."https://github.com/".insteadOf "git@github.com:"
-        git submodule update --init --depth 1 mbedtls \
+        git submodule update --init --recursive --depth 1 mbedtls \
           $(git config -f .gitmodules --get-regexp '\.path$' | awk '{print $2}' | grep '^mono/external/' | grep -v llvm-project)
 
     - name: Build Docker image for the BCL build.
