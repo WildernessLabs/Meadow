@@ -54,6 +54,7 @@
 #include <nuttx/net/usrsock.h>
 #include <nuttx/mqueue.h>
 #include <nuttx/net/net.h>
+#include <nuttx/kstring.h>
 
 #include <meadow/meadow_hw_version.h>
 #include <meadow/hcom_shared_common.h>

@@ -1,12 +1,4 @@
-# Default to linux/amd64; override at build time with --build-arg BUILD_PLATFORM=...
-ARG BUILD_PLATFORM=linux/amd64
-FROM --platform=${BUILD_PLATFORM} ubuntu:22.04
-
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-
-# DEBIAN_FRONTEND prevents apt-get from prompting; TZ prevents tzdata from prompting.
-ENV DEBIAN_FRONTEND=noninteractive \
-    TZ=Europe/Brussels
+FROM --platform=linux/amd64 ubuntu:22.04
 
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
@@ -17,29 +9,51 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libmpfr-dev libisl-dev binutils-dev libelf-dev git \
     libexpat-dev gcc-multilib g++-multilib picocom \
     u-boot-tools util-linux kconfig-frontends sudo \
-    gcc-arm-none-eabi binutils-arm-none-eabi libnewlib-arm-none-eabi \
-    libstdc++-arm-none-eabi-newlib \
-    python3 python3-distutils python3-pip python3-apt \
+    gcc-arm-none-eabi binutils-arm-none-eabi \
+    python3.10 python3-distutils python3-pip python3-apt \
     xxd srecord sed clang-15 zip \
-    && locale-gen en_US.UTF-8 \
-    && rm -rf /var/lib/apt/lists/*
+    rsync curl wget ca-certificates cmake
 
-# Create dev user with sudo access (password "dev") and set up build system symlinks.
-# /home/dev is made world-writable so mapped host UIDs (via --user flag) can write to it.
 RUN groupadd -g 1000 dev \
-    && useradd -u 1000 -g dev -d /home/dev dev \
-    && mkdir /home/dev \
-    && chown -R dev:dev /home/dev \
-    && chmod 777 /home/dev \
-    && usermod -aG sudo dev \
-    && echo 'dev:dev' | chpasswd \
-    && ln -s /usr/bin/clang-15 /usr/bin/clang \
-    && ln -s /usr/bin/sed /usr/local/bin/gsed \
-    && ln -s /usr/bin/python3 /usr/bin/python
+        && useradd -u 1000 -g dev -d /home/dev dev \
+        && mkdir /home/dev \
+        && chown -R dev:dev /home/dev
 
-RUN pip3 install --no-cache-dir jinja2
+RUN sudo ln -s /usr/bin/clang-15 /usr/bin/clang
+
+# The following 3 lines allow the 'dev' user to run sudo (password is "dev"). 
+# Useful when later on packages need to be installed that are missing.
+RUN usermod -aG sudo dev
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+RUN echo 'dev:dev' | chpasswd
+
+#
+#   Now for some stuff required by the Mono build system.
+#
+RUN ln -s /usr/bin/sed /usr/local/bin/gsed \
+        && ln -s /usr/bin/python3 /usr/bin/python
+# RUN curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py \
+#         && python get-pip.py \
+#         && pip install jinja2 -v \
+#         && rm get-pip.py \
+#         && export PYTHONPATH=/usr/local/lib/python2.7/dist-packages:/usr/lib/python2.7/dist-packages
+
+RUN pip3 install jinja2
+
+# RUN alias python='python3'
+
+RUN locale-gen en_US.UTF-8
 
 ENV LANG=en_US.UTF-8
+
+#
+#   The build is run with --user "$(id -u):$(id -g)" so that the output files
+#   are owned by the host user.  That UID usually has no passwd entry in the
+#   image (501 on macOS, 1001 on GitHub runners) which leaves HOME as "/" and
+#   breaks git config --global.  Provide a HOME that any UID can write to.
+#
+RUN mkdir -p /home/build && chmod 1777 /home/build
+ENV HOME=/home/build
 
 USER dev
 

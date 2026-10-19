@@ -209,6 +209,11 @@ static char *esp_log_component_names[] = {
     "coredump",             // Core dump information
 };
 
+/**
+ * @brief Default country code to use for WiFi if not specified in the config file.
+ */
+static char *default_country_code = "01";
+
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -1740,6 +1745,18 @@ static void hcom_nx_config_process_network_section(yaml_network_t *network_confi
                 }
             }
         }
+        config->country_code = default_country_code;
+        if ((network_config->country_code != NULL) && (strlen(network_config->country_code) > 0))
+        {
+            if (strlen(network_config->country_code) != 2)
+            {
+                meadow_os_raise_simple_exception(espcp_status_codes_invalid_country_code);
+            }
+            else
+            {
+                config->country_code = kmm_strdup(network_config->country_code);
+            }
+        }
         if (create_default_dns_resolver_file)
         {
             hcom_nx_config_setup_default_dns_servers();
@@ -1767,7 +1784,22 @@ static void hcom_nx_config_process_network_section(yaml_network_t *network_confi
             config->default_interface = hcom_nx_config_find_interface_by_name(MEADOW_IFT_ESP32_NAME);
         }
         config->default_interface->gateway_changed = false;
-    }
+        //
+        //  Now check if the country code has been specified.
+        //
+        config->country_code = default_country_code;
+        if ((network_config->country_code != NULL) && (strlen(network_config->country_code) > 0))
+        {
+            if (strlen(network_config->country_code) != 2)
+            {
+                meadow_os_raise_simple_exception(espcp_status_codes_invalid_country_code);
+            }
+            else
+            {
+                config->country_code = kmm_strdup(network_config->country_code);
+            }
+        }
+        }
     else
     {
         hcom_nx_config_setup_default_ntp_servers(config);

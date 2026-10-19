@@ -36,6 +36,8 @@
 
 #include <sys/types.h>
 
+#include <nuttx/kstring.h>
+
 #include <nuttx/kthread.h>
 #include <nuttx/wqueue.h>
 #include <meadow/hcom_shared_common.h>
@@ -78,6 +80,7 @@ static void espcp_network_got_ip_event_handler(espcp_message_t *);
 
 static void espcp_system_get_configuration_event_handler(espcp_message_t *);
 static void espcp_system_error_event_handler(espcp_message_t *);
+static void espcp_send_logging_configuration(void);
 
 /****************************************************************************
  * Private Data
@@ -432,6 +435,87 @@ void espcp_dispatch_event(espcp_message_t *message)
 }
 
 /****************************************************************************
+ * Name: espcp_send_logging_configuration
+ *
+ * Description:
+ *   Build the current logging configuration and send it to the ESP32.
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   None.
+ *
+ * Assumptions/Limitations:
+ *   None.
+ *
+ ****************************************************************************/
+static void espcp_send_logging_configuration(void)
+{
+    hcom_nx_config_lock();
+    meadow_configuration_t *config = hcom_nx_config_get_pointer();
+    espcp_logging_configuration_t logging_config;
+    logging_config.interface = config->esp_log_destination;
+    logging_config.udp_port = config->esp_log_udp_port;
+    //
+    //  Note that we do not need to strdup the string as it will be copied
+    //  when the payload is encoded.  Also, the config is still locked at
+    //  this point.
+    //
+    logging_config.components_to_log = config->esp_log_components;
+    int payload_length = espcp_encoded_logging_configuration_buffer_size(&logging_config);
+    uint8_t *payload = (uint8_t *) zalloc(payload_length);
+    if (payload != NULL)
+    {
+        espcp_encode_logging_configuration(&logging_config, payload);
+    }
+    hcom_nx_config_unlock();
+
+    if (payload != NULL)
+    {
+        espcp_message_t *logging_configuration_message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system,
+                                               espcp_system_function_logging_configuration, espcp_status_codes_completed_ok,
+                                               espcp_get_next_message_id(), payload, payload_length);
+        if (logging_configuration_message != NULL)
+        {
+            espcp_queue_message(logging_configuration_message, false);
+        }
+        else
+        {
+            free(payload);
+        }
+    }
+}
+
+/****************************************************************************
+ * Name: espcp_send_wifi_country_code
+ *
+ * Description:
+ *   Send the WiFi country to the ESP in case it needs changing.
+ *
+ * Input Parameters:
+ *   None.
+ *
+ ****************************************************************************/
+static void espcp_send_wifi_country_code(void)
+{
+    char *country_code = NULL;
+
+    hcom_nx_config_lock();
+    meadow_configuration_t *config = hcom_nx_config_get_pointer();
+    if (config != NULL)
+    {
+        country_code = kmm_strdup(config->country_code);
+    }
+    hcom_nx_config_unlock();
+    if (country_code != NULL)
+    {
+        hcom_nx_config_set_esp_string_value(espcp_configuration_items_country_code, country_code);
+        kmm_free(country_code);
+    }    
+}
+
+/****************************************************************************
  * Name: espcp_system_get_configuration_event_handler
  *
  * Description:
@@ -469,39 +553,8 @@ void espcp_system_get_configuration_event_handler(espcp_message_t *message)
             //
             //  Send logging configuration to the ESP32.
             //
-            hcom_nx_config_lock();
-            config = hcom_nx_config_get_pointer();
-            espcp_logging_configuration_t logging_config;
-            logging_config.interface = config->esp_log_destination;
-            logging_config.udp_port = config->esp_log_udp_port;
-            //
-            //  Note that we do not need to strdup the string as it will be copied
-            //  when the payload is encoded.  Also, the config is still locked at
-            //  this point.
-            //
-            logging_config.components_to_log = config->esp_log_components;
-            int payload_length = espcp_encoded_logging_configuration_buffer_size(&logging_config);
-            uint8_t *payload = (uint8_t *) zalloc(payload_length);
-            if (payload != NULL)
-            {
-                espcp_encode_logging_configuration(&logging_config, payload);
-            }
-            hcom_nx_config_unlock();
-
-            if (payload != NULL)
-            {
-                espcp_message_t *logging_configuration_message = espcp_create_message_on_heap(espcp_message_types_header, espcp_esp32_interfaces_system,
-                                                       espcp_system_function_logging_configuration, espcp_status_codes_completed_ok,
-                                                       espcp_get_next_message_id(), payload, payload_length);
-                if (logging_configuration_message != NULL)
-                {
-                    espcp_queue_message(logging_configuration_message, false);
-                }
-                else
-                {
-                    free(payload);
-                }
-            }
+            espcp_send_logging_configuration();
+            espcp_send_wifi_country_code();
         }
     }
     espcp_delete_message_and_payload(message);

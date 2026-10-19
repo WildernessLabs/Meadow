@@ -3,7 +3,7 @@
 	url = git@github.com:WildernessLabs/stlink.git
 [submodule "tools"]
 	path = tools
-	url = https://bitbucket.org/nuttx/tools.git
+	url = git@github.com:WildernessLabs/nuttx-build-tools.git
 [submodule "openocd"]
 	path = openocd
 	url = git@github.com:WildernessLabs/openocd.git
