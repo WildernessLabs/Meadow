@@ -53,6 +53,7 @@ MONO_JIT_ICALL (mono_tls_get_jit_tls_extern) \
 MONO_JIT_ICALL (mono_tls_get_lmf_addr_extern) \
 MONO_JIT_ICALL (mono_tls_get_sgen_thread_info_extern) \
 MONO_JIT_ICALL (mono_tls_get_thread_extern) \
+MONO_JIT_ICALL (mono_tls_get_lmf_addr_and_clean) \
 	\
 MONO_JIT_ICALL (__emul_fadd)	\
 MONO_JIT_ICALL (__emul_fcmp_ceq)	\
