@@ -1,0 +1,53 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "gdb",
+            "request": "attach",
+            "name": "Debug on Meadow",
+            "executable": "${workspaceFolder}/nuttx/nuttx.elf",
+            "cwd": "${workspaceFolder}/gdb-vscode",
+            "gdbpath": "/opt/homebrew/bin/arm-none-eabi-gdb-py",
+            "target": "extended-remote :4242",
+            "remote": false
+        }
+    ]
+}
+
+
+
+// {
+//     "version": "0.2.0",
+//     "configurations": [
+//         {
+//             "name": "NuttX Debug",
+//             "cwd": "${workspaceRoot}",
+//             "executable": "${workspaceFolder}/nuttx/Meadow.OS.bin",
+//             "request": "launch",
+//             "type": "cortex-debug",
+//             "servertype": "openocd",
+//             // This may need to be arm-none-eabi-gdb depending on your system
+//             "gdbPath" : "arm-none-eabi-gdb",
+//             "device": "STM32F777",
+//             "configFiles": [
+//                 "interface/stlink.cfg",
+//                 "target/stm32f7x.cfg"
+//             ],
+//             "debuggerArgs": [
+//                 "-nx",
+//             ],
+//             "svdFile": "${workspaceFolder}/STM32F777.svd",
+//             "runToEntryPoint": "__start",
+//             "symbolFiles": [
+//                 "${workspaceFolder}/nuttx/nuttx.elf",
+//                 "${workspaceFolder}/nuttx/nuttx_user.elf"
+//             ],
+//             "searchDir": ["${workspaceFolder}/openocd/tcl"],
+//             // "openOCDLaunchCommands": ["adapter speed 5000"],
+//             // "preLaunchTask": "Build Meadow OS"
+//         }
+//     ]
+// }
