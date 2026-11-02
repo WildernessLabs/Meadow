@@ -61,9 +61,21 @@ enum espcp_status_codes
     espcp_status_codes_invalid_WiFi_configuration_file = 44,
     espcp_status_codes_invalid_cell_configuration_file = 45,
     espcp_status_codes_network_deadlock = 46,
-    espcp_status_codes_close_deadlock = 47,
-    espcp_status_codes_poll_deadlock = 48,
-    espcp_status_codes_socket_deadlock = 49,
+
+    /**
+     * @brief Battery level on ADC1 cannot be read (used on F7 v1).
+     */
+    espcp_status_codes_battery_level_cannot_be_read = 47,
+
+    /**
+     * @brief The Bluetooth stack cannot be stopped.
+     */
+    espcp_status_codes_cannot_stop_bluetooth = 48,
+
+    /**
+     * @brief The Bluetooth stack is already running.
+     */
+    espcp_status_codes_bluetooth_already_started = 49,
 
     //
     //  Keep the ESP reset codes consecutive as they are subject to arithmetic operations
@@ -133,6 +145,36 @@ enum espcp_status_codes
      * @brief Invalid country code.
      */
     espcp_status_codes_invalid_country_code = 62,
+
+    /**
+     * @brief The Bluetooth stack is not running, so a request that needs it cannot be answered.
+     */
+    espcp_status_codes_bluetooth_not_started = 63,
+
+    /**
+     * @brief The device named in a Bluetooth request is not bonded.
+     */
+    espcp_status_codes_bluetooth_device_not_bonded = 64,
+
+    //
+    //  The network deadlock codes are set by the watchdog here, not by the ESP32.  They were 47
+    //  to 49, which the ESP32 uses for the codes above, so they have moved to keep one meaning
+    //  per value.
+    //
+    /**
+     * @brief Possible network deadlock detected on close().
+     */
+    espcp_status_codes_close_deadlock = 65,
+
+    /**
+     * @brief Possible network deadlock detected on poll().
+     */
+    espcp_status_codes_poll_deadlock = 66,
+
+    /**
+     * @brief Possible network deadlock detected on socket().
+     */
+    espcp_status_codes_socket_deadlock = 67,
 };
 typedef enum espcp_status_codes espcp_status_codes_t;
 
@@ -243,6 +285,7 @@ enum espcp_wi_fi_function
     espcp_wi_fi_function_network_connection_retry_count_exceeded_event = 46,
     espcp_wi_fi_function_network_connecting_event = 47,
     espcp_wi_fi_function_network_got_ip_event = 48,
+    espcp_wi_fi_function_maximum_connections_reached_event = 49,
 };
 typedef enum espcp_wi_fi_function espcp_wi_fi_function_t;
 
@@ -295,6 +338,42 @@ enum espcp_bluetooth_function
      * @brief Indicate that a client has disconnected from the Bluetooth service.
      */
     espcp_client_disconnected_event = 10,
+    /**
+     * @brief Answer a PasskeyRequestEvent with the passkey the user entered, or refuse the pairing.
+     */
+    espcp_bluetooth_function_passkey_reply = 11,
+    /**
+     * @brief Answer a NumericComparisonRequestEvent: accept the pairing if the numbers matched.
+     */
+    espcp_bluetooth_function_numeric_comparison_reply = 12,
+    /**
+     * @brief Get the addresses of the devices bonded with the ESP32.
+     */
+    espcp_bluetooth_function_get_bonded_devices = 13,
+    /**
+     * @brief Remove the bond with one device.
+     */
+    espcp_bluetooth_function_remove_bond = 14,
+    /**
+     * @brief Remove the bonds with every device.
+     */
+    espcp_bluetooth_function_remove_all_bonds = 15,
+    /**
+     * @brief Show the user this passkey so that they can type it into the client.
+     */
+    espcp_bluetooth_function_passkey_display_event = 16,
+    /**
+     * @brief Ask the user for the passkey the client is showing, answered by PasskeyReply.
+     */
+    espcp_bluetooth_function_passkey_request_event = 17,
+    /**
+     * @brief Ask the user whether the client shows this number, answered by NumericComparisonReply.
+     */
+    espcp_bluetooth_function_numeric_comparison_request_event = 18,
+    /**
+     * @brief Pairing, or encryption with a bonded client, has finished, successfully or not.
+     */
+    espcp_bluetooth_function_authentication_complete_event = 19,
 };
 typedef enum espcp_bluetooth_function espcp_bluetooth_function_t;
 
