@@ -117,7 +117,8 @@ static int dev_random_entropy_poll( void *data, unsigned char *output,
 
         p += ret;
         left -= ret;
-        sleep( 1 );
+        if( left > 0 )
+            usleep( 10000 );   /* 10ms — yield CPU while waiting for more entropy */
     }
     fclose( file );
     *olen = len;
