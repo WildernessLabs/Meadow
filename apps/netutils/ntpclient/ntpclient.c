@@ -126,7 +126,7 @@ struct ntpc_daemon_s
  * limitation is due only to this global data structure.
  */
 
-static struct ntpc_daemon_s g_ntpc_daemon;
+static struct ntpc_daemon_s g_ntpc_daemon = { 0 };
 static char** ntp_servers;
 static uint32_t ntp_server_count;
 static unsigned int ntpc_refresh_period_seconds = CONFIG_NETUTILS_NTPCLIENT_POLLDELAYSEC;
