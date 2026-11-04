@@ -5,14 +5,6 @@
 
 comment "Basic CXX Support"
 
-config C99_BOOL8
-	bool "sizeof(_Bool) is 8-bits"
-	default n
-	---help---
-		This setting means (1) your C++ compiler has sizeof(_Bool) == 8, (2)
-		your C compiler supports the C99 _Bool intrinsic type, and (2) that
-		the C99 _Bool type also has size 1.
-
 config HAVE_CXX
 	bool "Have C++ compiler"
 	default n
@@ -20,79 +12,116 @@ config HAVE_CXX
 		Toolchain supports C++ and CXX, CXXFLAGS, and COMPILEXX have been
 		defined in the configurations Make.defs file.
 
+config HAVE_CXXINITIALIZE
+	bool "Have C++ initialization"
+	default n
+	---help---
+		The platform-specific logic includes support for initialization
+		of static C++ instances for this architecture and for the selected
+		toolchain.
+
 if HAVE_CXX
 
-config CXX_NEWLONG
-	bool "size_t is type long"
-	default n
+choice
+	prompt "C++ Library"
+	default LIBCXXMINI
+
+config LIBCXXTOOLCHAIN
+	bool "Toolchain C++ support"
 	---help---
-		size_t may be type long or type int.  This matters for some
-		C++ library routines because the NuttX size_t might not have
-		the same underlying type as your toolchain's size_t.
+		Use Standard C++ library from toolchain.
 
-config CXX_EXCEPTION
-	bool
-
-config CXX_LIBSUPCXX
-	bool
-
-comment "LLVM C++ Library (libcxx)"
+config LIBCXXMINI
+	bool "Basic C++ support"
+	---help---
+		A fragmentary C++ library that will allow to build only
+		the simplest of C++ applications. Only contain basic C++
+		runtime support function.
 
 config LIBCXX
-	bool "Build LLVM libcxx (must be installed)"
-	default n
-	select LIBC_WCHAR
-	select TIME_EXTENDED
+	bool "LLVM libc++ C++ Standard Library"
+	select HAVE_CXXINITIALIZE
+	select LIBC_LOCALE
+	select PTHREAD_MUTEX_TYPES
 	---help---
-		If you have installed libcxx into the NuttX source tree, then it can
-		be built by selecting this option.  See the README.txt file in the
-		libcxx package for information on installing libcxx.
+		LLVM "libc++" C++ Standard Library
+		https://libcxx.llvm.org/
 
-if LIBCXX
-
-config LIBCXX_EXCEPTION
-	bool "Enable Exception Suppport"
-	default y
-	select CXX_EXCEPTION
-
-config LIBCXX_HAVE_LIBSUPCXX
-	bool "Have libsupc++ (required)"
-	default y
-	select CXX_LIBSUPCXX
+config UCLIBCXX
+	bool "uClibc++ Standard C++ Library"
+	select HAVE_CXXINITIALIZE
 	---help---
-		Select if your toolchain provides libsupc++.  This option is required
-		at present because the built-in libsupc++ support is incomplete.
+		uClibc++ C++ library
+		https://cxx.uclibc.org/
+
+endchoice
+
+config ETL
+	bool "Embedded Template Library (ETL)"
+	depends on LIBCXXMINI && ALLOW_MIT_COMPONENTS
+	---help---
+		ETL A C++ Template library for Embedded applications
+		Implements C++ templates such as containers, string
+		singleton math without C++ STL libraries
+
+if LIBCXX || UCLIBCXX
+
+choice
+	prompt "C++ low level library select"
+	default LIBSUPCXX
+
+config LIBCXXABI
+	bool "LLVM low level C++ Library"
+	---help---
+		LLVM "libc++abi" C++ Standard Library
+		https://libcxxabi.llvm.org/
+		Select if your use libc++abi as lower level c++ library
+
+config LIBSUPCXX
+	bool "GNU low level libsupc++"
+	---help---
+		Select if your toolchain provides libsupc++ and use libsupc++ as lower
+		level c++ library.
+
+endchoice
+
+config LIBCXXABI_VERSION
+	string "Select libcxxabi version"
+	depends on LIBCXXABI
+	default LIBCXX_VERSION if LIBCXX
+	default "17.0.6" if !LIBCXX
 
 endif
 
-comment "uClibc++ Standard C++ Library"
-
-config UCLIBCXX
-	bool "Build uClibc++ (must be installed)"
-	default n
+config CXX_STANDARD
+	string "Language standard"
+	default "gnu++20" if LIBCXX
+	default "gnu++17" if !LIBCXX
 	---help---
-		If you have installed uClibc++ into the NuttX source try, then it can
-		be built by selecting this option.  See the README.txt file in the
-		uClibc++ packet for information on installing uClibc++.
+		Possible values:
+		gnu++98/c++98, gnu++11/c++11, gnu++14/c++14, gnu++17/c++17 and gnu++20/c++20
+
+config CXX_EXCEPTION
+	bool "Enable Exception Support"
+
+config CXX_RTTI
+	bool "Enable RTTI Support"
 
 if UCLIBCXX
 
-config UCLIBCXX_EXCEPTION
-	bool "Enable Exception Suppport"
-	default y
-	select CXX_EXCEPTION
+config UCLIBCXX_WCHAR
+	bool "Enable Wide Stream Support"
+	default n
 
-config UCLIBCXX_IOSTREAM_BUFSIZE
-	int "IO Stream Buffer Size"
+config UCLIBCXX_BUFSIZE
+	int "IO Stream/Container Buffer Size"
 	default 32
 
-config UCLIBCXX_HAVE_LIBSUPCXX
-	bool "Have libsupc++ (required)"
-	default y
-	select CXX_LIBSUPCXX
-	---help---
-		Select if your toolchain provides libsupc++.  This option is required
-		at present because the built-in libsupc++ support is incomplete.
-
 endif
+
+config LIBCXX_VERSION
+	string "Select libcxx version"
+	depends on LIBCXX
+	default "17.0.6"
+
 endif
