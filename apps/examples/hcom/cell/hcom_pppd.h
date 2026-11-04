@@ -42,7 +42,10 @@
  * Shared Definitions
  ****************************************************************************/
 
-#define CONNECT_SCRIPT_OUTPUT_MAX_SIZE 1024
+#define CONNECT_SCRIPT_MAX_SIZE         (512)
+#define CHAT_SCRIPT_MAX_SIZE            (1024)
+#define DISCONNECT_SCRIPT_MAX_SIZE      (50)
+#define RESET_SCRIPT_MAX_SIZE           (50)
 
 #define CELL_RESUMED                0x00
 #define CELL_PAUSED                 (1 << 0)

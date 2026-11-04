@@ -57,8 +57,7 @@
 // Note:
 // These connection scripts are used by PPPD to send AT commands to the 
 // module to connect using cell network
-#define CONNECT_SCRIPT_MAX_SIZE 1024
-#define DISCONNECT_SCRIPT_MAX_SIZE 64
+
 #define AUTHENTICATION_CMD_MAX_SIZE 128
 #define OPERATOR_SELECTION_CMD_MAX_SIZE 128
 #define GPS_AT_CMD_TIMEOUT 600
@@ -71,7 +70,7 @@
 
 static char *thisFile = __FILE__;
 static bool cell_connected = false;
-static char *cell_at_cmds_output;
+static char *cell_at_cmds_output = NULL;
 static hcom_pppd_handler_t hcom_cell_handler;
 static hcom_cell_err_t cell_err;
 
@@ -88,36 +87,32 @@ static void hcom_pppd_connecting_event(void);
 //====================================================================
 // This function is used to generate the connection and disconnection script
 // based on cell settings and is later passed to the pppd() function
-static int hcom_pppd_create_connect_scripts(cell_settings_t *cell_settings, char **connect_script, char **disconnect_script)
+static int hcom_pppd_create_scripts(cell_settings_t *cell_settings, char **connect_script,
+                                    char **disconnect_script, char **reset_script)
 {
-  char *authentication_cmd = (char *)malloc(AUTHENTICATION_CMD_MAX_SIZE * sizeof(char));
-  if (authentication_cmd == NULL)
-  {
-    hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate authentication\n", thisFile, __LINE__);
-    return -ENOMEM;
-  }
+  char authentication_cmd[AUTHENTICATION_CMD_MAX_SIZE];
+
+#ifdef CONFIG_NETUTILS_PPPD_PAP
+      snprintf_chk(authentication_cmd, AUTHENTICATION_CMD_MAX_SIZE,
+        cell_settings->pap_user[0] != '\0' && cell_settings->pap_password[0] != '\0'
+        ? "AT+CGAUTH=1,1,\\\"%s\\\",\\\"%s\\\" PAUSE 3 OK " : "",
+        cell_settings->pap_user, cell_settings->pap_password);
+#else
+    snprintf_chk(authentication_cmd, AUTHENTICATION_CMD_MAX_SIZE, "");
+#endif
 
   char *operator_selection_cmd = (char *)malloc(OPERATOR_SELECTION_CMD_MAX_SIZE * sizeof(char));
   if (operator_selection_cmd == NULL)
   {
     hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate operator\n", thisFile, __LINE__);
-    free(authentication_cmd);
     return -ENOMEM;
   }
-
-  snprintf_chk(authentication_cmd, AUTHENTICATION_CMD_MAX_SIZE,
-      cell_settings->pap_user[0] != '\0' && cell_settings->pap_password[0] != '\0'
-          ? "AT+CGAUTH=1,1,\\\"%s\\\",\\\"%s\\\" PAUSE 3 OK "
-          : "",
-      cell_settings->pap_user,
-      cell_settings->pap_password
-  );
 
   // If the carrier operator code or the network operator mode is missing, the 
   // automatic network selection will be used (AT+COPS=0)
   snprintf_chk(operator_selection_cmd, OPERATOR_SELECTION_CMD_MAX_SIZE,
       cell_settings->operator[0] != '\0' && cell_settings->mode[0] != '\0'
-          ? "AT+COPS=1,2,\\\"%s\\\",%s PAUSE 3 OK "
+          ? "AT+COPS=4,2,\\\"%s\\\",%s PAUSE 3 OK "
           : "AT+COPS=0 PAUSE 3 OK ",
       cell_settings->operator,
       cell_settings->mode
@@ -126,115 +121,59 @@ static int hcom_pppd_create_connect_scripts(cell_settings_t *cell_settings, char
   switch (cell_settings->module_id)
   {
     case CELL_BG770A_MODULE:
-        snprintf_chk(*connect_script, CONNECT_SCRIPT_MAX_SIZE, 
-          "ECHO ON " 
-          "TIMEOUT %s "
-          "\"\" AT+CMEE=2 "
-          "PAUSE 3 "
-          "OK AT+GSN "
-          "PAUSE 3 "
-          "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
-          "PAUSE 3 "
-          "OK %s"
-          "AT+QCSQ "
-          "PAUSE 3 "
-          "OK AT+CSQ "
-          "PAUSE 3 "
-          "OK %s"
-          "ATD*99# "
-          "CONNECT \\c",
-          cell_settings->timeout, 
-          cell_settings->apn,
-          authentication_cmd,
-          operator_selection_cmd
-      );
-    break;
-  
-    case CELL_M95_MODULE:
+
       snprintf_chk(*connect_script, CONNECT_SCRIPT_MAX_SIZE, 
-        "ECHO ON " 
+        "ECHO ON "
         "TIMEOUT %s "
-        "\"\" AT+QACCM=0,0 "
-        "PAUSE 3 "
-        "OK AT+GSN "
-        "PAUSE 3 "
-        "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
-        "PAUSE 3 "
-        "OK AT+CSQ "
-        "PAUSE 3 "
-        "OK ATD*99# "
-        "CONNECT \\c",
-        cell_settings->timeout, 
-        cell_settings->apn
-      );
+        "\"\" AT+CMEE=2 PAUSE 3 OK "
+        "AT+GSN PAUSE 2 OK "
+        "%s"
+        "AT+CREG? PAUSE 3 OK "
+        "AT+QCSQ PAUSE 3 OK "
+        "AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" PAUSE 3 OK "
+        "%s"
+        "ATD*99# CONNECT \\c",
+        cell_settings->timeout,
+        operator_selection_cmd,
+        cell_settings->apn, authentication_cmd);
     break;
-    
+
+    case CELL_M95_MODULE:
+    case CELL_EG21GL_MODULE:
     case CELL_BG95M3_MODULE:
       snprintf_chk(*connect_script, CONNECT_SCRIPT_MAX_SIZE, 
         "ECHO ON "
         "TIMEOUT %s "
-        "\"\" AT+CFUN=1,1 "
-        "PAUSE 15 "
-        "OK AT+CMEE=2 "
-        "PAUSE 3 "
-        "OK AT+GSN "
-        "PAUSE 3 "
-        "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
-        "PAUSE 3 "
-        "OK AT+QCSQ "
-        "PAUSE 3 "
-        "OK AT+CSQ "
-        "PAUSE 3 "
-        "OK %s"
-        "ATD*99# "
-        "CONNECT \\c",
-        cell_settings->timeout, 
-        cell_settings->apn,
-        operator_selection_cmd
-      );
+        "\"\" AT+CMEE=2 PAUSE 3 OK "
+        "AT+GSN PAUSE 2 OK " /* Request International Mobile Equipment a.k.a IMEI */
+        "%s" /* Operator Selection */
+        "AT+CREG? PAUSE 3 OK "
+        "AT+QCSQ PAUSE 3 OK "
+        "AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" PAUSE 3 OK " /* Access Point Network a.k.a APN */
+        "ATD*99# CONNECT \\c",
+        cell_settings->timeout,
+        operator_selection_cmd,
+        cell_settings->apn);
+
+      snprintf_chk (*reset_script, RESET_SCRIPT_MAX_SIZE,
+        "\"\" AT+CFUN= 1,1 PAUSE 15 OK "
+        "AT+CPIN? PAUSE 3 OK \\c");
+
     break;
 
-    case CELL_EG21GL_MODULE:
-      snprintf_chk(*connect_script, CONNECT_SCRIPT_MAX_SIZE,
-        "ECHO ON "
-        "TIMEOUT %s "
-        "\"\" AT+CMEE=2 "
-        "PAUSE 3 "
-        "OK AT+GSN "
-        "PAUSE 3 "
-        "OK AT+CGDCONT=1,\\\"IP\\\",\\\"%s\\\" "
-        "PAUSE 3 "
-        "OK AT+QCSQ "
-        "PAUSE 3 "
-        "OK AT+CSQ "
-        "PAUSE 3 "
-        "OK %s"
-        "ATD*99# "
-        "CONNECT \\c",
-        cell_settings->timeout, 
-        cell_settings->apn,
-        operator_selection_cmd
-      );
-    break;
-    
     default:
       hcom_logging_syslog(LOG_ERR, "%s-%d-Failed getting connect script\n", thisFile, __LINE__);
-      free(authentication_cmd);
       free(operator_selection_cmd);
       return -EINVAL;
     break;
   }
 
   snprintf_chk(*disconnect_script, DISCONNECT_SCRIPT_MAX_SIZE,
-    "AT+CFUN=1,1 "
-    "PAUSE 10 "
-    "OK " "\"\" ATZ "
+    "\"\" ATZ "
     "OK \\c"
   );
 
-  free(authentication_cmd);
   free(operator_selection_cmd);
-
   return OK;
 }
 
@@ -249,7 +188,7 @@ static void hcom_pppd_get_script(int state, char *script)
   {
     case CELL_AT_CMD_GPS:
       hcom_logging_syslog(LOG_INFO, "%s-%d-Cell GPS/GNSS\n", thisFile, __LINE__);
-      snprintf_chk(hcom_cell_handler.script, CONNECT_SCRIPT_MAX_SIZE,
+      snprintf_chk(hcom_cell_handler.script, CHAT_SCRIPT_MAX_SIZE,
         "TIMEOUT %d \"\" "
         "AT+QGPS=1,2,180,1 PAUSE 3 OK " 
         "AT+QCFG=\\\"gpio\\\",1,64,1,0,0,1 PAUSE 3 OK "
@@ -268,15 +207,18 @@ static void hcom_pppd_get_script(int state, char *script)
 
     case CELL_AT_CMD_SIGNAL_QUALITY:
       hcom_logging_syslog(LOG_INFO, "%s-%d-Cell Signal Quality\n", thisFile, __LINE__);
-      snprintf_chk(hcom_cell_handler.script, CONNECT_SCRIPT_MAX_SIZE,
-        "TIMEOUT %d \"\" AT+CSQ PAUSE 3 OK \\c",
+      snprintf_chk(hcom_cell_handler.script, CHAT_SCRIPT_MAX_SIZE,
+        "TIMEOUT %d \"\" AT+QCSQ PAUSE 3 OK \\c",
         GET_CSQ_AT_CMD_TIMEOUT);
       break;
 
-    case CELL_AT_CMD_SCAN:
+      case CELL_AT_CMD_SCAN:
+      /* Depending on the area to be covered,
+      the coverage time varies between 3 and 15 seconds. */
       hcom_logging_syslog(LOG_INFO, "%s-%d-Cell Scan Network\n", thisFile, __LINE__);
-      snprintf_chk(hcom_cell_handler.script, CONNECT_SCRIPT_MAX_SIZE,
-        "TIMEOUT %d \"\" AT+COPS=? PAUSE 3 OK \\c",
+      snprintf_chk(hcom_cell_handler.script, CHAT_SCRIPT_MAX_SIZE,
+        "TIMEOUT %d \"\" AT+CPIN? PAUSE 3 OK "
+        "AT+COPS=? PAUSE 15 OK \\c",
         NETWORK_SCAN_AT_CMD_TIMEOUT);
       break;
 
@@ -346,7 +288,7 @@ static void hcom_pppd_at_cmd_event(int ret)
     return;
   }
 
-  if (strlen(cell_at_cmds_output))
+  if (cell_at_cmds_output && strlen(cell_at_cmds_output))
   {
     hcom_logging_syslog(LOG_INFO, "%s-%d-Cell: %s \n", thisFile, __LINE__, cell_at_cmds_output);
     message.interface = ESPCP_CELL_INTERFACE;
@@ -368,7 +310,7 @@ static int hcom_pppd_create_handler(void)
 {
   hcom_cell_handler.state = CELL_RESUMED;
   hcom_cell_handler.callback = (void *)hcom_pppd_at_cmd_event;
-  hcom_cell_handler.script = (char *)malloc(CONNECT_SCRIPT_MAX_SIZE);
+  hcom_cell_handler.script = (char *)malloc(CHAT_SCRIPT_MAX_SIZE);
 
   if (hcom_cell_handler.script == NULL)
   {
@@ -390,6 +332,9 @@ static void *pppd_thread(void *cell_settings_ptr)
 #endif
 
     cell_settings_t *cell_settings = (cell_settings_t *) cell_settings_ptr;
+    char *connect_script = NULL,
+    *disconnect_script = NULL,
+    *reset_script = NULL;
 
     if (cell_settings == NULL)
     {
@@ -411,49 +356,47 @@ static void *pppd_thread(void *cell_settings_ptr)
         return NULL;
     }
 
-    char *connect_script = (char *)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
+    connect_script = (char *)malloc(CONNECT_SCRIPT_MAX_SIZE * sizeof(char));
     if (connect_script == NULL)
     {
         hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate memory for connect script\n", thisFile, __LINE__);
-        return NULL;
+        goto exit;
     }
 
-    char *disconnect_script = (char *)malloc(DISCONNECT_SCRIPT_MAX_SIZE * sizeof(char));
+    disconnect_script = (char *)malloc(DISCONNECT_SCRIPT_MAX_SIZE * sizeof(char));
     if (disconnect_script == NULL)
     {
-        free(connect_script);
         hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate memory for disconnect script\n", thisFile, __LINE__);
-        return NULL;
+        goto exit;
     }
 
-    cell_at_cmds_output = (char *)malloc(CONNECT_SCRIPT_OUTPUT_MAX_SIZE * sizeof(char));
+   reset_script = (char *)malloc(RESET_SCRIPT_MAX_SIZE * sizeof(char));
+    if (reset_script == NULL)
+    {
+        hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate memory for reset script\n", thisFile, __LINE__);
+        goto exit;
+    }
+
+    cell_at_cmds_output = (char *)malloc(CHAT_SCRIPT_MAX_SIZE * sizeof(char));
     if (cell_at_cmds_output == NULL)
     {
-        free(connect_script);
-        free(disconnect_script);
         hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to allocate memory for cell AT commands output\n", thisFile, __LINE__);
-        return NULL;
+        goto exit;
     }
 
     int ret;
-    ret = hcom_pppd_create_connect_scripts(cell_settings, &connect_script, &disconnect_script);
+    ret = hcom_pppd_create_scripts(cell_settings, &connect_script, &disconnect_script, &reset_script);
     if (ret < 0)
     {
         hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to generate connect scripts, ret=%d\n", thisFile, __LINE__, ret);
-        free(connect_script);
-        free(disconnect_script);
-        free(cell_at_cmds_output);
-        return NULL;
+        goto exit;
     }
 
     ret = hcom_pppd_create_handler();
     if (ret < 0)
     {
         hcom_logging_syslog(LOG_ERR, "%s-%d-Failed to create pppd handler, ret=%d\n", thisFile, __LINE__, ret);
-        free(connect_script);
-        free(disconnect_script);
-        free(cell_at_cmds_output);
-        return NULL;
+        goto exit;
     }
 
     hcom_logging_syslog(LOG_INFO, "%s-%d-Chat scripts created: %s\n %s\n",
@@ -463,6 +406,7 @@ static void *pppd_thread(void *cell_settings_ptr)
     {
         .disconnect_script = disconnect_script,
         .connect_script = connect_script,
+        .reset_script = reset_script,
         .ttyname = cell_settings->ttyname,
         .connect_event = (void*)hcom_pppd_connected_event,
         .disconnect_event = (void*)hcom_pppd_disconnected_event,
@@ -480,6 +424,34 @@ static void *pppd_thread(void *cell_settings_ptr)
     pppd(&pppd_settings);
 
     sleep(20);
+
+    exit:
+
+    if (connect_script)
+    {
+      free(connect_script);
+    }
+
+    if (disconnect_script)
+    {
+      free(disconnect_script);
+    }
+
+    if (cell_at_cmds_output)
+    {
+      free(cell_at_cmds_output);
+    }
+
+    if (reset_script)
+    {
+      free(reset_script);
+    }
+
+    if (cell_settings)
+    {
+      free(cell_settings);
+    }
+
     hcom_logging_syslog(LOG_INFO, "%s-%d-Failed after starting PPPD\n", thisFile, __LINE__);
     hcom_pppd_disconnected_event(cell_err);
 
@@ -533,10 +505,14 @@ void pppd_clear_state(hcom_pppd_handler_t *handler, int state)
 
 int meadow_get_cell_at_cmds_output(unsigned char *buf)
 {
-    size_t len = strlen(cell_at_cmds_output) + 1;
+  size_t len = 0; 
+  if (cell_at_cmds_output && buf)
+  {
+    len = strlen(cell_at_cmds_output) + 1;
     memcpy(buf, cell_at_cmds_output, len);
+  }
 
-    return len;
+  return len;
 }
 
 int meadow_get_cell_error (void)

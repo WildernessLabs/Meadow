@@ -32,6 +32,10 @@
 #include <debug.h>
 #include <errno.h>
 
+#ifndef MIN
+#  define MIN(a,b)                 (((a) < (b)) ? (a) : (b))
+#endif
+
 #define CMUX_BIT0 (0)
 #define CMUX_BIT1 (1)
 #define CMUX_BIT2 (2)
