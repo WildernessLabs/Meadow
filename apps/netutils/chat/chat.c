@@ -484,7 +484,7 @@ static int chat_readb(FAR struct chat *priv, FAR char *c, int timeout_ms)
     {
       if (priv->resp != NULL)
       {
-        if (priv->index < CONNECT_SCRIPT_OUTPUT_MAX_SIZE - 1)
+        if (priv->index < CHAT_SCRIPT_MAX_SIZE - 1)
         {
           priv->resp[priv->index] = *c;
           priv->index++;
