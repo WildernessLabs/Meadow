@@ -208,8 +208,10 @@ fi
 #
 # Guard: detect if .config was left by the emulator build (USB disabled).
 # The device build requires CONFIG_USBDEV=y for CDC-ACM communication.
+# Not for --emulator builds, which disable USB themselves (see below):
+# otherwise every emulator build would start from a distclean.
 #
-if [ -r "$scriptdir/nuttx/.config" ] && ! grep -q "^CONFIG_USBDEV=y" "$scriptdir/nuttx/.config"; then
+if ! $EMULATOR && [ -r "$scriptdir/nuttx/.config" ] && ! grep -q "^CONFIG_USBDEV=y" "$scriptdir/nuttx/.config"; then
     printf "WARNING: .config has USB disabled (likely from emulator build). Reconfiguring...\n"
     run_command "make -C $scriptdir/nuttx distclean -j8 $MAKE_OPTIONS $NUTTX_OPTIONS"
     rm -f "$scriptdir/nuttx/.config"
@@ -394,6 +396,13 @@ if $EMULATOR; then
   kconfig-tweak --file $NUTTX_CONFIG_FILE --set-val CONFIG_FS_TMPFS_DIRECTORY_FREEGUARD 64
   kconfig-tweak --file $NUTTX_CONFIG_FILE --set-val CONFIG_FS_TMPFS_FILE_ALLOCGUARD 512
   kconfig-tweak --file $NUTTX_CONFIG_FILE --set-val CONFIG_FS_TMPFS_FILE_FREEGUARD 512
+  # Receive flow control on UART4 (HCOM).  The emulator delivers a file download
+  # as bursts of tens of KB; without it the serial driver drops everything past
+  # its receive buffer and the download stalls.  There is no RTS pin, so the
+  # driver (stm32_serial.c, UART4 .iflow) holds the RX interrupt off while the
+  # buffer is full and the bytes wait in the emulated UART.
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable CONFIG_SERIAL_IFLOWCONTROL
+  kconfig-tweak --file $NUTTX_CONFIG_FILE --enable CONFIG_UART4_IFLOWCONTROL
 fi
 
 if $CONFIGURE_ONLY; then
