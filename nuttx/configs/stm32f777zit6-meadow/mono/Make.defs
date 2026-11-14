@@ -81,6 +81,15 @@ endif
 
 ARCHCFLAGS = -fno-builtin
 ARCHCXXFLAGS = -fno-builtin -fno-exceptions -fcheck-new -fno-rtti
+
+# GCC 14 made implicit function declarations, implicit int, int/pointer
+# conversions and incompatible pointer types errors in C.  This NuttX tree
+# relies on some of them (e.g. hypot() is used with no prototype and comes
+# from the toolchain's libm), so with GCC 14 and later turn them back into
+# the warnings GCC 10 gave.
+ifeq ($(shell test "$(ARCHCCMAJOR)" -ge 14 2>/dev/null && echo y),y)
+  ARCHCFLAGS += -fpermissive
+endif
 ARCHWARNINGS = -Wall -Wstrict-prototypes -Wshadow -Wundef
 ARCHWARNINGSXX = -Wall -Wshadow -Wundef
 ARCHDEFINES =
