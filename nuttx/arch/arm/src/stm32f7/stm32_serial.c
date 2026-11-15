@@ -784,7 +784,16 @@ static struct up_dev_s g_uart4priv =
   .bits          = CONFIG_UART4_BITS,
   .stopbits2     = CONFIG_UART4_2STOP,
 #ifdef CONFIG_SERIAL_IFLOWCONTROL
+  /* UART4 has no RTS pin (rts_gpio is 0 below), but CONFIG_UART4_IFLOWCONTROL
+   * still enables the driver's software receive flow control: the RX
+   * interrupt is held off while the receive buffer is full (used by
+   * build.sh --emulator).
+   */
+#  ifdef CONFIG_UART4_IFLOWCONTROL
+  .iflow         = true,
+#  else
   .iflow         = false,
+#  endif
 #endif
 #ifdef CONFIG_SERIAL_OFLOWCONTROL
   .oflow         = false,
